@@ -1,18 +1,12 @@
 #! /bin/zsh
-# git submodule add -b develop (https://github.com/lammps/lammps.git)
-# Initialize any uninitialized submodules
-git submodule update --init lammps
-# Remove previous build
-[ -d build ] && rm -rf build
-# Set source and target
-set -- "$@" -S ./lammps/cmake/ -B build
-# Set the python3 executable (which python3 -> Mac: /usr/local/bin; Linux: /usr/bin/)
+
+# Python3 executable (which python3 -> Mac: /usr/local/bin; Linux: /usr/bin/)
 set -- "$@" -D PYTHON_EXECUTABLE=$(which python3) -D CMAKE_INSTALL_PREFIX=/usr/local
-# LAMMPS enables OpenMP packages (https://docs.lammps.org/Speed_omp.html)
+# OpenMP packages (https://docs.lammps.org/Speed_omp.html)
 set -- "$@" -D PKG_OPENMP=yes -D PKG_PYTHON=on -D PKG_MANYBODY=on \
   -D PKG_MOLECULE=on -D PKG_KSPACE=on -D PKG_RIGID=on -D BUILD_LIB=on \
   -D BUILD_SHARED_LIBS=yes
-# OS - dependent settings ($OSTYPE sh is empty)
+# OS - dependent settings
 case "$OSTYPE" in
   darwin*)
     # Darwin (Mac OS X)
@@ -26,7 +20,11 @@ case "$OSTYPE" in
     (nvidia-smi 2>/dev/null) && set -- "$@" -D PKG_GPU=on -D GPU_API=cuda
     ;;
 esac
-# cmake configure and build
+
+# Add (or initialize) git, rm previous directory, cmake configure, and build binaries
+[ -d lammps ] && git submodule update --init lammps || git submodule add -b release https://github.com/lammps/lammps.git
+[ -d build ] && rm -rf build
+set -- "$@" -S ./lammps/cmake/ -B build
 set -x;
 cmake "$@"
 cmake --build build -j $(nproc 2>/dev/null || sysctl -n hw.logicalcpu)

@@ -3,11 +3,11 @@
 ### Installation
 Clone the repository with submodules downloaded and the master branch checked out by
 ```
-git clone --recurse-submodules -j8 git://github.com/zhteg4/nemd_pvt --branch master
+git clone --recurse-submodules -j8 git://github.com/zhteg4pvt/nemd --branch master
 ```
 Change the directory, install dependencies, and compile the source codes
 ```
-cd nemd_pvt; pip install .[dev] -v
+cd nemd; pip install .[dev] -v
 ```
 ### Testing
 Set environmental variables (recommended)

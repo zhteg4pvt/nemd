@@ -241,7 +241,7 @@ setuptools.setup(
     name=NEMD,
     version='1.0.0',
     description='A molecular simulation toolkit',
-    url='https://github.com/zhteg4/nemd_pvt',
+    url='https://github.com/zhteg4pvt/nemd',
     author='Teng Zhang',
     author_email='zhteg4@gmail.com',
     license='BSD 3-clause',

@@ -1,6 +1,6 @@
 ..........Command Options..........
-traj: /Users/tzhang/git/nemd_pvt/test/data/ar/gas/ar100.custom.gz
-data_file: /Users/tzhang/git/nemd_pvt/test/data/ar/gas/ar100.data
+traj: /Users/tzhang/git/nemd/test/data/ar/gas/ar100.custom.gz
+data_file: /Users/tzhang/git/nemd/test/data/ar/gas/ar100.data
 task: rdf
 sel: None
 last_pct: 0.8

@@ -37,10 +37,10 @@ class TestFunction:
             assert expected == envutils.get_python_mode()
 
     @pytest.mark.parametrize("nemd_scr,args,expected",
-                             [('/path/to/nemd_pvt', (), '/path/to/nemd_pvt'),
+                             [('/path/to/nemd', (), '/path/to/nemd'),
                               (None, ('data', 'test'), None),
-                              ('/path/to/nemd_pvt', ('data', 'test'),
-                               ('/path/to/nemd_pvt/data/test'))])
+                              ('/path/to/nemd', ('data', 'test'),
+                               ('/path/to/nemd/data/test'))])
     def testGetNemdSrc(self, nemd_scr, args, expected):
         environ = {} if nemd_scr is None else {'NEMD_SRC': nemd_scr}
         with mock.patch.dict('os.environ', environ, clear=True):

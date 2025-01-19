@@ -1,6 +1,6 @@
 ..........Command Options..........
-traj: /Users/tzhang/git/nemd_pvt/test/data/hexane_liquid/dump.custom.gz
-data_file: /Users/tzhang/git/nemd_pvt/test/data/hexane_liquid/polymer_builder.data
+traj: /Users/tzhang/git/nemd/test/data/hexane_liquid/dump.custom.gz
+data_file: /Users/tzhang/git/nemd/test/data/hexane_liquid/polymer_builder.data
 task: rdf xyz clash density msd
 last_pct: 0.05
 slice: (0, 150, 1)

@@ -1,6 +1,6 @@
 ..........Command Options..........
-traj: /Users/tzhang/git/nemd_pvt/test/data/water/dump.custom.gz
-data_file: /Users/tzhang/git/nemd_pvt/test/data/water/polymer_builder.data
+traj: /Users/tzhang/git/nemd/test/data/water/dump.custom.gz
+data_file: /Users/tzhang/git/nemd/test/data/water/polymer_builder.data
 task: view rdf density clash xyz msd
 last_pct: 0.6
 slice: (0, 3, 1)

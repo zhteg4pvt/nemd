@@ -2,11 +2,11 @@ import pandas as pd
 
 from nemd import plotutils
 
-mac = pd.read_csv('~/git/nemd_pvt/test/performance/0001/0001_macOS.csv',
+mac = pd.read_csv('~/git/nemd/test/performance/0001/0001_macOS.csv',
                   index_col=0)
 ylabel = mac.columns[0]
 mac.rename(columns={ylabel: "macOS"}, inplace=True)
-ubuntu = pd.read_csv('~/git/nemd_pvt/test/performance/0001/0001_ubuntu.csv',
+ubuntu = pd.read_csv('~/git/nemd/test/performance/0001/0001_ubuntu.csv',
                      index_col=0)
 mac.rename(columns={ylabel: "Ubuntu"}, inplace=True)
 data = pd.concat((mac, ubuntu), axis=1)

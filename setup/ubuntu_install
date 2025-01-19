@@ -5,13 +5,13 @@ sudo apt update
 sudo apt-get install -y git gh vim python3-pip
 # Git Configuration
 SCRIPT_DIR=$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)
-if [ $(basename $SCRIPT_DIR) != nemd_pvt && ! -d ~/git/nemd_pvt ]; then
+if [ $(basename $SCRIPT_DIR) != nemd && ! -d ~/git/nemd ]; then
   gh auth login --hostname GitHub.com --web
   gh auth setup-git
   git config --global user.email zhteg4@gmail.com
   git config --global user.name 'Tony Zhang'
   git config --global core.editor "vim"
-  gh repo clone zhteg4/nemd_pvt ~/git/nemd_pvt
+  gh repo clone zhteg4pvt/nemd ~/git/nemd
 fi
 # pip install copies executables to this bin,
 # and, ~/.profile includes user's private bin if it exists
