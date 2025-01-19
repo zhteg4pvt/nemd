@@ -14,12 +14,13 @@ if [ $(basename $SCRIPT_DIR) != nemd ] && [ ! -d ~/git/nemd ]; then
   gh auth setup-git
   gh repo clone zhteg4pvt/nemd ~/git/nemd
 fi
-# pip-installed bin, included by ~/.profile
-mkdir -p $(python3 -m site --user-base)/bin
+# pip installs executables into this bin (included by ~/.profile)
+BIN=$(python3 -m site --user-base)/bin
+echo $PATH | grep -q -v $BIN && export PATH="$BIN${PATH:+":$PATH"}" && mkdir -p $BIN
 # NVIDIA GPU: * NVIDIA Corporation GP104 [GeForce GTX 1080] *
 (lspci | grep VGA | grep -q -v NVIDIA) && echo 'No NVIDIA GPU found.' && exit 0
 sudo ubuntu-drivers --gpgpu install
 sudo apt upgrade -y
-read -p "Driver installed. Reboot? [y/n]?" answer
+read -p "Driver installed. Reboot? [y/n]? " answer
 case "$answer" in Y|y) echo "rebooting..."; reboot ;; *) ;; esac
 echo "no reboot. (GPU driver may not be working)"

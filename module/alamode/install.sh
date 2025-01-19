@@ -13,7 +13,7 @@ case "$OSTYPE" in
     CMAKE_CXX_COMPILER=$(which clang++)
     ;;
   linux*)
-    SPGLIB_ROOT=$(python3 -c "import spglib; print(spglib.__path__[0])")
+    SPGLIB_ROOT=$(python3 -m site --user-site)/spglib
     CMAKE_C_COMPILER=$(which gcc)
     CMAKE_CXX_COMPILER=$(which g++)
     ;;
