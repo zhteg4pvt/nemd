@@ -1,28 +1,25 @@
 #!/bin/bash
 
-# Packages, Git Configuration, and Git Clone
+# Version, Packages, Git Configuration
 lsb_release -sr  # 22.04
 sudo apt-get install -y git gh vim python3-pip
 name=$(git config user.name)
 [ -z $name ] && git config --global core.editor "vim"
 [ -z $name ] && git config --global user.email $(whoami)@gmail.com
 [ -z $name ] && git config --global user.name $(whoami)
+# Clone
 SCRIPT_DIR=$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)
 if [ $(basename $SCRIPT_DIR) != nemd ] && [ ! -d ~/git/nemd ]; then
   gh auth login --hostname GitHub.com --web
   gh auth setup-git
   gh repo clone zhteg4pvt/nemd ~/git/nemd
 fi
-# pip installs executables into this bin, and, ~/.profile includes it if it exists
+# pip-installed bin, included by ~/.profile
 mkdir -p $(python3 -m site --user-base)/bin
 # NVIDIA GPU: * NVIDIA Corporation GP104 [GeForce GTX 1080] *
 (lspci | grep VGA | grep -q -v NVIDIA) && echo 'No NVIDIA GPU found.' && exit 0
 sudo ubuntu-drivers --gpgpu install
 sudo apt upgrade -y
 read -p "Driver installed. Reboot? [y/n]?" answer
-case "$answer" in
-    [Yy]* ) echo "rebooting...";
-            reboot
-	    ;;
-    * ) echo "no reboot. (GPU driver may not be working)";;
-esac
+case "$answer" in Y|y) echo "rebooting..."; reboot ;; *) ;; esac
+echo "no reboot. (GPU driver may not be working)"
