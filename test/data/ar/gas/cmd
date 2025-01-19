@@ -1,0 +1,4 @@
+run_nemd amorp_bldr_driver.py [Ar] -density 0.0016 -mol_num 100 -cpu 8 -relax_time 0.1 -prod_time 0.1 -JOBNAME ar100 -seed 6
+run_nemd lammps_driver.py ar100.in -cpu 6
+run_nemd lmp_traj_driver.py ar100.custom.gz -data_file ar100.data
+gzip -dk ar100.custom.gz

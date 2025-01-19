@@ -1,0 +1,2 @@
+# Workflow on the torsion measurement: amorphous builder, single point energy, and log analysis
+run_nemd mb_lmp_log_workflow.py CCCC -struct_rg CCCC -seed 123

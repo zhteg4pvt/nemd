@@ -1,0 +1,1 @@
+echo '# 0046';run_nemd mb_lmp_log_workflow.py CCCC -struct_rg "CCCC:0,10,5" -JOBNAME mb_lmp_log

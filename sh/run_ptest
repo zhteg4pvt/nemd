@@ -1,0 +1,13 @@
+#!/bin/sh
+# Under the BSD 3-Clause License by Teng Zhang (zhteg4@gmail.com)
+: '
+Run performance tests.
+
+Usage:
+  run_ptest [int int...]
+  run_ptest -dir DIR
+  An empty argument runs all tests in $NEMD_SRC/test/performance.
+'
+export MEM_INTVL=1
+set -- run_nemd test_workflow.py -name performance "$@"
+echo "$@" && "$@"

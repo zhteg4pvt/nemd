@@ -1,0 +1,20 @@
+Lenovo ideacentre Y710 Cube-15ISH
+Intel® Core™ i7-6700 CPU @ 3.40GHz × 8
+NVIDIA Corporation GP104 [GeForce GTX 1080]
+Ubuntu 22.04.5 LTS
+64-bit
+16GiB System Memory: 2 x 8GiB DIMM DDR4 Synchronous 2133 MHz
+2 x 128KiB L1 cache; 1MiB L2 cache; 8MiB L3 cache
+Internal Solid State Drive (256GB TLC SATA 6Gbps)
+
+/etc/default/zramswap
+ALGO=lz4
+PERCENT=300
+
+zram compresses 48 GB into 16 GB in RAM, and thus it works fine to build 500,000,000 [Ar].
+FIXME: the cotents in the /swapfile file are not compressed, and thus it crashes
+  when building 700,000,000 [Ar] (> 20 GB cotents saved in /swapfile)
+
+https://askubuntu.com/questions/927854/how-do-i-increase-the-size-of-swapfile-without-removing-it-in-the-terminal
+https://www.craftware.info/projects-lists/faster-linux-on-low-memory-using-zram-ubuntu-22-04/
+https://ubuntuhandbook.org/index.php/2024/08/enable-zswap-ubuntu/

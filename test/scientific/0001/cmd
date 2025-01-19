@@ -1,0 +1,4 @@
+# Methane Gas: amorphous builder on C; lammps simulation; density
+run_nemd ab_lmp_traj_workflow.py C -cru_num 10 -mol_num 200 -seed 5678 -temp 298.15 -prod_ens NPT -last_pct 0.4 -task density -state_num 4
+# 0.657 kg/m3(gas, 25 °C, 1 atm) from https://en.wikipedia.org/wiki/Methane
+

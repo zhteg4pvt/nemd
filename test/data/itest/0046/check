@@ -1,0 +1,1 @@
+cmp(mb_lmp_log_toteng.csv, mb_lmp_log_toteng.csv) and exist(mb_lmp_log_toteng.png)

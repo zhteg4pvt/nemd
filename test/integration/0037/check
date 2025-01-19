@@ -1,0 +1,1 @@
+cmp('lmp_traj_rdf.csv', 'lmp_traj_rdf.csv') and cmp('lmp_traj_clash.csv', 'lmp_traj_clash.csv') and cmp('lmp_traj_msd.csv', 'lmp_traj_msd.csv') and cmp('lmp_traj_density.csv', 'lmp_traj_density.csv') and cmp('lmp_traj_xyz.xyz','lmp_traj_xyz.xyz')

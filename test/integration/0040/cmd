@@ -1,0 +1,2 @@
+# Workflow on Si for energy over lattice: crystal builder, single point energy, and log analysis
+run_nemd cb_lmp_log_workflow.py -task TotEng -scaled_range 0.95 1.00 0.05 -temp 0

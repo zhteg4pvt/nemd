@@ -1,0 +1,35 @@
+..........Command Options..........
+cru: [Ar]
+cru_num: 1
+mol_num: 100
+no_minimize: False
+rigid_bond: None
+rigid_angle: None
+substruct: None
+buffer: None
+seed: 6
+timestep: 1
+stemp: 10
+temp: 300
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 0.1
+prod_time: 0.1
+prod_ens: NVE
+force_field: FF_MODEL(ff='OPLSUA', model='TIP3P')
+cell: grow
+density: 0.0016
+interactive: False
+jobname: ar100
+default_name: amorp_bldr
+debug: False
+python: 2
+cpu: 8
+JobStart: 16:33:22 11/05/24
+...................................
+ERROR: [16:33:22] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
+Data file written into ar100.data
+In script written into ar100.in
+Finished.
+16:33:24 11/05/24

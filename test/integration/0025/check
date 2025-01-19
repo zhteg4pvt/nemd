@@ -1,0 +1,2 @@
+cmp('dispersion.data', 'dispersion.data') and cmp('dispersion.pattern_HARMONIC', 'suggest/dispersion.pattern_HARMONIC') and cmp('dispersion.bands', 'phonons/dispersion.bands')
+# xml isn't compared due to non-significant difference: e.g. <FC2 pairs="0 9" multiplicity="1">1.003614294873896e-03</FC2> (mac) vs 1.003614294873972e-03 (ubuntu)

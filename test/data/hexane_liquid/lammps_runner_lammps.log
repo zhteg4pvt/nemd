@@ -1,0 +1,1292 @@
+LAMMPS (29 Aug 2024 - Development - patch_29Aug2024-451-g5322b172bd)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread. (src/comm.cpp:98)
+  using 1 OpenMP thread(s) per MPI task
+units real
+atom_style full
+bond_style harmonic
+angle_style harmonic
+dihedral_style opls
+improper_style cvff
+pair_style lj/cut 11.0
+pair_modify mix geometric
+special_bonds lj/coul 0 0 0.5
+read_data polymer_builder.data
+Reading data file ...
+  orthogonal box = (0 0 0) to (44.7207 44.7207 44.7207)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3000 atoms
+  scanning bonds ...
+  1 = max bonds/atom
+  scanning angles ...
+  1 = max angles/atom
+  scanning dihedrals ...
+  1 = max dihedrals/atom
+  orthogonal box = (0 0 0) to (44.7207 44.7207 44.7207)
+  1 by 1 by 1 MPI processor grid
+  reading bonds ...
+  2500 bonds
+  reading angles ...
+  2000 angles
+  reading dihedrals ...
+  1500 dihedrals
+Finding 1-2 1-3 1-4 neighbors ...
+  special bond factors lj:    0        0        0.5     
+  special bond factors coul:  0        0        0.5     
+     2 = max # of 1-2 neighbors
+     2 = max # of 1-3 neighbors
+     3 = max # of 1-4 neighbors
+     5 = max # of special neighbors
+  special bonds CPU = 0.001 seconds
+  read_data CPU = 0.029 seconds
+
+timestep 1
+thermo_modify flush yes
+thermo 1000
+dump 1 all custom 1000 dump.custom.gz id xu yu zu
+dump_modify 1 sort id
+min_style fire
+minimize 1.0e-6 1.0e-8 1000000 10000000
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Your simulation uses code contributions which should be cited:
+
+- Type Label Framework: https://doi.org/10.1021/acs.jpcb.3c08419
+
+@Article{Gissinger24,
+ author = {Jacob R. Gissinger, Ilia Nikiforov, Yaser Afshar, Brendon Waters, Moon-ki Choi, Daniel S. Karls, Alexander Stukowski, Wonpil Im, Hendrik Heinz, Axel Kohlmeyer, and Ellad B. Tadmor},
+ title = {Type Label Framework for Bonded Force Fields in LAMMPS},
+ journal = {J. Phys. Chem. B},
+ year =    2024,
+ volume =  128,
+ number =  13,
+ pages =   {3282--3297}
+}
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 13
+  ghost atom cutoff = 13
+  binsize = 6.5, bins = 7 7 7
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair lj/cut, perpetual
+      attributes: half, newton on
+      pair build: half/bin/newton
+      stencil: half/bin/3d
+      bin: standard
+  Parameters for fire:
+    dmax  delaystep dtgrow dtshrink alpha0 alphashrink tmax tmin   integrator   halfstepback   abcfire  
+     0.1     20      1.1     0.5     0.25     0.99      10  0.02 eulerimplicit      yes          no     
+Per MPI rank memory allocation (min/avg/max) = 9.044 | 9.044 | 9.044 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+         0   0              951591.43      3135.108       954726.54      2988313.7    
+      1000   0.10138438    -3306.2155      1032.3684     -2272.9408      1862.3769    
+      2000   0.33174263    -3500.6115      1021.026      -2476.6199      710.07054    
+      3000   0.082638958   -3580.5423      1021.7522     -2558.0514      238.59925    
+      3527   0.12160813    -3605.7799      1021.7241     -2582.9688      87.391244    
+Loop time of 28.2246 on 1 procs for 3527 steps with 3000 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+      954726.540359446  -2584.05708124155  -2584.05585997972
+  Force two-norm initial, final = 330964.84 28.451225
+  Force max component initial, final = 31991.934 8.2945001
+  Final line search alpha, max atom move = 0 0
+  Iterations, force evaluations = 3527 3720
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 26.201     | 26.201     | 26.201     |   0.0 | 92.83
+Bond    | 1.4583     | 1.4583     | 1.4583     |   0.0 |  5.17
+Neigh   | 0.21021    | 0.21021    | 0.21021    |   0.0 |  0.74
+Comm    | 0.13176    | 0.13176    | 0.13176    |   0.0 |  0.47
+Output  | 0.006949   | 0.006949   | 0.006949   |   0.0 |  0.02
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.216      |            |       |  0.77
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8842 ave        8842 max        8842 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         457245 ave      457245 max      457245 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 457245
+Ave neighs/atom = 152.415
+Ave special neighs/atom = 4
+Neighbor list builds = 15
+Dangerous builds = 0
+
+velocity all create 10 836689
+fix 1a all temp/berendsen 10 10 100
+fix 1b all nve
+run 1000
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      3527   10            -3605.7799      1021.7241     -2494.6614      132.52527    
+      4000   10.410782     -3614.0618      1071.6063     -2449.3888      89.593829    
+      4527   10.661562     -3657.8526      1060.9527     -2501.5914     -240.04583    
+Loop time of 5.03473 on 1 procs for 1000 steps with 3000 atoms
+
+Performance: 17.161 ns/day, 1.399 hours/ns, 198.620 timesteps/s, 595.861 katom-step/s
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 4.5835     | 4.5835     | 4.5835     |   0.0 | 91.04
+Bond    | 0.3282     | 0.3282     | 0.3282     |   0.0 |  6.52
+Neigh   | 0.040896   | 0.040896   | 0.040896   |   0.0 |  0.81
+Comm    | 0.034635   | 0.034635   | 0.034635   |   0.0 |  0.69
+Output  | 0.0022769  | 0.0022769  | 0.0022769  |   0.0 |  0.05
+Modify  | 0.031865   | 0.031865   | 0.031865   |   0.0 |  0.63
+Other   |            | 0.01337    |            |       |  0.27
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8854 ave        8854 max        8854 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         457175 ave      457175 max      457175 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 457175
+Ave neighs/atom = 152.39167
+Ave special neighs/atom = 4
+Neighbor list builds = 3
+Dangerous builds = 0
+unfix 1b
+unfix 1a
+
+fix 2a all temp/berendsen 10 300 100
+fix 2b all nve
+run 10000
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      4527   10.661562     -3657.8526      1060.9527     -2501.5914     -240.04583    
+      5000   19.753322     -3631.1169      1061.0825     -2393.4506     -102.20478    
+      6000   47.790689     -3498.2618      1129.1727     -1941.8667      715.85984    
+      7000   75.936335     -3398.8897      1222.305      -1497.7557      1304.2539    
+      8000   106.79029     -3323.724       1287.3208     -1081.7568      1812.2097    
+      9000   136.99189     -3299.9962      1379.2825     -696.08168      2314.2127    
+     10000   164.53494     -3211.7708      1463.5821     -277.33691      3181.9545    
+     11000   196.28251     -3263.5198      1558.4334      49.571164      2961.8497    
+     12000   225.54642     -3286.6186      1656.2738      385.91587      3487.6425    
+     13000   247.73574     -3257.8955      1789.9442      746.66989      3869.3431    
+     14000   281.73933     -3275.9328      1847.4945      1090.1561      4775.6687    
+     14527   295.95519     -3333.8055      1988.0984      1299.9694      4795.7515    
+Loop time of 52.8729 on 1 procs for 10000 steps with 3000 atoms
+
+Performance: 16.341 ns/day, 1.469 hours/ns, 189.133 timesteps/s, 567.398 katom-step/s
+99.2% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 47.03      | 47.03      | 47.03      |   0.0 | 88.95
+Bond    | 3.3203     | 3.3203     | 3.3203     |   0.0 |  6.28
+Neigh   | 1.6657     | 1.6657     | 1.6657     |   0.0 |  3.15
+Comm    | 0.36981    | 0.36981    | 0.36981    |   0.0 |  0.70
+Output  | 0.023206   | 0.023206   | 0.023206   |   0.0 |  0.04
+Modify  | 0.32564    | 0.32564    | 0.32564    |   0.0 |  0.62
+Other   |            | 0.138      |            |       |  0.26
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8862 ave        8862 max        8862 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         456738 ave      456738 max      456738 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 456738
+Ave neighs/atom = 152.246
+Ave special neighs/atom = 4
+Neighbor list builds = 116
+Dangerous builds = 0
+unfix 2b
+unfix 2a
+
+dump_modify 1 every 10000
+
+variable vol equal vol
+variable amp equal 0.01*v_vol^(1/3)
+variable immed_press python getPress
+python getPress input 1 press_vol.data return v_immed_press format sf here "from nemd.lmpfunc import getPress"
+
+variable immed_modulus python getModulus
+python getModulus input 2 press_vol.data 100 return v_immed_modulus format sif here "from nemd.lmpfunc import getModulus"
+
+variable factor python getBdryFactor
+python getBdryFactor input 2 1 press_vol.data return v_factor format fsf here "from nemd.lmpfunc import getBdryFactor"
+
+variable defm_id loop 0 99 pad
+label defm_start
+print "defm_id = ${defm_id}"
+defm_id = 00
+shell mkdir defm_${defm_id}
+shell mkdir defm_00
+shell cd defm_${defm_id}
+shell cd defm_00
+
+fix 15a all ave/time 1 25 25 c_thermo_press v_vol file press_vol.data
+fix 15b all deform 100 x wiggle ${amp} 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.447207 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.447207 2500 y wiggle 0.447207 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.447207 2500 y wiggle 0.447207 2500 z wiggle 0.447207 2500
+fix 15c all temp/berendsen 300 300 100
+fix 15d all nve
+run 7500
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     14527   295.95519     -3333.8055      1988.0984      1299.9694      4795.7515      89438.762    
+     15000   295.24728     -3351.2192      2006.7376      1294.8665      4042.3304      91951.681    
+     16000   308.57348     -3360.8939      1884.8235      1282.4066      4755.1039      88020.025    
+     17000   302.30187     -3524.5006      1882.3714      1060.2829      5164.2982      89256.95     
+     18000   301.04914     -3506.553       1880.2846      1064.9451      4764.513       91170.503    
+     19000   296.94804     -3580.8948      1846.5656      920.22272      5260.7239      86861.729    
+     20000   297.74684     -3684.7731      1803.8695      780.78919      4829.6141      91951.681    
+     21000   310.98137     -3673.0642      1757.1039      864.04197      4211.0817      88020.025    
+     22000   299.54812     -3714.8749      1754.9138      717.83421      5241.9314      89256.95     
+     22027   297.65033     -3731.2509      1769.4857      699.0648       6086.8133      89256.95     
+Loop time of 40.8666 on 1 procs for 7500 steps with 3000 atoms
+
+Performance: 15.856 ns/day, 1.514 hours/ns, 183.524 timesteps/s, 550.571 katom-step/s
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 35.498     | 35.498     | 35.498     |   0.0 | 86.86
+Bond    | 2.8612     | 2.8612     | 2.8612     |   0.0 |  7.00
+Neigh   | 1.821      | 1.821      | 1.821      |   0.0 |  4.46
+Comm    | 0.27295    | 0.27295    | 0.27295    |   0.0 |  0.67
+Output  | 0.0025298  | 0.0025298  | 0.0025298  |   0.0 |  0.01
+Modify  | 0.30986    | 0.30986    | 0.30986    |   0.0 |  0.76
+Other   |            | 0.1014     |            |       |  0.25
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8830 ave        8830 max        8830 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         457360 ave      457360 max      457360 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 457360
+Ave neighs/atom = 152.45333
+Ave special neighs/atom = 4
+Neighbor list builds = 127
+Dangerous builds = 0
+unfix 15d
+unfix 15c
+unfix 15b
+unfix 15a
+
+print "immed_press = ${immed_press}"
+immed_press = 4778.28548494983
+print "immed_modulus = ${immed_modulus}"
+immed_modulus = 53140.4249752087
+print "factor = ${factor}"
+factor = 1.01231428059862
+if "${defm_id} == 99 || ${factor} == 1" then "jump SELF defm_break"
+
+fix 21a all deform 100 x scale ${factor} y scale ${factor} z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231428059862 y scale ${factor} z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231428059862 y scale 1.01231428059862 z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231428059862 y scale 1.01231428059862 z scale 1.01231428059862 remap v
+fix 21b all temp/berendsen 300 300 100
+fix 21c all nve
+run 1250
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     22027   297.60245     -3731.2509      1769.4857      698.63681      6086.5941      89256.95     
+     23000   300.81546     -3785.47        1826.8972      730.55178      2569.0839      91848.332    
+     23277   296.53287     -3789.2881      1860.8485      722.40092      1827.2709      92387.129    
+Loop time of 6.64907 on 1 procs for 1250 steps with 3000 atoms
+
+Performance: 16.243 ns/day, 1.478 hours/ns, 187.996 timesteps/s, 563.988 katom-step/s
+101.3% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.8499     | 5.8499     | 5.8499     |   0.0 | 87.98
+Bond    | 0.40363    | 0.40363    | 0.40363    |   0.0 |  6.07
+Neigh   | 0.28942    | 0.28942    | 0.28942    |   0.0 |  4.35
+Comm    | 0.047299   | 0.047299   | 0.047299   |   0.0 |  0.71
+Output  | 9.2557e-05 | 9.2557e-05 | 9.2557e-05 |   0.0 |  0.00
+Modify  | 0.041083   | 0.041083   | 0.041083   |   0.0 |  0.62
+Other   |            | 0.01763    |            |       |  0.27
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8762 ave        8762 max        8762 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         441664 ave      441664 max      441664 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 441664
+Ave neighs/atom = 147.22133
+Ave special neighs/atom = 4
+Neighbor list builds = 20
+Dangerous builds = 0
+unfix 21c
+unfix 21b
+unfix 21a
+
+fix 22a all temp/berendsen 300 300 100
+fix 22b all nve
+run 1250
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+     23277   296.53287     -3789.2881      1860.8485      722.40092      1827.2709    
+     24000   299.13589     -3802.3138      1886.8671      758.66339      2643.4692    
+     24527   303.19822     -3770.2074      1798.4859      738.70359      4420.2362    
+Loop time of 6.55028 on 1 procs for 1250 steps with 3000 atoms
+
+Performance: 16.488 ns/day, 1.456 hours/ns, 190.831 timesteps/s, 572.494 katom-step/s
+99.4% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.7722     | 5.7722     | 5.7722     |   0.0 | 88.12
+Bond    | 0.40604    | 0.40604    | 0.40604    |   0.0 |  6.20
+Neigh   | 0.26662    | 0.26662    | 0.26662    |   0.0 |  4.07
+Comm    | 0.046655   | 0.046655   | 0.046655   |   0.0 |  0.71
+Output  | 0.0001273  | 0.0001273  | 0.0001273  |   0.0 |  0.00
+Modify  | 0.041      | 0.041      | 0.041      |   0.0 |  0.63
+Other   |            | 0.01764    |            |       |  0.27
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8652 ave        8652 max        8652 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         441729 ave      441729 max      441729 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 441729
+Ave neighs/atom = 147.243
+Ave special neighs/atom = 4
+Neighbor list builds = 19
+Dangerous builds = 0
+unfix 22b
+unfix 22a
+
+shell cd ..
+next defm_id
+jump SELF defm_start
+print "defm_id = ${defm_id}"
+defm_id = 01
+shell mkdir defm_${defm_id}
+shell mkdir defm_01
+shell cd defm_${defm_id}
+shell cd defm_01
+
+fix 15a all ave/time 1 25 25 c_thermo_press v_vol file press_vol.data
+fix 15b all deform 100 x wiggle ${amp} 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.452068060512316 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.452068060512316 2500 y wiggle 0.452068060512316 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.452068060512316 2500 y wiggle 0.452068060512316 2500 z wiggle 0.452068060512316 2500
+fix 15c all temp/berendsen 300 300 100
+fix 15d all nve
+run 7500
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     24527   303.19822     -3770.2074      1798.4859      738.70359      4420.2362      92387.129    
+     25000   301.9461      -3779.9366      1847.3629      766.65813      2964.5565      94982.888    
+     26000   301.89466     -3758.0656      1838.6587      779.36524      2035.1407      90921.624    
+     27000   294.90362     -3798.123       1797.6095      635.76248      4387.6892      92199.324    
+     28000   298.99563     -3785.9913      1853.8917      740.75675      3637.4439      94175.957    
+     29000   298.88361     -3803.9974      1757.9926      625.85017      3152.8735      89725.144    
+     30000   295.97928     -3793.8537      1811.2542      663.29238      4120.0101      94982.888    
+     31000   307.29199     -3830.3875      1758.5778      675.21152      2574.7196      90921.624    
+     32000   299.49709     -3839.9439      1800.3134      637.70861      3535.1011      92199.324    
+     32027   300.72445     -3924.659       1870.3252      633.97724      4505.8355      92199.324    
+Loop time of 40.1055 on 1 procs for 7500 steps with 3000 atoms
+
+Performance: 16.157 ns/day, 1.485 hours/ns, 187.007 timesteps/s, 561.020 katom-step/s
+99.1% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 34.821     | 34.821     | 34.821     |   0.0 | 86.82
+Bond    | 2.8891     | 2.8891     | 2.8891     |   0.0 |  7.20
+Neigh   | 1.6773     | 1.6773     | 1.6773     |   0.0 |  4.18
+Comm    | 0.27907    | 0.27907    | 0.27907    |   0.0 |  0.70
+Output  | 0.0025878  | 0.0025878  | 0.0025878  |   0.0 |  0.01
+Modify  | 0.33105    | 0.33105    | 0.33105    |   0.0 |  0.83
+Other   |            | 0.1059     |            |       |  0.26
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8777 ave        8777 max        8777 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         445662 ave      445662 max      445662 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 445662
+Ave neighs/atom = 148.554
+Ave special neighs/atom = 4
+Neighbor list builds = 122
+Dangerous builds = 0
+unfix 15d
+unfix 15c
+unfix 15b
+unfix 15a
+
+print "immed_press = ${immed_press}"
+immed_press = 3193.10989966555
+print "immed_modulus = ${immed_modulus}"
+immed_modulus = 41633.7996785157
+print "factor = ${factor}"
+factor = 1.01231416912463
+if "${defm_id} == 99 || ${factor} == 1" then "jump SELF defm_break"
+
+fix 21a all deform 100 x scale ${factor} y scale ${factor} z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231416912463 y scale ${factor} z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231416912463 y scale 1.01231416912463 z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231416912463 y scale 1.01231416912463 z scale 1.01231416912463 remap v
+fix 21b all temp/berendsen 300 300 100
+fix 21c all nve
+run 1250
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     32027   300.63163     -3924.659       1870.3252      633.14748      4505.4241      92199.324    
+     33000   306.99603     -3866.6934      1868.6678      746.34982      590.09797      94876.107    
+     33277   301.16296     -3815.8088      1906.0008      782.42304      84.014421      95432.661    
+Loop time of 6.46899 on 1 procs for 1250 steps with 3000 atoms
+
+Performance: 16.695 ns/day, 1.438 hours/ns, 193.230 timesteps/s, 579.689 katom-step/s
+100.9% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.7144     | 5.7144     | 5.7144     |   0.0 | 88.34
+Bond    | 0.40972    | 0.40972    | 0.40972    |   0.0 |  6.33
+Neigh   | 0.23568    | 0.23568    | 0.23568    |   0.0 |  3.64
+Comm    | 0.048049   | 0.048049   | 0.048049   |   0.0 |  0.74
+Output  | 0.00011669 | 0.00011669 | 0.00011669 |   0.0 |  0.00
+Modify  | 0.042617   | 0.042617   | 0.042617   |   0.0 |  0.66
+Other   |            | 0.0184     |            |       |  0.28
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8605 ave        8605 max        8605 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         427017 ave      427017 max      427017 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 427017
+Ave neighs/atom = 142.339
+Ave special neighs/atom = 4
+Neighbor list builds = 18
+Dangerous builds = 0
+unfix 21c
+unfix 21b
+unfix 21a
+
+fix 22a all temp/berendsen 300 300 100
+fix 22b all nve
+run 1250
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+     33277   301.16296     -3815.8088      1906.0008      782.42304      84.014421    
+     34000   300.68314     -3796.7781      1873.9403      765.10385      1271.5568    
+     34527   297.50006     -3827.4197      1891.0931      723.16007      3581.8976    
+Loop time of 6.29317 on 1 procs for 1250 steps with 3000 atoms
+
+Performance: 17.161 ns/day, 1.398 hours/ns, 198.628 timesteps/s, 595.884 katom-step/s
+99.1% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.5556     | 5.5556     | 5.5556     |   0.0 | 88.28
+Bond    | 0.41386    | 0.41386    | 0.41386    |   0.0 |  6.58
+Neigh   | 0.21423    | 0.21423    | 0.21423    |   0.0 |  3.40
+Comm    | 0.048439   | 0.048439   | 0.048439   |   0.0 |  0.77
+Output  | 0.00011369 | 0.00011369 | 0.00011369 |   0.0 |  0.00
+Modify  | 0.042487   | 0.042487   | 0.042487   |   0.0 |  0.68
+Other   |            | 0.01849    |            |       |  0.29
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8636 ave        8636 max        8636 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         426665 ave      426665 max      426665 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 426665
+Ave neighs/atom = 142.22167
+Ave special neighs/atom = 4
+Neighbor list builds = 18
+Dangerous builds = 0
+unfix 22b
+unfix 22a
+
+shell cd ..
+next defm_id
+jump SELF defm_start
+print "defm_id = ${defm_id}"
+defm_id = 02
+shell mkdir defm_${defm_id}
+shell mkdir defm_02
+shell cd defm_${defm_id}
+shell cd defm_02
+
+fix 15a all ave/time 1 25 25 c_thermo_press v_vol file press_vol.data
+fix 15b all deform 100 x wiggle ${amp} 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.456981912629901 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.456981912629901 2500 y wiggle 0.456981912629901 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.456981912629901 2500 y wiggle 0.456981912629901 2500 z wiggle 0.456981912629901 2500
+fix 15c all temp/berendsen 300 300 100
+fix 15d all nve
+run 7500
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     34527   297.50006     -3827.4197      1891.0931      723.16007      3581.8976      95432.661    
+     35000   306.91441     -3792.6013      1812.1204      763.16499      2853.9695      98113.988    
+     36000   304.26966     -3794.8658      1817.1025      742.23989      2013.4688      93918.845    
+     37000   302.99084     -3863.8926      1795.116       639.79465      3039.5911      95238.664    
+     38000   295.59441     -3750.0567      1846.1353      738.52976      2053.0354      97280.457    
+     39000   302.36217     -3865.0313      1794.7158      632.63574      1422.8218      92682.924    
+     40000   297.29138     -3782.8979      1854.8692      729.59245      3263.8202      98113.988    
+     41000   309.33199     -3800.1275      1797.9607      763.09082      1494.0792      93918.845    
+     42000   298.47086     -3861.0627      1804.1597      611.26208      3003.5309      95238.664    
+     42027   299.87381     -3895.8911      1832.7921      617.60768      3688.1294      95238.664    
+Loop time of 38.4449 on 1 procs for 7500 steps with 3000 atoms
+
+Performance: 16.855 ns/day, 1.424 hours/ns, 195.084 timesteps/s, 585.253 katom-step/s
+99.3% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 33.416     | 33.416     | 33.416     |   0.0 | 86.92
+Bond    | 2.8635     | 2.8635     | 2.8635     |   0.0 |  7.45
+Neigh   | 1.4591     | 1.4591     | 1.4591     |   0.0 |  3.80
+Comm    | 0.27261    | 0.27261    | 0.27261    |   0.0 |  0.71
+Output  | 0.0025548  | 0.0025548  | 0.0025548  |   0.0 |  0.01
+Modify  | 0.32708    | 0.32708    | 0.32708    |   0.0 |  0.85
+Other   |            | 0.1037     |            |       |  0.27
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8722 ave        8722 max        8722 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         431114 ave      431114 max      431114 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 431114
+Ave neighs/atom = 143.70467
+Ave special neighs/atom = 4
+Neighbor list builds = 117
+Dangerous builds = 0
+unfix 15d
+unfix 15c
+unfix 15b
+unfix 15a
+
+print "immed_press = ${immed_press}"
+immed_press = 2114.40043110368
+print "immed_modulus = ${immed_modulus}"
+immed_modulus = 34936.4576621494
+print "factor = ${factor}"
+factor = 1.01231404444088
+if "${defm_id} == 99 || ${factor} == 1" then "jump SELF defm_break"
+
+fix 21a all deform 100 x scale ${factor} y scale ${factor} z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231404444088 y scale ${factor} z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231404444088 y scale 1.01231404444088 z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231404444088 y scale 1.01231404444088 z scale 1.01231404444088 remap v
+fix 21b all temp/berendsen 300 300 100
+fix 21c all nve
+run 1250
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     42027   299.76426     -3895.8911      1832.7921      616.62842      3687.6594      95238.664    
+     43000   303.52211     -3830.5517      1908.8771      791.64592     -120.16081      98003.659    
+     43277   301.05677     -3809.3405      1916.8922      798.83343     -695.05993      98578.554    
+Loop time of 5.98548 on 1 procs for 1250 steps with 3000 atoms
+
+Performance: 18.044 ns/day, 1.330 hours/ns, 208.839 timesteps/s, 626.516 katom-step/s
+101.9% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.2896     | 5.2896     | 5.2896     |   0.0 | 88.37
+Bond    | 0.39089    | 0.39089    | 0.39089    |   0.0 |  6.53
+Neigh   | 0.20643    | 0.20643    | 0.20643    |   0.0 |  3.45
+Comm    | 0.043122   | 0.043122   | 0.043122   |   0.0 |  0.72
+Output  | 0.00011941 | 0.00011941 | 0.00011941 |   0.0 |  0.00
+Modify  | 0.03883    | 0.03883    | 0.03883    |   0.0 |  0.65
+Other   |            | 0.01648    |            |       |  0.28
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8456 ave        8456 max        8456 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         412700 ave      412700 max      412700 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 412700
+Ave neighs/atom = 137.56667
+Ave special neighs/atom = 4
+Neighbor list builds = 18
+Dangerous builds = 0
+unfix 21c
+unfix 21b
+unfix 21a
+
+fix 22a all temp/berendsen 300 300 100
+fix 22b all nve
+run 1250
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+     43277   301.05677     -3809.3405      1916.8922      798.83343     -695.05993    
+     44000   302.88541     -3806.0582      1887.6011      789.17165      92.881672    
+     44527   296.68076     -3780.9845      1914.7512      785.92925      2541.6376    
+Loop time of 5.91955 on 1 procs for 1250 steps with 3000 atoms
+
+Performance: 18.245 ns/day, 1.315 hours/ns, 211.165 timesteps/s, 633.494 katom-step/s
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.2342     | 5.2342     | 5.2342     |   0.0 | 88.42
+Bond    | 0.39173    | 0.39173    | 0.39173    |   0.0 |  6.62
+Neigh   | 0.19457    | 0.19457    | 0.19457    |   0.0 |  3.29
+Comm    | 0.042948   | 0.042948   | 0.042948   |   0.0 |  0.73
+Output  | 0.0001349  | 0.0001349  | 0.0001349  |   0.0 |  0.00
+Modify  | 0.039258   | 0.039258   | 0.039258   |   0.0 |  0.66
+Other   |            | 0.01669    |            |       |  0.28
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8513 ave        8513 max        8513 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         412510 ave      412510 max      412510 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 412510
+Ave neighs/atom = 137.50333
+Ave special neighs/atom = 4
+Neighbor list builds = 17
+Dangerous builds = 0
+unfix 22b
+unfix 22a
+
+shell cd ..
+next defm_id
+jump SELF defm_start
+print "defm_id = ${defm_id}"
+defm_id = 03
+shell mkdir defm_${defm_id}
+shell mkdir defm_03
+shell cd defm_${defm_id}
+shell cd defm_03
+
+fix 15a all ave/time 1 25 25 c_thermo_press v_vol file press_vol.data
+fix 15b all deform 100 x wiggle ${amp} 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.461949123499834 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.461949123499834 2500 y wiggle 0.461949123499834 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.461949123499834 2500 y wiggle 0.461949123499834 2500 z wiggle 0.461949123499834 2500
+fix 15c all temp/berendsen 300 300 100
+fix 15d all nve
+run 7500
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     44527   296.68076     -3780.9845      1914.7512      785.92925      2541.6376      98578.554    
+     45000   303.43149     -3757.6282      1891.1895      846.07171      1408.9784      101348.27    
+     46000   300.95296     -3774.281       1906.0256      822.09831      184.32732      97014.836    
+     47000   296.59848     -3826.563       1864.4882      689.35226      2372.2568      98378.162    
+     48000   305.73155     -3717.7655      1844.82        860.1262       1828.9464      100487.26    
+     49000   300.19184     -3817.2273      1836.3547      702.67714      746.72113      95738.173    
+     50000   294.53649     -3737.7749      1897.8128      793.03196      1760.6229      101348.27    
+     51000   304.01877     -3790.1183      1849.5846      777.22666      637.38345      97014.836    
+     52000   301.91371     -3821.2688      1795.8391      673.51269      2304.6625      98378.162    
+     52027   300.49421     -3854.6704      1849.4418      681.02419      2887.3667      98378.162    
+Loop time of 37.0787 on 1 procs for 7500 steps with 3000 atoms
+
+Performance: 17.476 ns/day, 1.373 hours/ns, 202.272 timesteps/s, 606.817 katom-step/s
+99.4% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 32.213     | 32.213     | 32.213     |   0.0 | 86.88
+Bond    | 2.8481     | 2.8481     | 2.8481     |   0.0 |  7.68
+Neigh   | 1.3195     | 1.3195     | 1.3195     |   0.0 |  3.56
+Comm    | 0.26671    | 0.26671    | 0.26671    |   0.0 |  0.72
+Output  | 0.0025729  | 0.0025729  | 0.0025729  |   0.0 |  0.01
+Modify  | 0.32562    | 0.32562    | 0.32562    |   0.0 |  0.88
+Other   |            | 0.1034     |            |       |  0.28
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8423 ave        8423 max        8423 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         413566 ave      413566 max      413566 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 413566
+Ave neighs/atom = 137.85533
+Ave special neighs/atom = 4
+Neighbor list builds = 114
+Dangerous builds = 0
+unfix 15d
+unfix 15c
+unfix 15b
+unfix 15a
+
+print "immed_press = ${immed_press}"
+immed_press = 1292.18028361204
+print "immed_modulus = ${immed_modulus}"
+immed_modulus = 29642.6612293674
+print "factor = ${factor}"
+factor = 1.01231494738922
+if "${defm_id} == 99 || ${factor} == 1" then "jump SELF defm_break"
+
+fix 21a all deform 100 x scale ${factor} y scale ${factor} z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231494738922 y scale ${factor} z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231494738922 y scale 1.01231494738922 z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231494738922 y scale 1.01231494738922 z scale 1.01231494738922 remap v
+fix 21b all temp/berendsen 300 300 100
+fix 21c all nve
+run 1250
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     52027   300.37363     -3854.6704      1849.4418      679.94625      2886.8658      98378.162    
+     53000   307.81321     -3740.6211      1869.7364      880.79588     -137.32023      101234.51    
+     53277   299.17395     -3750.5036      1952.8805      876.82728     -1476.2904      101828.41    
+Loop time of 5.97427 on 1 procs for 1250 steps with 3000 atoms
+
+Performance: 18.078 ns/day, 1.328 hours/ns, 209.231 timesteps/s, 627.692 katom-step/s
+101.3% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.2623     | 5.2623     | 5.2623     |   0.0 | 88.08
+Bond    | 0.4007     | 0.4007     | 0.4007     |   0.0 |  6.71
+Neigh   | 0.20787    | 0.20787    | 0.20787    |   0.0 |  3.48
+Comm    | 0.044378   | 0.044378   | 0.044378   |   0.0 |  0.74
+Output  | 0.00011383 | 0.00011383 | 0.00011383 |   0.0 |  0.00
+Modify  | 0.041382   | 0.041382   | 0.041382   |   0.0 |  0.69
+Other   |            | 0.01751    |            |       |  0.29
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8300 ave        8300 max        8300 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         399259 ave      399259 max      399259 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 399259
+Ave neighs/atom = 133.08633
+Ave special neighs/atom = 4
+Neighbor list builds = 18
+Dangerous builds = 0
+unfix 21c
+unfix 21b
+unfix 21a
+
+fix 22a all temp/berendsen 300 300 100
+fix 22b all nve
+run 1250
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+     53277   299.17395     -3750.5036      1952.8805      876.82728     -1476.2904    
+     54000   300.19083     -3744.0687      1951.4363      890.90827     -481.34947    
+     54527   301.4602      -3748.9696      1921.9901      867.90878      2322.3171    
+Loop time of 5.8611 on 1 procs for 1250 steps with 3000 atoms
+
+Performance: 18.427 ns/day, 1.302 hours/ns, 213.271 timesteps/s, 639.812 katom-step/s
+99.4% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.1634     | 5.1634     | 5.1634     |   0.0 | 88.10
+Bond    | 0.40031    | 0.40031    | 0.40031    |   0.0 |  6.83
+Neigh   | 0.1946     | 0.1946     | 0.1946     |   0.0 |  3.32
+Comm    | 0.044213   | 0.044213   | 0.044213   |   0.0 |  0.75
+Output  | 0.00012671 | 0.00012671 | 0.00012671 |   0.0 |  0.00
+Modify  | 0.041063   | 0.041063   | 0.041063   |   0.0 |  0.70
+Other   |            | 0.01736    |            |       |  0.30
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8334 ave        8334 max        8334 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         398954 ave      398954 max      398954 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 398954
+Ave neighs/atom = 132.98467
+Ave special neighs/atom = 4
+Neighbor list builds = 17
+Dangerous builds = 0
+unfix 22b
+unfix 22a
+
+shell cd ..
+next defm_id
+jump SELF defm_start
+print "defm_id = ${defm_id}"
+defm_id = 04
+shell mkdir defm_${defm_id}
+shell mkdir defm_04
+shell cd defm_${defm_id}
+shell cd defm_04
+
+fix 15a all ave/time 1 25 25 c_thermo_press v_vol file press_vol.data
+fix 15b all deform 100 x wiggle ${amp} 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.466970717124428 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.466970717124428 2500 y wiggle 0.466970717124428 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.466970717124428 2500 y wiggle 0.466970717124428 2500 z wiggle 0.466970717124428 2500
+fix 15c all temp/berendsen 300 300 100
+fix 15d all nve
+run 7500
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     54527   301.4602      -3748.9696      1921.9901      867.90878      2322.3171      101828.41    
+     55000   301.81723     -3703.9347      1926.9096      921.05475      824.26105      104689.43    
+     56000   309.28515     -3748.2212      1876.1252      892.74296     -187.58645      100213.14    
+     57000   299.08296     -3773.0268      1911.7876      812.39779      1333.5136      101621.41    
+     58000   300.81189     -3684.1866      1959.1208      964.02681      830.93715      103800.04    
+     59000   305.00459     -3821.3547      1857.9552      763.17357     -79.336659      98894.385    
+     60000   297.08657     -3667.8335      1902.0747      890.03162      1540.8873      104689.43    
+     61000   300.85022     -3775.7598      1937.0275      850.70305      86.99945       100213.14    
+     62000   298.51587     -3776.1012      1895.6365      788.10278      1675.0488      101621.41    
+     62027   302.18922     -3778.8771      1875.145       797.67305      2120.5809      101621.41    
+Loop time of 35.8055 on 1 procs for 7500 steps with 3000 atoms
+
+Performance: 18.098 ns/day, 1.326 hours/ns, 209.465 timesteps/s, 628.395 katom-step/s
+99.3% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 31.041     | 31.041     | 31.041     |   0.0 | 86.69
+Bond    | 2.8341     | 2.8341     | 2.8341     |   0.0 |  7.92
+Neigh   | 1.2464     | 1.2464     | 1.2464     |   0.0 |  3.48
+Comm    | 0.25676    | 0.25676    | 0.25676    |   0.0 |  0.72
+Output  | 0.002659   | 0.002659   | 0.002659   |   0.0 |  0.01
+Modify  | 0.32346    | 0.32346    | 0.32346    |   0.0 |  0.90
+Other   |            | 0.1007     |            |       |  0.28
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8326 ave        8326 max        8326 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         403371 ave      403371 max      403371 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 403371
+Ave neighs/atom = 134.457
+Ave special neighs/atom = 4
+Neighbor list builds = 109
+Dangerous builds = 0
+unfix 15d
+unfix 15c
+unfix 15b
+unfix 15a
+
+print "immed_press = ${immed_press}"
+immed_press = 588.857154648829
+print "immed_modulus = ${immed_modulus}"
+immed_modulus = 23718.2747109664
+print "factor = ${factor}"
+factor = 1.01231380808451
+if "${defm_id} == 99 || ${factor} == 1" then "jump SELF defm_break"
+
+fix 21a all deform 100 x scale ${factor} y scale ${factor} z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231380808451 y scale ${factor} z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231380808451 y scale 1.01231380808451 z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231380808451 y scale 1.01231380808451 z scale 1.01231380808451 remap v
+fix 21b all temp/berendsen 300 300 100
+fix 21c all nve
+run 1250
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     62027   302.14462     -3778.8771      1875.145       797.27437      2120.4015      101621.41    
+     63000   309.91087     -3689.2674      1885.1088      966.27397     -907.72747      104571.65    
+     63277   297.33318     -3646.8012      2009.5878      1020.7816     -2036.2433      105185.06    
+Loop time of 5.73246 on 1 procs for 1250 steps with 3000 atoms
+
+Performance: 18.840 ns/day, 1.274 hours/ns, 218.056 timesteps/s, 654.169 katom-step/s
+101.4% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.0431     | 5.0431     | 5.0431     |   0.0 | 87.97
+Bond    | 0.39858    | 0.39858    | 0.39858    |   0.0 |  6.95
+Neigh   | 0.19064    | 0.19064    | 0.19064    |   0.0 |  3.33
+Comm    | 0.042823   | 0.042823   | 0.042823   |   0.0 |  0.75
+Output  | 0.00010768 | 0.00010768 | 0.00010768 |   0.0 |  0.00
+Modify  | 0.040282   | 0.040282   | 0.040282   |   0.0 |  0.70
+Other   |            | 0.01696    |            |       |  0.30
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8226 ave        8226 max        8226 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         385948 ave      385948 max      385948 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 385948
+Ave neighs/atom = 128.64933
+Ave special neighs/atom = 4
+Neighbor list builds = 17
+Dangerous builds = 0
+unfix 21c
+unfix 21b
+unfix 21a
+
+fix 22a all temp/berendsen 300 300 100
+fix 22b all nve
+run 1250
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+     63277   297.33318     -3646.8012      2009.5878      1020.7816     -2036.2433    
+     64000   299.37394     -3650.8011      1986.3788      1011.8159     -1263.7711    
+     64527   302.34786     -3656.1996      1959.8064      1006.4301      1806.3556    
+Loop time of 5.74455 on 1 procs for 1250 steps with 3000 atoms
+
+Performance: 18.800 ns/day, 1.277 hours/ns, 217.598 timesteps/s, 652.793 katom-step/s
+98.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 5.0409     | 5.0409     | 5.0409     |   0.0 | 87.75
+Bond    | 0.40469    | 0.40469    | 0.40469    |   0.0 |  7.04
+Neigh   | 0.19431    | 0.19431    | 0.19431    |   0.0 |  3.38
+Comm    | 0.04457    | 0.04457    | 0.04457    |   0.0 |  0.78
+Output  | 0.00013386 | 0.00013386 | 0.00013386 |   0.0 |  0.00
+Modify  | 0.042303   | 0.042303   | 0.042303   |   0.0 |  0.74
+Other   |            | 0.01766    |            |       |  0.31
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8307 ave        8307 max        8307 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         386228 ave      386228 max      386228 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 386228
+Ave neighs/atom = 128.74267
+Ave special neighs/atom = 4
+Neighbor list builds = 17
+Dangerous builds = 0
+unfix 22b
+unfix 22a
+
+shell cd ..
+next defm_id
+jump SELF defm_start
+print "defm_id = ${defm_id}"
+defm_id = 05
+shell mkdir defm_${defm_id}
+shell mkdir defm_05
+shell cd defm_${defm_id}
+shell cd defm_05
+
+fix 15a all ave/time 1 25 25 c_thermo_press v_vol file press_vol.data
+fix 15b all deform 100 x wiggle ${amp} 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.472046398807258 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.472046398807258 2500 y wiggle 0.472046398807258 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.472046398807258 2500 y wiggle 0.472046398807258 2500 z wiggle 0.472046398807258 2500
+fix 15c all temp/berendsen 300 300 100
+fix 15d all nve
+run 7500
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     64527   302.34786     -3656.1996      1959.8064      1006.4301      1806.3556      105185.06    
+     65000   298.24815     -3579.159       1994.0396      1081.0548      539.20204      108140.4     
+     66000   309.9245      -3693.9716      1915.3842      991.967       -889.21021      103516.55    
+     67000   295.64234     -3699.4652      1967.708       911.12255      807.022        104971.24    
+     68000   299.87125     -3585.9071      1987.4559      1082.2326      592.06702      107221.69    
+     69000   300.33173     -3782.1586      1933.223       835.8647      -77.696063      102154.33    
+     70000   297.71695     -3607.7186      1968.291       1021.9979      1479.0888      108140.4     
+     71000   294.79699     -3675.0825      1983.5919      943.83215     -482.05663      103516.55    
+     72000   295.92662     -3703.2798      1957.2454      899.38666      505.55625      104971.24    
+     72027   302.46437     -3711.5294      1921.8256      914.16109      1900.0985      104971.24    
+Loop time of 35.0306 on 1 procs for 7500 steps with 3000 atoms
+
+Performance: 18.498 ns/day, 1.297 hours/ns, 214.099 timesteps/s, 642.296 katom-step/s
+99.2% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 30.313     | 30.313     | 30.313     |   0.0 | 86.53
+Bond    | 2.8436     | 2.8436     | 2.8436     |   0.0 |  8.12
+Neigh   | 1.1903     | 1.1903     | 1.1903     |   0.0 |  3.40
+Comm    | 0.25628    | 0.25628    | 0.25628    |   0.0 |  0.73
+Output  | 0.0025351  | 0.0025351  | 0.0025351  |   0.0 |  0.01
+Modify  | 0.32361    | 0.32361    | 0.32361    |   0.0 |  0.92
+Other   |            | 0.1015     |            |       |  0.29
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8210 ave        8210 max        8210 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         389707 ave      389707 max      389707 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 389707
+Ave neighs/atom = 129.90233
+Ave special neighs/atom = 4
+Neighbor list builds = 105
+Dangerous builds = 0
+unfix 15d
+unfix 15c
+unfix 15b
+unfix 15a
+
+print "immed_press = ${immed_press}"
+immed_press = 155.704759668896
+print "immed_modulus = ${immed_modulus}"
+immed_modulus = 20773.1331131101
+print "factor = ${factor}"
+factor = 1.01231446334489
+if "${defm_id} == 99 || ${factor} == 1" then "jump SELF defm_break"
+
+fix 21a all deform 100 x scale ${factor} y scale ${factor} z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231446334489 y scale ${factor} z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231446334489 y scale 1.01231446334489 z scale ${factor} remap v
+fix 21a all deform 100 x scale 1.01231446334489 y scale 1.01231446334489 z scale 1.01231446334489 remap v
+fix 21b all temp/berendsen 300 300 100
+fix 21c all nve
+run 1250
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     72027   302.33245     -3711.5294      1921.8256      912.98177      1899.585       104971.24    
+     73000   299.6587      -3602.3892      1996.1384      1072.5329     -898.89514      108018.9     
+     73277   298.27081     -3602.4661      2059.7572      1123.6679     -1823.7051      108652.56    
+Loop time of 5.51336 on 1 procs for 1250 steps with 3000 atoms
+
+Performance: 19.589 ns/day, 1.225 hours/ns, 226.722 timesteps/s, 680.165 katom-step/s
+101.7% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 4.8398     | 4.8398     | 4.8398     |   0.0 | 87.78
+Bond    | 0.39015    | 0.39015    | 0.39015    |   0.0 |  7.08
+Neigh   | 0.18688    | 0.18688    | 0.18688    |   0.0 |  3.39
+Comm    | 0.040816   | 0.040816   | 0.040816   |   0.0 |  0.74
+Output  | 0.0001363  | 0.0001363  | 0.0001363  |   0.0 |  0.00
+Modify  | 0.039507   | 0.039507   | 0.039507   |   0.0 |  0.72
+Other   |            | 0.01606    |            |       |  0.29
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7913 ave        7913 max        7913 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         374041 ave      374041 max      374041 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 374041
+Ave neighs/atom = 124.68033
+Ave special neighs/atom = 4
+Neighbor list builds = 17
+Dangerous builds = 0
+unfix 21c
+unfix 21b
+unfix 21a
+
+fix 22a all temp/berendsen 300 300 100
+fix 22b all nve
+run 1250
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+     73277   298.27081     -3602.4661      2059.7572      1123.6679     -1823.7051    
+     74000   300.4081      -3584.6968      2003.5419      1104.3281     -1787.6491    
+     74527   297.69231     -3579.6599      2045.4174      1126.9628      1300.8826    
+Loop time of 5.3933 on 1 procs for 1250 steps with 3000 atoms
+
+Performance: 20.025 ns/day, 1.199 hours/ns, 231.769 timesteps/s, 695.307 katom-step/s
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 4.7456     | 4.7456     | 4.7456     |   0.0 | 87.99
+Bond    | 0.38975    | 0.38975    | 0.38975    |   0.0 |  7.23
+Neigh   | 0.16194    | 0.16194    | 0.16194    |   0.0 |  3.00
+Comm    | 0.040333   | 0.040333   | 0.040333   |   0.0 |  0.75
+Output  | 0.00013937 | 0.00013937 | 0.00013937 |   0.0 |  0.00
+Modify  | 0.039298   | 0.039298   | 0.039298   |   0.0 |  0.73
+Other   |            | 0.01627    |            |       |  0.30
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8101 ave        8101 max        8101 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         373795 ave      373795 max      373795 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 373795
+Ave neighs/atom = 124.59833
+Ave special neighs/atom = 4
+Neighbor list builds = 15
+Dangerous builds = 0
+unfix 22b
+unfix 22a
+
+shell cd ..
+next defm_id
+jump SELF defm_start
+print "defm_id = ${defm_id}"
+defm_id = 06
+shell mkdir defm_${defm_id}
+shell mkdir defm_06
+shell cd defm_${defm_id}
+shell cd defm_06
+
+fix 15a all ave/time 1 25 25 c_thermo_press v_vol file press_vol.data
+fix 15b all deform 100 x wiggle ${amp} 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.477177540060516 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.477177540060516 2500 y wiggle 0.477177540060516 2500 z wiggle ${amp} 2500
+fix 15b all deform 100 x wiggle 0.477177540060516 2500 y wiggle 0.477177540060516 2500 z wiggle 0.477177540060516 2500
+fix 15c all temp/berendsen 300 300 100
+fix 15d all nve
+run 7500
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     74527   297.69231     -3579.6599      2045.4174      1126.9628      1300.8826      108652.56    
+     75000   300.9595      -3515.9106      2012.4538      1186.9555     -295.344        111705.33    
+     76000   302.41708     -3604.2151      2023.3248      1122.5519     -1720.1115      106929.05    
+     77000   302.17943     -3637.1636      1963.8245      1027.9786      925.6884       108431.69    
+     78000   299.76549     -3506.2471      2040.123       1213.6143      1003.1863      110756.33    
+     79000   298.6783      -3641.3628      1937.7207      966.37747     -336.13228      105521.92    
+     80000   302.22484     -3483.9847      1941.7789      1159.5178      397.63532      111705.33    
+     81000   302.42781     -3586.8598      1977.5006      1094.1788     -1932.4011      106929.05    
+     82000   298.49382     -3581.6189      1951.1784      1037.9299      718.08888      108431.69    
+     82027   301.11406     -3578.5361      1944.8786      1058.1364      1344.2009      108431.69    
+Loop time of 34.2683 on 1 procs for 7500 steps with 3000 atoms
+
+Performance: 18.910 ns/day, 1.269 hours/ns, 218.861 timesteps/s, 656.583 katom-step/s
+98.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 29.548     | 29.548     | 29.548     |   0.0 | 86.23
+Bond    | 2.8557     | 2.8557     | 2.8557     |   0.0 |  8.33
+Neigh   | 1.1712     | 1.1712     | 1.1712     |   0.0 |  3.42
+Comm    | 0.25658    | 0.25658    | 0.25658    |   0.0 |  0.75
+Output  | 0.0029413  | 0.0029413  | 0.0029413  |   0.0 |  0.01
+Modify  | 0.33186    | 0.33186    | 0.33186    |   0.0 |  0.97
+Other   |            | 0.102      |            |       |  0.30
+
+Nlocal:           3000 ave        3000 max        3000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8113 ave        8113 max        8113 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         374831 ave      374831 max      374831 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 374831
+Ave neighs/atom = 124.94367
+Ave special neighs/atom = 4
+Neighbor list builds = 104
+Dangerous builds = 0
+unfix 15d
+unfix 15c
+unfix 15b
+unfix 15a
+
+print "immed_press = ${immed_press}"
+immed_press = -180.465860334448
+print "immed_modulus = ${immed_modulus}"
+immed_modulus = 19644.6841503296
+print "factor = ${factor}"
+factor = 1
+if "${defm_id} == 99 || ${factor} == 1" then "jump SELF defm_break"
+jump SELF defm_break
+variable modulus equal ${immed_modulus}
+variable modulus equal 19644.6841503296
+variable press equal ${immed_press}
+variable press equal -180.465860334448
+shell cd ..
+variable vol delete
+variable amp delete
+variable immed_press delete
+variable immed_modulus delete
+variable factor delete
+variable defm_id delete
+
+dump_modify 1 every 1000
+
+fix 38a all press/berendsen iso ${press} 1 1000 modulus ${modulus}
+fix 38a all press/berendsen iso -180.465860334448 1 1000 modulus ${modulus}
+fix 38a all press/berendsen iso -180.465860334448 1 1000 modulus 19644.6841503296
+fix 38b all temp/berendsen 300 300 100
+fix 38c all nve
+run 60000
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Per MPI rank memory allocation (min/avg/max) = 10.59 | 10.59 | 10.59 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     82027   301.11406     -3578.5361      1944.8786      1058.1364      1344.2009      108431.69    
+     83000   301.11194     -3591.1202      1956.378       1057.0327     -124.32577      108480.55    
+     84000   299.65605     -3560.2405      1951.6682      1070.1878      2.6591316      108388.89    
+     85000   301.43843     -3548.1684      1942.9978      1089.523      -280.45418      108718.11    
+     86000   303.27285     -3538.7842      1927.5604      1099.8686     -86.058133      108689.69    
+     87000   298.50227     -3532.8795      1984.3494      1119.9158      0.39361982     108890.13    
+     88000   299.17616     -3529.2389      1990.2537      1135.4849      96.256325      109111.57    
+     89000   305.63647     -3566.6754      1903.3034      1068.8498     -435.86552      109183.5     
+     90000   299.42322     -3513.3976      1939.9835      1103.2646     -96.743433      109257.11    
+     91000   306.53445     -3535.7988      1923.5201      1127.9705     -108.08772      109511.58    
+     92000   298.53603     -3544.8436      1978.2934      1102.1975     -94.377295      109216.5     
+     93000   302.71664     -3520.7692      1937.1875      1122.5384     -75.004663      109080.56    
+     94000   294.34882     -3524.9419      2002.6927      1109.0672     -287.56272      109202.19    
+     95000   299.35386     -3519.909       1941.2296      1097.3793     -358.61011      109259.09    
+     96000   295.97871     -3502.6001      1988.6469      1131.9335     -160.5582       109445.07    
+     97000   301.38221     -3535.6039      1941.4247      1100.0117     -138.11842      109359.31    
+     98000   296.25423     -3520.7455      1979.9116      1107.5159     -148.84263      109504.96    
+     99000   303.73119     -3504.3643      1918.7798      1129.6051     -38.894478      109609.08    
+    100000   302.47532     -3502.2047      1917.9455      1119.7036     -214.40294      109932.92    
+    101000   301.85495     -3511.808       1908.7394      1095.3484     -338.02288      109895.95    
+    102000   296.45249     -3510.6422      1965.4783      1104.9582     -190.77117      109886.19    
+    103000   296.14685     -3515.3293      1968.7222      1100.7826     -231.17539      109911.28    
+    104000   303.5507      -3528.2017      1918.1157      1103.4901     -252.40055      109871.6     
+    105000   304.67051     -3556.2566      1912.7154      1080.0454     -345.94351      109519.24    
+    106000   297.48185     -3575.8216      1971.1508      1054.6531     -213.91179      109088.64    

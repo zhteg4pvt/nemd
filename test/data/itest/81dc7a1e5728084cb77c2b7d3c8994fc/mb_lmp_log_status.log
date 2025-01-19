@@ -1,0 +1,18 @@
+Fetching status:   0%|          | 0/6 [00:00<?, ?it/s]Fetching status: 100%|██████████| 6/6 [00:00<00:00, 2351.07it/s]
+
+Overview: 2 jobs/aggregates, 0 jobs/aggregates with eligible operations.
+
+operation/group
+-----------------
+
+
+Detailed View:
+
+job id                            operation/group    labels
+--------------------------------  -----------------  --------
+597e118d6875c13b0284f5886e6eef6b  [ ]
+b51030b24f494a7f5163ac130c662657  [ ]
+
+[U]:unknown [R]:registered [I]:inactive [S]:submitted [H]:held [Q]:queued [A]:active [E]:error [GR]:group_registered [GI]:group_inactive [GS]:group_submitted [GH]:group_held [GQ]:group_queued [GA]:group_active [GE]:group_error
+
+

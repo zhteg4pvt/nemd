@@ -1,0 +1,16 @@
+#!/bin/sh
+# Under the BSD 3-Clause License by Teng Zhang (zhteg4@gmail.com)
+: '
+Sort imports in Python files
+
+Usage:
+  run_isort [file1 file2...]
+  An empty argument formats modified files tracked by git and untracked files.
+'
+BASE_CMD="isort"
+# Execute command if arguments are provided
+[ $# != 0 ] && $BASE_CMD "$@" && exit $?
+# Set default arguments if no arguments are provided
+set -- $BASE_CMD -j -1 --force-single-line-imports --known-local-folder nemd "$@"
+. nemd_func
+format_py "$@"

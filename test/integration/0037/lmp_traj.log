@@ -1,0 +1,37 @@
+..........Command Options..........
+traj: /Users/tzhang/git/nemd_pvt/test/data/water/dump.custom.gz
+data_file: /Users/tzhang/git/nemd_pvt/test/data/water/polymer_builder.data
+task: view rdf density clash xyz msd
+last_pct: 0.6
+slice: (0, 3, 1)
+sel: None
+NAME: lmp_traj
+jobname: lmp_traj
+interactive: False
+python: 2
+cpu: 1
+debug: False
+JobStart: 11:19:06 01/17/25
+...................................
+9 atoms selected.
+3 trajectory frames found.
+view, density, clash, xyz analyze all frames and save per frame results ∈ [0.000, 1.000] ps
+rdf, msd average results from last 60.0% frames ∈ [ 0.834,  1.000] ps
+Trajectory visualization data written into lmp_traj_view.html
+The volume fluctuates: [179.49 179.49] Å^3
+50%, 100%
+Radial distribution function data written into lmp_traj_rdf.csv
+rdf peak (r): 86.10341311225868; rdf peak position (Å): 0.96
+Radial distribution function figure saved as lmp_traj_rdf.png
+Density data written into lmp_traj_density.csv
+Density: 0.5 ± 0 g/cm^3 ∈ [0.8340, 1.0000] ps
+Density figure saved as lmp_traj_density.png
+Clash count data written into lmp_traj_clash.csv
+Clash: 0 ± 0 count ∈ [0.8340, 1.0000] ps
+Clash count figure saved as lmp_traj_clash.png
+XYZ coordinates are written into lmp_traj_xyz.xyz
+Mean squared displacement data written into lmp_traj_msd.csv
+2.904e-07 ± 0 cm^2/s (R-squared: 1.0000) linear fit of [0.0000 0.8340] ps
+Mean squared displacement figure saved as lmp_traj_msd.png
+Finished.
+11:19:10 01/17/25

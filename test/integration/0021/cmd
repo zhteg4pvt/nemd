@@ -1,0 +1,2 @@
+# Amorphous builder on He Ne Ar Kr Xe
+run_nemd amorp_bldr_driver.py [He] [Ne] [Ar] [Kr] [Xe] -mol_num 5 5 5 5 5 -force_field OPLSUA TIP3P -seed 1234 -DEBUG

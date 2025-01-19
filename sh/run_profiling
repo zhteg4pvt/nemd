@@ -1,0 +1,53 @@
+#!/bin/sh
+# Under the BSD 3-Clause License by Teng Zhang (zhteg4@gmail.com)
+: '
+Profile import time and execution process.
+
+Usage:
+  run_profiling
+  run_profiling -c "import numpy"
+  run_profiling mol_bldr_driver.py -h
+  run_profiling mol_bldr_driver.py [Ar]
+  run_profiling mol_bldr_driver.py [Ar] -DEBUG
+  An empty argument profiles the import time of all scripts and workflows.
+'
+
+if [ $# -eq 0 ]; then
+  # Profile import time of all scripts and workflows
+  [ -z $NEMD_SRC ] && echo "Please specify the script to profile." && exit 1;
+  for SUB_DIR in "driver" "workflow"
+  do
+    echo "Profiling $SUB_DIR/*.py files:"
+    FILES="$(find "$NEMD_SRC/$SUB_DIR" -type f -name "*.py" 2>/dev/null)"
+    for FILE in $FILES
+    do
+      SCRIPT="$(basename $FILE)"
+      printf "  %-30s %s\n" $SCRIPT $(2>&1 time -p run_nemd $SCRIPT -h 1>/dev/null | sed -n 's/user \(.*\)/\1/p') &
+    done
+    wait
+  done
+  exit 0
+fi
+
+# Profiling Help
+[ "$1" = '-h' ] && echo "Example: run_profiling mol_bldr_driver.py [Ar]" && exit 0
+
+if [ "$2" = '-h' ] || [ "$1" = '-c' ]; then
+  # Set command to profile import time
+  set -- run_nemd -X importtime "$@"
+  VIEW_CMD="tuna nemd.log"
+else
+  # Set command to cProfile a script
+  set -- run_nemd -m cProfile -o nemd.profile "$@"
+  VIEW_CMD="snakeviz nemd.profile"
+fi
+
+# Run profiling command
+if (2>nemd.log "$@"); then
+    printf "\e[1;32mThe profiling finished successfully.${normal}\e[0m\n"
+else
+    printf "\e[1;31mThe profiling failed with the following error.\e[0m\n" && cat nemd.log && exit 1
+fi
+
+# Visualize profiling results
+echo "Running $VIEW_CMD" && $VIEW_CMD

@@ -1,0 +1,51 @@
+LAMMPS Description # full
+
+3 atoms
+2 bonds
+1 angles
+0 dihedrals
+0 impropers
+
+2 atom types
+1 bond types
+1 angle types
+0 dihedral types
+0 improper types
+
+0 3.9111 xlo xhi
+0 3.9111 ylo yhi
+0 3.9111 zlo zhi
+
+Masses
+
+1 15.9990 # O Water (SPC) O 79 #
+2 1.0080 # H Water (SPC) H 80 #
+
+Pair Coeffs
+
+1 0.1554 3.1656
+2 0.0000 0.0000
+
+Bond Coeffs
+
+1 527.2000 1.0000
+
+Angle Coeffs
+
+1 37.9500 109.4700
+
+Atoms
+
+1 1 1 -0.8200 0.4128 0.9540 0.7271
+2 1 2 0.4100 0.9999 0.1548 0.5979
+3 1 2 0.4100 0.2252 1.0756 1.7018
+
+Bonds
+
+1 1 1 2
+2 1 1 3
+
+Angles
+
+1 1 2 1 3
+

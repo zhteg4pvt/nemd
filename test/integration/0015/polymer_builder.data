@@ -1,0 +1,60 @@
+LAMMPS Description # full
+
+5 atoms
+4 bonds
+6 angles
+0 dihedrals
+0 impropers
+
+2 atom types
+1 bond types
+1 angle types
+0 dihedral types
+0 improper types
+
+0 6.2112 xlo xhi
+0 6.2112 ylo yhi
+0 6.2112 zlo zhi
+
+Masses
+
+1 15.0350 # CH3 Neopentane C 85 #
+2 12.0110 # C Neopentane C 90 #
+
+Pair Coeffs
+
+1 0.1450 3.9600
+2 0.0500 3.8000
+
+Bond Coeffs
+
+1 260.0000 1.5260
+
+Angle Coeffs
+
+1 40.0000 109.5000
+
+Atoms
+
+1 1 1 0.0000 4.1709 -3.9376 3.8611
+2 1 2 0.0000 4.1627 -2.8186 2.8237
+3 1 1 0.0000 4.7898 -3.3217 1.5267
+4 1 1 0.0000 4.9386 -1.6050 3.3274
+5 1 1 0.0000 2.7109 -2.4244 2.5673
+
+Bonds
+
+1 1 1 2
+2 1 2 3
+3 1 2 4
+4 1 2 5
+
+Angles
+
+1 1 1 2 3
+2 1 1 2 4
+3 1 1 2 5
+4 1 3 2 4
+5 1 3 2 5
+6 1 4 2 5
+

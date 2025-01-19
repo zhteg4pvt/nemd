@@ -1,0 +1,44 @@
+LAMMPS Description # full
+
+9 atoms
+0 bonds
+0 angles
+0 dihedrals
+0 impropers
+
+4 atom types
+0 bond types
+0 angle types
+0 dihedral types
+0 improper types
+
+0 11.6634 xlo xhi
+0 11.6634 ylo yhi
+0 11.6634 zlo zhi
+
+Masses
+
+1 40.0780 # Ca+2 Calcium Ion Ca 203 #
+2 87.6200 # Sr+2 Strontium Ion Sr 204 #
+3 137.3270 # Ba+2 Barium Ion Ba 205 #
+4 35.4530 # Cl- Chloride Ion Cl 207 #
+
+Pair Coeffs
+
+1 0.4497 2.4120
+2 0.1182 3.1027
+3 0.0471 3.8166
+4 0.1180 4.4172
+
+Atoms
+
+1 1 1 2.0000 5.1999 -0.1417 5.1961
+2 2 2 2.0000 -1.5470 4.1828 0.0963
+3 3 3 2.0000 0.9114 3.3558 -0.4752
+4 4 4 -1.0000 4.9847 7.3811 5.8580
+5 5 4 -1.0000 6.8553 7.9271 7.7893
+6 6 4 -1.0000 5.8891 4.3877 6.4151
+7 7 4 -1.0000 7.8656 4.9328 0.7273
+8 8 4 -1.0000 4.2932 3.5478 2.5719
+9 9 4 -1.0000 7.5027 2.3302 0.8298
+

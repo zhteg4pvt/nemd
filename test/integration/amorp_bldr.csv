@@ -1,0 +1,33 @@
+Type,Test ID,Molecule/Polymer,Structure,Comment
+grid,11,1,CC(C)O,Single
+,44,2(2),dihedral (120),Set Geom
+,45,1(3),dihedral,Measure 
+,35,1 | 10,CCCCCC(C)O [Ar],Mol | Mol
+Pack,12,1,CC(=O)O,Single
+,48,11(6),*CC*,Polym
+,33,11(6),*CC*,Reduce (1.12)
+Grow,1,10,C,Mol
+,24,1 | 1,O CCCO,Mol | Mol
+,13,3(5),*CC(O)*,Polym
+,4,5(3) | 15,*CC(*)C(=O)O CN(C)C=O,Polym | Mol
+,32,5(5),*CC*,Reduce (2.6)
+,34,7(4),*CC*,Reduce (2.65)
+,2,1(200),*CC*,Single Long
+,3,10(100),*CC(*)C(=O)O,Multi Long
+,8,1,TIP3P,
+,23,1,SPCE,
+,7,1,SPC,
+,9,1,CO,
+,10,1,CCO,
+,5,1,CC(=O)C,
+,6,1,CCC(=O)CC,
+,15,1,CC(C)(C)C,
+,22,1,CC(C)CC(=O)C(C)(C)C,
+,24,1 | 1,O CCCO,
+,17,10,[Li+].[F-],
+,14,10,[Na+].[Cl-],
+,19,5,[Br-].[Mg+2].[Br-],
+,16,10,[K+].[Br-],
+,18,5 | 5,[Rb+].[Cl-] [Cs+].[Br-],
+,21,5 | 5 | 5 | 5 | 5,[He] [Ne] [Ar] [Kr] [Xe],
+,20,1 | 1| 1| 6,[Ca+2] [Sr+2] [Ba+2] [Cl-],

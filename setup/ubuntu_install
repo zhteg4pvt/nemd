@@ -1,0 +1,31 @@
+#!/bin/bash
+# Ubuntu version: 22.04
+lsb_release -sr
+sudo apt update
+sudo apt-get install -y git gh vim python3-pip
+# Git Configuration
+SCRIPT_DIR=$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)
+if [ $(basename $SCRIPT_DIR) != nemd_pvt && ! -d ~/git/nemd_pvt ]; then
+  gh auth login --hostname GitHub.com --web
+  gh auth setup-git
+  git config --global user.email zhteg4@gmail.com
+  git config --global user.name 'Tony Zhang'
+  git config --global core.editor "vim"
+  gh repo clone zhteg4/nemd_pvt ~/git/nemd_pvt
+fi
+# pip install copies executables to this bin,
+# and, ~/.profile includes user's private bin if it exists
+mkdir -p $(python3 -m site --user-base)/bin
+# NVIDIA GPU
+# 01:00.0 VGA compatible controller: NVIDIA Corporation GP104 [GeForce GTX 1080] (rev a1)
+(lspci | grep VGA | grep -q -v NVIDIA) && echo 'No NVIDIA GPU found.' && exit 0
+sudo apt-get install -y nvidia-cuda-toolkit-gcc
+sudo ubuntu-drivers --gpgpu install
+sudo apt update && sudo apt upgrade -y
+read -p "Driver installed. Reboot? [y/n]?" answer
+case "$answer" in
+    [Yy]* ) echo "rebooting...";
+            reboot
+	    ;;
+    * ) echo "no reboot. (GPU driver may not be working)";;
+esac

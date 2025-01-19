@@ -1,0 +1,2 @@
+# Amorphous builder via pack method with reduced density
+run_nemd amorp_bldr_driver.py "*CC*" -cru_num 6 -mol_num 11 -density 1.12 -method pack -seed 1234 -DEBUG

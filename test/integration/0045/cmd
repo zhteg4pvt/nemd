@@ -1,0 +1,2 @@
+# Molecule builder measures the geometry
+run_nemd mol_bldr_driver.py *C* -cru_num 3 -substruct CCC -seed 12

@@ -1,0 +1,71 @@
+..........Command Options..........
+cru: [Ar]
+cru_num: 1
+mol_num: 10
+buffer: None
+no_minimize: False
+rigid_bond: None
+rigid_angle: None
+substruct: None
+force_field: ('OPLSUA', 'SPCE')
+cell: pack
+density: 0.001643
+seed: 320340179
+timestep: 1
+stemp: 10
+temp: 300
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 0.0
+prod_time: 0.004
+prod_ens: NVT
+data_file: None
+task: msd rdf density clash view xyz
+last_pct: 0.8
+slice: None
+sel: None
+interactive: False
+NAME: ab_lmp_traj
+jobname: ab_lmp_traj
+python: 2
+cpu: None
+state_num: 2
+clean: False
+jtype: task aggregator
+prj_path: None
+screen: None
+debug: None
+JobStart: 10:55:41 01/15/25
+...................................
+2 / 2 completed jobs.
+2 / 2 succeeded jobs.
+2 jobs found for aggregation.
+Aggregation Task: msd
+Mean squared displacement data written into workspace/ab_lmp_traj_msd_None.csv
+0.001175 ± 0.0001102 cm^2/s (R-squared: 0.9827) linear fit of [0.0000 2.0000] ps
+Mean squared displacement figure saved as workspace/ab_lmp_traj_msd_None.png
+Msd of all parameters saved to ab_lmp_traj_msd.csv
+Aggregation Task: rdf
+Radial distribution function data written into workspace/ab_lmp_traj_rdf_None.csv
+rdf peak (num=2): 0.0; rdf peak position (Å): 8.26
+Radial distribution function figure saved as workspace/ab_lmp_traj_rdf_None.png
+Rdf of all parameters saved to ab_lmp_traj_rdf.csv
+Aggregation Task: density
+Density data written into workspace/ab_lmp_traj_density_None.csv
+Density: 0.001643 ± 0 g/cm^3 ∈ [0.0115, 4.0000] ps
+Density figure saved as workspace/ab_lmp_traj_density_None.png
+Density of all parameters saved to ab_lmp_traj_density.csv
+Aggregation Task: clash
+Clash count data written into workspace/ab_lmp_traj_clash_None.csv
+Clash: 0 ± 0 count ∈ [0.0115, 4.0000] ps
+Clash count figure saved as workspace/ab_lmp_traj_clash_None.png
+Clash of all parameters saved to ab_lmp_traj_clash.csv
+Task Total Timing: 00:00:14
+| amorp_bl   | lammps    | lmp_traj   |
+|:-----------|:----------|:-----------|
+| 00:02 ave  | 00:00 ave | 00:05 ave  |
+| 00:02 6e4  | 00:00 6e4 | 00:05 6e4  |
+| 00:02 82f  | 00:00 82f | 00:05 82f  |
+Finished.
+10:55:55 01/15/25

@@ -1,0 +1,238 @@
+# This software is licensed under the BSD 3-Clause License.
+# Authors: Teng Zhang (zhteg4@gmail.com)
+"""
+Trajectory frame module to read, copy, wrap, blue, and writes coordinates as
+well as computing pair distances.
+"""
+import math
+import types
+import warnings
+
+import numpy as np
+import pandas as pd
+
+from nemd import box
+from nemd import envutils
+from nemd import numbautils
+from nemd import symbols
+
+
+class BaseOrig(np.ndarray):
+    """
+    Base class for xyz coordinates and box.
+    """
+
+    def __new__(cls, data=None, dtype=float, **kwargs):
+        """
+        :param data 'np.ndarray': the xyz coordinates.
+        :param dtype 'numpy.dtype': the data type of the xyz coordinates.
+        """
+        if data is not None:
+            return np.asarray(data).view(cls)
+        return super().__new__(cls, dtype=dtype, **kwargs)
+
+    def __init__(self, data=None, box=None):
+        """
+        :param data `np.ndarray` (sub-)class: the xyz coordinates (with box)
+        :param box `Box`: the box object
+        """
+        self.box = box
+        if self.box is None and hasattr(data, 'box'):
+            self.box = data.box.copy()
+
+    def pairDists(self, grp1=None, grp2=None):
+        """
+        Get the distance between atom pair.
+
+        :param grp1 list: list of gids as the atom selection
+        :param grp2 list of list: each sublist contains atom ids to compute
+            distances with each atom in grp1.
+        return numpy.ndarray: list of distance between pairs.
+        """
+        grp1 = list(range(self.shape[0])) if grp1 is None else sorted(grp1)
+        grp2 = (grp1[:i] for i in range(len(grp1))) if grp2 is None else grp2
+        delta = [self[x, :] - self[y, :] for x, y in zip(grp2, grp1)]
+        dists = [x.pbc(self.box.span) for x in delta]
+        return np.concatenate(dists) if dists else np.array([])
+
+    def pbc(self, span):
+        """
+        Get the distance between the xyz and the of the xyzs associated with the
+        input atom ids.
+
+        :param span `np.ndarray`: the span of the PBC box
+        :return `np.ndarray`: the PBC distances
+        """
+        for idx in range(3):
+            func = lambda x: math.remainder(x, span[idx])
+            self[:, idx] = np.frompyfunc(func, 1, 1)(self[:, idx])
+        return np.linalg.norm(self, axis=1)
+
+
+class BaseNumba(BaseOrig):
+    """
+    Base class sped up with numba.
+    """
+
+    def pbc(self, span):
+        """
+        Get the distance between the xyz and the of the xyzs associated with the
+        input atom ids.
+
+        :param ids list of int: atom ids
+        :param xyz (3,) 'pandas.core.series.Series': xyz coordinates and atom id
+        :return list of floats: distances
+        """
+        return np.array(numbautils.remainder(self, span))
+
+
+Base = BaseOrig if envutils.is_original_python() else BaseNumba
+
+
+class Frame(Base):
+    """
+    Class to read, copy, wrap, glue, and write coordinates.
+    """
+
+    def __new__(cls, data, **kwargs):
+        """
+        :param data 'np.ndarray': the xyz coordinates
+        """
+        return super().__new__(cls, data=data)
+
+    def __init__(self, data, box=None, step=None):
+        """
+        :param data nx3 'numpy.ndarray' or 'DataFrame': xyz data
+        :param box str: xlo, xhi, ylo, yhi, zlo, zhi boundaries
+        :param step int: the number of simulation step that this frame is at
+        """
+        super().__init__(data=data, box=box)
+        self.step = step
+        if self.step is None and hasattr(data, 'step'):
+            self.step = data.step
+
+    @classmethod
+    def read(cls, fh, start=0):
+        """
+        Read a custom dumpy file with id, xu, yu, zu. Full coordinate
+        information is available with step number >= start.
+
+        :param fh '_io.TextIOWrapper': the file handle to read the frame from.
+        :param start int: frames with step number < this value are fully read.
+        :return 'SimpleNamespace' / 'Frame': 'Frame' has step, box and
+            coordinates information. 'SimpleNamespace' only has step info.
+        :raise EOFError: the frame block is incomplete.
+        """
+        header = [fh.readline() for _ in range(9)]
+        if not header[-1]:
+            raise EOFError('Empty Header')
+        step, atom_num = int(header[1].rstrip()), int(header[3].rstrip())
+        if step < start:
+            with warnings.catch_warnings(record=True):
+                np.loadtxt(fh, skiprows=atom_num, max_rows=0)
+                return types.SimpleNamespace(step=step)
+        data = np.loadtxt(fh, max_rows=atom_num)
+        if data.shape[0] != atom_num:
+            raise EOFError('Incomplete Atom Coordinates')
+        data = data[data[:, 0].argsort()]  # Sort the xyz by atom ids
+        if int(data[-1, 0]) == atom_num:
+            ndata = data[:, 1:]
+        else:
+            ndata = np.full([atom_num, 3], np.nan)
+            ndata[data[:, 0].astype(int) - 1, :] = data[:, 1:]
+        return cls(ndata, box=box.Box.fromLines(header[5:8]), step=step)
+
+    def copy(self, array=True):
+        """
+        Copy the numpy array content if array else the whole object.
+        The default copy behavior follows numpy.ndarray.copy() as pandas may
+        use it. The array=False option is added to copy the object.
+
+        :return 'np.ndarray' or 'Frame': the copied.
+        """
+        if array:
+            return np.array(self)
+        box = None if self.box is None else self.box.copy()
+        return Frame(data=self.copy(), box=box, step=self.step)
+
+    def wrap(self, broken_bonds=False, dreader=None):
+        """
+        Wrap coordinates into the PBC box. If broken_bonds is False and mols is
+        provided, the geometric center of each molecule is wrapped into the box.
+
+        :param broken_bonds bool: If True, bonds may be broken by PBC boundaries
+        :param dreader 'oplsua.Reader': to get molecule ids and
+            associated atoms
+        """
+        if dreader is None:
+            return
+
+        if broken_bonds:
+            self[:] = self % self.box.span
+            # The wrapped xyz shouldn't support molecule center operation
+            return
+
+        # The unwrapped xyz can directly perform molecule center operation
+        for gids in dreader.molecules.values():
+            center = self[gids, :].mean(axis=0)
+            delta = (center % self.box.span) - center
+            self[gids, :] += delta
+
+    def glue(self, dreader=None):
+        """
+        Circular mean to compact the molecules. Good for molecules droplets in
+        vacuum. (extension needed for droplets or clustering in solution)
+
+        :param dreader 'oplsua.Reader': to get molecule ids and
+            associated atoms are available
+        """
+        if dreader is None:
+            return
+
+        centers = pd.concat(
+            [self[x].mean(axis=0) for x in dreader.molecules.values()],
+            axis=1).transpose()
+        centers.index = dreader.molecules.keys()
+        theta = centers / self.box.span * 2 * np.pi
+        cos_theta = np.cos(theta)
+        sin_theta = np.sin(theta)
+        theta = np.arctan2(sin_theta.mean(), cos_theta.mean())
+        mcenters = theta * self.box.span / 2 / np.pi
+        cshifts = (
+            (mcenters - centers) / self.box.span).round() * self.box.span
+        for id, mol in dreader.molecules.items():
+            cshift = cshifts.loc[id]
+            self[mol] += cshift
+
+    def write(self, fh, dreader=None, visible=None, points=None):
+        """
+        Write XYZ to a file.
+
+        :param fh '_io.TextIOWrapper': file handdle to write out xyz.
+        :param dreader 'oplsua.Reader': datafile reader for element info
+        :param visible list: visible atom gids.
+        :param points list: additional point to visualize.
+        """
+
+        data = self[visible] if visible else self
+        index = np.argwhere(~np.isnan(data[:, 0])).flatten()
+        data = pd.DataFrame(data, columns=symbols.XYZU, index=index)
+        if dreader is None:
+            data.index = [symbols.UNKNOWN] * data.shape[0]
+        else:
+            type_ids = dreader.atoms.type_id.loc[data.index]
+            data.index = dreader.masses.element[type_ids]
+        if points:
+            points = np.array(points)
+            points = pd.DataFrame(points,
+                                  index=[symbols.UNKNOWN] * points.shape[0],
+                                  columns=symbols.XYZU)
+            data = pd.concat((data, points), axis=0)
+        fh.write(f'{data.shape[0]}\n')
+        data.to_csv(fh,
+                    mode='a',
+                    index=True,
+                    sep=' ',
+                    header=True,
+                    quotechar=' ',
+                    float_format='%.4f')

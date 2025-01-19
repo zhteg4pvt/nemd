@@ -1,0 +1,44 @@
+..........Command Options..........
+cru: [Ar]
+cru_num: None
+mol_num: 100
+no_minimize: False
+rigid_bond: None
+rigid_angle: None
+buffer: None
+substruct: None
+seed: 12345
+timestep: 1
+stemp: 10
+temp: 300
+tdamp: 100
+press: 1
+pdamp: 1000
+lj_cut: 11.0
+coul_cut: 11.0
+relax_time: 0.1
+prod_time: 0.01
+prod_ens: NPT
+force_field: FF_MODEL(ff='OPLSUA', model='TIP3P')
+cell: grow
+density: 0.00164
+interactive: False
+jobname: ab_lmp_traj
+default_name: ab_lmp_traj
+debug: False
+python: 2
+cpu: 6
+task: density
+sel: None
+last_pct: 0.2
+slice: None
+state_num: 2
+clean: False
+jtype: task, aggregator
+prj_path: .
+JobStart: 15:17:09 09/05/24
+...................................
+2 / 2 completed jobs.
+2 / 2 succeeded jobs.
+Finished.
+15:17:09 09/05/24

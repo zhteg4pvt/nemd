@@ -1,0 +1,3 @@
+# Hexane liquid: amorphous builder on CCCCCC; lammps simulation; density
+run_nemd ab_lmp_traj_workflow.py "*CC*" -cru_num 3 -mol_num 200 -density 0.6548 -seed 5678 -prod_ens NPT -temp 298.15 -last_pct 0.4 -task density -state_num 4 
+# 0.6548 g/mL (5.464 lb/gal) at 25°C https://macro.lsu.edu/HowTo/solvents/hexane.htm

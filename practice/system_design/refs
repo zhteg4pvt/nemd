@@ -1,0 +1,35 @@
+# Python Vs C++ Vs Java; interpreted language, compiled language, bytecode languages
+https://www.youtube.com/watch?v=hnlz0YYCpBU
+# Power ON -> BIOS/UEFI -> POST (hardware)
+# UEFI finds and uses boot loader (e.g., grub2) to locates, loads, and run kernel
+# kernel does device driver, kernal module, and background
+# kernel also uses systemd (hardware driver, mount disk, network, sound, power, login, panel)
+https://www.youtube.com/watch?v=XpFsMB6FoOs
+# Linux File System
+https://www.youtube.com/watch?v=bbmWOjuFmgA
+# Compiled Python is FAST: numba, mypyc, cython, taichi
+https://www.youtube.com/watch?v=umLZphwA-dw
+# Python vs JavaScript
+https://www.youtube.com/watch?v=t9CAFYn7YgY
+# Windows program files
+https://www.youtube.com/watch?v=QtHFbskDCtg
+# fitten code
+https://www.youtube.com/watch?v=4INHXju0azI
+# Compiling & Decompiling Python Scripts
+https://www.youtube.com/watch?v=UFz5kNTRk3g
+# Python Parse 1 Billion Rows of Data
+https://www.youtube.com/watch?v=utTaPW32gKY
+# Taichi speedup sparse data by 100x
+https://www.youtube.com/watch?v=wKw8LMF3Djo
+# Numba Explained in 30 Minutes
+https://www.youtube.com/watch?v=DPyPmoeUdcE
+# 10 Coding Principles Explained in 5 Minutes
+https://www.youtube.com/watch?v=GmXPwRNIrAU
+# 39 Python Keywords
+https://www.youtube.com/watch?v=rKk8XPLysj8
+# pickle Security
+https://www.youtube.com/watch?v=ZSCCMknUiDc
+# Metaclasses & How Classes Really Work
+https://www.youtube.com/watch?v=NAQEj-c2CI8
+# debugger with breakpoint()
+https://youtu.be/oyIJOCSgTM0?si=nayEtkDfIdWXq2sZ

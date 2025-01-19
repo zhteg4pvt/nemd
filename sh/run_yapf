@@ -1,0 +1,16 @@
+#!/bin/sh
+# Under the BSD 3-Clause License by Teng Zhang (zhteg4@gmail.com)
+: '
+Format python files based on clang-format.
+
+Usage:
+  run_yapf [file1 file2...]
+  An empty argument formats modified files tracked by git and untracked files.
+'
+BASE_CMD="run_nemd -m yapf"
+# Execute command if arguments are provided
+[ $# != 0 ] && $BASE_CMD "$@" && exit $?
+# Set default arguments if no arguments are provided
+set -- $BASE_CMD -p --in-place --verbose "$@"
+. nemd_func
+format_py "$@"

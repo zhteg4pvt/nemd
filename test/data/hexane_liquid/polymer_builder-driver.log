@@ -1,0 +1,30 @@
+..........Command Options..........
+cru: CCCCCC
+cru_num: 1
+mol_num: 500
+seed: None
+cell: grow
+density: 0.8
+timestep: 1
+stemp: 10
+temp: 300
+tdamp: 100
+press: 1
+pdamp: 1000
+lj_cut: 11.0
+coul_cut: 11.0
+relax_time: 1
+prod_time: 1
+prod_ens: NVE
+force_field: FF_MODEL(ff='OPLSUA', model='TIP3P')
+interactive: False
+jobname: polymer_builder
+debug: False
+python: 2
+cpu: 7
+JobStart: 16:07:41 07/12/24
+...................................
+Data file written into polymer_builder.data
+In script written into polymer_builder.in
+Finished.
+16:07:54 07/12/24

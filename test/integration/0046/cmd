@@ -1,0 +1,2 @@
+# Workflow on ernergy over torsion: amorphous builder, single point energy, and log analysis
+run_nemd mb_lmp_log_workflow.py CCCC -struct_rg CCCC 0 10 5 -seed 123
