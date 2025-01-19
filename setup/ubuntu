@@ -3,7 +3,10 @@
 # Packages, Git Configuration, and Git Clone
 lsb_release -sr  # 22.04
 sudo apt-get install -y git gh vim python3-pip
-[ -z $(git config user.name) ] && git config --global user.name $whoami core.editor "vim"
+name=$(git config user.name)
+[ -z $name ] && git config --global core.editor "vim"
+[ -z $name ] && git config --global user.email $(whoami)@gmail.com
+[ -z $name ] && git config --global user.name $(whoami)
 SCRIPT_DIR=$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)
 if [ $(basename $SCRIPT_DIR) != nemd ] && [ ! -d ~/git/nemd ]; then
   gh auth login --hostname GitHub.com --web

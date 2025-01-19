@@ -83,7 +83,9 @@ class Darwin:
 
         :param pkgs tuple: package names to install.
         """
-        subprocess.run(' '.join(self.INSTALL + pkgs), shell=True)
+        cmd = ' '.join(self.INSTALL + pkgs)
+        print(cmd)
+        subprocess.run(cmd, shell=True)
 
     @property
     @functools.lru_cache

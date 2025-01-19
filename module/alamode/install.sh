@@ -13,7 +13,7 @@ case "$OSTYPE" in
     CMAKE_CXX_COMPILER=$(which clang++)
     ;;
   linux*)
-    SPGLIB_ROOT=`pip3 show spglib | grep 'Location:' | sed 's/^.*: //'`/spglib
+    SPGLIB_ROOT=$(python3 -c "import spglib; print(spglib.__path__[0])")
     CMAKE_C_COMPILER=$(which gcc)
     CMAKE_CXX_COMPILER=$(which g++)
     ;;
