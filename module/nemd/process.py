@@ -8,8 +8,6 @@ import glob
 import os
 import subprocess
 
-import spglib
-
 from nemd import envutils
 from nemd import jobutils
 from nemd import lammpsfix
@@ -156,8 +154,6 @@ class Alamode(Base):
         PHONONS: ".bands"
     }
     EXES = {SUGGEST: "alm", OPTIMIZE: "alm", PHONONS: "anphon"}
-    # alm on Ubuntu: error while loading shared libraries: libsymspg.so.2
-    PRE_RUN = f"LD_LIBRARY_PATH={os.path.join(spglib.__path__[0], 'lib')}"
 
     def __init__(self, crystal, *arg, **kwargs):
         """

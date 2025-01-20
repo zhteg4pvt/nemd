@@ -270,4 +270,5 @@ setuptools.setup(
         'Operating System :: POSIX :: Linux',
         'Operating System :: MacOS :: MacOS X',
         'Programming Language :: Python :: 3.10'
-    ])
+    ],
+    cmdclass={'install': Install})
