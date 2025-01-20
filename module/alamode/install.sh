@@ -13,12 +13,11 @@ case "$OSTYPE" in
     CMAKE_CXX_COMPILER=$(which clang++)
     ;;
   linux*)
-    SPGLIB_ROOT=$(python3 -m site --user-site)/spglib
     CMAKE_C_COMPILER=$(which gcc)
     CMAKE_CXX_COMPILER=$(which g++)
     ;;
 esac
-set -- "$@" -DCMAKE_C_COMPILER=$CMAKE_C_COMPILER -DCMAKE_CXX_COMPILER=$CMAKE_CXX_COMPILER -DSPGLIB_ROOT=$SPGLIB_ROOT
+set -- "$@" -DCMAKE_C_COMPILER=$CMAKE_C_COMPILER -DCMAKE_CXX_COMPILER=$CMAKE_CXX_COMPILER
 
 # Add (or initialize) git, rm previous directory, cmake configure, and build binaries
 [ -d alamode ] && git submodule update --init alamode || git submodule add -b master https://github.com/ttadano/alamode.git

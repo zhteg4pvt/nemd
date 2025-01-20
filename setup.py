@@ -185,7 +185,7 @@ class Linux(Darwin):
     LMP_PKGS = ('python3-venv', 'python3-apt', 'python3-setuptools',
                 'openmpi-bin', 'openmpi-common', 'libopenmpi-dev',
                 'libgtk2.0-dev', 'fftw3', 'fftw3-dev', 'ffmpeg')
-    ALM_PKGS = ('libsymspg-dev', 'libeigen3-dev', 'libboost-all-dev', 'libblas-dev',
+    ALM_PKGS = ('libsymspg-dev', 'libeigen3-dev', 'fftw3-dev', 'libboost-all-dev', 'libblas-dev',
                 'liblapack-dev')
 
     def run(self):
@@ -270,5 +270,4 @@ setuptools.setup(
         'Operating System :: POSIX :: Linux',
         'Operating System :: MacOS :: MacOS X',
         'Programming Language :: Python :: 3.10'
-    ],
-    cmdclass={'install': Install})
+    ])
