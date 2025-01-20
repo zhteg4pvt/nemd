@@ -1,6 +1,6 @@
 """
 pip3 install setuptools openvino-telemetry
-pip3 install .[dev] -v --user
+pip3 install .[dev] -v
 python3 setup.py install
 
 Python 3.10.12 is supported and tested.

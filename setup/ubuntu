@@ -1,22 +1,37 @@
 #!/bin/bash
+# Under the BSD 3-Clause License by Teng Zhang (zhteg4@gmail.com)
+: '
+Setup MacBook (Sonoma 14.5) and Ubuntu (22.04 LTS) ready for nemd pip install.
+'
+# Version, Packages, and Environment
+case $OSTYPE in
+  darwin*)
+    echo "MacOS not supported."
+    ;;
+  linux*)
+    lsb_release -sr  # 22.04
+    sudo apt-get install -y gh git vim python3-pip
+    # pip uses --user automatically if not root
+    BIN=$(python3 -m site --user-base)/bin
+    [ ! -d $BIN ] && mkdir -p $BIN
+    echo $PATH | grep -q -v $BIN && export PATH="$BIN${PATH:+":$PATH"}"
+    ;;
+esac
 
-# Version, Packages, Git Configuration
-lsb_release -sr  # 22.04
-sudo apt-get install -y git gh vim python3-pip
-name=$(git config user.name)
-[ -z $name ] && git config --global core.editor "vim"
-[ -z $name ] && git config --global user.email $(whoami)@gmail.com
-[ -z $name ] && git config --global user.name $(whoami)
-# Clone
-SCRIPT_DIR=$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)
-if [ $(basename $SCRIPT_DIR) != nemd ] && [ ! -d ~/git/nemd ]; then
+# Git
+if [ -z $(git config user.name) ]; then
+  git config --global core.editor "vim"
+  git config --global user.email $(whoami)@gmail.com
+  git config --global user.name $(whoami)
+fi
+if [ ! -d ~/git/nemd ]; then
   gh auth login --hostname GitHub.com --web
   gh auth setup-git
   gh repo clone zhteg4pvt/nemd ~/git/nemd
 fi
-# pip installs executables into this bin (included by ~/.profile)
-BIN=$(python3 -m site --user-base)/bin
-echo $PATH | grep -q -v $BIN && export PATH="$BIN${PATH:+":$PATH"}" && mkdir -p $BIN
+
+# Drivers
+[[ $OSTYPE != linux* ]] && exit 0
 # NVIDIA GPU: * NVIDIA Corporation GP104 [GeForce GTX 1080] *
 (lspci | grep VGA | grep -q -v NVIDIA) && echo 'No NVIDIA GPU found.' && exit 0
 sudo ubuntu-drivers --gpgpu install
