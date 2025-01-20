@@ -185,7 +185,7 @@ class Linux(Darwin):
     LMP_PKGS = ('python3-venv', 'python3-apt', 'python3-setuptools',
                 'openmpi-bin', 'openmpi-common', 'libopenmpi-dev',
                 'libgtk2.0-dev', 'fftw3', 'fftw3-dev', 'ffmpeg')
-    ALM_PKGS = ('libeigen3-dev', 'libboost-all-dev', 'libblas-dev',
+    ALM_PKGS = ('libsymspg-dev', 'libeigen3-dev', 'libboost-all-dev', 'libblas-dev',
                 'liblapack-dev')
 
     def run(self):
@@ -254,7 +254,7 @@ setuptools.setup(
     install_requires=[
         'numpy', 'scipy>=1.14.1', 'networkx>=3.3', 'pandas>=2.2.2',
         'chemparse', 'mendeleev', 'rdkit', 'signac', 'signac-flow',
-        'matplotlib', 'plotly', 'crystals', 'spglib', 'numba', 'tbb',
+        'matplotlib', 'plotly', 'crystals', 'numba', 'tbb',
         'wurlitzer', 'methodtools', 'fastparquet', 'lazy_import', 'tabulate',
         'psutil', 'pyqt5==5.15.4', 'pyqt5-sip==12.12.1',
         'dash_bootstrap_components'
