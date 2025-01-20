@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+brew install --cask virtualbox
+git clone https://github.com/corpnewt/gibMacOS
+python3 gibMacOS.py -v Sonoma
