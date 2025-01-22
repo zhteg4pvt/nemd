@@ -1,4 +1,4 @@
-#! /bin/zsh
+#! /bin/sh
 
 # Python3 executable (which python3 -> Mac: /usr/local/bin; Linux: /usr/bin/)
 set -- "$@" -D PYTHON_EXECUTABLE=$(which python3) -D CMAKE_INSTALL_PREFIX=/usr/local
@@ -7,15 +7,15 @@ set -- "$@" -D PKG_OPENMP=yes -D PKG_PYTHON=on -D PKG_MANYBODY=on \
   -D PKG_MOLECULE=on -D PKG_KSPACE=on -D PKG_RIGID=on -D BUILD_LIB=on \
   -D BUILD_SHARED_LIBS=yes
 # OS - dependent settings
-case "$OSTYPE" in
-  darwin*)
+case $(uname) in
+  Darwin*)
     # Darwin (Mac OS X)
     # Mac OS X enables OpenMP libraries (https://iscinumpy.gitlab.io/post/omp-on-high-sierra/)
     set -- "$@" -DOpenMP_CXX_LIB_NAMES=omp \
       -DOpenMP_omp_LIBRARY=$(brew --prefix libomp)/lib/libomp.a \
       -DOpenMP_CXX_FLAGS="'-Xpreprocessor -fopenmp -I$(brew --prefix libomp)/include'"
     ;;
-  linux*)
+  Linux*)
     # https://freezing.cool/notes/lammps-on-wsl-with-openmp-and-gpu
     (nvidia-smi 2>/dev/null) && set -- "$@" -D PKG_GPU=on -D GPU_API=cuda
     ;;

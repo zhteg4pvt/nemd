@@ -1,8 +1,8 @@
-#! /bin/zsh
+#! /bin/sh
 
 # OS - dependent settings
-case "$OSTYPE" in
-  darwin*)
+case $(uname) in
+  Darwin*)
     # Darwin (Mac OS X)
     # /usr/local/Cellar/spglib/2.4.0/ from "/usr/local/Cellar/spglib"
     SPGLIB_ROOT=$(echo $(brew --cellar spglib)/*/lib* | sed 's/lib$//')
@@ -12,7 +12,7 @@ case "$OSTYPE" in
     CMAKE_C_COMPILER=$(which clang)
     CMAKE_CXX_COMPILER=$(which clang++)
     ;;
-  linux*)
+  Linux*)
     CMAKE_C_COMPILER=$(which gcc)
     CMAKE_CXX_COMPILER=$(which g++)
     ;;

@@ -4,11 +4,11 @@
 Setup MacBook (Sonoma 14.5) and Ubuntu (22.04 LTS) ready for nemd pip install.
 '
 # Version, Packages, and Environment
-case $OSTYPE in
-  darwin*)
+case $(uname) in
+  Darwin*)
     echo "MacOS not supported."
     ;;
-  linux*)
+  Linux*)
     lsb_release -sr  # 22.04
     sudo apt-get install -y gh git vim python3-pip
     # pip uses --user automatically if not root
@@ -31,7 +31,7 @@ if [ ! -d ~/git/nemd ]; then
 fi
 
 # Drivers
-[[ $OSTYPE != linux* ]] && exit 0
+[ $(uname) = Linux ] && exit 0
 # NVIDIA GPU: * NVIDIA Corporation GP104 [GeForce GTX 1080] *
 (lspci | grep VGA | grep -q -v NVIDIA) && echo 'No NVIDIA GPU found.' && exit 0
 sudo ubuntu-drivers --gpgpu install
