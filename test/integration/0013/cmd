@@ -1,2 +1,2 @@
-# Amorphous builder on *CC(O)*
-run_nemd amorp_bldr_driver.py '*CC(O)*' -cru_num 5 -mol_num 3 -force_field OPLSUA TIP3P -seed 1234 -DEBUG
+# Amorphous builder via grow method with reduced density
+run_nemd amorp_bldr_driver.py "*CC*" -cru_num 4 -mol_num 7 -density 2.65 -method grow -seed 1234 -DEBUG

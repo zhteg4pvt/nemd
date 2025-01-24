@@ -591,7 +591,7 @@ class Thermo(Base):
         """
         return [
             type(x, (cls, ), dict(NAME=x, DESCR=x.capitalize())) for x in
-            ['thermo', 'temp', 'e_pair', 'e_mol', 'toteng', 'press', 'volume']
+            ['temp', 'e_pair', 'e_mol', symbols.TOTENG, 'press', 'volume']
         ]
 
 

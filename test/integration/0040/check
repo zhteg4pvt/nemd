@@ -1,1 +1,1 @@
-cmp('cb_lmp_log_toteng.csv', 'cb_lmp_log_toteng.csv', rtol=1e-6)
+cmp('lmp_traj_rdf.csv', 'lmp_traj_rdf.csv')

@@ -1,2 +1,2 @@
-# Amorphous builder on SPC water
-run_nemd amorp_bldr_driver.py 'O' -mol_num 1 -force_field OPLSUA SPC -seed 4321 -DEBUG
+# Amorphous builder via pack method with reduced density
+run_nemd amorp_bldr_driver.py "*CC*" -cru_num 6 -mol_num 11 -density 1.12 -method pack -seed 1234 -DEBUG

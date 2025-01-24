@@ -1,2 +1,2 @@
-slow(00:00:02)
-label(amorp_bldr)
+slow(00:00:03)
+label(lammps,lmp_log)

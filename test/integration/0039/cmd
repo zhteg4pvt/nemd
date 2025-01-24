@@ -1,2 +1,2 @@
-# Log analyzer on Hexane for volume
-run_nemd lmp_log_driver.py $NEMD_SRC/test/data/hexane_liquid/lammps_runner_lammps.log -data_file $NEMD_SRC/test/data/hexane_liquid/polymer_builder.data -task Volume -last_pct 0.9
+# Trajectory analysis on Argon for radial distribution function via neighbour search (original python)
+env PYTHON=0 run_nemd lmp_traj_driver.py $NEMD_SRC/test/data/ar/gas/ar100.custom.gz -data_file $NEMD_SRC/test/data/ar/gas/ar100.data -task rdf -last_pct 0.8 -JOBNAME lmp_traj

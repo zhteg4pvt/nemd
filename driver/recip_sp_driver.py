@@ -381,7 +381,7 @@ def get_parser(parser=None):
                         default=[0.5, 2],
                         type=parserutils.type_float,
                         nargs='+',
-                        help='Plot the planes of this Miller indices .')
+                        help='Plot the planes of this Miller indices.')
     parser.add_job_arguments()
     return parser
 

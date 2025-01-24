@@ -152,7 +152,8 @@ def get_parser():
                         action=parserutils.StructRg,
                         help='The range of the degree to scan in degrees.')
     task.MolBldrJob.add_arguments(parser)
-    task.LogJob.add_arguments(parser, single_point=True)
+    task.LogJob.add_arguments(parser)
+    parser.suppress([task.LogJob.FLAG_LAST_PCT, task.LogJob.FLAG_SLICE])
     parser.add_job_arguments()
     parser.add_workflow_arguments()
     parser.suppress([parserutils.FLAG_STATE_NUM, parserutils.FLAG_SUBSTRUCT])

@@ -1,41 +1,53 @@
 LAMMPS Description # full
 
-4 atoms
-3 bonds
-2 angles
-0 dihedrals
+5 atoms
+4 bonds
+3 angles
+2 dihedrals
 1 impropers
 
-3 atom types
-2 bond types
-1 angle types
-0 dihedral types
+5 atom types
+4 bond types
+3 angle types
+1 dihedral types
 1 improper types
 
-0 5.7779 xlo xhi
-0 5.7779 ylo yhi
-0 5.7779 zlo zhi
+0 5.8425 xlo xhi
+0 5.8425 ylo yhi
+0 5.8425 zlo zhi
 
 Masses
 
-1 12.0110 # C Ketone Carbonyl C 127 #
-2 15.9990 # O Ketone Carbonyl O 128 #
-3 15.0350 # CH3 Acetone C 129 #
+1 12.0110 # C Carboxylic Acid C 133 #
+2 15.9990 # =O Carboxylic Acid O 134 #
+3 15.9990 # -O- Carboxylic Acid O 135 #
+4 1.0080 # H Carboxylic Acid H 136 #
+5 15.0350 # CH3 Acetic Acid C 137 #
 
 Pair Coeffs
 
 1 0.1050 3.7500
 2 0.2100 2.9600
-3 0.1600 3.9100
+3 0.1700 3.0000
+4 0.0000 0.0000
+5 0.1600 3.9100
 
 Bond Coeffs
 
 1 570.0000 1.2290
-2 317.0000 1.5220
+2 469.0000 1.4000
+3 553.0000 0.9450
+4 450.0000 1.3640
 
 Angle Coeffs
 
-1 80.0000 120.4000
+1 70.0000 117.0000
+2 80.0000 126.0000
+3 35.0000 113.0000
+
+Dihedral Coeffs
+
+1 0.0000 1.8000 0.0000 0.0000
 
 Improper Coeffs
 
@@ -43,21 +55,29 @@ Improper Coeffs
 
 Atoms
 
-1 1 3 0.0620 -0.3342 1.5274 0.6572
-2 1 1 0.3000 0.8521 1.1362 1.5268
-3 1 3 0.0620 1.1590 -0.3447 1.6981
-4 1 2 -0.4240 1.5493 1.9838 2.0798
+1 1 5 0.0800 -0.5329 3.6744 0.4275
+2 1 1 0.5500 0.6623 4.3369 0.7315
+3 1 2 -0.5000 1.3347 4.8852 -0.1391
+4 1 3 -0.5800 0.9584 4.2895 2.0621
+5 1 4 0.4500 1.8610 4.4995 2.2473
 
 Bonds
 
 1 2 1 2
-2 2 2 3
-3 1 2 4
+2 1 2 3
+3 4 2 4
+4 3 4 5
 
 Angles
 
 1 1 1 2 4
-2 1 3 2 4
+2 2 3 2 4
+3 3 2 4 5
+
+Dihedrals
+
+1 1 1 2 4 5
+2 1 3 2 4 5
 
 Impropers
 

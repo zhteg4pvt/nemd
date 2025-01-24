@@ -39,6 +39,7 @@ class Lammps(logutils.Base):
         self.contents = None
         self.path = os.path.dirname(self.options.inscript)
         self.outfile = self.options.log
+        self.env = None
         if self.outfile is None:
             self.outfile = f"{self.options.jobname}_{symbols.LMP_LOG}"
         jobutils.add_outfile(self.outfile, file=True)
@@ -55,6 +56,7 @@ class Lammps(logutils.Base):
             self.writeIn()
         self.setArgs()
         self.setGpu()
+        self.setCpu()
         self.execute()
 
     def read(self):
@@ -110,12 +112,20 @@ class Lammps(logutils.Base):
 
     def setGpu(self):
         """
-        Set the arguments for the GPU lammps executable.
+        Set the GPU arguments.
         """
         lmp = subprocess.run(self.GREP_GPU, capture_output=True, shell=True)
         if not lmp.stdout:
             return
         self.args += ['-sf', 'gpu', '-pk', 'gpu', '1']
+
+    def setCpu(self):
+        """
+        Set the omp environment variables.
+        """
+        if self.options.cpu is None:
+            return
+        self.env = {'OMP_NUM_THREADS': str(self.options.cpu[0]), **os.environ}
 
     def execute(self):
         """
@@ -123,6 +133,7 @@ class Lammps(logutils.Base):
         """
         self.log('Running lammps simulations...')
         process = subprocess.Popen([self.LMP_SERIAL] + self.args,
+                                   env=self.env,
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE,
                                    text=True)

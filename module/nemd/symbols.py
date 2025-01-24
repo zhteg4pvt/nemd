@@ -73,6 +73,7 @@ LMP_LOG = 'lmp.log'
 FN_DOCUMENT = 'signac_job_document.json'
 FN_STATE_POINT = 'signac_statepoint.json'
 WORKSPACE = 'workspace'
+TOTENG = 'toteng'
 # Hardcoded Numerical Constants
 # A 32-bit integer limit allows for 4,294,967,296 ( 2**32 ) pieces of data.
 # For signed integers, this would range from -2,147,483,648 to 2,147,483,647.

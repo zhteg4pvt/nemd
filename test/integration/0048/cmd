@@ -1,2 +1,2 @@
-# Workflow: amorphous builder, molecular dynamics, and trajectory analysis
-run_nemd ab_lmp_traj_workflow.py [Ar] -mol_num 10 -force_field OPLSUA SPCE -density 0.001643 -method pack -prod_ens NVT -relax_time 0 -prod_time 0.004 -task msd rdf density clash view xyz -last_pct 0.8 -state_num 2 -seed 123
+# Workflow on Si for energy over lattice: crystal builder, single point energy, and log analysis
+run_nemd cb_lmp_log_workflow.py -task TotEng -scaled_range 0.95 1.00 0.05 -temp 0

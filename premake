@@ -33,6 +33,7 @@ add_pypath() {
 export NEMD_SRC="$(readlink -f ${PREMAKE} | xargs dirname)"
 [ -d $NEMD_SRC ] && echo \$NEMD_SRC=$NEMD_SRC
 
+# Shell Script
 export NEMD_SH=$NEMD_SRC/sh
 [ -d $NEMD_SH ] && echo \$NEMD_SH=$NEMD_SH && add_path $NEMD_SH
 

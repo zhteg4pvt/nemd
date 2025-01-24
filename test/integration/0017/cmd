@@ -1,2 +1,2 @@
-# Amorphous builder on LiF
-run_nemd amorp_bldr_driver.py '[Li+].[F-]' -mol_num 10 -force_field OPLSUA TIP3P -seed 1234 -DEBUG
+# Amorphous builder on SPCE water
+run_nemd amorp_bldr_driver.py O -mol_num 1 -force_field OPLSUA SPCE -seed 123

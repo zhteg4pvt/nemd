@@ -9,6 +9,7 @@ from nemd import jobcontrol
 from nemd import logutils
 from nemd import np
 from nemd import parserutils
+from nemd import symbols
 from nemd import task
 
 
@@ -47,7 +48,6 @@ def get_parser():
     :return 'argparse.ArgumentParser': argparse figures out how to parse those
         out of sys.argv.
     """
-
     parser = parserutils.WorkflowParser(__file__, descr=__doc__)
     parser.add_argument(
         task.XtalBldrJob.FLAG_SCALED_RANGE,

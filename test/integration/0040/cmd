@@ -1,2 +1,2 @@
-# Workflow on Si for energy over lattice: crystal builder, single point energy, and log analysis
-run_nemd cb_lmp_log_workflow.py -task TotEng -scaled_range 0.95 1.00 0.05 -temp 0
+# Trajectory analysis on Argon for radial distribution function via neighbour search (compiled numba)
+run_nemd lmp_traj_driver.py $NEMD_SRC/test/data/ar/gas/ar100.custom.gz -data_file $NEMD_SRC/test/data/ar/gas/ar100.data -task rdf -last_pct 0.8 -PYTHON 1

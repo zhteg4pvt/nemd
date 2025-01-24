@@ -1,2 +1,2 @@
-# Amorphous builder on He Ne Ar Kr Xe
-run_nemd amorp_bldr_driver.py [He] [Ne] [Ar] [Kr] [Xe] -mol_num 5 5 5 5 5 -force_field OPLSUA TIP3P -seed 1234 -DEBUG
+# Amorphous builder on Acetone CC(=O)C
+run_nemd amorp_bldr_driver.py 'CC(=O)C' -mol_num 1 -force_field OPLSUA SPC -seed 4321 -DEBUG

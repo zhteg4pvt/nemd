@@ -1,3 +1,2 @@
-# Direct and reciprocal lattice of Hexagon (graphene)
-run_nemd recip_sp_driver.py
-# https://physics.stackexchange.com/questions/664945/integration-over-first-brillouin-zone 
+# Amorphous builder on LiF
+run_nemd amorp_bldr_driver.py '[Li+].[F-]' -mol_num 10 -force_field OPLSUA TIP3P -seed 1234 -DEBUG

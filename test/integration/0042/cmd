@@ -1,3 +1,2 @@
-# Driver jobs in serial: molecular dynamics, trajectory analyzer
-run_nemd lammps_driver.py $NEMD_SRC/test/data/si/crystal_builder.in -cpu 1
-run_nemd lmp_log_driver.py lammps_lmp.log -task TotEng -cpu 2 -JOBNAME lmp_log
+# Trajectory analysis on Argon for radial distribution function via neighbour search (uncompiled numba)
+env PYTHON=-1 run_nemd lmp_traj_driver.py $NEMD_SRC/test/data/ar/gas/ar100.custom.gz -data_file $NEMD_SRC/test/data/ar/gas/ar100.data -task rdf -last_pct 0.8

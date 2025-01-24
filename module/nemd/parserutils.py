@@ -604,13 +604,11 @@ class ArgumentParser(argparse.ArgumentParser):
             type=type_positive_int,
             nargs='+',
             help='The angles of these types are fixed during the simulation.')
-        self.add_argument(
-            FLAG_SUBSTRUCT,
-            metavar='SMILES (VALUE)',
-            nargs='+',
-            action=Struct,
-            help='Select a substructure by smiles. If VALUE provided, set the '
-            'coordinates accordingly.')
+        self.add_argument(FLAG_SUBSTRUCT,
+                          metavar='SMILES (VALUE)',
+                          nargs='+',
+                          action=Struct,
+                          help='set or measure the substructure geometry.')
         self.add_argument(
             FlAG_FORCE_FIELD,
             metavar=FlAG_FORCE_FIELD[1:].upper(),
@@ -661,8 +659,8 @@ class ArgumentParser(argparse.ArgumentParser):
             metavar=FlAG_DIMENSION.upper()[1:],
             type=int,
             action=Three,
-            help='Unit cell is duplicated along each lattice vector by the '
-            'corresponding factor.')
+            help='Duplicate the unit cell by these factors to generate the '
+            'supercell.')
         self.add_argument(
             FLAG_SCALED_FACTOR,
             default=ONES,

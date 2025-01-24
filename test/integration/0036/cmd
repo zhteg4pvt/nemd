@@ -1,2 +1,2 @@
-# Trajectory analysis on hexane for radial distribution function
-run_nemd lmp_traj_driver.py $NEMD_SRC/test/data/hexane_liquid/dump.custom.gz -data_file $NEMD_SRC/test/data/hexane_liquid/polymer_builder.data -task rdf xyz clash density msd -last_pct 0.05 -sel O -slice 150
+# Log analyzer on Hexane for volume
+run_nemd lmp_log_driver.py $NEMD_SRC/test/data/hexane_liquid/lammps_runner_lammps.log -data_file $NEMD_SRC/test/data/hexane_liquid/polymer_builder.data -last_pct 0.9

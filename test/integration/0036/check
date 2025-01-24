@@ -1,1 +1,6 @@
-not_exist('lmp_traj_rdf.csv','lmp_traj_clash.csv','lmp_traj_msd.csv') and cmp('custom_dump_density.csv','lmp_traj_density.csv') and cmp('custom_dump_xyz.xyz','lmp_traj_xyz.xyz')
+cmp(lmp_log_e_mol.csv,lmp_log_e_mol.csv)
+cmp(lmp_log_e_pair.csv,lmp_log_e_pair.csv)
+cmp(lmp_log_press.csv,lmp_log_press.csv)
+cmp(lmp_log_temp.csv,lmp_log_temp.csv)
+cmp(lmp_log_toteng.csv,lmp_log_toteng.csv)
+cmp(lmp_log_volume.csv,lmp_log_volume.csv)

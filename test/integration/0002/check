@@ -1,2 +1,2 @@
-# polymers are built the same
-cmp('polymer_builder.data', 'amorp_bldr.data')
+cmp('mol_bldr.data', 'mol_bldr.data')
+cmp('mol_bldr.in', 'mol_bldr.in')

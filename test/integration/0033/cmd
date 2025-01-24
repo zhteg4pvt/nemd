@@ -1,2 +1,2 @@
-# Amorphous builder via pack method with reduced density
-run_nemd amorp_bldr_driver.py "*CC*" -cru_num 6 -mol_num 11 -density 1.12 -method pack -seed 1234 -DEBUG
+# Crystal builder on Si with scaled lattice parameters
+run_nemd xtal_bldr_driver.py -dimension 1 2 3 -JOBNAME crystal_builder -seed 0 -scale_factor 0.95

@@ -122,7 +122,6 @@ class LammpsJob(taskbase.Job):
     FLAG_INSCRIPT = 'inscript'
     FLAG_LOG = '-log'
     FLAG_DATA_FILE = '-data_file'
-    SCREEN_CHOICES = [symbols.NONE, 'filename']
 
     @classmethod
     def add_arguments(cls, parser, positional=False):
@@ -138,10 +137,8 @@ class LammpsJob(taskbase.Job):
                                 type=parserutils.type_file,
                                 help='Read input from this file.')
         parser.add_argument(jobutils.FLAG_SCREEN,
-                            metavar=jobutils.FLAG_SCREEN[1:].upper(),
                             default=symbols.NONE,
-                            choices=cls.SCREEN_CHOICES,
-                            help='Where to send screen output (-sc)')
+                            help='Where to send screen output.')
         parser.add_argument(jobutils.FLAG_LOG,
                             metavar=jobutils.FLAG_LOG[1:].upper(),
                             help='Print logging information into this file.')
@@ -216,7 +213,6 @@ class LogJob(taskbase.Job):
     FLAG_LAST_PCT = '-last_pct'
     FLAG_SLICE = '-slice'
     TASK_CHOICES = analyzer.THERMO.keys()
-    TASK_DEFAULT = analyzer.Thermo.NAME
     TASK_HELP = 'Searches, combines and averages thermodynamic info.'
     LAST_FRM = analyzer.THERMO.keys()
     FLAG = 'log'
@@ -243,19 +239,20 @@ class LogJob(taskbase.Job):
                 return match.group(1)
 
     @classmethod
-    def add_arguments(cls, parser, positional=False, single_point=False):
+    def add_arguments(cls, parser, positional=False):
         """
         Add job specific arguments to the parser.
 
         :param parser ArgumentParser: the parse to add arguments
         :param positional bool: whether to add positional arguments
-        :param single_point bool: whether this follows a single point energy job
         """
         if positional:
             parser.add_argument(cls.FLAG,
                                 metavar=cls.FLAG.upper(),
                                 type=parserutils.type_file,
                                 help=cls.HELP)
+        else:
+            parser.set_defaults(task=[symbols.TOTENG])
         parser.add_argument(cls.FLAG_DATA_FILE,
                             metavar=cls.FLAG_DATA_FILE[1:].upper(),
                             type=parserutils.type_file,
@@ -263,7 +260,6 @@ class LogJob(taskbase.Job):
         parser.add_argument(parserutils.FLAG_TASK,
                             type=str.lower,
                             choices=cls.TASK_CHOICES,
-                            default=[cls.TASK_DEFAULT],
                             nargs='+',
                             help=cls.TASK_HELP)
         parser.add_argument(
@@ -278,8 +274,6 @@ class LogJob(taskbase.Job):
                             nargs='+',
                             help="Slice the input data before the analysis by "
                             "END, START END, or START END STEP.")
-        if single_point:
-            parser.suppress([cls.FLAG_LAST_PCT, cls.FLAG_SLICE])
 
 
 class LastPct(float):
@@ -352,6 +346,7 @@ class TrajJob(LogJob):
         :param positional bool: whether to add positional arguments
         """
         super().add_arguments(parser, positional=positional)
+        parser.set_defaults(task=[cls.TASK_DEFAULT])
         parser.add_argument('-sel', help=f'The element of the selected atoms.')
         if positional:
             parser.validators.add(cls.TrajValidator)

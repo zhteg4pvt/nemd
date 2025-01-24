@@ -27,7 +27,6 @@ class Log(logutils.Base):
         self.options = options
         self.thermo = None
         self.df_reader = None
-        self.tasks = [x for x in analyzer.THERMO if x in self.options.task]
 
     def run(self):
         """
@@ -56,29 +55,29 @@ class Log(logutils.Base):
         if self.thermo.empty:
             self.log_error(f"No thermo output found in {self.options.log}.")
         self.log(f"{self.thermo.shape[0]} steps of thermo data found.")
-        self.log(f"{', '.join(self.options.task)} averages results from last "
-                 f"{self.options.last_pct * 100}% frames {symbols.ELEMENT_OF} "
-                 f"[{', '.join([f'{x:.3f}' for x in self.thermo.range])}] ps")
+        self.log(f"Averages results from {self.thermo.range[0]:.3f} ps to "
+                 f"{self.thermo.range[1]:.3f} ps")
 
     def setTasks(self):
         """
         Set the tasks to be performed.
         """
-        columns = self.thermo.columns
-        available = [analyzer.Base.parse(x)[0].lower() for x in columns]
-        selected = set(self.tasks).intersection(available)
-        if len(selected) == len(self.tasks):
+        parsed = [analyzer.Base.parse(x) for x in self.thermo.columns]
+        avail = [name.lower() for name, unit, _ in parsed]
+        if self.options.task is None:
+            self.options.task = [x for x in avail if x in analyzer.THERMO]
             return
-        missed = symbols.COMMA_SEP.join(set(self.tasks).difference(selected))
-        available = symbols.COMMA_SEP.join(available)
-        self.log_warning(f"{missed} tasks cannot be found out of {available}.")
-        self.tasks = list(selected)
+        tasks = set(self.options.task)
+        self.options.task = tasks.intersection(avail)
+        missed = symbols.COMMA_SEP.join(tasks.difference(self.options.task))
+        self.log_warning(f"{missed} tasks cannot be found out of "
+                         f"{symbols.COMMA_SEP.join(avail)}.")
 
     def analyze(self):
         """
         Run analyzers.
         """
-        for task in self.tasks:
+        for task in self.options.task:
             anl = analyzer.ANLZ[task](self.thermo,
                                       options=self.options,
                                       logger=self.logger,

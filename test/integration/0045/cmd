@@ -1,2 +1,2 @@
-# Molecule builder measures the geometry
-run_nemd mol_bldr_driver.py *C* -cru_num 3 -substruct CCC -seed 12
+# Workflow: amorphous build, MD simulation, and trajectory analysis
+run_nemd ab_lmp_traj_workflow.py [Ar] -mol_num 100 -density 0.00164 -task density -relax_time 0.1 -prod_time 0.01 -prod_ens NPT -state_num 2

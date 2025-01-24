@@ -1,2 +1,2 @@
-# Trajectory analysis on Argon for radial distribution function via neighour search (cached numba)
-run_nemd lmp_traj_driver.py $NEMD_SRC/test/data/ar/gas/ar100.custom -data_file $NEMD_SRC/test/data/ar/gas/ar100.data -task rdf -last_pct 0.8 -PYTHON 2
+# Amorphous builder on He Ne Ar Kr Xe
+run_nemd amorp_bldr_driver.py [He] [Ne] [Ar] [Kr] [Xe] -mol_num 5 5 5 5 5 -force_field OPLSUA TIP3P -seed 1234 -DEBUG

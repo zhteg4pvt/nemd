@@ -1,1 +1,2 @@
-cmp('lmp_traj_rdf.csv', 'lmp_traj_rdf.csv')
+# polymers are built the same
+cmp('polymer_builder.data', 'amorp_bldr.data')
