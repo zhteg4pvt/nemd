@@ -25,8 +25,8 @@ if [ -z "$(git config user.name)" ]; then
   git config --global user.name $(whoami)
 fi
 if [ ! -d ~/git/nemd ]; then
-  gh auth login --hostname GitHub.com --web
-  gh auth setup-git
+  (gh auth status) || gh auth login --hostname GitHub.com --web
+  (git config --global credential.helper | grep 'gh auth') || gh auth setup-git
   gh repo clone zhteg4pvt/nemd ~/git/nemd
 fi
 
