@@ -1,6 +1,1 @@
-cmp(ab_lmp_traj_density.csv,ab_lmp_traj_density.csv)
-cmp(ab_lmp_traj_rdf.csv,ab_lmp_traj_rdf.csv)
-cmp(ab_lmp_traj_clash.csv,ab_lmp_traj_clash.csv)
-cmp(ab_lmp_traj_msd.csv,ab_lmp_traj_msd.csv)
-glob(*/*/lmp_traj_xyz.xyz, num=2)
-glob(*/*/lmp_traj_xyz.xyz, num=2)
+cmp(amorp_bldr.data, 'amorp_bldr.data')

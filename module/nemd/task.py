@@ -282,16 +282,17 @@ class LastPct(float):
     the input data.
     """
 
-    def getSidx(self, data, delta=1):
+    def getSidx(self, data, buffer=0):
         """
         Get the start index of the data.
 
         :param data tuple, or numpy.ndarray: on which the length is determined
-        :param delta int: the minimum number of data frames to be included
+        :param buffer int: the buffer step to be added to the start index
         :return int: the start index
         """
         num = len(data)
-        return min(round(num * (1 - self)), max(num - delta, 0))
+        sidx = min(max(num - 1, 0), round(num * (1 - self)))
+        return max(0, sidx - buffer) if buffer else sidx
 
     @classmethod
     def type(cls, arg):

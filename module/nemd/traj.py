@@ -87,7 +87,7 @@ class Traj(list):
             stdout, stderr = proc.communicate()
             steps = np.loadtxt(io.StringIO(stdout), dtype=int)
             # From the 2nd to the last frame in case of a broken last one.
-            start = steps[self.options.last_pct.getSidx(steps, delta=2)]
+            start = steps[self.options.last_pct.getSidx(steps, buffer=1)]
         with self.open(file=self.file, contents=self.contents) as fh:
             while True:
                 try:

@@ -1,0 +1,2 @@
+# Amorphous builder on SPC water and CCCO
+run_nemd amorp_bldr_driver.py O CCCO -mol_num 1 1 -force_field OPLSUA SPCE -seed 123
