@@ -10,7 +10,7 @@ case $(uname) in
     (brew -v) || bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     [ -f ~/.zprofile ] && grep brew ~/.zprofile || echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
     grep homebrew $PATH || eval "$(/opt/homebrew/bin/brew shellenv)"
-    brew install gh git vim python tbb
+    brew install gh git vim python
     BIN=$(brew info python@3.10 | grep 'python.*bin$' | sed 's/ //g')
     echo $PATH | grep -q -v $BIN && export PATH="$BIN${PATH:+":$PATH"}"
     grep $BIN ~/.zprofile || echo "export PATH="$BIN\${PATH:+":\$PATH"}"" >> ~/.zprofile

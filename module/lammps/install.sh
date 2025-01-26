@@ -4,8 +4,7 @@
 set -- "$@" -D PYTHON_EXECUTABLE=$(which python3) -D CMAKE_INSTALL_PREFIX=/usr/local
 # OpenMP packages (https://docs.lammps.org/Speed_omp.html)
 set -- "$@" -D PKG_OPENMP=yes -D PKG_PYTHON=on -D PKG_MANYBODY=on \
-  -D PKG_MOLECULE=on -D PKG_KSPACE=on -D PKG_RIGID=on -D BUILD_LIB=on \
-  -D BUILD_SHARED_LIBS=yes
+  -D PKG_MOLECULE=on -D PKG_KSPACE=on -D PKG_RIGID=on -D BUILD_LIB=on
 # OS - dependent settings
 case $(uname) in
   Darwin*)
@@ -29,8 +28,3 @@ set -x;
 cmake "$@"
 cmake --build build -j $(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 set +x;
-# Create soft links
-# Though '-D LAMMPS_MACHINE=serial' creates lmp_serial executable,
-# it generates liblammps_serial.dylib instead of liblammps.dylib which is required by
-# import lammps; lammps.lammps(). (/usr/local/lib/python3.10/site-packages/lammps)
-ln build/lmp build/lmp_serial

@@ -1,11 +1,10 @@
+# This software is licensed under the BSD 3-Clause License.
+# Authors: Teng Zhang (zhteg4@gmail.com)
 """
-pip3 install setuptools openvino-telemetry
-pip3 install .[dev] -v
-python3 setup.py install
+Compile binaries, install packages, and distribute scripts. (Python 3.10.12)
 
-Python 3.10.12 is supported and tested.
-request 'pyqt5==5.15.4', 'pyqt5-sip==12.12.1' to remove the DeprecationWarning:
-sipPyTypeDict() is deprecated, xxx sipPyTypeDictRef() instead
+pip3 install . -v
+python3 setup.py install
 """
 import functools
 import glob
@@ -15,28 +14,11 @@ import subprocess
 import sys
 
 import setuptools
-from setuptools.command.install import install
 
 MODULE = 'module'
 NEMD = 'nemd'
 LAMMPS = 'lammps'
 ALAMODE = 'alamode'
-# Python modules to install under site-packages
-PACKAGE_DIR = {x: os.path.join(MODULE, x) for x in [NEMD, ALAMODE]}
-# Non-python files to install under site-packages/{package name}
-DATA = pathlib.Path('data')
-NPY = 'npy'
-PARQUET = 'parquet'
-NEMD_DATA = [DATA.joinpath('ff', 'oplsua', f'*.{x}') for x in [NPY, PARQUET]]
-NEMD_DATA.append(DATA.joinpath('table', f'*.{PARQUET}'))
-ALAMODE_TOOLS = pathlib.Path(ALAMODE, 'tools')
-ALAMODE_DATA = [ALAMODE_TOOLS.joinpath(x, '*.py') for x in ['', 'interface']]
-PACKAGE_DATA = {NEMD: NEMD_DATA, ALAMODE: ALAMODE_DATA}
-PACKAGE_DATA = {x: list(map(str, y)) for x, y in PACKAGE_DATA.items()}
-# Scripts to install under site-packages/bin
-SCRIPTS = ['sh', 'driver', 'workflow']
-SCRIPTS = [y for x in SCRIPTS for y in glob.glob(os.path.join(x, '*'))]
-SCRIPTS = [x for x in SCRIPTS if os.path.isfile(x)]
 PKGS = ('cmake', )
 
 
@@ -45,25 +27,24 @@ class Darwin:
     macOS installer.
     """
 
-    LMP = 'lmp_serial'
+    LMP = 'lmp'
     ALM = 'alm'
     ANPHON = 'anphon'
-    BIN = pathlib.Path('/usr/local/bin')
     INSTALL = ('brew', 'install', '-q')
     PKGS = PKGS + ('gcc', 'libomp')
     LMP_PKGS = ('clang-format', )
     ALM_PKGS = ('llvm', 'open-mpi', 'spglib', 'fftw', 'eigen', 'boost',
                 'lapack')
 
-    def run(self):
+    def install(self):
         """
-        Main method to run.
+        Main method to install.
         """
-        self.install()
+        self.prereq()
         self.compile()
-        self.installQt()
+        self.qt()
 
-    def install(self, *pkgs):
+    def prereq(self, *pkgs):
         """
         Install the packages required by compilation.
 
@@ -111,11 +92,6 @@ class Darwin:
         :param name: the executable name.
         :return 'PosixPath': the executable pathname in bin.
         """
-        # bin/name
-        bin_exe = self.BIN.joinpath(name)
-        if os.access(bin_exe, os.X_OK):
-            print(f'{bin_exe} found for {name}.')
-            return bin_exe
         # name in build
         match name:
             case self.LMP:
@@ -123,17 +99,9 @@ class Darwin:
             case self.ALM | self.ANPHON:
                 target = f'{MODULE}/{ALAMODE}/build/{name}/{name}'
         target = pathlib.Path(target)
-        if not target.is_file():
-            print(f'{target} not found.')
-            return
-        # bin/name --> name in build
-        try:
-            bin_exe.unlink()
-        except FileNotFoundError:
-            pass
-        bin_exe.symlink_to(target.resolve())
-        print(f'Soft link to {target} updated. ({bin_exe})')
-        return bin_exe
+        if target.is_file():
+            return target
+        print(f'{target} not found.')
 
     @property
     @functools.lru_cache
@@ -147,21 +115,18 @@ class Darwin:
 
     def compile(self):
         """
-        Install the lammps with specific packages if not available.
+        Compile the binaries.
         """
         if not self.lmp_exe:
             print(f'Installing {LAMMPS}...')
             cwd = os.path.join(MODULE, LAMMPS)
             subprocess.run('bash install.sh', shell=True, cwd=cwd)
-            self.locate(self.LMP)
         if len(self.alm_exes) != 2:
             print(f'Installing {ALAMODE}...')
             cwd = os.path.join(MODULE, ALAMODE)
             subprocess.run('bash install.sh', shell=True, cwd=cwd)
-            self.locate(self.ALM)
-            self.locate(self.ANPHON)
 
-    def installQt(self):
+    def qt(self):
         """
         Install the qt, a C++framework for developing graphical user interfaces
         and cross-platform applications, both desktop and embedded.
@@ -178,24 +143,22 @@ class Linux(Darwin):
     """
     Linux installer.
     """
-    # Permission denied: 'xxx' -> '/usr/local/bin/lmp_serial'
-    BIN = pathlib.Path.home().joinpath(".local/bin")
     INSTALL = ('sudo', 'apt-get', 'install', '-y')
     PKGS = PKGS + ('zsh', 'build-essential')
     LMP_PKGS = ('python3-venv', 'python3-apt', 'python3-setuptools',
                 'openmpi-bin', 'openmpi-common', 'libopenmpi-dev',
                 'libgtk2.0-dev', 'fftw3', 'fftw3-dev', 'ffmpeg')
-    ALM_PKGS = ('libsymspg-dev', 'libeigen3-dev', 'fftw3-dev', 'libboost-all-dev', 'libblas-dev',
-                'liblapack-dev')
+    ALM_PKGS = ('libsymspg-dev', 'libeigen3-dev', 'fftw3-dev',
+                'libboost-all-dev', 'libblas-dev', 'liblapack-dev')
 
-    def run(self):
+    def install(self):
         """
-        Main method to run.
+        Main method to install.
         """
-        super().run()
-        self.installTerm()
+        super().install()
+        self.term()
 
-    def install(self, *pkgs):
+    def prereq(self, *pkgs):
         """
         Install the packages required by compilation.
 
@@ -206,7 +169,7 @@ class Linux(Darwin):
             pkgs += ('nvidia-cuda-toolkit', )
         super().install(*pkgs)
 
-    def installQt(self):
+    def qt(self):
         """
         Install the qt, a C++framework for developing graphical user interfaces
         and cross-platform applications, both desktop and embedded.
@@ -214,61 +177,96 @@ class Linux(Darwin):
         self.subprocess('qt5-base-dev', 'libgl1-mesa-dev', '^libxcb.*-dev',
                         'libx11-xcb-dev', 'libglu1-mesa-dev')
 
-    def installTerm(self):
+    def term(self):
         """
         Install terminal supporting split view.
         """
         self.subprocess('tilix')
 
 
-class Install(install):
+Installer = {'darwin': Darwin, 'linux': Linux}[sys.platform]
+
+
+class Distribution(Installer):
     """
-    Installation on different platforms.
+    Distribution the scripts, packages and data.
     """
 
-    def run(self):
-        """
-        Install packages outside regular install_requires.
-        """
-        print(f"***** Platform: {sys.platform} *****")
-        match sys.platform:
-            case 'darwin':
-                Darwin().run()
-            case 'linux':
-                Linux().run()
-        super().run()
-
-
-setuptools.setup(
-    name=NEMD,
-    version='1.0.0',
-    description='A molecular simulation toolkit',
-    url='https://github.com/zhteg4pvt/nemd',
-    author='Teng Zhang',
-    author_email='zhteg4@gmail.com',
-    license='BSD 3-clause',
-    packages=[NEMD, ALAMODE],
-    package_dir=PACKAGE_DIR,
-    package_data=PACKAGE_DATA,
-    scripts=SCRIPTS,
-    install_requires=[
+    PARQUET = 'parquet'
+    PACKAGES = [NEMD, LAMMPS, ALAMODE]
+    # Python modules to install under site-packages
+    PACKAGE_DIR = {x: os.path.join(MODULE, x) for x in PACKAGES}
+    # Scripts to install under site-packages/bin
+    SCRIPTS = ['sh', 'driver', 'workflow']
+    SCRIPTS = [y for x in SCRIPTS for y in glob.glob(os.path.join(x, '*'))]
+    SCRIPTS = [x for x in SCRIPTS if os.path.isfile(x)]
+    # 'pyqt5==5.15.4', 'pyqt5-sip==12.12.1' removes the DeprecationWarning:
+    # sipPyTypeDict() is deprecated, xxx sipPyTypeDictRef() instead
+    INSTALL_REQUIRES = [
         'numpy', 'scipy>=1.14.1', 'networkx>=3.3', 'pandas>=2.2.2',
         'chemparse', 'mendeleev', 'rdkit', 'signac', 'signac-flow',
-        'matplotlib', 'plotly', 'crystals', 'numba', 'tbb',
-        'wurlitzer', 'methodtools', 'fastparquet', 'lazy_import', 'tabulate',
-        'psutil', 'pyqt5==5.15.4', 'pyqt5-sip==12.12.1',
-        'dash_bootstrap_components'
-    ],
-    extras_require={
-        'dev':
-        ['yapf', 'isort', 'snakeviz', 'tuna', 'pytest', 'dash[testing]']
-    },
-    classifiers=[
+        'matplotlib', 'plotly', 'crystals', 'numba', 'wurlitzer',
+        'methodtools', 'fastparquet', 'lazy_import', 'tabulate', 'psutil',
+        'yapf', 'isort', 'snakeviz', 'tuna', 'pytest', 'dash[testing]',
+        'pyqt5==5.15.4', 'pyqt5-sip==12.12.1', 'dash_bootstrap_components'
+    ]
+    CLASSIFIERS = [
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: BSD-3-Clause',
         'Operating System :: POSIX :: Linux',
         'Operating System :: MacOS :: MacOS X',
         'Programming Language :: Python :: 3.10'
-    ],
-    cmdclass={'install': Install})
+    ]
+
+    def run(self):
+        """
+        Main method to install and distribute.
+        """
+        self.install()
+        self.setup()
+
+    def setup(self):
+        """
+        Setup the distributions.
+        """
+        setuptools.setup(name=NEMD,
+                         version='1.0.0',
+                         description='A molecular simulation toolkit',
+                         url='https://github.com/zhteg4pvt/nemd',
+                         author='Teng Zhang',
+                         author_email='zhteg4@gmail.com',
+                         license='BSD 3-clause',
+                         packages=self.PACKAGES,
+                         package_dir=self.PACKAGE_DIR,
+                         package_data=self.package_data,
+                         scripts=self.SCRIPTS,
+                         install_requires=self.INSTALL_REQUIRES,
+                         classifiers=self.CLASSIFIERS)
+
+    @property
+    def package_data(self):
+        """
+        Non-python files to install under site-packages/{package name}
+
+        return dict: key is package name, value is list of namepaths.
+        """
+        # Non-python files to install under site-packages/{package name}
+        # NEMD
+        data_dir = pathlib.Path('data')
+        nemd = [data_dir.joinpath('table', f'*.{self.PARQUET}')]
+        oplsua_dir = data_dir.joinpath('ff', 'oplsua')
+        nemd += [oplsua_dir.joinpath(f'*.{x}') for x in ['npy', self.PARQUET]]
+        # LAMMPS
+        lammps = [str(self.lmp_exe.relative_to(self.PACKAGE_DIR[LAMMPS]))]
+        # ALAMODE
+        alamode_dir = self.PACKAGE_DIR[ALAMODE]
+        alamode = [str(x.relative_to(alamode_dir)) for x in self.alm_exes]
+        tools = pathlib.Path(ALAMODE, 'tools')
+        alamode += [tools.joinpath(x, '*.py') for x in ['', 'interface']]
+        package_data = {NEMD: nemd, LAMMPS: lammps, ALAMODE: alamode}
+        return {x: list(map(str, y)) for x, y in package_data.items()}
+
+
+dist = Distribution()
+dist.run()
