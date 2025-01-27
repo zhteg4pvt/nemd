@@ -1,0 +1,25 @@
+#! /bin/sh
+# Under the BSD 3-Clause License by Teng Zhang (zhteg4@gmail.com)
+: '
+Run the submodule binaries.
+
+Usage:
+  run_module [lmp|alm|anphon] [args]
+'
+[ $# -lt 1 ] && echo 'Please specify the module name.' && exit 1
+
+dir=build
+case $1 in
+  lmp)
+    name=lammps
+    ;;
+  alm|anphon)
+    name=alamode
+    dir=$dir/$1
+    ;;
+  *)
+    echo "Unknown module: $1"
+  esac
+
+set -- $(run_nemd -c "import $name; print($name.__path__[0])")/$dir/$1 "${@:2}"
+echo "$@"; "$@"

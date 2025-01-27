@@ -21,8 +21,6 @@ class Lammps(logutils.Base):
     Main class to run the lammps executable.
     """
     FLAG_IN = '-in'
-    LMP_SERIAL = symbols.LMP_SERIAL
-    GREP_GPU = f'{LMP_SERIAL} -h | grep GPU'
     KEYWORD_RE = r"\b{key}\s+(\S*)\s+(\S*)\s+(\S*)"
     READ_DATA_RE = KEYWORD_RE.format(key=lammpsfix.READ_DATA)
     PAIR_STYLE_RE = KEYWORD_RE.format(key=lammpsin.In.PAIR_STYLE)
@@ -114,7 +112,10 @@ class Lammps(logutils.Base):
         """
         Set the GPU arguments.
         """
-        lmp = subprocess.run(self.GREP_GPU, capture_output=True, shell=True)
+        lmp = subprocess.run(
+            f'{symbols.RUN_MODULE} {symbols.LMP} -h | grep GPU',
+            capture_output=True,
+            shell=True)
         if not lmp.stdout:
             return
         self.args += ['-sf', 'gpu', '-pk', 'gpu', '1']
@@ -132,7 +133,8 @@ class Lammps(logutils.Base):
         Run lammps executable with the given input file and output file.
         """
         self.log('Running lammps simulations...')
-        process = subprocess.Popen([self.LMP_SERIAL] + self.args,
+        process = subprocess.Popen([symbols.RUN_MODULE, symbols.LMP] +
+                                   self.args,
                                    env=self.env,
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE,

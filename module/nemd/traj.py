@@ -67,6 +67,8 @@ class Traj(list):
         self.extend(list(itertools.islice(self.frame, *self.slice)))
         # FIXME: obtain the timestep from log file instead of options
         fac = getattr(self.options, 'timestep', 1) / constants.PICO_TO_FEMTO
+        if not self:
+            return
         self.time = Time([x.step * fac for x in self], options=self.options)
 
     @property
