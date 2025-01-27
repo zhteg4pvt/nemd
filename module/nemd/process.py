@@ -19,7 +19,7 @@ class Base:
     """
     Base class to build command, execute subprocess, and search for output files
     """
-    PRE_RUN = None
+    PRE_RUN = jobutils.RUN_MODULE
     EXT = symbols.LOG
     EXTS = {}
 
@@ -128,7 +128,7 @@ class Lmp(Base):
         See parent class for docs.
         """
         return [
-            LMP, jobutils.FLAG_IN, self.struct.inscript, jobutils.FLAG_SCREEN,
+            symbols.LMP, jobutils.FLAG_IN, self.struct.inscript, jobutils.FLAG_SCREEN,
             symbols.NONE, jobutils.FLAG_LOG, symbols.LMP_LOG
         ]
 
@@ -186,7 +186,6 @@ class Tools(Base):
     """
     Class to run the scripts in the 'tools' directory.
     """
-
     PRE_RUN = jobutils.RUN_NEMD
     DISPLACE = 'displace'
     EXTRACT = 'extract'

@@ -1,5 +1,12 @@
 #! /bin/sh
+# Under the BSD 3-Clause License by Teng Zhang (zhteg4@gmail.com)
+: '
+Compile the lammps binary.
 
+Usage:
+  install.sh
+'
+set -- cmake
 # Python3 executable (which python3 -> Mac: /usr/local/bin; Linux: /usr/bin/)
 set -- "$@" -D PYTHON_EXECUTABLE=$(which python3) -D CMAKE_INSTALL_PREFIX=/usr/local
 # OpenMP packages (https://docs.lammps.org/Speed_omp.html)
@@ -8,7 +15,6 @@ set -- "$@" -D PKG_OPENMP=yes -D PKG_PYTHON=on -D PKG_MANYBODY=on \
 # OS - dependent settings
 case $(uname) in
   Darwin*)
-    # Darwin (Mac OS X)
     # Mac OS X enables OpenMP libraries (https://iscinumpy.gitlab.io/post/omp-on-high-sierra/)
     set -- "$@" -DOpenMP_CXX_LIB_NAMES=omp \
       -DOpenMP_omp_LIBRARY=$(brew --prefix libomp)/lib/libomp.a \
@@ -21,10 +27,9 @@ case $(uname) in
 esac
 
 # Add (or initialize) git, rm previous directory, cmake configure, and build binaries
-[ -d lammps ] && git submodule update --init lammps || git submodule add -b release https://github.com/lammps/lammps.git
+[ -d lammps ] || git submodule add -b release https://github.com/lammps/lammps.git
+git submodule update --init lammps
 [ -d build ] && rm -rf build
 set -- "$@" -S ./lammps/cmake/ -B build
-set -x;
-cmake "$@"
+echo "$@"; "$@"
 cmake --build build -j $(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
-set +x;

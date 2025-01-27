@@ -1,8 +1,14 @@
 #! /bin/sh
+# Under the BSD 3-Clause License by Teng Zhang (zhteg4@gmail.com)
+: '
+Compile the alamode binary.
 
+Usage:
+  install.sh
+'
+set -- cmake
 C_COMPILER=gcc
 CXX_COMPILER=g++
-
 # OS - dependent settings
 case $(uname) in
   Darwin*)
@@ -14,12 +20,10 @@ case $(uname) in
     ;;
 esac
 
-set -- "$@" -DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER  -S alamode -B build
-
 # Add (or initialize) git, rm previous directory, cmake configure, and build binaries
-[ -d alamode ] && git submodule update --init alamode || git submodule add -b master https://github.com/ttadano/alamode.git
+[ -d alamode ] || git submodule add -b master https://github.com/ttadano/alamode.git
+git submodule update --init alamode
 [ -d build ] && rm -rf build
-set -x;
-cmake "$@"
+set -- "$@" -DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER  -S alamode -B build
+echo "$@"; "$@"
 cmake --build build -j $(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
-set +x;

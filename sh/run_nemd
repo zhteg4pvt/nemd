@@ -12,17 +12,6 @@ Set environmental variables from command-line arguments.
   3. -DEBUG: debug mode for additional printing and output files
   4. -INTERACTIVE: pop up the interactive GUI
 
-Set additional environmental variables:
-  1. $LD_LIBRARY_PATH for tbb libraries
-  2. $PYTHONPATH to import drivers
-
-Search and locate the script in the following order:
-  1. absolute or relative path
-  2. scripts directory
-  3. workflows directory
-  4. alamode tools directory
-  5. $PATH
-
 Supported additional flags:
   -m venv|yapf|pytest|cProfile
   -X importtime
@@ -45,23 +34,11 @@ a=''; for val in "$@" ""; do [ "$a" = "-DEBUG" ] && export DEBUG='1' && break ||
 # Command-line Arguments
 val=''; for nxt in "$@" ''; do
   case $val in
-    -m)
-      # Module
-      if [ -z $val ]; then echo "Please provide a module name after -m"; exit 2; fi
-        case $val in
-          venv|yapf|pytest)
-            break
-            ;;
-          esac
-      ;;
     *.py|*.py::*)
       # Python Script
       SCRIPT=${val%%::*} && debug "Python Script: $SCRIPT"
       # Absolute (or relative) path, Scripts, Workflow, Alamode tools, and $PATH
       BASENAME=$(basename $SCRIPT) && SPATH="$(cd $(dirname $SCRIPT); pwd)/$BASENAME" && debug $SPATH
-      [ ! -f "$SPATH" ] && SPATH=$NEMD_DRIVER/$BASENAME && debug $SPATH
-      [ ! -f "$SPATH" ] && SPATH=$NEMD_WORKFLOW/$BASENAME && debug $SPATH
-      [ ! -f "$SPATH" ] && SPATH=$ALAMODE_TOOLS/$BASENAME && debug $SPATH
       [ ! -f "$SPATH" ] && SPATH=$(which $SCRIPT) && debug $SPATH
       [ ! -f "$SPATH" ] && echo "Please install $BASENAME, or source premake" && exit 2
       args=$@; set --; for a in $args; do [ $a = $val ] && a=$SPATH${val#$SCRIPT}; set -- $@ $a; done
@@ -75,14 +52,5 @@ val=''; for nxt in "$@" ''; do
   val=$nxt
 done
 
-# Base Command
-CMD="python3"
-
-# Ubuntu request --user as Permission denied: '/usr/local/bin/lmp_serial'
-BASE=$($CMD -m site --user-base) && debug "Python Site Base: $BASE"
-BIN=$BASE/bin/ && echo $PATH | grep -q $BIN || export PATH="$BIN${PATH:+":$PATH"}"
-# Numba TBB for Ubuntu 22.04 has libtbb* in the python user lib directory
-LIB=$BASE/lib/ && echo $LD_LIBRARY_PATH | grep -q $LIB || export LD_LIBRARY_PATH="$LIB${LD_LIBRARY_PATH:+":$LD_LIBRARY_PATH"}"
-
-set -- $CMD "$@"
+set -- python3 "$@"
 debug "$@"; "$@"

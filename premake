@@ -21,45 +21,36 @@ else
 fi
 [ ! -f $PREMAKE ] && echo "Cannot locate this premake script" && return
 
-add_path() {
-  echo $PATH | grep -q "$1" || export PATH="$1${PATH:+":$PATH"}"
-}
+# NEMD_SRC
+export NEMD_SRC="$(readlink -f ${PREMAKE} | xargs dirname)"
+[ -d $NEMD_SRC ] && echo \$NEMD_SRC=$NEMD_SRC
 
 add_pypath() {
   echo $PYTHONPATH | grep -q "$1" || export PYTHONPATH="$1${PYTHONPATH:+":$PYTHONPATH"}"
 }
 
-# NEMD_SRC
-export NEMD_SRC="$(readlink -f ${PREMAKE} | xargs dirname)"
-[ -d $NEMD_SRC ] && echo \$NEMD_SRC=$NEMD_SRC
+# Packages
+# NEMD, LAMMPS, and Alamode
+MODULE=$NEMD_SRC/module
+[ -d $MODULE ] && echo \$MODULE=$MODULE && add_pypath $MODULE
 
-# Shell Script
-export NEMD_SH=$NEMD_SRC/sh
+add_path() {
+  echo $PATH | grep -q "$1" || export PATH="$1${PATH:+":$PATH"}"
+}
+
+# Scripts
+# Shell
+NEMD_SH=$NEMD_SRC/sh
 [ -d $NEMD_SH ] && echo \$NEMD_SH=$NEMD_SH && add_path $NEMD_SH
 
 # Workflow
-export NEMD_WORKFLOW=$NEMD_SRC/workflow
-[ -d $NEMD_WORKFLOW ] && echo \$NEMD_WORKFLOW=$NEMD_WORKFLOW && add_pypath $NEMD_WORKFLOW
+NEMD_WORKFLOW=$NEMD_SRC/workflow
+[ -d $NEMD_WORKFLOW ] && echo \$NEMD_WORKFLOW=$NEMD_WORKFLOW && add_path $NEMD_WORKFLOW
 
 # Driver
-export NEMD_DRIVER=$NEMD_SRC/driver
-[ -d $NEMD_DRIVER ] && echo \$NEMD_DRIVER=$NEMD_DRIVER && add_pypath $NEMD_DRIVER
-
-# Module
-NEMD_MODULE=$NEMD_SRC/module
-[ -d $NEMD_MODULE ] && echo \$NEMD_MODULE=$NEMD_MODULE && add_pypath $NEMD_MODULE
-
-# Submodule
+NEMD_DRIVER=$NEMD_SRC/driver
+[ -d $NEMD_DRIVER ] && echo \$NEMD_DRIVER=$NEMD_DRIVER && add_path $NEMD_DRIVER
 
 # Alamode
-ALAMODE=$NEMD_SRC/module/alamode
-export ALAMODE_TOOLS=$ALAMODE/alamode/tools
-[ -d $ALAMODE_TOOLS ] && echo "\$ALAMODE_TOOLS=$ALAMODE/alamode/tools"
-ALAMODE_BUILD=$ALAMODE/build/
-[ -d $ALAMODE_BUILD ] &&  echo \$ALAMODE_BUILD=$ALAMODE_BUILD && add_path $ALAMODE_BUILD
-ALAMODE_BTOOLS=$ALAMODE_BUILD/tools
-[ -d $ALAMODE_BTOOLS ] && echo "\$ALAMODE_BTOOLS=$ALAMODE_BTOOLS" && add_path $ALAMODE_BTOOLS
-
-# Lammps
-LAMMPS_BUILD=$NEMD_SRC/module/lammps/build
-[ -d $LAMMPS_BUILD ] &&  echo \$LAMMPS_BUILD=$LAMMPS_BUILD && add_path $LAMMPS_BUILD
+ALAMODE_TOOLS=$NEMD_SRC/module/alamode/alamode/tools
+[ -d $ALAMODE_TOOLS ] && echo "\$ALAMODE_TOOLS=$ALAMODE/alamode/tools" && add_path $ALAMODE_TOOLS
