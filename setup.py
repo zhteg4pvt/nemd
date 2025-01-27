@@ -167,7 +167,7 @@ class Linux(Darwin):
         info = subprocess.run('nvidia-smi | grep NVIDIA-SMI', shell=True)
         if not info.returncode:
             pkgs += ('nvidia-cuda-toolkit', )
-        super().install(*pkgs)
+        super().subprocess(*pkgs)
 
     def qt(self):
         """

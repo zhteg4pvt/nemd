@@ -21,5 +21,7 @@ case $1 in
     echo "Unknown module binary: $1"
   esac
 
-set -- $(run_nemd -c "import $name; print($name.__path__[0])")/$dir/$1 "${@:2}"
+binary=$(run_nemd -c "import $name; print($name.__path__[0])")/$dir/$1
+shift
+set -- $binary "$@"
 echo "$@"; "$@"
