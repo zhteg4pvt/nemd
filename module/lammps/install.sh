@@ -7,8 +7,6 @@ Usage:
   install.sh
 '
 set -- cmake
-# Python3 executable (which python3 -> Mac: /usr/local/bin; Linux: /usr/bin/)
-set -- "$@" -D PYTHON_EXECUTABLE=$(which python3) -D CMAKE_INSTALL_PREFIX=/usr/local
 # OpenMP packages (https://docs.lammps.org/Speed_omp.html)
 set -- "$@" -D PKG_OPENMP=yes -D PKG_PYTHON=on -D PKG_MANYBODY=on \
   -D PKG_MOLECULE=on -D PKG_KSPACE=on -D PKG_RIGID=on -D BUILD_LIB=on

@@ -128,8 +128,9 @@ class Lmp(Base):
         See parent class for docs.
         """
         return [
-            symbols.LMP, jobutils.FLAG_IN, self.struct.inscript, jobutils.FLAG_SCREEN,
-            symbols.NONE, jobutils.FLAG_LOG, symbols.LMP_LOG
+            symbols.LMP, jobutils.FLAG_IN, self.struct.inscript,
+            jobutils.FLAG_SCREEN, symbols.NONE, jobutils.FLAG_LOG,
+            symbols.LMP_LOG
         ]
 
     def setUp(self):

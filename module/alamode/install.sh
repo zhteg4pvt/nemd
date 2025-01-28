@@ -12,7 +12,8 @@ CXX_COMPILER=g++
 # OS - dependent settings
 case $(uname) in
   Darwin*)
-    set -- "$@" -DSPGLIB_ROOT=/usr/local -DFFTW3_ROOT=/usr/local
+    PREFIX=$(brew config | grep HOMEBREW_PREFIX | awk '{print $2}')
+    set -- "$@" -DSPGLIB_ROOT=$PREFIX -DFFTW3_ROOT=$PREFIX
     # llvm compilers
     LLVM=$(brew info llvm | grep 'export PATH' | sed 's/^.*export PATH=//; s/:$PATH.*$//; s/\"//')
     echo $PATH | grep -q $$LLVM || export PATH="$LLVM${PATH:+":$PATH"}"

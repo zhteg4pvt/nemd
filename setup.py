@@ -35,9 +35,9 @@ class Darwin:
     ALM_EXES = [ALM, ANPHON]
 
     INSTALL = ('brew', 'install', '-q')
-    PKGS = PKGS + ('gcc', 'libomp')
+    PKGS = PKGS + ('gcc', 'libomp', 'fftw')
     LMP_PKGS = ('clang-format', )
-    ALM_PKGS = ('llvm', 'spglib', 'fftw', 'eigen', 'boost', 'lapack')
+    ALM_PKGS = ('llvm', 'spglib', 'eigen', 'boost', 'lapack', 'symspg')
 
     def __init__(self):
         self.dir = pathlib.Path(__file__).parent
@@ -50,7 +50,6 @@ class Darwin:
         """
         self.prereq()
         self.compile()
-        self.qt()
 
     def prereq(self, *pkgs):
         """
@@ -139,18 +138,6 @@ class Darwin:
             cwd = self.dir.joinpath(self.pkg_dir[self.ALAMODE])
             subprocess.run('bash install.sh', shell=True, cwd=cwd)
 
-    def qt(self):
-        """
-        Install the qt, a C++framework for developing graphical user interfaces
-        and cross-platform applications, both desktop and embedded.
-        """
-        qt = subprocess.run('brew list qt5', capture_output=True, shell=True)
-        if qt.stdout:
-            print('qt installation found.')
-            return
-        print('qt installation not found. Installing...')
-        self.subprocess('qt5')
-
 
 class Linux(Darwin):
     """
@@ -183,20 +170,6 @@ class Linux(Darwin):
             pkgs += ('nvidia-cuda-toolkit', )
         super().prereq(*pkgs)
 
-    def qt(self):
-        """
-        Install the qt, a C++framework for developing graphical user interfaces
-        and cross-platform applications, both desktop and embedded.
-        """
-        self.subprocess('qt5-base-dev', 'libgl1-mesa-dev', '^libxcb.*-dev',
-                        'libx11-xcb-dev', 'libglu1-mesa-dev')
-
-    def term(self):
-        """
-        Install terminal supporting split view.
-        """
-        self.subprocess('tilix')
-
 
 Installer = {'darwin': Darwin, 'linux': Linux}[sys.platform]
 
@@ -211,15 +184,12 @@ class Distribution(Installer):
     SCRIPTS = ['sh', 'driver', 'workflow']
     SCRIPTS = [y for x in SCRIPTS for y in glob.glob(os.path.join(x, '*'))]
     SCRIPTS = [x for x in SCRIPTS if os.path.isfile(x)]
-    # 'pyqt5==5.15.4', 'pyqt5-sip==12.12.1' removes the DeprecationWarning:
-    # sipPyTypeDict() is deprecated, xxx sipPyTypeDictRef() instead
     INSTALL_REQUIRES = [
-        'numpy', 'scipy>=1.14.1', 'networkx>=3.3', 'pandas>=2.2.2',
+        'numpy<2.0', 'scipy>=1.14.1', 'networkx>=3.3', 'pandas>=2.2.2',
         'chemparse', 'mendeleev', 'rdkit', 'signac', 'signac-flow',
         'matplotlib', 'plotly', 'crystals', 'numba', 'wurlitzer',
         'methodtools', 'fastparquet', 'lazy_import', 'tabulate', 'psutil',
-        'yapf', 'isort', 'snakeviz', 'tuna', 'pytest', 'dash[testing]',
-        'pyqt5==5.15.4', 'pyqt5-sip==12.12.1', 'dash_bootstrap_components'
+        'yapf', 'isort', 'snakeviz', 'tuna', 'pytest'
     ]
     CLASSIFIERS = [
         'Development Status :: 5 - Production/Stable',
