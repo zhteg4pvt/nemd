@@ -52,5 +52,5 @@ val=''; for nxt in "$@" ''; do
   val=$nxt
 done
 
-set -- python3 "$@"
+set -- python3.10 "$@"
 debug "$@"; "$@"

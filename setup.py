@@ -37,8 +37,7 @@ class Darwin:
     INSTALL = ('brew', 'install', '-q')
     PKGS = PKGS + ('gcc', 'libomp')
     LMP_PKGS = ('clang-format', )
-    ALM_PKGS = ('llvm', 'open-mpi', 'spglib', 'fftw', 'eigen', 'boost',
-                'lapack')
+    ALM_PKGS = ('llvm', 'spglib', 'fftw', 'eigen', 'boost', 'lapack')
 
     def __init__(self):
         self.dir = pathlib.Path(__file__).parent
@@ -74,8 +73,7 @@ class Darwin:
         :param pkgs tuple: package names to install.
         """
         cmd = ' '.join(self.INSTALL + pkgs)
-        print(cmd)
-        subprocess.run(cmd, shell=True)
+        subprocess.run(f"echo {cmd}; {cmd}", shell=True)
 
     @property
     @functools.lru_cache
@@ -85,7 +83,7 @@ class Darwin:
 
         :return 'PosixPath': lammps executable with python package.
         """
-        lmp = self.locate(self.LMP)
+        lmp = self.locate(self.LMP, is_abs=True)
         if not lmp.is_file():
             return
         cmd = f'{lmp} -h | grep PYTHON'
@@ -94,21 +92,28 @@ class Darwin:
             return lmp
         print(f'{lmp} with python not found for {self.LMP}.')
 
-    def locate(self, name):
+    def locate(self, name, is_abs=False):
         """
-        Locate the executable in bin.
+        Locate the executable in the build.
 
-        :param name: the executable name.
-        :return 'PosixPath': the executable pathname in bin.
+        :param nam str: the executable name.
+        :param is_abs bool: whether the path is an absolute path.
+        :return 'PosixPath': the executable path absolute or relative to the
+            module dir.
         """
         match name:
             case self.LMP:
-                target = (self.pkg_dir[self.LAMMPS], self.BUILD, name)
+                pkg_dir = self.pkg_dir[self.LAMMPS]
+                target = (self.BUILD, name)
             case self.ALM | self.ANPHON:
-                target = (self.pkg_dir[self.ALAMODE], self.BUILD, name, name)
-        binary = self.dir.joinpath(*target)
-        print(f"{name}: {binary}")
-        return binary
+                pkg_dir = self.pkg_dir[self.ALAMODE]
+                target = (self.BUILD, name, name)
+            case _:
+                pkg_dir = self.pkg_dir[self.NEMD]
+                target = (self.BUILD, name)
+        print(f"{name}: {pkg_dir}: {target}")
+        return self.dir.joinpath(pkg_dir, *target) if is_abs else pathlib.Path(
+            *target)
 
     @property
     @functools.lru_cache
@@ -118,7 +123,8 @@ class Darwin:
 
         :return list of 'PosixPath': alamode executables.
         """
-        return [x for x in map(self.locate, self.ALM_EXES) if x.is_file()]
+        alm_exes = [self.locate(x, is_abs=True) for x in self.ALM_EXES]
+        return [x for x in alm_exes if x.is_file()]
 
     def compile(self):
         """
@@ -151,12 +157,13 @@ class Linux(Darwin):
     Linux installer.
     """
     INSTALL = ('sudo', 'apt-get', 'install', '-y')
-    PKGS = PKGS + ('zsh', 'build-essential')
-    LMP_PKGS = ('python3-venv', 'python3-apt', 'python3-setuptools',
-                'openmpi-bin', 'openmpi-common', 'libopenmpi-dev',
-                'libgtk2.0-dev', 'fftw3', 'fftw3-dev', 'ffmpeg')
-    ALM_PKGS = ('libsymspg-dev', 'libeigen3-dev', 'fftw3-dev',
-                'libboost-all-dev', 'libblas-dev', 'liblapack-dev')
+    PKGS = PKGS + (
+        'build-essential',
+        'fftw3-dev',
+    )
+    LMP_PKGS = ('libopenmpi-dev', 'ffmpeg')
+    ALM_PKGS = ('libsymspg-dev', 'libeigen3-dev', 'libboost-all-dev',
+                'libblas-dev', 'liblapack-dev')
 
     def install(self):
         """
@@ -262,13 +269,9 @@ class Distribution(Installer):
         oplsua_dir = data_dir.joinpath('ff', 'oplsua')
         nemd += [oplsua_dir.joinpath(f'*.{x}') for x in ['npy', self.PARQUET]]
         # LAMMPS
-        print(os.getcwd())
-        lammps_dir = self.dir.joinpath(self.pkg_dir[self.LAMMPS])
-        lammps = [str(self.locate(self.LMP).relative_to(lammps_dir))]
+        lammps = [str(self.locate(self.LMP))]
         # ALAMODE
-        alm_exes = [self.locate(x) for x in self.ALM_EXES]
-        alamode_dir = self.dir.joinpath(self.pkg_dir[self.ALAMODE])
-        alamode = [str(x.relative_to(alamode_dir)) for x in alm_exes]
+        alamode = [str(self.locate(x)) for x in self.ALM_EXES]
         tools = pathlib.Path(self.ALAMODE, 'tools')
         alamode += [tools.joinpath(x, '*.py') for x in ['', 'interface']]
         package_data = {
