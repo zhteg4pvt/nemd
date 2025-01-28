@@ -423,7 +423,7 @@ class CellNumba(CellOrig):
         return self.getNbrNumba(self.nbr_inc, self.cshape)
 
     @staticmethod
-    @numbautils.jit(parallel=True)
+    @numbautils.jit
     def getNbrNumba(nbr_ids, cshape, nopython=IS_NOPYTHON):
         """
         Get map between node id to neighbor node ids.

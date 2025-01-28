@@ -15,10 +15,6 @@ import sys
 
 import setuptools
 
-MODULE = 'module'
-NEMD = 'nemd'
-LAMMPS = 'lammps'
-ALAMODE = 'alamode'
 PKGS = ('cmake', )
 
 
@@ -26,15 +22,28 @@ class Darwin:
     """
     macOS installer.
     """
+    MODULE = 'module'
+    NEMD = 'nemd'
+    LAMMPS = 'lammps'
+    ALAMODE = 'alamode'
+    PACKAGES = [NEMD, LAMMPS, ALAMODE]
+    BUILD = 'build'
 
     LMP = 'lmp'
     ALM = 'alm'
     ANPHON = 'anphon'
+    ALM_EXES = [ALM, ANPHON]
+
     INSTALL = ('brew', 'install', '-q')
     PKGS = PKGS + ('gcc', 'libomp')
     LMP_PKGS = ('clang-format', )
     ALM_PKGS = ('llvm', 'open-mpi', 'spglib', 'fftw', 'eigen', 'boost',
                 'lapack')
+
+    def __init__(self):
+        self.dir = pathlib.Path(__file__).parent
+        # Python modules to install under site-packages
+        self.pkg_dir = {x: os.path.join(self.MODULE, x) for x in self.PACKAGES}
 
     def install(self):
         """
@@ -76,14 +85,14 @@ class Darwin:
 
         :return 'PosixPath': lammps executable with python package.
         """
-        bin_exe = self.locate(self.LMP)
-        if not bin_exe:
+        lmp = self.locate(self.LMP)
+        if not lmp.is_file():
             return
-        cmd = f'{bin_exe} -h | grep PYTHON'
+        cmd = f'{lmp} -h | grep PYTHON'
         lmp = subprocess.run(cmd, capture_output=True, shell=True)
         if not lmp.returncode and lmp.stdout:
-            return bin_exe
-        print(f'{bin_exe} with python not found for {self.LMP}.')
+            return lmp
+        print(f'{lmp} with python not found for {self.LMP}.')
 
     def locate(self, name):
         """
@@ -92,16 +101,14 @@ class Darwin:
         :param name: the executable name.
         :return 'PosixPath': the executable pathname in bin.
         """
-        # name in build
         match name:
             case self.LMP:
-                target = f'{MODULE}/{LAMMPS}/build/{name}'
+                target = (self.pkg_dir[self.LAMMPS], self.BUILD, name)
             case self.ALM | self.ANPHON:
-                target = f'{MODULE}/{ALAMODE}/build/{name}/{name}'
-        target = pathlib.Path(target)
-        if target.is_file():
-            return target
-        print(f'{target} not found.')
+                target = (self.pkg_dir[self.ALAMODE], self.BUILD, name, name)
+        binary = self.dir.joinpath(*target)
+        print(f"{name}: {binary}")
+        return binary
 
     @property
     @functools.lru_cache
@@ -111,19 +118,19 @@ class Darwin:
 
         :return list of 'PosixPath': alamode executables.
         """
-        return [x for x in map(self.locate, [self.ALM, self.ANPHON]) if x]
+        return [x for x in map(self.locate, self.ALM_EXES) if x.is_file()]
 
     def compile(self):
         """
         Compile the binaries.
         """
         if not self.lmp_exe:
-            print(f'Installing {LAMMPS}...')
-            cwd = os.path.join(MODULE, LAMMPS)
+            print(f'Installing {self.LAMMPS}...')
+            cwd = self.dir.joinpath(self.pkg_dir[self.LAMMPS])
             subprocess.run('bash install.sh', shell=True, cwd=cwd)
         if len(self.alm_exes) != 2:
-            print(f'Installing {ALAMODE}...')
-            cwd = os.path.join(MODULE, ALAMODE)
+            print(f'Installing {self.ALAMODE}...')
+            cwd = self.dir.joinpath(self.pkg_dir[self.ALAMODE])
             subprocess.run('bash install.sh', shell=True, cwd=cwd)
 
     def qt(self):
@@ -167,7 +174,7 @@ class Linux(Darwin):
         info = subprocess.run('nvidia-smi | grep NVIDIA-SMI', shell=True)
         if not info.returncode:
             pkgs += ('nvidia-cuda-toolkit', )
-        super().subprocess(*pkgs)
+        super().prereq(*pkgs)
 
     def qt(self):
         """
@@ -193,9 +200,6 @@ class Distribution(Installer):
     """
 
     PARQUET = 'parquet'
-    PACKAGES = [NEMD, LAMMPS, ALAMODE]
-    # Python modules to install under site-packages
-    PACKAGE_DIR = {x: os.path.join(MODULE, x) for x in PACKAGES}
     # Scripts to install under site-packages/bin
     SCRIPTS = ['sh', 'driver', 'workflow']
     SCRIPTS = [y for x in SCRIPTS for y in glob.glob(os.path.join(x, '*'))]
@@ -230,7 +234,7 @@ class Distribution(Installer):
         """
         Setup the distributions.
         """
-        setuptools.setup(name=NEMD,
+        setuptools.setup(name=self.NEMD,
                          version='1.0.0',
                          description='A molecular simulation toolkit',
                          url='https://github.com/zhteg4pvt/nemd',
@@ -238,7 +242,7 @@ class Distribution(Installer):
                          author_email='zhteg4@gmail.com',
                          license='BSD 3-clause',
                          packages=self.PACKAGES,
-                         package_dir=self.PACKAGE_DIR,
+                         package_dir=self.pkg_dir,
                          package_data=self.package_data,
                          scripts=self.SCRIPTS,
                          install_requires=self.INSTALL_REQUIRES,
@@ -258,13 +262,20 @@ class Distribution(Installer):
         oplsua_dir = data_dir.joinpath('ff', 'oplsua')
         nemd += [oplsua_dir.joinpath(f'*.{x}') for x in ['npy', self.PARQUET]]
         # LAMMPS
-        lammps = [str(self.lmp_exe.relative_to(self.PACKAGE_DIR[LAMMPS]))]
+        print(os.getcwd())
+        lammps_dir = self.dir.joinpath(self.pkg_dir[self.LAMMPS])
+        lammps = [str(self.locate(self.LMP).relative_to(lammps_dir))]
         # ALAMODE
-        alamode_dir = self.PACKAGE_DIR[ALAMODE]
-        alamode = [str(x.relative_to(alamode_dir)) for x in self.alm_exes]
-        tools = pathlib.Path(ALAMODE, 'tools')
+        alm_exes = [self.locate(x) for x in self.ALM_EXES]
+        alamode_dir = self.dir.joinpath(self.pkg_dir[self.ALAMODE])
+        alamode = [str(x.relative_to(alamode_dir)) for x in alm_exes]
+        tools = pathlib.Path(self.ALAMODE, 'tools')
         alamode += [tools.joinpath(x, '*.py') for x in ['', 'interface']]
-        package_data = {NEMD: nemd, LAMMPS: lammps, ALAMODE: alamode}
+        package_data = {
+            self.NEMD: nemd,
+            self.LAMMPS: lammps,
+            self.ALAMODE: alamode
+        }
         return {x: list(map(str, y)) for x, y in package_data.items()}
 
 

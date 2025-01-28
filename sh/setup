@@ -17,6 +17,7 @@ case $(uname) in
     ;;
   Linux*)
     lsb_release -sr  # 22.04
+    sudo apt upgrade
     sudo apt-get install -y gh git vim python3-pip
     # pip uses --user automatically if not root
     BIN=$(python3 -m site --user-base)/bin
