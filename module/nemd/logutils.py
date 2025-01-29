@@ -400,9 +400,9 @@ class LogReader:
         stime = timeutils.dtime(job_start)
         if dtype == START:
             return stime
-        # len('12:54:16 08/15/24') == 17
+        # len('12:54:16 08/15/2024') == 19
         try:
-            dtime = timeutils.dtime(self.lines[-1][-17:])
+            dtime = timeutils.dtime(self.lines[-1][-19:])
         except ValueError:
             return
         if dtype == END:
