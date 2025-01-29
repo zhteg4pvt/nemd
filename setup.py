@@ -151,13 +151,7 @@ class Linux(Darwin):
     LMP_PKGS = ('libopenmpi-dev', 'ffmpeg')
     ALM_PKGS = ('libsymspg-dev', 'libeigen3-dev', 'libboost-all-dev',
                 'libblas-dev', 'liblapack-dev')
-
-    def install(self):
-        """
-        Main method to install.
-        """
-        super().install()
-        self.term()
+    NVIDIA_CUDA_TOOLKIT = 'nvidia-cuda-toolkit'
 
     def prereq(self, *pkgs):
         """
@@ -165,9 +159,10 @@ class Linux(Darwin):
 
         :param pkgs tuple: the packages to be installed.
         """
-        info = subprocess.run('nvidia-smi | grep NVIDIA-SMI', shell=True)
-        if not info.returncode:
-            pkgs += ('nvidia-cuda-toolkit', )
+        if not self.lmp_exe and self.NVIDIA_CUDA_TOOLKIT not in self.LMP_PKGS:
+            info = subprocess.run('nvidia-smi | grep NVIDIA-SMI', shell=True)
+            if not info.returncode:
+                self.LMP_PKGS = (*self.LMP_PKGS, 'nvidia-cuda-toolkit')
         super().prereq(*pkgs)
 
 

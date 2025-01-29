@@ -5,12 +5,12 @@ datetime utilities.
 """
 from datetime import datetime
 
-Xx_FMT = '%X %x'
 HMS_FMT = '%H:%M:%S'
+HMS_MDY = f'{HMS_FMT} %m/%d/%Y'
 HMS_ZERO = datetime.strptime('00:00:00', HMS_FMT)
 
 
-def ctime(fmt=Xx_FMT):
+def ctime(fmt=HMS_MDY):
     """
     Get current time.
 
@@ -21,7 +21,7 @@ def ctime(fmt=Xx_FMT):
     return datetime.now().strftime(fmt)
 
 
-def dtime(strftime, fmt=Xx_FMT):
+def dtime(strftime, fmt=HMS_MDY):
     """
     Get the datatime from str time.
 
@@ -29,7 +29,6 @@ def dtime(strftime, fmt=Xx_FMT):
     :param fmt str: the format to parse input time str
     :return 'datetime.datetime': the datatime
     """
-
     return datetime.strptime(strftime, fmt)
 
 
