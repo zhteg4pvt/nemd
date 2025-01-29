@@ -1,2 +1,2 @@
 # Amorphous builder on SPC water
-run_nemd amorp_bldr_driver.py 'O' -mol_num 1 -force_field OPLSUA SPC -seed 4321 -DEBUG
+nemd_run amorp_bldr_driver.py 'O' -mol_num 1 -force_field OPLSUA SPC -seed 4321 -DEBUG

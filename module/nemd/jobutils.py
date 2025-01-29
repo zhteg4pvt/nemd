@@ -13,8 +13,8 @@ import re
 from nemd import envutils
 from nemd import symbols
 
-RUN_NEMD = 'run_nemd'
-RUN_MODULE = 'run_module'
+NEMD_RUN = 'nemd_run'
+NEMD_MODULE = 'nemd_module'
 
 OUTFILE = 'outfile'
 LOGFILE = 'logfile'

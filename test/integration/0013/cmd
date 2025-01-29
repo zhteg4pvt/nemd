@@ -1,2 +1,2 @@
 # Amorphous builder via grow method with reduced density
-run_nemd amorp_bldr_driver.py "*CC*" -cru_num 4 -mol_num 7 -density 2.65 -method grow -seed 1234 -DEBUG
+nemd_run amorp_bldr_driver.py "*CC*" -cru_num 4 -mol_num 7 -density 2.65 -method grow -seed 1234 -DEBUG

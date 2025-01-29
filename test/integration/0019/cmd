@@ -1,2 +1,2 @@
 # Amorphous builder on Methanol
-run_nemd amorp_bldr_driver.py 'CO' -mol_num 1 -force_field OPLSUA TIP3P -seed 4321 -DEBUG
+nemd_run amorp_bldr_driver.py 'CO' -mol_num 1 -force_field OPLSUA TIP3P -seed 4321 -DEBUG

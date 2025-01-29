@@ -1,2 +1,2 @@
 # Amorphous builder on SPCE water
-run_nemd amorp_bldr_driver.py O -mol_num 1 -force_field OPLSUA SPCE -seed 123
+nemd_run amorp_bldr_driver.py O -mol_num 1 -force_field OPLSUA SPCE -seed 123

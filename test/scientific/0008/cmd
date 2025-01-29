@@ -1,3 +1,3 @@
 # Water liquid: amorphous builder on SPC water; lammps simulation; density
-run_nemd ab_lmp_traj_workflow.py O -mol_num 500 -density 0.8 -force_field OPLSUA SPC -prod_ens NPT -temp 298.15 -last_pct 0.4 -task density -state_num 2 
+nemd_run ab_lmp_traj_workflow.py O -mol_num 500 -density 0.8 -force_field OPLSUA SPC -prod_ens NPT -temp 298.15 -last_pct 0.4 -task density -state_num 2 
 # 997.13 kg/m3 https://www.vip-ltd.co.uk/Expansion/Density_Of_Water_Tables.pdf

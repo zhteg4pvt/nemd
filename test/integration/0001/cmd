@@ -1,2 +1,2 @@
 # Amorphous builder on Isopropanol via grid
-run_nemd amorp_bldr_driver.py 'CC(C)O' -mol_num 1 -force_field OPLSUA TIP3P -method grid -seed 4321 -DEBUG
+nemd_run amorp_bldr_driver.py 'CC(C)O' -mol_num 1 -force_field OPLSUA TIP3P -method grid -seed 4321 -DEBUG

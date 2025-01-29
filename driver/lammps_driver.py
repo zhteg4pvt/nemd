@@ -113,7 +113,7 @@ class Lammps(logutils.Base):
         Set the GPU arguments.
         """
         lmp = subprocess.run(
-            f'{jobutils.RUN_MODULE} {symbols.LMP} -h | grep GPU',
+            f'{jobutils.NEMD_MODULE} {symbols.LMP} -h | grep GPU',
             capture_output=True,
             shell=True)
         if not lmp.stdout:
@@ -133,7 +133,7 @@ class Lammps(logutils.Base):
         Run lammps executable with the given input file and output file.
         """
         self.log('Running lammps simulations...')
-        process = subprocess.Popen([jobutils.RUN_MODULE, symbols.LMP] +
+        process = subprocess.Popen([jobutils.NEMD_MODULE, symbols.LMP] +
                                    self.args,
                                    env=self.env,
                                    stdout=subprocess.PIPE,

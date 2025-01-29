@@ -107,7 +107,7 @@ class Job(Base):
 
     SPECIAL_CHAR_RE = re.compile("[@!#%^&*()<>?|}{:]")
     QUOTED_RE = re.compile('^".*"$|^\'.*\'$')
-    PRE_RUN = jobutils.RUN_NEMD
+    PRE_RUN = jobutils.NEMD_RUN
     SEP = symbols.SPACE
     PREREQ = 'prereq'
     OUTFILE = jobutils.OUTFILE

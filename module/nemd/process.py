@@ -19,7 +19,7 @@ class Base:
     """
     Base class to build command, execute subprocess, and search for output files
     """
-    PRE_RUN = jobutils.RUN_MODULE
+    PRE_RUN = jobutils.NEMD_MODULE
     EXT = symbols.LOG
     EXTS = {}
 
@@ -187,7 +187,7 @@ class Tools(Base):
     """
     Class to run the scripts in the 'tools' directory.
     """
-    PRE_RUN = jobutils.RUN_NEMD
+    PRE_RUN = jobutils.NEMD_RUN
     DISPLACE = 'displace'
     EXTRACT = 'extract'
     EXTS = {DISPLACE: "*.lammps"}
