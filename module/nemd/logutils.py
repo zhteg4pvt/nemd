@@ -318,6 +318,7 @@ class LogReader:
     INFO_SEP = ' INFO '
     TOTOAL_TIME = 'Task Total Timing: '
     MEMORY_RE = re.compile(MEMORY % '(\d+.\d+)')
+    TIME_LEN = len(timeutils.ctime())
 
     def __init__(self, filepath, delay=False):
         """
@@ -400,9 +401,8 @@ class LogReader:
         stime = timeutils.dtime(job_start)
         if dtype == START:
             return stime
-        # len('12:54:16 08/15/2024') == 19
         try:
-            dtime = timeutils.dtime(self.lines[-1][-19:])
+            dtime = timeutils.dtime(self.lines[-1][-self.TIME_LEN:])
         except ValueError:
             return
         if dtype == END:

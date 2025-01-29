@@ -8,5 +8,5 @@ Usage:
   run_stest -dir DIR
   An empty argument runs all tests in $NEMD_SRC/test/scientific.
 '
-set -- run_nemd test_workflow.py -name scientific "$@"
+set -- nemd_run test_workflow.py -name scientific "$@"
 echo "$@" && "$@"

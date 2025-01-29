@@ -9,5 +9,5 @@ Usage:
   An empty argument runs all tests in $NEMD_SRC/test/performance.
 '
 export MEM_INTVL=1
-set -- run_nemd test_workflow.py -name performance "$@"
+set -- nemd_run test_workflow.py -name performance "$@"
 echo "$@" && "$@"

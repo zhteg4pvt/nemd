@@ -8,6 +8,8 @@ Usage:
 '
 [ $# -lt 1 ] && echo 'Please specify the module binary to run.' && exit 1
 
+. nemd_func
+
 dir=build
 case $1 in
   lmp)
@@ -21,7 +23,7 @@ case $1 in
     echo "Unknown module binary: $1"
   esac
 
-binary=$(DEBUG='' run_nemd -c "import $name; print($name.__path__[0])")/$dir/$1
+binary=$(python -c "import $name; print($name.__path__[0])")/$dir/$1
 shift
 set -- $binary "$@"
-echo "$@"; "$@"
+debug "$@"; "$@"

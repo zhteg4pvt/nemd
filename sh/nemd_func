@@ -7,7 +7,14 @@ Usage:
   . nemd_func
   format_py yapf
   format_py isort
+
 '
+# Python
+python() { python3.10 "$@";}
+
+# Debug Printing
+[ -z $DEBUG ] && debug() { :; } || debug() { echo "$@"; }
+
 # param $@: input command to format python files
 # In git repository, format modified python files tracked and those untracked
 # Outside git repository, format python files in $NEMD_SRC (sub-)directories

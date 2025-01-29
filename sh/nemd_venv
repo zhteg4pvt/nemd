@@ -15,7 +15,7 @@ do
 done
 
 [ -z $ENV_DIR ] && ENV_DIR=venv && set -- $ENV_DIR $@
-set -- run_nemd -m venv $@
+set -- nemd_run -m venv $@
 echo "$@" && $@
 echo "To Activate  : . $ENV_DIR/bin/activate"
 echo "To Deactivate: deactivate"

@@ -4,7 +4,7 @@
 Set environmental variables, locate the script, and execute the python program.
 
 usage:
-  run_nemd mol_bldr_driver.py [Ar] -DEBUG -JOBNAME jobname -PYTHON 1
+  nemd_run mol_bldr_driver.py [Ar] -DEBUG -JOBNAME jobname -PYTHON 1
 
 Set environmental variables from command-line arguments.
   1. -JOBNAME [STR]: jobname based on which output files are named
@@ -22,14 +22,14 @@ FLAG_JOBNAME="-JOBNAME"
 FLAG_INTERACTIVE="-INTERACTIVE"
 
 # Help
-[ "$1" = "-h" ] && echo "Example: run_nemd mol_bldr_driver.py [Ar]" && exit 0
+[ "$1" = "-h" ] && echo "Example: nemd_run mol_bldr_driver.py [Ar]" && exit 0
 
 # Debug Mode (# -DEBUG -> on)
 a=''; for val in "$@" ""; do [ "$a" = "-DEBUG" ] && export DEBUG='1' && break || a=$val; done
 # -DEGUG n | no | f | false | off | 0 -> off
 [ -z $DEBUG ] && case $(echo $val | tr [A-Z] [a-z]) in n|no|f|false|off|0) export DEBUG='' ;; esac
-# Debug Printing
-[ -z $DEBUG ] && debug() { :; } || debug() { echo "$@"; }
+
+. nemd_func
 
 # Command-line Arguments
 val=''; for nxt in "$@" ''; do
@@ -52,5 +52,4 @@ val=''; for nxt in "$@" ''; do
   val=$nxt
 done
 
-set -- python3.10 "$@"
-debug "$@"; "$@"
+debug "$@"; python "$@"

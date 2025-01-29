@@ -22,7 +22,7 @@ if [ $# -eq 0 ]; then
     for FILE in $FILES
     do
       SCRIPT="$(basename $FILE)"
-      printf "  %-30s %s\n" $SCRIPT $(2>&1 time -p run_nemd $SCRIPT -h 1>/dev/null | sed -n 's/user \(.*\)/\1/p') &
+      printf "  %-30s %s\n" $SCRIPT $(2>&1 time -p nemd_run $SCRIPT -h 1>/dev/null | sed -n 's/user \(.*\)/\1/p') &
     done
     wait
   done
@@ -34,11 +34,11 @@ fi
 
 if [ "$2" = '-h' ] || [ "$1" = '-c' ]; then
   # Set command to profile import time
-  set -- run_nemd -X importtime "$@"
+  set -- nemd_run -X importtime "$@"
   VIEW_CMD="tuna nemd.log"
 else
   # Set command to cProfile a script
-  set -- run_nemd -m cProfile -o nemd.profile "$@"
+  set -- nemd_run -m cProfile -o nemd.profile "$@"
   VIEW_CMD="snakeviz nemd.profile"
 fi
 

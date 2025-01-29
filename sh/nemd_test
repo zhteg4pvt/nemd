@@ -8,7 +8,7 @@ Usage:
   run_test -s -v [file1 file2...]
   An empty argument runs all tests in the $NEMD_SRC/test/unit directory.
 '
-CMD="run_nemd -m pytest"
+CMD="nemd_run -m pytest"
 if [ $# != 0 ] || [ -z $NEMD_SRC ]; then
   $CMD "$@"
   exit $?

@@ -2,7 +2,9 @@
 	path = module/lammps/lammps
 	url = https://github.com/lammps/lammps.git
 	branch = release
+    shallow = true
 [submodule "module/alamode/alamode"]
 	path = module/alamode/alamode
 	url = https://github.com/ttadano/alamode.git
-	branch = master
+    branch = master
+    shallow = true

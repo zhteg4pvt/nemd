@@ -8,5 +8,5 @@ Usage:
   run_itest -dir DIR
   An empty argument runs all tests in $NEMD_SRC/test/integration.
 '
-set -- run_nemd test_workflow.py "$@"
+set -- nemd_run test_workflow.py "$@"
 echo "$@" && "$@"
