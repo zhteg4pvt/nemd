@@ -26,7 +26,7 @@ esac
 
 # Add (or initialize) git, rm previous directory, cmake configure, and build binaries
 [ -d lammps ] || git submodule add -b release https://github.com/lammps/lammps.git
-git submodule update --init lammps
+git submodule update --depth 1 --init lammps
 [ -d build ] && rm -rf build
 set -- "$@" -S ./lammps/cmake/ -B build
 echo "$@"; "$@"
