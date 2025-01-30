@@ -6,6 +6,13 @@ Compile the lammps binary.
 Usage:
   install.sh
 '
+[ -d build ] && rm -rf build
+
+[ -d lammps ] || git submodule add -b release https://github.com/lammps/lammps.git
+set -- git submodule update
+[ ! -z $SHALLOW ] && set -- "$@" --depth 1
+"$@" --init lammps
+
 set -- cmake
 # OpenMP packages (https://docs.lammps.org/Speed_omp.html)
 set -- "$@" -D PKG_OPENMP=yes -D PKG_PYTHON=on -D PKG_MANYBODY=on \
@@ -24,10 +31,6 @@ case $(uname) in
     ;;
 esac
 
-# Add (or initialize) git, rm previous directory, cmake configure, and build binaries
-[ -d lammps ] || git submodule add -b release https://github.com/lammps/lammps.git
-git submodule update --depth 1 --init lammps
-[ -d build ] && rm -rf build
 set -- "$@" -S ./lammps/cmake/ -B build
 echo "$@"; "$@"
 cmake --build build -j $(nproc 2>/dev/null || sysctl -n hw.logicalcpu)

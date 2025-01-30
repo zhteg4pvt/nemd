@@ -6,6 +6,13 @@ Compile the alamode binary.
 Usage:
   install.sh
 '
+[ -d build ] && rm -rf build
+
+[ -d alamode ] || git submodule add -b master https://github.com/ttadano/alamode.git
+set -- git submodule update
+[ ! -z $SHALLOW ] && set -- "$@" --depth 1
+"$@" --init alamode
+
 set -- cmake
 C_COMPILER=gcc
 CXX_COMPILER=g++
@@ -21,10 +28,6 @@ case $(uname) in
     ;;
 esac
 
-# Add (or initialize) git, rm previous directory, cmake configure, and build binaries
-[ -d alamode ] || git submodule add --depth 1 -b develop https://github.com/ttadano/alamode.git
-git submodule update --depth 1 --init alamode
-[ -d build ] && rm -rf build
 set -- "$@" -DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER  -S alamode -B build
 echo "$@"; "$@"
 cmake --build build -j $(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
