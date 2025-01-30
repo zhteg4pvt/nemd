@@ -7,9 +7,9 @@ Setup MacBook (Sonoma 14.5) and Ubuntu (22.04 LTS) ready for nemd pip install.
 case $(uname) in
   Darwin*)
     (xcode-select -v) || xcode-select --install
-    (brew -v) || bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    grep brew ~/.profile || echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.profile
-    grep homebrew $PATH || eval "$(/opt/homebrew/bin/brew shellenv)"
+    brew -v || bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    brew -v || {brew -v || {brew ~/.zprofile || echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile}
+    brew -v || eval "$(/opt/homebrew/bin/brew shellenv)"
     brew install gh git vim python@3.10
     ;;
   Linux*)
