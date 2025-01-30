@@ -22,8 +22,8 @@ case $(uname) in
 esac
 
 # Add (or initialize) git, rm previous directory, cmake configure, and build binaries
-[ -d alamode ] || git submodule add -b master https://github.com/ttadano/alamode.git
-git submodule update --init alamode
+[ -d alamode ] || git submodule add --depth 1 -b develop https://github.com/ttadano/alamode.git 
+git submodule update --init alamode --depth 1
 [ -d build ] && rm -rf build
 set -- "$@" -DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER  -S alamode -B build
 echo "$@"; "$@"
