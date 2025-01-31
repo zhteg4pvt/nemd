@@ -1,4 +1,4 @@
-Name,OS,CPU / GPU,Memory (GB), nemd_setup (min), setup.py (min), nemd_itest (min)
+Name,OS,CPU / GPU,Memory (GB),nemd_setup (min),setup.py (min),nemd_itest (min)
 Mac Mini,Sonoma 14.6,Apple M1,8,3.94,5.11,0.77
 Lenovo ideacentre Y710 Cube,Ubuntu 22.04.5 LTS,Intel® Core™ i7-6700 / GeForce GTX 1080,16,6.15,20.27,0.77
-MacBook Pro,Sequoia 15.2,Intel Core i5 / Intel Iris Plus Graphics 645, 6.67,10.25,1.22
+MacBook Pro,Sequoia 15.2,Intel Core i5 / Intel Iris Plus Graphics 645,16,6.67,10.25,1.22
