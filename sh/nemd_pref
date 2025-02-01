@@ -4,16 +4,20 @@
  Setup MacBook (Sonoma 14.5) and Ubuntu (22.04 LTS) preference.
  '
 
- case $(uname) in
-   Darwin*)
-     brew install --cask iterm2
-     ;;
-   Linux*)
-     ;;
+# Terminal, Prompt, and Other
+case $(uname) in
+  Darwin*)
+    brew install --cask iterm2 microsoft-powerpoint microsoft-word
+    zsh -c "setopt prompt_subst"
+    grep prompt ~/.zprofile || echo 'prompt="%F{240}%n%F{yellow}@%F{green}%m %F{blue}%1~ %F{red}$(git branch --show-current 2>/dev/null)%F{reset}: "' >> ~/.zprofile
+    ;;
+  Linux*)
+    ;;
  esac
 
-# The amix set both cusor and background in black 
-osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to true'
+# Editor
+git config --global core.editor "vim"
 [ -d ~/.vim_runtime ] || git clone --depth=1 https://github.com/amix/vimrc.git ~/.vim_runtime
 [ -d ~/.vim_runtime ] && sh ~/.vim_runtime/install_awesome_vimrc.sh
-git config --global core.editor "vim"
+# The amixs set both cusor and background in black
+osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to true'
