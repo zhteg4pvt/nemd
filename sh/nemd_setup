@@ -1,8 +1,9 @@
 #!/bin/sh
 # Under the BSD 3-Clause License by Teng Zhang (zhteg4@gmail.com)
 : '
-Setup MacBook (Sonoma 14.5) and Ubuntu (22.04 LTS) ready for nemd pip install.
+Setup MacBook (Sonoma 14.5) and Ubuntu (22.04 LTS) ready for nemd installation.
 '
+
 # Version, Packages, and Environment
 case $(uname) in
   Darwin*)
@@ -25,10 +26,10 @@ esac
 
 # Git
 if [ -z "$(git config user.name)" ]; then
-  git config --global core.editor "vim"
   git config --global user.email $(whoami)@gmail.com
   git config --global user.name $(whoami)
 fi
+
 if [ ! -d ~/git/nemd ]; then
   (gh auth status) || gh auth login --hostname GitHub.com --web
   (git config --global credential.helper | grep 'gh auth') || gh auth setup-git

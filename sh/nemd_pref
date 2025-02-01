@@ -1,0 +1,19 @@
+ #!/bin/sh
+ # Under the BSD 3-Clause License by Teng Zhang (zhteg4@gmail.com)
+ : '
+ Setup MacBook (Sonoma 14.5) and Ubuntu (22.04 LTS) preference.
+ '
+
+ case $(uname) in
+   Darwin*)
+     brew install --cask iterm2
+     ;;
+   Linux*)
+     ;;
+ esac
+
+# The amix set both cusor and background in black 
+osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to true'
+[ -d ~/.vim_runtime ] || git clone --depth=1 https://github.com/amix/vimrc.git ~/.vim_runtime
+[ -d ~/.vim_runtime ] && sh ~/.vim_runtime/install_awesome_vimrc.sh
+git config --global core.editor "vim"
