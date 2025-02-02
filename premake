@@ -1,15 +1,14 @@
 # /bin/sh
+# Licensed under the BSD 3-Clause License. Authors: Teng Zhang (zhteg4@gmail.com)
 : '
 Set up the environment for the sh, workflow, driver module, and submodule directories.
 
 Usage:
   . premake
   source premake
-
-Licensed under the BSD 3-Clause License. Authors: Teng Zhang (zhteg4@gmail.com)
 '
 
-# Premake and Shell Type
+# Shell Type and Root Directory
 if [ $(basename $0) = 'premake' ]
 then
   PREMAKE="$0" && echo "Shell Type: zsh"
@@ -20,37 +19,15 @@ else
   x="$(lsof -p $$ -Fn0 | tail -1 | tr -d "\0")" && PREMAKE=${x#*n} && echo "Shell Type: dash"
 fi
 [ ! -f $PREMAKE ] && echo "Cannot locate this premake script" && return
+export NEMD_SRC="$(readlink -f ${PREMAKE} | xargs dirname)" && echo \$NEMD_SRC=$NEMD_SRC
 
-# NEMD_SRC
-export NEMD_SRC="$(readlink -f ${PREMAKE} | xargs dirname)"
-[ -d $NEMD_SRC ] && echo \$NEMD_SRC=$NEMD_SRC
+# Packages: NEMD, LAMMPS, and ALAMODE
+MOD=$NEMD_SRC/module && echo \$MOD=$MOD
+[ -d "$MOD" ] && echo $PYTHONPATH | grep -q $MOD || export PYTHONPATH="$MOD${PYTHONPATH:+":$PYTHONPATH"}"
 
-add_pypath() {
-  echo $PYTHONPATH | grep -q "$1" || export PYTHONPATH="$1${PYTHONPATH:+":$PYTHONPATH"}"
-}
-
-# Packages
-# NEMD, LAMMPS, and Alamode
-MODULE=$NEMD_SRC/module
-[ -d $MODULE ] && echo \$MODULE=$MODULE && add_pypath $MODULE
-
-add_path() {
-  echo $PATH | grep -q "$1" || export PATH="$1${PATH:+":$PATH"}"
-}
-
-# Scripts
-# Shell
-NEMD_SH=$NEMD_SRC/sh
-[ -d $NEMD_SH ] && echo \$NEMD_SH=$NEMD_SH && add_path $NEMD_SH
-
-# Workflow
-NEMD_WORKFLOW=$NEMD_SRC/workflow
-[ -d $NEMD_WORKFLOW ] && echo \$NEMD_WORKFLOW=$NEMD_WORKFLOW && add_path $NEMD_WORKFLOW
-
-# Driver
-NEMD_DRIVER=$NEMD_SRC/driver
-[ -d $NEMD_DRIVER ] && echo \$NEMD_DRIVER=$NEMD_DRIVER && add_path $NEMD_DRIVER
-
-# Alamode
-ALAMODE_TOOLS=$NEMD_SRC/module/alamode/alamode/tools
-[ -d $ALAMODE_TOOLS ] && echo "\$ALAMODE_TOOLS=$ALAMODE/alamode/tools" && add_path $ALAMODE_TOOLS
+# Shell, Driver, Workflow, and Alamode
+add_path() { echo $1 && [ -d "$1" ] && echo $PATH | grep -q "$1" || export PATH="$1${PATH:+":$PATH"}"; }
+add_path $NEMD_SRC/sh
+add_path $NEMD_SRC/driver
+add_path $NEMD_SRC/workflow
+add_path $NEMD_SRC/module/alamode/alamode/tools
