@@ -19,7 +19,7 @@ else
   x="$(lsof -p $$ -Fn0 | tail -1 | tr -d "\0")" && PREMAKE=${x#*n} && echo "Shell Type: dash"
 fi
 [ ! -f $PREMAKE ] && echo "Cannot locate this premake script" && return
-export NEMD_SRC="$(readlink -f ${PREMAKE} | xargs dirname)" && echo \$NEMD_SRC=$NEMD_SRC
+NEMD_SRC="$(readlink -f ${PREMAKE} | xargs dirname)" && echo \$NEMD_SRC=$NEMD_SRC
 
 # Packages: NEMD, LAMMPS, and ALAMODE
 MOD=$NEMD_SRC/module && echo \$MOD=$MOD
