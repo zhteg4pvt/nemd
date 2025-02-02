@@ -1,24 +1,23 @@
 ## Nonequilibrium Molecular Dynamics (nemd)
 
 ### Installation
-Clone the repository with submodules downloaded and the master branch checked out by
+Prepare the machine and clone the repository
 ```
-git clone --recurse-submodules -j8 git://github.com/zhteg4pvt/nemd --branch master
+bash -c "$(curl 'https://raw.githubusercontent.com/zhteg4/nemd/master/nemd_setup.txt')"
 ```
-Change the directory, install dependencies, and compile the source codes
+Install dependencies, compile the binaries, and distribute scripts
 ```
-cd nemd; pip install .[dev] -v
+cd ~/git/nemd; pip3.10 install . -v
 ```
-### Testing
-Set environmental variables (recommended)
+### Test
+Set environmental variables
 ```
 source premake
 ```
-Run unit testing to check the smallest functional units
+Run unit test
 ```
-run_test
+nemd_test
 ```
-In a clean directory, run integration testing to check the combined entity
+Run integration test
 ```
-run_itest
-```
+nemd_itest

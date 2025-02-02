@@ -7,9 +7,12 @@
 # Terminal, Prompt, and Other
 case $(uname) in
   Darwin*)
-    brew install --cask iterm2 microsoft-powerpoint microsoft-word
+    brew install --cask iterm2 microsoft-powerpoint microsoft-word pycharm-ce
     zsh -c "setopt prompt_subst"
     grep prompt ~/.zprofile || echo 'prompt="%F{240}%n%F{yellow}@%F{green}%m %F{blue}%1~ %F{red}$(git branch --show-current 2>/dev/null)%F{reset}: "' >> ~/.zprofile
+    grep 'alias ls' ~/.zprofile || echo 'alias ls="ls --color"' >> ~/.zprofile
+    grep 'alias cdg' ~/.zprofile || echo 'alias cdg="cd ~/git/nemd"' >> ~/.zprofile
+    # Mark directory as Source Root to avoid 'python cannot find declaration to go to'
     ;;
   Linux*)
     ;;
