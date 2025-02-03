@@ -1,10 +1,10 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
-Compile binaries, install packages, and distribute scripts. (Python 3.10.12)
+Compile binaries, install packages, and distribute scripts.
 
-pip3 install . -v
-python3 setup.py install
+pip3.10 install . -v
+python3.10 setup.py install
 """
 import functools
 import glob
@@ -171,7 +171,7 @@ Installer = {'darwin': Darwin, 'linux': Linux}[sys.platform]
 
 class Distribution(Installer):
     """
-    Distribution the scripts, packages and data.
+    Distribute the scripts, packages and data.
     """
 
     PARQUET = 'parquet'

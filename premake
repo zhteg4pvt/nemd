@@ -11,19 +11,22 @@ Usage:
 # Shell Type and Root Directory
 if [ $(basename $0) = 'premake' ]
 then
-  PREMAKE="$0" && echo "Shell Type: zsh"
+  NEMD_SRC="$0" && echo "Shell Type: zsh"
 elif [ $BASH_SOURCE ]
   then
-  PREMAKE=${BASH_SOURCE[0]} && echo "Shell Type: POSIX"
+  NEMD_SRC=${BASH_SOURCE[0]} && echo "Shell Type: POSIX"
 else
-  x="$(lsof -p $$ -Fn0 | tail -1 | tr -d "\0")" && PREMAKE=${x#*n} && echo "Shell Type: dash"
+  x="$(lsof -p $$ -Fn0 | tail -1 | tr -d "\0")" && NEMD_SRC=${x#*n} && echo "Shell Type: dash"
 fi
-[ ! -f $PREMAKE ] && echo "Cannot locate this premake script" && return
-NEMD_SRC="$(readlink -f ${PREMAKE} | xargs dirname)" && echo \$NEMD_SRC=$NEMD_SRC
+[ ! -f $NEMD_SRC ] && echo "Cannot locate the source root" && return 1
+NEMD_SRC="$(readlink -f ${NEMD_SRC} | xargs dirname)" && echo \$NEMD_SRC=$NEMD_SRC
 
 # Packages: NEMD, LAMMPS, and ALAMODE
-MOD=$NEMD_SRC/module && echo \$MOD=$MOD
-[ -d "$MOD" ] && echo $PYTHONPATH | grep -q $MOD || export PYTHONPATH="$MOD${PYTHONPATH:+":$PYTHONPATH"}"
+add_pypath() {
+  echo $1 && [ -d "$1" ] && echo $PYTHONPATH | grep -q "$1" && return
+  export PYTHONPATH="$1${PYTHONPATH:+":$PYTHONPATH"}"
+  }
+add_pypath $NEMD_SRC/module
 
 # Shell, Driver, Workflow, and Alamode
 add_path() { echo $1 && [ -d "$1" ] && echo $PATH | grep -q "$1" || export PATH="$1${PATH:+":$PATH"}"; }
