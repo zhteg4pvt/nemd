@@ -677,7 +677,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self.add_argument(FLAG_SEED,
                           metavar=FLAG_SEED[1:].upper(),
                           type=type_random_seed,
-                          help='Set random state using this seed.')
+                          help='Set random state.')
         self.add_argument(FLAG_TIMESTEP,
                           metavar='fs',
                           type=type_positive_float,
@@ -777,38 +777,33 @@ class ArgumentParser(argparse.ArgumentParser):
                               default=self.name,
                               help=argparse.SUPPRESS)
             envutils.set_default_jobname(self.name)
-            self.add_argument(
-                FLAG_JOBNAME,
-                dest=FLAG_JOBNAME[1:].lower(),
-                default=self.name,
-                help='The jobname based on which filenames are created.')
+            self.add_argument(FLAG_JOBNAME,
+                              dest=FLAG_JOBNAME[1:].lower(),
+                              default=self.name,
+                              help='Name output files.')
         if FLAG_INTERACTIVE in self.JFLAGS:
             self.add_argument(FLAG_INTERACTIVE,
                               dest=FLAG_INTERACTIVE[1:].lower(),
                               action='store_true',
-                              help='Enable interactive mode.')
+                              help='Pause for user input.')
         if FLAG_PYTHON in self.JFLAGS:
-            self.add_argument(
-                FLAG_PYTHON,
-                default=envutils.CACHE_MODE,
-                dest=FLAG_PYTHON[1:].lower(),
-                choices=envutils.PYTHON_MODES,
-                help='0: native python; 1: compile supported python code; '
-                '2: use the cached data.')
+            self.add_argument(FLAG_PYTHON,
+                              default=envutils.CACHE_MODE,
+                              dest=FLAG_PYTHON[1:].lower(),
+                              choices=envutils.PYTHON_MODES,
+                              help='0: native; 1: compiled; 2: cached.')
         if FLAG_CPU in self.JFLAGS:
             self.add_argument(
                 FLAG_CPU,
                 type=type_positive_int,
                 nargs='+',
                 dest=FLAG_CPU[1:].lower(),
-                help='Total number of CPU processors, and the CPU number for '
-                'each sub-job.')
+                help='Total number of CPUs (the number for one task).')
         if FLAG_DEBUG in self.JFLAGS:
-            self.add_argument(
-                FLAG_DEBUG,
-                action='store_true',
-                dest=FLAG_DEBUG[1:].lower(),
-                help='Enable debug mode (e.g. extra printing and files).')
+            self.add_argument(FLAG_DEBUG,
+                              action='store_true',
+                              dest=FLAG_DEBUG[1:].lower(),
+                              help='Additional printing and output files.')
 
 
 class WorkflowParser(ArgumentParser):
@@ -837,17 +832,16 @@ class WorkflowParser(ArgumentParser):
                 nargs='+',
                 choices=[jobutils.TASK, jobutils.AGGREGATOR],
                 default=[jobutils.TASK, jobutils.AGGREGATOR],
-                help=f'{jobutils.TASK} jobs run tasks and register files; '
-                f'{jobutils.AGGREGATOR} jobs collect results.')
+                help=f'{jobutils.TASK} runs tasks and registers files; '
+                f'{jobutils.AGGREGATOR} collects results.')
             self.add_argument(
                 FLAG_PRJ_PATH,
                 type=type_dir,
                 help='The aggregator jobs collect jobs from this directory.')
         if FLAG_CLEAN in self.WFLAGS:
-            self.add_argument(
-                FLAG_CLEAN,
-                action='store_true',
-                help='Clean previous workflow results before running.')
+            self.add_argument(FLAG_CLEAN,
+                              action='store_true',
+                              help='Clean previous workflow results.')
         if FLAG_SCREEN in self.WFLAGS:
             self.add_argument(
                 FLAG_SCREEN,
@@ -855,9 +849,8 @@ class WorkflowParser(ArgumentParser):
                 choices=[
                     jobutils.TQDM, jobutils.PROGRESS, jobutils.JOB, symbols.OFF
                 ],
-                help=f'Print the serialization {jobutils.TQDM}, the '
-                f'parallelization {jobutils.PROGRESS}, and the '
-                f'{jobutils.JOB} details.')
+                help=f'Print the serialization {jobutils.TQDM}, parallelization'
+                f' {jobutils.PROGRESS}, and {jobutils.JOB} details.')
             self.validators.add(WorkflowValidator)
         if FLAG_DEBUG in self.WFLAGS:
             self.add_argument(

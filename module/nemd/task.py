@@ -460,20 +460,21 @@ class CmdJob(taskbase.Job):
         """
         Set the cpu number.
         """
+        # No CPU specified for the workflow: 1 cpu per subjob for efficiency
+        default = f"{jobutils.FLAG_CPU} 1"
         try:
             index = self.job_args.index(jobutils.FLAG_CPU)
         except ValueError:
-            # No CPU specified for the workflow: 1 cpu per subjob for efficiency
-            num = 1
+            cpu_num = None
         else:
-            num = self.job_args[index + 1]
+            cpu_num = f"{jobutils.FLAG_CPU} {self.job_args[index + 1]}"
 
-        cpu_num = f"{jobutils.FLAG_CPU} {num}"
         for idx, cmd in enumerate(self.args):
-            if jobutils.FLAG_CPU in cmd:
+            if not jobutils.FLAG_CPU in cmd:
+                self.args[idx] = f"{cmd} {cpu_num if cpu_num else default}"
+                continue
+            if cpu_num:
                 self.args[idx] = self.CPU_RE.sub(cpu_num, cmd)
-            else:
-                self.args[idx] = f"{cmd} {cpu_num}"
 
     def setName(self):
         """

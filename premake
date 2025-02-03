@@ -11,15 +11,15 @@ Usage:
 # Shell Type and Root Directory
 if [ $(basename $0) = 'premake' ]
 then
-  NEMD_SRC="$0" && echo "Shell Type: zsh"
+  NEMD_SRC="$0" && echo "zsh"
 elif [ $BASH_SOURCE ]
   then
-  NEMD_SRC=${BASH_SOURCE[0]} && echo "Shell Type: POSIX"
+  NEMD_SRC=${BASH_SOURCE[0]} && echo "POSIX"
 else
-  x="$(lsof -p $$ -Fn0 | tail -1 | tr -d "\0")" && NEMD_SRC=${x#*n} && echo "Shell Type: dash"
+  x="$(lsof -p $$ -Fn0 | tail -1 | tr -d "\0")" && NEMD_SRC=${x#*n} && echo "dash"
 fi
 [ ! -f $NEMD_SRC ] && echo "Cannot locate the source root" && return 1
-NEMD_SRC="$(readlink -f ${NEMD_SRC} | xargs dirname)" && echo \$NEMD_SRC=$NEMD_SRC
+export NEMD_SRC="$(readlink -f ${NEMD_SRC} | xargs dirname)" && echo $NEMD_SRC
 
 # Packages: NEMD, LAMMPS, and ALAMODE
 add_pypath() {
@@ -29,7 +29,10 @@ add_pypath() {
 add_pypath $NEMD_SRC/module
 
 # Shell, Driver, Workflow, and Alamode
-add_path() { echo $1 && [ -d "$1" ] && echo $PATH | grep -q "$1" || export PATH="$1${PATH:+":$PATH"}"; }
+add_path() {
+  echo $1 && [ -d "$1" ] && echo $PATH | grep -q "$1" && return
+  export PATH="$1${PATH:+":$PATH"}"
+  }
 add_path $NEMD_SRC/sh
 add_path $NEMD_SRC/driver
 add_path $NEMD_SRC/workflow
