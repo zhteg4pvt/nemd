@@ -13,6 +13,7 @@ case $(uname) in
     grep prompt ~/.zshrc || echo 'prompt="%F{240}%n%F{yellow}@%F{green}%m %F{blue}%1~ %F{red}$(git branch --show-current 2>/dev/null)%F{reset}: "' >> ~/.zshrc
     grep 'alias ls' ~/.zshrc || echo 'alias ls="ls --color"' >> ~/.zshrc
     grep 'alias cdg' ~/.zshrc || echo 'alias cdg="cd ~/git/nemd"' >> ~/.zshrc
+    source ~/.zshrc
     # The amixs sets both cursor and background in black
     osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to true'    ;;
   Linux*)
