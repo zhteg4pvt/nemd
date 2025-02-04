@@ -9,7 +9,7 @@ Usage:
 [ -z $SHALLOW ] && rm -rf build
 
 [ -d lammps ] || git submodule add -b release https://github.com/lammps/lammps.git
-. nemd_func
+. ../../sh/nemd_func
 git_update lammps
 
 set -- "$@" -D PKG_OPENMP=yes -D PKG_PYTHON=on -D PKG_MANYBODY=on
