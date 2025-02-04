@@ -9,7 +9,7 @@ Usage:
 [ -z $SHALLOW ] && rm -rf build
 
 [ -d alamode ] || git submodule add -b master https://github.com/ttadano/alamode.git
-../../sh/nemd_func
+. ../../sh/nemd_func
 git_update alamode
 
 # OS - dependent settings

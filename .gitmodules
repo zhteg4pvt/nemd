@@ -6,3 +6,7 @@
 	path = module/lammps/lammps
 	url = https://github.com/lammps/lammps.git
 	branch = release
+[submodule "setup"]
+	path = setup
+	url = https://github.com/zhteg4/nemd
+	branch = main
