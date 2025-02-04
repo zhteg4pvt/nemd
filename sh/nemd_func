@@ -10,10 +10,28 @@ Usage:
 
 '
 # Python
-python() { python3.10 "$@";}
+python() { python3.10 "$@"; }
 
 # Debug Printing
 [ -z $DEBUG ] && debug() { :; } || debug() { echo "$@"; }
+
+llvm() {
+  LLVM=$(brew --prefix llvm)/bin
+  echo $PATH | grep -q $$LLVM || export PATH="$LLVM${PATH:+":$PATH"}"
+}
+
+git_update() {
+  set -- --init "$@"
+  [ ! -z $SHALLOW ] && set -- --depth 1 "$@"
+  set -- git submodule update "$@"
+  "$@"
+}
+
+cmake_build() {
+  set -- cmake "$@" -B build
+  echo "$@"; "$@"
+  cmake --build build -j $(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+}
 
 # param $@: input command to format python files
 # In git repository, format modified python files tracked and those untracked

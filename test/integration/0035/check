@@ -1,1 +1,2 @@
 cmp(lmp_log_toteng.csv, lmp_log_toteng.csv, rtol=1e-6)
+in('2 OpenMP thread', lammps_lmp.log)

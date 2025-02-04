@@ -6,31 +6,26 @@ Compile the lammps binary.
 Usage:
   install.sh
 '
-[ -d build ] && rm -rf build
+[ -z $SHALLOW ] && rm -rf build
 
 [ -d lammps ] || git submodule add -b release https://github.com/lammps/lammps.git
-set -- git submodule update
-[ ! -z $SHALLOW ] && set -- "$@" --depth 1
-"$@" --init lammps
+. nemd_func
+git_update lammps
 
-set -- cmake
-# OpenMP packages (https://docs.lammps.org/Speed_omp.html)
-set -- "$@" -D PKG_OPENMP=yes -D PKG_PYTHON=on -D PKG_MANYBODY=on \
-  -D PKG_MOLECULE=on -D PKG_KSPACE=on -D PKG_RIGID=on -D BUILD_LIB=on
+set -- "$@" -D PKG_OPENMP=yes -D PKG_PYTHON=on -D PKG_MANYBODY=on
+set -- "$@" -D PKG_MOLECULE=on -D PKG_KSPACE=on -D PKG_RIGID=on
+set -- "$@" -D Python_EXECUTABLE=$(python -c "import sys; print(sys.executable)")
+
 # OS - dependent settings
 case $(uname) in
   Darwin*)
-    # Mac OS X enables OpenMP libraries (https://iscinumpy.gitlab.io/post/omp-on-high-sierra/)
-    set -- "$@" -DOpenMP_CXX_LIB_NAMES=omp \
-      -DOpenMP_omp_LIBRARY=$(brew --prefix libomp)/lib/libomp.a \
-      -DOpenMP_CXX_FLAGS="'-Xpreprocessor -fopenmp -I$(brew --prefix libomp)/include'"
+    llvm; C_COMPILER=clang; CXX_COMPILER=clang++
     ;;
   Linux*)
+    C_COMPILER=gcc; CXX_COMPILER=g++
     # https://freezing.cool/notes/lammps-on-wsl-with-openmp-and-gpu
     (nvidia-smi 2>/dev/null) && set -- "$@" -D PKG_GPU=on -D GPU_API=cuda
     ;;
 esac
 
-set -- "$@" -S ./lammps/cmake/ -B build
-echo "$@"; "$@"
-cmake --build build -j $(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+cmake_build "$@" -DCMAKE_C_COMPILER=$C_COMPILER -DCMAKE_CXX_COMPILER=$CXX_COMPILER -S ./lammps/cmake/

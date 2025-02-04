@@ -35,9 +35,9 @@ class Darwin:
     ALM_EXES = [ALM, ANPHON]
 
     INSTALL = ('brew', 'install', '-q')
-    PKGS = PKGS + ('gcc', 'libomp', 'fftw')
-    LMP_PKGS = ('clang-format', )
-    ALM_PKGS = ('llvm', 'spglib', 'eigen', 'boost', 'lapack')
+    PKGS = PKGS + ('llvm', )
+    LMP_PKGS = ('clang-format', 'ffmpeg', 'pkgconfig')
+    ALM_PKGS = ('spglib', 'eigen', 'boost', 'lapack')
 
     def __init__(self):
         self.dir = pathlib.Path(__file__).parent
@@ -144,10 +144,7 @@ class Linux(Darwin):
     Linux installer.
     """
     INSTALL = ('sudo', 'apt-get', 'install', '-y')
-    PKGS = PKGS + (
-        'build-essential',
-        'fftw3-dev',
-    )
+    PKGS = PKGS + ('build-essential', 'fftw3-dev')
     LMP_PKGS = ('libopenmpi-dev', 'ffmpeg')
     ALM_PKGS = ('libsymspg-dev', 'libeigen3-dev', 'libboost-all-dev',
                 'libblas-dev', 'liblapack-dev')
