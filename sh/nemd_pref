@@ -7,6 +7,7 @@
 # Terminal, Prompt, and Other
 case $(uname) in
   Darwin*)
+    (brew -v) || . ~/.zprofile
     brew install --cask iterm2 microsoft-powerpoint microsoft-word pycharm-ce
     # Mark directory as Source Root to avoid 'python cannot find declaration to go to'
     # Editor > Code Stype > Hard wrap at: 80 for yapf consistency    zsh -c "setopt prompt_subst"
@@ -15,7 +16,8 @@ case $(uname) in
     grep 'alias cdg' ~/.zshrc || echo 'alias cdg="cd ~/git/nemd"' >> ~/.zshrc
     source ~/.zshrc
     # The amixs sets both cursor and background in black
-    osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to true'    ;;
+    osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to true'
+    ;;
   Linux*)
     ;;
  esac
