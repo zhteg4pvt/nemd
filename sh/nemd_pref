@@ -7,7 +7,6 @@
 # Terminal, Prompt, and Other
 case $(uname) in
   Darwin*)
-    brew -v || eval "$(/opt/homebrew/bin/brew shellenv)"
     brew install --cask iterm2 microsoft-powerpoint microsoft-word pycharm-ce
     # Mark directory as Source Root to avoid 'python cannot find declaration to go to'
     # Editor > Code Stype > Hard wrap at: 80 for yapf consistency    zsh -c "setopt prompt_subst"
