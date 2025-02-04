@@ -3,7 +3,7 @@
 ### Installation
 Prepare the machine and clone the repository
 ```
-bash -c "$(curl 'https://raw.githubusercontent.com/zhteg4/nemd/master/nemd_setup.txt')"
+bash -c "$(curl 'https://raw.githubusercontent.com/zhteg4/nemd/main/setup')"
 ```
 Install dependencies, compile the binaries, and distribute scripts
 ```
