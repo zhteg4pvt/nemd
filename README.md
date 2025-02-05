@@ -3,7 +3,13 @@
 ### Installation
 Prepare the machine and clone the repository
 ```
+Ubuntu
+```
 bash -c "$(curl -fsSL 'https://raw.githubusercontent.com/zhteg4/nemd/main/setup')"
+```
+MacOS
+```
+wget -O https://raw.githubusercontent.com/zhteg4/nemd/main/setup | bash
 ```
 Install dependencies, compile the binaries, and distribute scripts
 ```
