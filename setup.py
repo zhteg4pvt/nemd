@@ -144,7 +144,7 @@ class Linux(Darwin):
     Linux installer.
     """
     INSTALL = ('sudo', 'apt-get', 'install', '-y')
-    PKGS = PKGS + ('build-essential', 'fftw3-dev')
+    PKGS = PKGS + ('fftw3-dev',)
     LMP_PKGS = LMP_PKGS
     ALM_PKGS = ('libboost-all-dev', 'libeigen3-dev', 'libblas-dev', 'liblapack-dev', 'libsymspg-dev')
     NVIDIA_CUDA_TOOLKIT = 'nvidia-cuda-toolkit'
