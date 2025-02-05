@@ -37,8 +37,7 @@ class Darwin:
     INSTALL = ('brew', 'install', '-q')
     PKGS = PKGS + ('llvm', 'fftw')
     LMP_PKGS = ('clang-format', 'ffmpeg', 'pkgconfig')
-    ALM_PKGS = ('spglib', 'eigen', 'boost', 'lapack')
-
+    ALM_PKGS = ('boost', 'eigen', 'spglib')
     def __init__(self):
         self.dir = pathlib.Path(__file__).parent
         # Python modules to install under site-packages
