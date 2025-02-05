@@ -26,3 +26,9 @@ case $(uname) in
 git config --global core.editor "vim"
 [ -d ~/.vim_runtime ] || git clone --depth=1 https://github.com/amix/vimrc.git ~/.vim_runtime
 [ -d ~/.vim_runtime ] && sh ~/.vim_runtime/install_awesome_vimrc.sh
+
+# Git
+if [ -z "$(git config user.name)" ]; then
+  git config --global user.email $(whoami)@gmail.com
+  git config --global user.name $(whoami)
+fi
