@@ -4,8 +4,8 @@
 Run integration tests.
 
 Usage:
-  run_itest [int int...]
-  run_itest -dir DIR
+  nemd_itest [int int...]
+  nemd_itest -dir DIR
   An empty argument runs all tests in $NEMD_SRC/test/integration.
 '
 set -- nemd_run test_workflow.py "$@"

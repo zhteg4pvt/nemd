@@ -4,7 +4,7 @@
 Format python files based on clang-format.
 
 Usage:
-  run_yapf [file1 file2...]
+  nemd_yapf [file1 file2...]
   An empty argument formats modified files tracked by git and untracked files.
 '
 BASE_CMD="nemd_run -m yapf"

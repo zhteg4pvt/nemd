@@ -4,8 +4,8 @@
 Run performance tests.
 
 Usage:
-  run_ptest [int int...]
-  run_ptest -dir DIR
+  nemd_ptest [int int...]
+  nemd_ptest -dir DIR
   An empty argument runs all tests in $NEMD_SRC/test/performance.
 '
 export MEM_INTVL=1

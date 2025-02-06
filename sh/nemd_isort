@@ -4,7 +4,7 @@
 Sort imports in Python files
 
 Usage:
-  run_isort [file1 file2...]
+  nemd_isort [file1 file2...]
   An empty argument formats modified files tracked by git and untracked files.
 '
 BASE_CMD="isort"

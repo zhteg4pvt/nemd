@@ -381,7 +381,6 @@ class CmdJob(taskbase.Job):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.name = os.path.basename(self.job.statepoint[parserutils.FLAG_DIR])
         self.cmd = test.Cmd(job=self.job)
         self.job_args = self.job.doc[self.ARGS]
 
@@ -418,14 +417,14 @@ class CmdJob(taskbase.Job):
         params = [x for x in param.args if x not in slow_params]
         return params
 
-    def getCmd(self, write=True):
+    def getCmd(self, write=True, **kwargs):
         """
         Get command line str.
 
         :param write bool: the msg to be printed
         :return str: the command as str
         """
-        msg = self.name
+        msg = os.path.basename(self.job.statepoint[parserutils.FLAG_DIR])
         if self.cmd.comment:
             msg = f"{msg}: {self.cmd.comment}"
         return super().getCmd(prefix=f"echo \'# {msg}\'", write=write)
@@ -725,7 +724,7 @@ class LmpTraj(LmpLog):
     JobClass = TrajJob
 
 
-class CmdTask(taskbase.Task):
+class Cmd(taskbase.Task):
     """
     The class to run commands in a cmd file.
     """
@@ -733,7 +732,7 @@ class CmdTask(taskbase.Task):
     JobClass = CmdJob
 
 
-class CheckTask(taskbase.Task):
+class Check(taskbase.Task):
     """
     Class to check the results by executing the operators in the check file.
     """
@@ -741,7 +740,7 @@ class CheckTask(taskbase.Task):
     JobClass = CheckJob
 
 
-class TagTask(taskbase.Task):
+class Tag(taskbase.Task):
     """
     Class to generate a new tag file (or updates the existing one).
     """

@@ -4,8 +4,8 @@
 Run scientific tests.
 
 Usage:
-  run_stest [int int...]
-  run_stest -dir DIR
+  nemd_stest [int int...]
+  nemd_stest -dir DIR
   An empty argument runs all tests in $NEMD_SRC/test/scientific.
 '
 set -- nemd_run test_workflow.py -name scientific "$@"

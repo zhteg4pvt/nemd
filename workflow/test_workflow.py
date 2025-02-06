@@ -37,11 +37,11 @@ class Test(jobcontrol.Runner, logutils.Base):
         """
         pre_after = []
         if test.CMD in self.options.task:
-            pre_after.append(self.setOpr(task.CmdTask))
+            pre_after.append(self.setOpr(task.Cmd))
         if test.CHECK in self.options.task:
-            pre_after.append(self.setOpr(task.CheckTask))
+            pre_after.append(self.setOpr(task.Check))
         if test.TAG in self.options.task:
-            pre_after.append(self.setOpr(task.TagTask))
+            pre_after.append(self.setOpr(task.Tag))
         for pre, after in zip(pre_after[:-1], pre_after[1:]):
             self.setPreAfter(pre, after)
 

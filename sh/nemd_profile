@@ -4,11 +4,11 @@
 Profile import time and execution process.
 
 Usage:
-  run_profiling
-  run_profiling -c "import numpy"
-  run_profiling mol_bldr_driver.py -h
-  run_profiling mol_bldr_driver.py [Ar]
-  run_profiling mol_bldr_driver.py [Ar] -DEBUG
+  nemd_profiling
+  nemd_profiling -c "import numpy"
+  nemd_profiling mol_bldr_driver.py -h
+  nemd_profiling mol_bldr_driver.py [Ar]
+  nemd_profiling mol_bldr_driver.py [Ar] -DEBUG
   An empty argument profiles the import time of all scripts and workflows.
 '
 

@@ -4,7 +4,7 @@
 Run the submodule binaries.
 
 Usage:
-  run_module [lmp|alm|anphon] [args]
+  nemd_module [lmp|alm|anphon] [args]
 '
 [ $# -lt 1 ] && echo 'Please specify the module binary to run.' && exit 1
 

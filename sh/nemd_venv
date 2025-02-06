@@ -4,7 +4,7 @@
 Create a virtual environment and print instructions to activate it.
 
 Usage:
-  run_venv ENV_DIR
+  nemd_venv ENV_DIR
   An empty argument sets venv as the ENV_DIR.
 '
 for a in $@;
