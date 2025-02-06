@@ -59,9 +59,11 @@ class Test(jobcontrol.Runner, logutils.Base):
         if not dirs:
             self.log_error(f'No valid tests found in {self.options.dir}.')
 
-        dirs = [
-            x for x in dirs if test.Tag(x, options=self.options).selected()
-        ]
+        if any([self.options.slow, self.options.label]):
+            dirs = [
+                x for x in dirs
+                if test.Tag(x, options=self.options).selected()
+            ]
         if not dirs:
             self.log_error('All tests are skipped according to the tag file.')
         self.state = {parserutils.FLAG_DIR: dirs}

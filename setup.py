@@ -37,8 +37,9 @@ class Darwin:
 
     INSTALL = ('brew', 'install', '-q')
     PKGS = PKGS + ('llvm', 'fftw')
-    LMP_PKGS = LMP_PKGS + ('pkgconfig',)
+    LMP_PKGS = LMP_PKGS + ('pkgconfig', )
     ALM_PKGS = ('boost', 'eigen', 'spglib')
+
     def __init__(self):
         self.dir = pathlib.Path(__file__).parent
         # Python modules to install under site-packages
@@ -144,9 +145,10 @@ class Linux(Darwin):
     Linux installer.
     """
     INSTALL = ('sudo', 'apt-get', 'install', '-y')
-    PKGS = PKGS + ('fftw3-dev',)
+    PKGS = PKGS + ('fftw3-dev', )
     LMP_PKGS = LMP_PKGS
-    ALM_PKGS = ('libboost-all-dev', 'libeigen3-dev', 'libblas-dev', 'liblapack-dev', 'libsymspg-dev')
+    ALM_PKGS = ('libboost-all-dev', 'libeigen3-dev', 'libblas-dev',
+                'liblapack-dev', 'libsymspg-dev')
     NVIDIA_CUDA_TOOLKIT = 'nvidia-cuda-toolkit'
 
     def prereq(self, *pkgs):

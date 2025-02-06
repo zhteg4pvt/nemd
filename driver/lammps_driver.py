@@ -143,25 +143,6 @@ class Lammps(logutils.Base):
         self.log(stdout)
         self.log(stderr)
 
-        # lmp_serial -in amorp_bldr.in
-        # env OMP_NUM_THREADS=4 lmp_serial -sf omp -in amorp_bldr.in
-        # mpirun -np 4 lmp_mpi -in amorp_bldr.in
-
-        # https://docs.lammps.org/jump.html
-        # The SELF option is not guaranteed to work when the current input
-        # script is being read through stdin (standard input), e.g.
-        # with logutils.redirect(logger=logger):
-        #     # "[xxx.local:xxx] shmem: mmap: an error occurred while determining
-        #     # whether or not xxx could be created." while lammps.lammps()
-        #     lmp = lammps.lammps(cmdargs=self.args)
-        # with open(self.options.inscript, 'r') as fh:
-        #     cmds = fh.readlines()
-        #     rdata = f'{lammpsin.In.READ_DATA} {self.options.data_file}'
-        #     cmds = [rdata if self.READ_DATA.match(x) else x for x in cmds]
-        #     breakpoint()
-        #     lmp.commands_list(cmds)
-        # lmp.close()
-
 
 def main(argv):
     parser = task.LammpsJob.get_parser()

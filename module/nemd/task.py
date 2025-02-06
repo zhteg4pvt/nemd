@@ -557,7 +557,7 @@ class CheckJob(taskbase.Base):
         """
         try:
             test.Check(job=self.job).check()
-        except (FileNotFoundError, KeyError, ValueError) as err:
+        except test.Check.ERRORS as err:
             if IS_DEBUG:
                 raise err
             self.message = str(err)

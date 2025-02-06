@@ -12,9 +12,8 @@ Usage:
 . ../../sh/nemd_func
 git_update lammps
 
-set -- "$@" -D PKG_OPENMP=yes -D PKG_PYTHON=on -D PKG_MANYBODY=on
-set -- "$@" -D PKG_MOLECULE=on -D PKG_KSPACE=on -D PKG_RIGID=on
-set -- "$@" -D Python_EXECUTABLE=$(python -c "import sys; print(sys.executable)")
+set -- "$@" -D PKG_OPENMP=yes -D PKG_MANYBODY=on -D PKG_MOLECULE=on -D PKG_KSPACE=on \
+-D PKG_RIGID=on -D Python_EXECUTABLE=$(python -c "import sys; print(sys.executable)")
 
 # OS - dependent settings
 case $(uname) in

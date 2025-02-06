@@ -471,6 +471,7 @@ class Check(Opr):
         'in': In,
         'collect_log': CollectLog
     }
+    ERRORS = (FileNotFoundError, KeyError, ValueError)
 
     def check(self):
         """
