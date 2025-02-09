@@ -376,45 +376,11 @@ class CmdJob(taskbase.Job):
     NAME = 'cmd'
     CPU_RE = re.compile(f"{jobutils.FLAG_CPU} +\d*")
     SEP = f"{symbols.RETURN}"
-    PARAM = test.Param.PARAM
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cmd = test.Cmd(job=self.job)
-        self.job_args = self.job.doc[self.ARGS]
-
-    @property
-    @functools.cache
-    def args(self):
-        """
-        Return the arguments out of the cmd file.
-
-        :return list of str: each str is a command
-        :raise FileNotFoundError: if no parameter file is found but required.
-        """
-        if self.PARAM not in self.cmd.args[0]:
-            return self.cmd.args
-        if not self.params:
-            raise FileNotFoundError(f"No parameter file found. ({self.name})")
-        return [self.cmd.args[0].replace(self.PARAM, x) for x in self.params]
-
-    @property
-    @functools.cache
-    def params(self):
-        """
-        Return the parameter object.
-
-        :return list: the parameters.
-        """
-        param = test.Param(job=self.job, cmd=self.cmd)
-        if not param.args:
-            return []
-        param.setXlabel()
-        threshold = jobutils.get_arg(self.job_args, parserutils.FLAG_SLOW)
-        threshold = None if threshold is None else float(threshold)
-        slow_params = test.Tag(job=self.job).slowParam(threshold)
-        params = [x for x in param.args if x not in slow_params]
-        return params
+        self.jargs = self.job.doc[self.ARGS]
 
     def getCmd(self, write=True, **kwargs):
         """
@@ -454,6 +420,26 @@ class CmdJob(taskbase.Job):
             quoted = map(super().quote, shlex.split(cmd, posix=False))
             self.args[idx] = symbols.SPACE.join(quoted)
 
+    @property
+    @functools.cache
+    def args(self):
+        """
+        Return the arguments out of the cmd file.
+
+        :return list of str: each str is a command
+        """
+        return self.param.getCmds()
+
+    @property
+    @functools.cache
+    def param(self):
+        """
+        Return the parameter object.
+
+        :return list: the parameters.
+        """
+        return test.Param(job=self.job, cmd=self.cmd)
+
     def numCpu(self):
         """
         Set the cpu number.
@@ -461,11 +447,11 @@ class CmdJob(taskbase.Job):
         # No CPU specified for the workflow: 1 cpu per subjob for efficiency
         default = f"{jobutils.FLAG_CPU} 1"
         try:
-            index = self.job_args.index(jobutils.FLAG_CPU)
+            index = self.jargs.index(jobutils.FLAG_CPU)
         except ValueError:
             cpu_num = None
         else:
-            cpu_num = f"{jobutils.FLAG_CPU} {self.job_args[index + 1]}"
+            cpu_num = f"{jobutils.FLAG_CPU} {self.jargs[index + 1]}"
 
         for idx, cmd in enumerate(self.args):
             if not jobutils.FLAG_CPU in cmd:
@@ -480,13 +466,12 @@ class CmdJob(taskbase.Job):
         obtained from the python filename)
         """
         for idx, cmd in enumerate(self.args):
+            if self.FLAG_JOBNAME in cmd:
+                continue
             match = test.FILE_RE.match(cmd)
-            if not match or self.FLAG_JOBNAME in cmd:
+            if not match:
                 continue
             name = match.group(1)
-            if self.params:
-                param = self.params[idx].replace(symbols.SPACE, '_')
-                name = f"{name}_{param}"
             cmd += f" {self.FLAG_JOBNAME} {name}"
             self.args[idx] = cmd
 
@@ -494,7 +479,7 @@ class CmdJob(taskbase.Job):
         """
         Set the screen output.
         """
-        value = jobutils.get_arg(self.job_args, jobutils.FLAG_DEBUG)
+        value = jobutils.get_arg(self.jargs, jobutils.FLAG_DEBUG)
         if value is None:
             return
         is_debug = parserutils.type_bool(value or 'on')
@@ -508,7 +493,7 @@ class CmdJob(taskbase.Job):
         """
         Set the screen output.
         """
-        scn = jobutils.get_arg(self.job_args, jobutils.FLAG_SCREEN)
+        scn = jobutils.get_arg(self.jargs, jobutils.FLAG_SCREEN)
         if not scn and IS_DEBUG:
             return
         if scn and jobutils.JOB in scn:
@@ -526,7 +511,9 @@ class CmdJob(taskbase.Job):
             outfiles = self.doc[self.OUTFILE]
         except KeyError:
             return False
-        return len(outfiles) >= max([len(self.params), 1])
+        if self.param.args is None:
+            return bool(outfiles)
+        return len(outfiles) >= len(self.param.args)
 
     def clean(self):
         """

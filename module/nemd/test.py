@@ -30,6 +30,7 @@ from nemd import timeutils
 CMD = 'cmd'
 CHECK = 'check'
 TAG = 'tag'
+JOBNAME_RE = re.compile(f'{jobutils.FLAG_JOBNAME} +(\w+)')
 FILE_RE = re.compile('.* +(.*)_(driver|workflow).py( +.*)?$')
 NAME_BRKT_RE = re.compile('(?:^)?(?: *)?(?:;|&&|\|\|)?(?: *)(.*?)\\((.*?)\\)')
 
@@ -111,7 +112,7 @@ class Param(Cmd):
 
     @property
     @functools.cache
-    def xlabel(self):
+    def label(self):
         """
         Get the xlabel from the header of the parameter file.
 
@@ -120,20 +121,55 @@ class Param(Cmd):
         header = self.raw_args[0]
         if header.startswith(symbols.POUND):
             return header.strip(symbols.POUND).strip()
-
-    def setXlabel(self):
-        """
-        Set the xlabel of the parameter file.
-        """
-        if self.raw_args is None or self.xlabel:
+        if not self.cmd:
             return
-        Param.xlabel.fget.cache_clear()  # clear previous loaded label
         match = re.search(f'-(\w*) \{self.PARAM}', self.cmd.args[0])
         name = match.group(1).replace('_', ' ') if match else self.NAME
-        header = f"# {' '.join([x.capitalize() for x in name.split()])}"
+        label = ' '.join([x.capitalize() for x in name.split()])
         with open(self.pathname, 'w') as fh:
-            fh.write('\n'.join([header] + self.args))
-        self.raw_args.insert(0, header)
+            fh.write('\n'.join([f"# {label}"] + self.args))
+        return label
+
+    @property
+    @functools.cache
+    def args(self):
+        """
+        The arguments from the file.
+
+        :return list: the arguments filtered by slow.
+        """
+        jargs = self.job.doc[symbols.ARGS]
+        slow = jobutils.get_arg(jargs, jobutils.FLAG_SLOW)
+        if slow is None:
+            return super().args
+        slow = float(slow)
+        params = Tag(job=self.job).slowParams()
+        seconds = [timeutils.str2delta(x[1]).total_seconds() for x in params]
+        slow_args = set([x[0] for x, y in zip(params, seconds) if y > slow])
+        return [x for x in super().args if x not in slow_args]
+
+    def getCmds(self):
+        """
+        Get the parameterized commands.
+
+        :return list: each value is one command.
+        """
+        if not self.cmd:
+            return
+        cmd = self.cmd.args[0]
+        if self.PARAM not in cmd or not self.args:
+            return self.cmd.args
+        match = JOBNAME_RE.search(cmd)
+        if match:
+            name = match.group(1)
+            cmd = cmd.replace(cmd[slice(*match.span())], '')
+        else:
+            name = FILE_RE.match(cmd).group(1)
+        cmd += f' {jobutils.FLAG_NAME} {name}'
+        cmds = [cmd.replace(self.PARAM, x) for x in self.args]
+        names = [x.replace(' ', '_') for x in self.args]
+        flag_names = [f'{jobutils.FLAG_JOBNAME} {name}_{x}' for x in names]
+        return [f'{x} {y}' for x, y in zip(cmds, flag_names)]
 
 
 class Exist:
@@ -370,7 +406,7 @@ class CollectLog(Exist):
         rdrs = [logutils.LogReader(x) for x in files.values()]
         names = [x.options.NAME for x in rdrs]
         params = [x.removeprefix(y)[1:] for x, y in zip(files.keys(), names)]
-        index = pd.Index(params, name=Param(dir=self.args[-1]).xlabel)
+        index = pd.Index(params, name=Param(dir=self.args[-1]).label)
         data = {}
         if self.TIME in self.args:
             data[self.TIME_LB] = [x.task_time for x in rdrs]
@@ -653,15 +689,13 @@ class Tag(Cmd):
         delta = timeutils.str2delta(values[0])
         return delta.total_seconds() > self.options.slow
 
-    def slowParam(self, threshold):
-        if threshold is None:
-            return []
-        threshold = float(threshold)
-        params = [x[1:] for x in self.operators if x[0] == self.SLOW]
-        return [
-            x for x, y in params
-            if timeutils.str2delta(y).total_seconds() > threshold
-        ]
+    def slowParams(self):
+        """
+        Get the slow parameters.
+
+        :return list: slow parameters.
+        """
+        return [x[1:] for x in self.operators if x[0] == self.SLOW]
 
     def labeled(self):
         """

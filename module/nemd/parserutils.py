@@ -64,7 +64,6 @@ PERFORMANCE = 'performance'
 FLAG_ID = 'id'
 FLAG_DIR = jobutils.FLAG_DIR
 FLAG_TASK = '-task'
-FLAG_SLOW = '-slow'
 FLAG_LABEL = '-label'
 CMD = 'cmd'
 CHECK = 'check'
@@ -752,7 +751,7 @@ class ArgumentParser(argparse.ArgumentParser):
                           type=type_dir,
                           help='The test directory.')
         self.add_argument(
-            FLAG_SLOW,
+            jobutils.FLAG_SLOW,
             type=type_positive_float,
             metavar='SECOND',
             help='Skip (sub)tests marked with time longer than this criteria.')
@@ -773,7 +772,7 @@ class ArgumentParser(argparse.ArgumentParser):
         Add job control related flags.
         """
         if FLAG_JOBNAME in self.JFLAGS:
-            self.add_argument('-NAME',
+            self.add_argument(jobutils.FLAG_NAME,
                               default=self.name,
                               help=argparse.SUPPRESS)
             envutils.set_default_jobname(self.name)

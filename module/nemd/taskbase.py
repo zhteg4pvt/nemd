@@ -27,7 +27,7 @@ class Base(logutils.Base):
     can be used as normal task jobs or aggregate jobs.
     """
 
-    ARGS = 'args'
+    ARGS = symbols.ARGS
     FLAG_JOBNAME = jobutils.FLAG_JOBNAME
     MESSAGE = 'message'
     DATA_EXT = '.csv'

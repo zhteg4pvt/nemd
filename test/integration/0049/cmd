@@ -1,0 +1,2 @@
+# Amorphous builder on large number of [Ar] via grid method
+nemd_run amorp_bldr_driver.py [Ar] -method grid -mol_num $param -seed 1 -JOBNAME wa
