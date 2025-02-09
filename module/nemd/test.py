@@ -469,6 +469,7 @@ class Check(Cmd):
         Check the results by execute all operators. Raise errors if any failed.
         """
         name = os.path.basename(self.dir)
+        print(f"{name}: {''.join(self.args)}")
         proc = Process(tokens=self.args,
                        options=types.SimpleNamespace(jobname=name),
                        job=self.job)
