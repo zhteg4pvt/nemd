@@ -19,33 +19,41 @@ class Base:
     """
     Base class to build command, execute subprocess, and search for output files
     """
-    PRE_RUN = jobutils.NEMD_MODULE
+    NAME = 'cmd'
+    PRE_RUN = None
+    SEP = ' '
     EXT = symbols.LOG
     EXTS = {}
 
-    def __init__(self, name=os.curdir, options=None, files=None):
+    def __init__(self, name=None, tokens=None, options=None, files=None):
         """
-        :param name str: the subdirectory name to run the command
+        :param name str: the subdirectory name
+        :param tokens list: the arguments to build the cmd from
         :param options 'argparse.Namespace': the command line options
         :param files list: input files
         """
         self.name = name
+        self.tokens = tokens
         self.options = options
         self._files = files
         self.logfile = f'{self.options.jobname}{symbols.LOG}'
+        if self.name is None:
+            self.name = os.curdir
 
     def run(self):
         """
         Make & change directory, set up, build command, and run command.
+
+        :return `subprocess.CompletedProcess`: a CompletedProcess instance.
         """
         with osutils.chdir(self.name), open(self.logfile, 'w') as fh:
             self.setUp()
             cmd = self.getCmd()
-            subprocess.run(cmd, stdout=fh, stderr=fh, shell=True)
+            return subprocess.run(cmd, stdout=fh, stderr=fh, shell=True)
 
     def setUp(self):
         """
-        Set up the input files and symbolic links.
+        Set up the input files.
         """
         pass
 
@@ -57,20 +65,19 @@ class Base:
         :return str: the command
         """
         pre = [x for x in [self.PRE_RUN] if x]
-        cmd = ' '.join(map(str, pre + self.args))
+        cmd = self.SEP.join(map(str, pre + self.getArgs()))
         if write_cmd:
-            with open('cmd', 'w') as fh:
+            with open(self.NAME, 'w') as fh:
                 fh.write(cmd)
         return cmd
 
-    @property
-    def args(self):
+    def getArgs(self):
         """
         The args to build the command from.
 
         :return list: the arguments to build the command
         """
-        return ["echo"]
+        return self.tokens
 
     @property
     @functools.cache
@@ -79,6 +86,7 @@ class Base:
         Search for output files from the extension, directory, and jobname.
 
         :return list: the outfiles found.
+        :raise FileNotFoundError: no outfiles found
         """
         ext = self.EXTS.get(self.name, self.EXT)
         pattern = f"{self.options.jobname}{ext}"
@@ -105,25 +113,29 @@ class Base:
         ]
 
 
-class Lmp(Base):
+class Submodule(Base):
+
+    PRE_RUN = jobutils.NEMD_MODULE
+
+
+class Lmp(Submodule):
     """
     Class to run lammps simulations.
     """
 
     EXT = lammpsfix.CUSTOM_EXT
 
-    def __init__(self, struct, *arg, **kwargs):
+    def __init__(self, struct, *args, **kwargs):
         """
         :param struct Struct: the structure to get in script and data file from.
         """
-        super().__init__(*arg, **kwargs)
+        super().__init__(*args, **kwargs)
         self.struct = struct
         name = os.path.splitext(os.path.basename(self.files[0]))[0]
         self.name = f"lammps{name.removeprefix(self.options.jobname)}"
         Lmp.files.fget.cache_clear()
 
-    @property
-    def args(self):
+    def getArgs(self):
         """
         See parent class for docs.
         """
@@ -141,7 +153,7 @@ class Lmp(Base):
         osutils.symlink(self.files[0], self.struct.datafile)
 
 
-class Alamode(Base):
+class Alamode(Submodule):
     """
     Class to run one alamode binary.
     """
@@ -155,16 +167,15 @@ class Alamode(Base):
     }
     EXES = {SUGGEST: "alm", OPTIMIZE: "alm", PHONONS: "anphon"}
 
-    def __init__(self, crystal, *arg, **kwargs):
+    def __init__(self, crystal, *args, **kwargs):
         """
         :param crystal Crystal: the crystal to get in script from.
         """
-        super().__init__(*arg, **kwargs)
+        super().__init__(*args, **kwargs)
         self.crystal = crystal
         self.name = self.crystal.mode
 
-    @property
-    def args(self):
+    def getArgs(self):
         """
         See parent class for docs.
         """
@@ -183,7 +194,7 @@ class Alamode(Base):
         osutils.symlink(self.files[0], filename)
 
 
-class Tools(Base):
+class Tools(Submodule):
     """
     Class to run the scripts in the 'tools' directory.
     """
@@ -192,8 +203,7 @@ class Tools(Base):
     EXTRACT = 'extract'
     EXTS = {DISPLACE: "*.lammps"}
 
-    @property
-    def args(self):
+    def getArgs(self):
         """
         See parent class for docs.
         """

@@ -11,6 +11,8 @@ import glob
 import json
 import os
 import re
+import shlex
+import sys
 import types
 
 import numpy as np
@@ -21,12 +23,14 @@ from nemd import jobutils
 from nemd import lammpsdata
 from nemd import logutils
 from nemd import plotutils
+from nemd import process
 from nemd import symbols
 from nemd import timeutils
 
 CMD = 'cmd'
 CHECK = 'check'
 TAG = 'tag'
+NAME_BRACKET_RE = '(?:^)?(?: *)?(?:;|&&|\|\|)?(?: *)(.*?)\\((.*?)\\)'
 
 
 class Cmd:
@@ -36,8 +40,6 @@ class Cmd:
 
     NAME = 'cmd'
     POUND = symbols.POUND
-    NAME_BRACKET_RE = '(?:(?:^(?: +)?)|(?: +))(.*?)\\((.*?)\\)'
-    AND_NAME_RE = re.compile('^and +(.*)')
 
     def __init__(self, dir=None, job=None):
         """
@@ -133,36 +135,35 @@ class Param(Cmd):
             return header.strip(symbols.POUND).strip()
 
 
-class Base:
-
-    def __init__(self, *args, job=None):
-        """
-        :param args str: the target filenames
-        :param job 'signac.contrib.job.Job': the signac job instance
-        """
-        self.args = args
-        self.job = job
-
-
-class Exist(Base):
+class Exist:
     """
     The class to perform file existence check.
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.job is None:
-            return
-        self.targets = [self.job.fn(x) for x in self.args]
+    def __init__(self, *args):
+        """
+        :param args str: the target filenames
+        """
+        self.args = args
 
     def run(self):
         """
         The main method to check the existence of files.
         """
-        for target in self.targets:
+        for target in self.args:
             if os.path.isfile(target):
                 continue
-            raise FileNotFoundError(f"{self.job.fn(target)} not found")
+            raise FileNotFoundError(f"{target} not found")
+
+    @classmethod
+    def getTokens(cls, values, **kwargs):
+        """
+        Get the cmd tokens.
+
+        :param values str: generate token from the input values.
+        :return list: token list
+        """
+        return [x.strip('\'\" ') for x in values.split(',')]
 
 
 class Glob(Exist):
@@ -181,7 +182,7 @@ class Glob(Exist):
         """
         The main method to check the existence of files.
         """
-        for target in self.targets:
+        for target in self.args:
             files = glob.glob(target)
             if self.num is None and len(files) > 0:
                 continue
@@ -190,28 +191,13 @@ class Glob(Exist):
             raise ValueError(f"{files} found for {target} (num={self.num})")
 
 
-class NotExist(Exist):
-    """
-    The class to perform file non-existence check.
-    """
-
-    def run(self):
-        """
-        The main method to check the existence of a file.
-        """
-        for target in self.targets:
-            if not os.path.isfile(target):
-                continue
-            raise FileNotFoundError(f"{self.job.fn(target)} found")
-
-
 class In(Exist):
     """
     The class to check the containing file strings.
     """
 
-    def __init__(self, *args, job=None):
-        super().__init__(args[-1], job=job)
+    def __init__(self, *args):
+        super().__init__(args[-1])
         self.strs = args[:-1]
 
     def run(self):
@@ -219,12 +205,12 @@ class In(Exist):
         The main method to check the containing file strings.
         """
         super().run()
-        with open(self.targets[0]) as fh:
+        with open(self.args[-1]) as fh:
             file_str = fh.read()
         for content in self.strs:
             if content in file_str:
                 continue
-            raise ValueError(f"{content} not found in {self.targets[0]}")
+            raise ValueError(f"{content} not found in {self.args[-1]}")
 
 
 class Cmp(Exist):
@@ -232,31 +218,27 @@ class Cmp(Exist):
     The class to perform file comparison.
     """
 
-    def __init__(self,
-                 original,
-                 target,
-                 atol=None,
-                 rtol=None,
-                 equal_nan=None,
-                 job=None):
+    def __init__(self, *args, atol=None, rtol=None, equal_nan=None, **kwargs):
         """
-        :param original str: the original filename
-        :param target str: the target filename
         :param atol str: the absolute tolerance parameter for numpy.isclose
         :param rtol str: the relative tolerance parameter for numpy.isclose
         :param equal_nan bool: whether to compare NaNs as equal.
-        :param job 'signac.contrib.job.Job': the signac job instance
         """
-        super().__init__(target, job=job)
-        self.original = original
+        super().__init__(*args, **kwargs)
         self.atol = atol
         self.rtol = rtol
         self.equal_nan = equal_nan
-        if self.job is None:
-            return
-        pathname = os.path.join(self.job.statepoint[jobutils.FLAG_DIR],
-                                self.original)
-        self.targets.insert(0, pathname)
+
+    @classmethod
+    def getTokens(cls, values, job=None):
+        """
+        See parent class for the docstring.
+
+        :param job `signac.job.Job`: the check job.
+        """
+        params = super().getTokens(values)
+        pathname = os.path.join(job.statepoint[jobutils.FLAG_DIR], params[0])
+        return [pathname] + params[1:]
 
     def run(self):
         """
@@ -274,19 +256,19 @@ class Cmp(Exist):
         if not all(x is None for x in [self.atol, self.rtol, self.equal_nan]):
             return
         # Exact Match
-        if not filecmp.cmp(*self.targets):
-            self.raiseError(', '.join(self.targets[1:]))
+        if not filecmp.cmp(*self.args):
+            self.raiseError(', '.join(self.args))
 
     def cmpCsv(self):
         """
         Compare csv files via np.allclose.
         """
-        if not all(x.endswith('.csv') for x in self.targets):
+        if not all(x.endswith('.csv') for x in self.args):
             return
-        origin = pd.read_csv(self.targets[0])
+        origin = pd.read_csv(self.args[0])
         object = origin.select_dtypes(include='object')
         nonobj = origin.select_dtypes(exclude='object')
-        for target in self.targets[1:]:
+        for target in self.args[1:]:
             data = pd.read_csv(target)
             tgt_obj = data.select_dtypes(include='object')
             if object.shape != tgt_obj.shape:
@@ -319,10 +301,10 @@ class Cmp(Exist):
         """
         Compare the lammps data files.
         """
-        if not all(x.endswith('.data') for x in self.targets):
+        if not all(x.endswith('.data') for x in self.args):
             return
-        origin = lammpsdata.read(self.targets[0])
-        for target in self.targets[1:]:
+        origin = lammpsdata.read(self.args[0])
+        for target in self.args[1:]:
             data = lammpsdata.read(target)
             if not origin.allClose(data, **self.kwargs):
                 self.raiseError(target)
@@ -334,10 +316,10 @@ class Cmp(Exist):
         :param target str: the target filename(s)
         :raises ValueError: raise the error message as the files are different.
         """
-        raise ValueError(f"{self.targets[0]} and {target} are different.")
+        raise ValueError(f"{self.args[0]} and {target} are different.")
 
 
-class CollectLog(Base):
+class CollectLog:
     """
     The class to collect the log files and plot the requested data.
     """
@@ -424,20 +406,83 @@ class CollectLog(Base):
                 jobutils.add_outfile(outfile)
 
 
-class Opr(Cmd):
+class Check(Cmd):
     """
-    The class sets the operators in addition to the parsing a file.
+    The class to execute the operators in addition to the parsing a file.
     """
 
-    NAME = 'opr'
+    NAME = 'check'
 
-    def __init__(self, *args, delay=False, **kwargs):
+    def run(self):
         """
-        :param delay 'bool': read, parse, and set the operators if False
+        Check the results by execute all operators. Raise errors if any failed.
+        """
+        name = os.path.basename(self.dir)
+        proc = Process(tokens=self.args,
+                       options=types.SimpleNamespace(jobname=name),
+                       job=self.job)
+        completed = proc.run()
+        if not completed.returncode:
+            return
+        with open(proc.logfile) as fh:
+            return fh.read()
+
+
+class Process(process.Base):
+
+    NAME = f'{Check.NAME}_cmd'
+    SEP = ';\n'
+    Class = {
+        'cmp': Cmp,
+        'glob': Glob,
+        'exist': Exist,
+        'in': In,
+        'collect_log': CollectLog
+    }
+
+    def __init__(self, *args, job=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.job = job
+
+    def getArgs(self):
+        """
+        The args to build the command from.
+
+        :return list: the arguments to build the command
+        """
+        lines = []
+        for line in self.tokens:
+            matches = reversed(list(re.finditer(NAME_BRACKET_RE, line)))
+            mutable = list(line)
+            for match in matches:
+                name, values = match.groups()
+                params = self.Class[name].getTokens(values, job=self.job)
+                joined = shlex.join(['nemd_check', name] + params)
+                span = match.span(1)[0], match.span(2)[-1] + 1
+                mutable[slice(*span)] = joined
+            lines.append(''.join(mutable))
+        return lines
+
+
+class Tag(Cmd):
+    """
+    The class parses and interprets the tag file. The class also creates a new
+    tag file (or update existing one).
+    """
+
+    NAME = 'tag'
+    SLOW = 'slow'
+    LABEL = 'label'
+
+    def __init__(self, *args, options=None, delay=False, **kwargs):
+        """
+        :param options 'argparse.Namespace': parsed command line options.
         """
         super().__init__(*args, **kwargs)
+        self.options = options
         self.delay = delay
         self.operators = []
+        self.logs = []
         if self.delay:
             return
         self.setOperators()
@@ -448,97 +493,10 @@ class Opr(Cmd):
         """
         if self.args is None:
             return
-        for match in re.finditer(self.NAME_BRACKET_RE, ' '.join(self.args)):
+        for match in re.finditer(NAME_BRACKET_RE, ' '.join(self.args)):
             name, value = [x.strip("'\"") for x in match.groups()]
-            match = self.AND_NAME_RE.match(name)
-            if match:
-                name = match.groups()[0]
             values = [x.strip(" '\"") for x in value.split(symbols.COMMA)]
             self.operators.append([name] + [x for x in values if x])
-
-
-class Check(Opr):
-    """
-    The class to execute the operators in addition to the parsing a file.
-    """
-
-    NAME = 'check'
-    CHECK = {
-        'cmp': Cmp,
-        'glob': Glob,
-        'exist': Exist,
-        'not_exist': NotExist,
-        'in': In,
-        'collect_log': CollectLog
-    }
-    ERRORS = (FileNotFoundError, KeyError, ValueError)
-
-    def check(self):
-        """
-        Check the results by execute all operators. Raise errors if any failed.
-        """
-        name = os.path.basename(os.path.dirname(self.pathname))
-        ops = [symbols.SPACE.join(x) for x in self.operators]
-        print(f"# {name}: Checking {symbols.COMMA.join(ops)}")
-        for operator in self.operators:
-            CheckClass = self.getClass(operator)
-            args, kwargs = self.getArg(operator)
-            runner = CheckClass(*args, **kwargs, job=self.job)
-            runner.run()
-
-    def getClass(self, operator):
-        """
-        Get the command class.
-
-        :param operator list of str: the operator to be executed.
-            For example, [name, arg1, arg2, arg3=val, arg4=val2, ...]
-        :return: the class to perform check operation.
-        :rtype: 'type'
-        """
-        name = operator[0]
-        try:
-            return self.CHECK[name]
-        except KeyError:
-            raise KeyError(
-                f'{name} is one unknown command. Please select from '
-                f'{self.CHECK.keys()}')
-
-    def getArg(self, operator):
-        """
-        Get the args and kwargs from the operator.
-
-        :param operator list of str: the operator to be executed.
-            For example, [name, arg1, arg2, arg3=val, arg4=val2, ...]
-        :return: the args and kwargs to perform check operation.
-        :rtype: list, dict
-        """
-        args, kwargs = [], []
-        for val in operator[1:]:
-            match = re.match("(.*)=(.*)", val)
-            if match:
-                kwargs.append(tuple(x.strip() for x in match.groups()))
-            else:
-                args.append(val)
-        return args, dict(kwargs)
-
-
-class Tag(Opr):
-    """
-    The class parses and interprets the tag file. The class also creates a new
-    tag file (or update existing one).
-    """
-
-    NAME = 'tag'
-    SLOW = 'slow'
-    LABEL = 'label'
-
-    def __init__(self, *args, options=None, **kwargs):
-        """
-        :param options 'argparse.Namespace': parsed command line options.
-        """
-        super().__init__(*args, **kwargs)
-        self.options = options
-        self.logs = []
 
     def run(self):
         """
@@ -740,3 +698,14 @@ class Job:
         :return str: the full path of the file
         """
         return os.path.join(self.dir, filename) if self.dir else filename
+
+
+if __name__ == "__main__":
+    args, kwargs = [], []
+    for val in sys.argv[2:]:
+        match = re.match("(.*)=(.*)", val)
+        if match:
+            kwargs.append(tuple(x.strip() for x in match.groups()))
+        else:
+            args.append(val)
+    Process.Class[sys.argv[1]](*args, **dict(kwargs)).run()

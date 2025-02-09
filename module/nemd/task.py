@@ -552,16 +552,12 @@ class CheckJob(taskbase.Base):
         """
         Main method to run.
 
-        :raise Error: errors in debug mode are raised instead of documented.
+        :raise ValueError: errors in debug mode are raised.
         """
-        try:
-            test.Check(job=self.job).check()
-        except test.Check.ERRORS as err:
-            if IS_DEBUG:
-                raise err
-            self.message = str(err)
-        else:
-            self.message = False
+        err = test.Check(job=self.job).run()
+        self.message = err if err else False
+        if IS_DEBUG:
+            raise ValueError(err)
 
     def post(self):
         """

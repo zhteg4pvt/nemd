@@ -6,7 +6,7 @@ Run the submodule binaries.
 Usage:
   nemd_module [lmp|alm|anphon] [args]
 '
-[ $# -lt 1 ] && echo 'Please specify the module binary to run.' && exit 1
+[ $# -lt 1 ] && echo 'Please specify a module binary.' && exit 1
 
 . nemd_func
 

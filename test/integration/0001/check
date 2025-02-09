@@ -1,1 +1,1 @@
-cmp('amorp_bldr.data', 'amorp_bldr.data', rtol=1e-3, atol=3e-3)
+cmp(amorp_bldr.data,amorp_bldr.data,atol=1e-3,atol=3e-3)

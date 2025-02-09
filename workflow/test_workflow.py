@@ -9,7 +9,7 @@ The sub-folder name must be one integer, and contain one cmd file.
 Each integration test contains a check file to verify the expected outputs.
 Each performance test may contain a param file to parameterize the command.
 
-Supported check commands are: cmp, exist, not_exist, in ..
+Supported check commands are: cmp, exist, not_exist, in ...
 Supported tag commands are: slow, label
 """
 import glob
