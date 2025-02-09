@@ -30,7 +30,8 @@ from nemd import timeutils
 CMD = 'cmd'
 CHECK = 'check'
 TAG = 'tag'
-NAME_BRACKET_RE = '(?:^)?(?: *)?(?:;|&&|\|\|)?(?: *)(.*?)\\((.*?)\\)'
+FILE_RE = re.compile('.* +(.*)_(driver|workflow).py( +.*)?$')
+NAME_BRKT_RE = re.compile('(?:^)?(?: *)?(?:;|&&|\|\|)?(?: *)(.*?)\\((.*?)\\)')
 
 
 class Cmd:
@@ -108,6 +109,18 @@ class Param(Cmd):
         super().__init__(*args, **kwargs)
         self.cmd = cmd
 
+    @property
+    @functools.cache
+    def xlabel(self):
+        """
+        Get the xlabel from the header of the parameter file.
+
+        :return str: The xlabel.
+        """
+        header = self.raw_args[0]
+        if header.startswith(symbols.POUND):
+            return header.strip(symbols.POUND).strip()
+
     def setXlabel(self):
         """
         Set the xlabel of the parameter file.
@@ -121,18 +134,6 @@ class Param(Cmd):
         with open(self.pathname, 'w') as fh:
             fh.write('\n'.join([header] + self.args))
         self.raw_args.insert(0, header)
-
-    @property
-    @functools.cache
-    def xlabel(self):
-        """
-        Get the xlabel from the header of the parameter file.
-
-        :return str: The xlabel.
-        """
-        header = self.raw_args[0]
-        if header.startswith(symbols.POUND):
-            return header.strip(symbols.POUND).strip()
 
 
 class Exist:
@@ -232,9 +233,11 @@ class Cmp(Exist):
     @classmethod
     def getTokens(cls, values, job=None):
         """
-        See parent class for the docstring.
+        Get the cmd tokens.
 
+        :param values str: generate token from the input values.
         :param job `signac.job.Job`: the check job.
+        :return list: token list
         """
         params = super().getTokens(values)
         pathname = os.path.join(job.statepoint[jobutils.FLAG_DIR], params[0])
@@ -319,7 +322,7 @@ class Cmp(Exist):
         raise ValueError(f"{self.args[0]} and {target} are different.")
 
 
-class CollectLog:
+class CollectLog(Exist):
     """
     The class to collect the log files and plot the requested data.
     """
@@ -332,12 +335,25 @@ class CollectLog:
     LABELS = {TIME: TIME_LB, MEMORY: MEMORY_LB}
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args)
+        self.kwargs = kwargs
         self.data = None
-        self.name = os.path.basename(self.job.statepoint[jobutils.FLAG_DIR])
-        self.outfile = f"{self.name}{self.CSV_EXT}"
-        if self.args is None:
-            self.args = [self.TIME]
+        self.name = os.path.basename(self.args[-1])
+
+    @classmethod
+    def getTokens(cls, values, job=None):
+        """
+        Get the cmd tokens.
+
+        :param values str: generate token from the input values.
+        :param job `signac.job.Job`: the check job.
+        :return list: token list
+        """
+        tokens = [x.strip('\'\" ') for x in values.split(',')]
+        if not tokens:
+            tokens = [cls.TIME]
+        files = [f"{x}={y}" for x, y in job.doc[jobutils.LOGFILE].items()]
+        return tokens + [job.statepoint[jobutils.FLAG_DIR]] + files
 
     def run(self):
         """
@@ -350,13 +366,11 @@ class CollectLog:
         """
         Set the time and memory data from the log files.
         """
-        files = self.job.doc[jobutils.LOGFILE]
-        files = {x: self.job.fn(y) for x, y in files.items()}
-        files = {x: y for x, y in files.items() if os.path.exists(y)}
+        files = {x: y for x, y in self.kwargs.items() if os.path.exists(y)}
         rdrs = [logutils.LogReader(x) for x in files.values()]
         names = [x.options.NAME for x in rdrs]
-        params = [x.removeprefix(y) for x, y in zip(files.keys(), names)]
-        index = pd.Index(params, name=Param(job=self.job).xlabel)
+        params = [x.removeprefix(y)[1:] for x, y in zip(files.keys(), names)]
+        index = pd.Index(params, name=Param(dir=self.args[-1]).xlabel)
         data = {}
         if self.TIME in self.args:
             data[self.TIME_LB] = [x.task_time for x in rdrs]
@@ -366,14 +380,15 @@ class CollectLog:
         self.data.set_index(self.data.index.astype(float), inplace=True)
         func = lambda x: x.total_seconds() / 60. if x is not None else None
         self.data[self.TIME_LB] = self.data[self.TIME_LB].map(func)
-        self.data.to_csv(self.outfile)
-        jobutils.add_outfile(self.outfile, file=True)
+        out_csv = f"{self.name}{self.CSV_EXT}"
+        self.data.to_csv(out_csv)
+        jobutils.add_outfile(out_csv)
 
     def plotData(self):
         """
         Plot the data. Time and memory are plotted together if possible.
         """
-        for key in self.args:
+        for key in self.args[:-1]:
             if key == self.MEMORY and self.TIME in self.args:
                 # memory and time are plotted together when key == self.TIME
                 continue
@@ -401,9 +416,9 @@ class CollectLog:
                     ax2.spines['right'].set_color('b')
                     key = f"{self.TIME}_{self.MEMORY}"
                 fig.tight_layout()
-                outfile = f"{self.name}_{key}{self.PNG_EXT}"
-                fig.savefig(outfile)
-                jobutils.add_outfile(outfile)
+                out_png = f"{self.name}_{key}{self.PNG_EXT}"
+                fig.savefig(out_png)
+                jobutils.add_outfile(out_png)
 
 
 class Check(Cmd):
@@ -429,18 +444,24 @@ class Check(Cmd):
 
 
 class Process(process.Base):
+    """
+    Sub process to run check cmd.
+    """
 
     NAME = f'{Check.NAME}_cmd'
     SEP = ';\n'
     Class = {
-        'cmp': Cmp,
-        'glob': Glob,
         'exist': Exist,
+        'glob': Glob,
         'in': In,
+        'cmp': Cmp,
         'collect_log': CollectLog
     }
 
     def __init__(self, *args, job=None, **kwargs):
+        """
+        :param job `signac.job.Job`:
+        """
         super().__init__(*args, **kwargs)
         self.job = job
 
@@ -448,13 +469,12 @@ class Process(process.Base):
         """
         The args to build the command from.
 
-        :return list: the arguments to build the command
+        :return list: each value is a one-line command
         """
         lines = []
         for line in self.tokens:
-            matches = reversed(list(re.finditer(NAME_BRACKET_RE, line)))
             mutable = list(line)
-            for match in matches:
+            for match in reversed(list(NAME_BRKT_RE.finditer(line))):
                 name, values = match.groups()
                 params = self.Class[name].getTokens(values, job=self.job)
                 joined = shlex.join(['nemd_check', name] + params)
@@ -493,7 +513,7 @@ class Tag(Cmd):
         """
         if self.args is None:
             return
-        for match in re.finditer(NAME_BRACKET_RE, ' '.join(self.args)):
+        for match in NAME_BRKT_RE.finditer(' '.join(self.args)):
             name, value = [x.strip("'\"") for x in match.groups()]
             values = [x.strip(" '\"") for x in value.split(symbols.COMMA)]
             self.operators.append([name] + [x for x in values if x])

@@ -374,7 +374,6 @@ class CmdJob(taskbase.Job):
     """
 
     NAME = 'cmd'
-    FILE_RE = re.compile('.* +(.*)_(driver|workflow).py( +.*)?$')
     CPU_RE = re.compile(f"{jobutils.FLAG_CPU} +\d*")
     SEP = f"{symbols.RETURN}"
     PARAM = test.Param.PARAM
@@ -408,9 +407,9 @@ class CmdJob(taskbase.Job):
         :return list: the parameters.
         """
         param = test.Param(job=self.job, cmd=self.cmd)
-        param.setXlabel()
         if not param.args:
             return []
+        param.setXlabel()
         threshold = jobutils.get_arg(self.job_args, parserutils.FLAG_SLOW)
         threshold = None if threshold is None else float(threshold)
         slow_params = test.Tag(job=self.job).slowParam(threshold)
@@ -481,7 +480,7 @@ class CmdJob(taskbase.Job):
         obtained from the python filename)
         """
         for idx, cmd in enumerate(self.args):
-            match = self.FILE_RE.match(cmd)
+            match = test.FILE_RE.match(cmd)
             if not match or self.FLAG_JOBNAME in cmd:
                 continue
             name = match.group(1)

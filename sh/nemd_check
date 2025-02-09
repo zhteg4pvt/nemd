@@ -11,7 +11,7 @@ Usage:
 . nemd_func
 
 case $1 in
-  exist|cmp|in)
+  exist|glob|in|cmp|collect_log)
     set -- python -m nemd.test "$@"
     ;;
   *)
