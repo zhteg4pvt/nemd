@@ -413,7 +413,6 @@ class CmdJob(taskbase.Job):
 
         Note: shlex.split("echo 'h(i)';echo wa", posix=False) splits by ;
 
-        :param arg str: the one-line command to quote
         :return str: the quoted command
         """
         for idx, cmd in enumerate(self.args):
@@ -436,7 +435,7 @@ class CmdJob(taskbase.Job):
         """
         Return the parameter object.
 
-        :return list: the parameters.
+        :return `test.Param`: the parameters.
         """
         return test.Param(job=self.job, cmd=self.cmd)
 

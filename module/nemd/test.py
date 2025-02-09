@@ -30,6 +30,7 @@ from nemd import timeutils
 CMD = 'cmd'
 CHECK = 'check'
 TAG = 'tag'
+
 JOBNAME_RE = re.compile(f'{jobutils.FLAG_JOBNAME} +(\w+)')
 FILE_RE = re.compile('.* +(.*)_(driver|workflow).py( +.*)?$')
 NAME_BRKT_RE = re.compile('(?:^)?(?: *)?(?:;|&&|\|\|)?(?: *)(.*?)\\((.*?)\\)')
@@ -469,7 +470,7 @@ class Check(Cmd):
         Check the results by execute all operators. Raise errors if any failed.
         """
         name = os.path.basename(self.dir)
-        print(f"{name}: {''.join(self.args)}")
+        print(f"{name}: {'; '.join(self.args)}")
         proc = Process(tokens=self.args,
                        options=types.SimpleNamespace(jobname=name),
                        job=self.job)
@@ -513,6 +514,8 @@ class Process(process.Base):
             mutable = list(line)
             for match in reversed(list(NAME_BRKT_RE.finditer(line))):
                 name, values = match.groups()
+                if not name:
+                    continue
                 params = self.Class[name].getTokens(values, job=self.job)
                 joined = shlex.join(['nemd_check', name] + params)
                 span = match.span(1)[0], match.span(2)[-1] + 1
