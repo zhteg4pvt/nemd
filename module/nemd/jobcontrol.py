@@ -194,12 +194,15 @@ class Runner(logutils.Base):
             for job in self.jobs:
                 JobClass(job, jobname=name).clean()
 
-    def runJobs(self):
+    def runJobs(self, **kwargs):
         """
         Run all jobs registered in the project.
         """
         prog = self.options.screen and jobutils.PROGRESS in self.options.screen
-        self.project.run(np=self.cpu[0], progress=prog)
+        self.project.run(np=self.cpu[0],
+                         progress=prog,
+                         jobs=self.jobs,
+                         **kwargs)
 
     def plot(self):
         """
@@ -233,7 +236,10 @@ class Runner(logutils.Base):
         status_file = self.options.jobname + logutils.STATUS_LOG
         with open(status_file, 'w') as fh:
             # Fetching status and Fetching labels are printed to err handler
-            self.project.print_status(detailed=True, file=fh, err=fh)
+            self.project.print_status(detailed=True,
+                                      jobs=self.jobs,
+                                      file=fh,
+                                      err=fh)
         # Log job status
         status = [self.project.get_job_status(x) for x in self.jobs]
         ops = [x[self.OPERATIONS] for x in status]
@@ -277,13 +283,15 @@ class Runner(logutils.Base):
         info = pd.DataFrame(data, index=ids)
         self.log(info.to_markdown())
 
-    def setAggJobs(self):
+    def setAggJobs(self, TaskClass=taskbase.Task):
         """
         Register aggregators with prerequisites.
+
+        :param 'taskbase.Task': the agg job of this task is registered.
         """
         pnames = [x for x in self.oprs.keys() if x.endswith(self.AGG_NAME_EXT)]
         # taskbase.AggJob reports the task timing
-        name = self.setAgg(taskbase.Task)
+        name = self.setAgg(TaskClass)
         for pre_name in pnames:
             self.setPreAfter(pre_name, name)
 
@@ -308,13 +316,17 @@ class Runner(logutils.Base):
         except LookupError as err:
             self.log_error(str(err))
 
-    def cleanAggJobs(self):
+    def cleanAggJobs(self, filter=None):
         """
         Run aggregation project.
+
+        :param dict: the filter to select jobs.
         """
         if not self.options.clean:
             return
-        jobs = self.agg_project.find_jobs()
+
+        jobs = self.jobs if self.jobs else self.agg_project.find_jobs(
+            filter=filter)
         for jobname, JobClass in self.classes.items():
             if not jobname.endswith(self.AGG_NAME_EXT):
                 continue
