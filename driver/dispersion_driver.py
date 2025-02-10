@@ -145,24 +145,23 @@ class Dispersion(logutils.Base):
         Write the phonon dispersion.
         """
         self.crystal.mode = alamode.SUGGEST
-        suggest = alamode.exe(self.crystal, options=self.options)
+        kwargs = dict(jobname=self.options.jobname)
+        suggest = alamode.exe(self.crystal, **kwargs)
         self.log(f"Suggested displacements are written as {suggest[0]}")
         files = [self.struct.datafile] + suggest
-        displace = alamode.exe('displace', files=files, options=self.options)
+        displace = alamode.exe('displace', files=files, **kwargs)
         self.log(f"Data files with displacements: {', '.join(displace)}")
         dats = []
         for dat in displace:
-            dats += alamode.exe(self.struct, files=[dat], options=self.options)
+            dats += alamode.exe(self.struct, files=[dat], **kwargs)
         self.log(f"Trajectory files with forces: {' '.join(dats)}")
         files = [self.struct.datafile] + dats
-        extract = alamode.exe('extract', files=files, options=self.options)
+        extract = alamode.exe('extract', files=files, **kwargs)
         self.crystal.mode = alamode.OPTIMIZE
-        kwargs = dict(files=extract, options=self.options)
-        optimize = alamode.exe(self.crystal, **kwargs)
+        optimize = alamode.exe(self.crystal, files=extract, **kwargs)
         self.log(f"Force constants are written as {optimize[0]} ")
         self.crystal.mode = alamode.PHONONS
-        kwargs = dict(files=optimize, options=self.options)
-        self.outfile = alamode.exe(self.crystal, **kwargs)[0]
+        self.outfile = alamode.exe(self.crystal, files=optimize, **kwargs)[0]
         self.log(f"Phonon band structure is saved as {self.outfile}")
         jobutils.add_outfile(self.outfile, file=True)
 

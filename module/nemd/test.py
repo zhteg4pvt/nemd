@@ -3,6 +3,8 @@
 """
 This module provides test related classes to parse files for command, parameter,
 checking, and labels.
+
+
 """
 import datetime
 import filecmp
@@ -31,9 +33,8 @@ CMD = 'cmd'
 CHECK = 'check'
 TAG = 'tag'
 
-JOBNAME_RE = re.compile(f'{jobutils.FLAG_JOBNAME} +(\w+)')
 FILE_RE = re.compile('.* +(.*)_(driver|workflow).py( +.*)?$')
-NAME_BRKT_RE = re.compile('(?:^)?(?: *)?(?:;|&&|\|\|)?(?: *)(.*?)\\((.*?)\\)')
+NAME_BRKT_RE = re.compile('(?:;|&&|\|\|)?(\w+)\\((.*?)\\)')
 
 
 class Cmd:
@@ -103,6 +104,7 @@ class Param(Cmd):
 
     NAME = 'param'
     PARAM = f'${NAME}'
+    JOBNAME_RE = re.compile(f'{jobutils.FLAG_JOBNAME} +(\w+)')
 
     def __init__(self, *args, cmd=None, **kwargs):
         """
@@ -160,7 +162,7 @@ class Param(Cmd):
         cmd = self.cmd.args[0]
         if self.PARAM not in cmd or not self.args:
             return self.cmd.args
-        match = JOBNAME_RE.search(cmd)
+        match = self.JOBNAME_RE.search(cmd)
         if match:
             name = match.group(1)
             cmd = cmd.replace(cmd[slice(*match.span())], '')
@@ -363,6 +365,7 @@ class CollectLog(Exist):
     """
     The class to collect the log files and plot the requested data.
     """
+
     TIME = 'time'
     MEMORY = 'memory'
     CSV_EXT = '.csv'
@@ -464,30 +467,6 @@ class Check(Cmd):
     """
 
     NAME = 'check'
-
-    def run(self):
-        """
-        Check the results by execute all operators. Raise errors if any failed.
-        """
-        name = os.path.basename(self.dir)
-        print(f"{name}: {'; '.join(self.args)}")
-        proc = Process(tokens=self.args,
-                       options=types.SimpleNamespace(jobname=name),
-                       job=self.job)
-        completed = proc.run()
-        if not completed.returncode:
-            return
-        with open(proc.logfile) as fh:
-            return fh.read()
-
-
-class Process(process.Base):
-    """
-    Sub process to run check cmd.
-    """
-
-    NAME = f'{Check.NAME}_cmd'
-    SEP = ';\n'
     Class = {
         'exist': Exist,
         'glob': Glob,
@@ -496,32 +475,44 @@ class Process(process.Base):
         'collect_log': CollectLog
     }
 
-    def __init__(self, *args, job=None, **kwargs):
+    def run(self):
         """
-        :param job `signac.job.Job`:
+        Check the results by execute all operators. Raise errors if any failed.
         """
-        super().__init__(*args, **kwargs)
-        self.job = job
+        jobname = os.path.basename(self.dir)
+        print(f"{jobname}: {'; '.join(self.args)}")
+        proc = Process(tokens=list(self.tokens), jobname=jobname)
+        completed = proc.run()
+        if not completed.returncode:
+            return
+        with open(proc.logfile) as fh:
+            return fh.read()
 
-    def getArgs(self):
+    @property
+    def tokens(self):
         """
         The args to build the command from.
 
         :return list: each value is a one-line command
         """
-        lines = []
-        for line in self.tokens:
-            mutable = list(line)
-            for match in reversed(list(NAME_BRKT_RE.finditer(line))):
+        for line in self.args:
+            token = line
+            for match in NAME_BRKT_RE.finditer(line):
                 name, values = match.groups()
-                if not name:
-                    continue
-                params = self.Class[name].getTokens(values, job=self.job)
-                joined = shlex.join(['nemd_check', name] + params)
-                span = match.span(1)[0], match.span(2)[-1] + 1
-                mutable[slice(*span)] = joined
-            lines.append(''.join(mutable))
-        return lines
+                params = Check.Class[name].getTokens(values, job=self.job)
+                shell_cmd = shlex.join(['nemd_check', name] + params)
+                python_cmd = line[match.span(1)[0]:match.span()[-1]]
+                token = token.replace(python_cmd, shell_cmd)
+            yield token
+
+
+class Process(process.Base):
+    """
+    Sub process to run check cmd.
+    """
+
+    NAME = Check.NAME
+    SEP = ';\n'
 
 
 class Tag(Cmd):
@@ -759,11 +750,11 @@ class Job:
 
 
 if __name__ == "__main__":
-    args, kwargs = [], []
+    args, kwargs = [], {}
     for val in sys.argv[2:]:
         match = re.match("(.*)=(.*)", val)
         if match:
-            kwargs.append(tuple(x.strip() for x in match.groups()))
+            kwargs[match.group(1).strip()] = match.group(2).strip()
         else:
             args.append(val)
-    Process.Class[sys.argv[1]](*args, **dict(kwargs)).run()
+    Check.Class[sys.argv[1]](*args, **kwargs).run()

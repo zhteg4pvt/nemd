@@ -19,26 +19,26 @@ class Base:
     """
     Base class to build command, execute subprocess, and search for output files
     """
-    NAME = 'cmd'
+    NAME = None
     PRE_RUN = None
     SEP = ' '
     EXT = symbols.LOG
     EXTS = {}
 
-    def __init__(self, name=None, tokens=None, options=None, files=None):
+    def __init__(self, tokens=None, name=None, jobname=None, files=None):
         """
-        :param name str: the subdirectory name
         :param tokens list: the arguments to build the cmd from
-        :param options 'argparse.Namespace': the command line options
+        :param name str: the subdirectory name
+        :param jobname str: name output files based on this
         :param files list: input files
         """
-        self.name = name
         self.tokens = tokens
-        self.options = options
+        self.name = name
+        self.jobname = jobname
         self._files = files
-        self.logfile = f'{self.options.jobname}{symbols.LOG}'
         if self.name is None:
             self.name = os.curdir
+        self.logfile = f'{self.jobname}{symbols.LOG}' if self.jobname else 'log'
 
     def run(self):
         """
@@ -67,7 +67,7 @@ class Base:
         pre = [x for x in [self.PRE_RUN] if x]
         cmd = self.SEP.join(map(str, pre + self.getArgs()))
         if write_cmd:
-            with open(self.NAME, 'w') as fh:
+            with open(f'{self.NAME}_cmd' if self.NAME else 'cmd', 'w') as fh:
                 fh.write(cmd)
         return cmd
 
@@ -89,7 +89,7 @@ class Base:
         :raise FileNotFoundError: no outfiles found
         """
         ext = self.EXTS.get(self.name, self.EXT)
-        pattern = f"{self.options.jobname}{ext}"
+        pattern = f"{self.jobname}{ext}"
         relpath = os.path.join(self.name, pattern)
         outfiles = glob.glob(relpath)
         if not outfiles:
@@ -132,7 +132,7 @@ class Lmp(Submodule):
         super().__init__(*args, **kwargs)
         self.struct = struct
         name = os.path.splitext(os.path.basename(self.files[0]))[0]
-        self.name = f"lammps{name.removeprefix(self.options.jobname)}"
+        self.name = f"lammps{name.removeprefix(self.jobname)}"
         Lmp.files.fget.cache_clear()
 
     def getArgs(self):
@@ -190,7 +190,7 @@ class Alamode(Submodule):
             return
         filename = os.path.basename(self.files[0])
         if self.crystal.mode == self.OPTIMIZE:
-            filename = f"{self.options.jobname}{symbols.DFSET_EXT}"
+            filename = f"{self.jobname}{symbols.DFSET_EXT}"
         osutils.symlink(self.files[0], filename)
 
 
@@ -203,6 +203,12 @@ class Tools(Submodule):
     EXTRACT = 'extract'
     EXTS = {DISPLACE: "*.lammps"}
 
+    def __init__(self, name, *args, **kwargs):
+        """
+        :param name str: the subdirectory name
+        """
+        super().__init__(*args, name=name, **kwargs)
+
     def getArgs(self):
         """
         See parent class for docs.
@@ -211,6 +217,6 @@ class Tools(Submodule):
         if self.name == self.EXTRACT:
             return [scr, '--LAMMPS'] + self.files
         return [
-            scr, '--prefix', self.options.jobname, '--mag', 0.01, '--LAMMPS',
+            scr, '--prefix', self.jobname, '--mag', 0.01, '--LAMMPS',
             self.files[0], '-pf', self.files[1]
         ]
