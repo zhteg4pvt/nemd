@@ -137,19 +137,18 @@ class Param(Cmd):
     @functools.cache
     def args(self):
         """
-        The arguments from the file.
+        The arguments from the file filtered by the slow.
 
         :return list: the arguments filtered by slow.
         """
-        jargs = self.job.doc[symbols.ARGS]
-        slow = jobutils.get_arg(jargs, jobutils.FLAG_SLOW)
+        args = super().args
+        if args is None:
+            return
+        slow = jobutils.get_arg(self.job.doc[symbols.ARGS], jobutils.FLAG_SLOW)
         if slow is None:
-            return super().args
-        slow = float(slow)
-        params = Tag(job=self.job).slowParams()
-        seconds = [timeutils.str2delta(x[1]).total_seconds() for x in params]
-        slow_args = set([x[0] for x, y in zip(params, seconds) if y > slow])
-        return [x for x in super().args if x not in slow_args]
+            return args
+        params = Tag(job=self.job).slowParams(slow=float(slow))
+        return [x for x in args if x in params]
 
     def getCmds(self):
         """
@@ -676,21 +675,25 @@ class Tag(Cmd):
 
         :return bool: Whether the test is slow.
         """
-        if self.options.slow is None:
+        if self.options.slow is None or not self.get(self.SLOW):
             return False
-        values = self.get(self.SLOW, ['00:00'])
-        if len(values) != 1:
-            return
-        delta = timeutils.str2delta(values[0])
-        return delta.total_seconds() > self.options.slow
+        params = self.slowParams()
+        return not params
 
-    def slowParams(self):
+    def slowParams(self, slow=None):
         """
-        Get the slow parameters.
+        Get the slow parameters filtered by slow.
 
-        :return list: slow parameters.
+        :param slow float: above this value is slow
+        :return list of str: parameters filtered by slow
         """
-        return [x[1:] for x in self.operators if x[0] == self.SLOW]
+        if slow is None:
+            slow = self.options.slow
+        # [['slow', '00:00:01']]
+        # [['slow', '1', '00:00:01'], ['slow', '9', '00:00:04']]
+        params = [x[1:] for x in self.operators if x[0] == self.SLOW]
+        time = [timeutils.str2delta(x[-1]).total_seconds() for x in params]
+        return [x[0] for x, y in zip(params, time) if y <= slow]
 
     def labeled(self):
         """

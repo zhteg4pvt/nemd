@@ -21,28 +21,7 @@ from nemd import jobcontrol
 from nemd import logutils
 from nemd import parserutils
 from nemd import task
-from nemd import taskbase
 from nemd import test
-
-
-class AggJob(taskbase.AggJob):
-
-    def run(self):
-        """
-        Filter jobs by ids before collecting time.
-        """
-        if self.options.id:
-            dirs = [x.statepoint[parserutils.FLAG_DIR] for x in self.jobs]
-            ids = map(int, [os.path.basename(x) for x in dirs])
-            self.jobs = [
-                x for x, y in zip(self.jobs, ids) if y in self.options.id
-            ]
-        super().run()
-
-
-class Task(taskbase.Task):
-
-    AggClass = AggJob
 
 
 class Test(jobcontrol.Runner, logutils.Base):
@@ -103,7 +82,7 @@ class Test(jobcontrol.Runner, logutils.Base):
         """
         Register the aggregator to collect the time of the select jobs.
         """
-        super().setAggJobs(TaskClass=Task)
+        super().setAggJobs(TaskClass=task.Test)
 
     def cleanAggJobs(self):
         """

@@ -85,7 +85,7 @@ class AnalyzerAgg(analyzer.Agg):
         raise ValueError("Cannot extract the smiles from the log file.")
 
 
-class LogJobAgg(task.LogJobAgg):
+class LogAgg(task.LogAgg):
     """
     See the parent class for details.
     """
@@ -98,7 +98,7 @@ class LmpLog(task.LmpLog):
     See the parent class for details.
     """
 
-    AggClass = LogJobAgg
+    AggClass = LogAgg
 
 
 class Runner(jobcontrol.Runner):

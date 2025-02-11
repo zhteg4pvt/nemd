@@ -566,7 +566,7 @@ class TagJob(CheckJob):
         self.message = False
 
 
-class LogJobAgg(taskbase.AggJob):
+class LogAgg(taskbase.AggJob):
     """
     The aggregator job for analyzers.
     """
@@ -622,7 +622,7 @@ class LogJobAgg(taskbase.AggJob):
         return [tuple([series[x], jobs[x]]) for x in keys]
 
 
-class TestAggJob(taskbase.AggJob):
+class TestAgg(taskbase.AggJob):
     """
     The class to run a non-cmd aggregator over jobs filtered by the specified
     ids and labels.
@@ -694,7 +694,7 @@ class LmpLog(taskbase.Task):
     """
 
     JobClass = LogJob
-    AggClass = LogJobAgg
+    AggClass = LogAgg
 
 
 class LmpTraj(LmpLog):
@@ -729,8 +729,8 @@ class Tag(taskbase.Task):
     JobClass = TagJob
 
 
-class TestTask(taskbase.Task):
+class Test(taskbase.Task):
     """
     The task class to hold the aggregator over filtered jobs.
     """
-    AggClass = TestAggJob
+    AggClass = TestAgg
