@@ -124,7 +124,7 @@ def get_name(file):
         return
     basename = os.path.basename(file)
     match = re.match('(\w+)_(driver|workflow).py', basename)
-    return match.group(1) if match else os.path.splitext(basename)
+    return match.group(1) if match else os.path.splitext(basename)[0]
 
 
 def add_outfile(outfile,

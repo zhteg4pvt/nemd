@@ -16,6 +16,7 @@ from nemd import parserutils
 from nemd import pd
 from nemd import plotutils
 
+
 FLAG_MILLER_INDICES = '-miller_indices'
 
 
@@ -356,6 +357,18 @@ class ArgumentParser(parserutils.ArgumentParser):
     The argument parser with additional validations.
     """
 
+    def setUp(self):
+        """
+        The user-friendly command-line parser.
+        """
+        self.add_argument(FLAG_MILLER_INDICES,
+                          metavar=FLAG_MILLER_INDICES[1:].upper(),
+                          default=[0.5, 2],
+                          type=parserutils.type_float,
+                          nargs='+',
+                          help='Plot the planes of this Miller indices.')
+        self.add_job_arguments()
+
     def parse_args(self, argv):
         """
         See parent class for details.
@@ -368,31 +381,9 @@ class ArgumentParser(parserutils.ArgumentParser):
         return options
 
 
-def get_parser(parser=None):
-    """
-    The user-friendly command-line parser.
-
-    :param parser ArgumentParser: the parse to add arguments
-    """
-    if parser is None:
-        parser = ArgumentParser(__file__, descr=__doc__)
-    parser.add_argument(FLAG_MILLER_INDICES,
-                        metavar=FLAG_MILLER_INDICES[1:].upper(),
-                        default=[0.5, 2],
-                        type=parserutils.type_float,
-                        nargs='+',
-                        help='Plot the planes of this Miller indices.')
-    parser.add_job_arguments()
-    return parser
-
-
-def main(argv):
-    parser = get_parser()
-    options = parser.parse_args(argv)
+if __name__ == "__main__":
+    parser = ArgumentParser(__file__, descr=__doc__)
+    options = parser.parse_args(sys.argv[1:])
     with logutils.Script(options) as logger:
         recip_sp = RecipSp(options, logger=logger)
         recip_sp.run()
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])

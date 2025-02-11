@@ -518,8 +518,7 @@ class ArgumentParser(argparse.ArgumentParser):
     ]
 
     def __init__(self,
-                 file,
-                 *args,
+                 file='name_driver.py',
                  formatter_class=ArgumentDefaultsHelpFormatter,
                  descr=None,
                  validators=None,
@@ -533,9 +532,16 @@ class ArgumentParser(argparse.ArgumentParser):
         """
         if descr is not None:
             kwargs.update(description=descr)
-        super().__init__(*args, formatter_class=formatter_class, **kwargs)
+        super().__init__(formatter_class=formatter_class, **kwargs)
         self.file = file
         self.validators = set() if validators is None else validators
+        self.setUp()
+
+    def setUp(self):
+        """
+        Set up the parser.
+        """
+        pass
 
     def parse_args(self, argv):
         """

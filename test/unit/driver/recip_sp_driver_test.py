@@ -4,12 +4,15 @@ import pytest
 import recip_sp_driver as driver
 
 
-class TestFunction:
+class TestArgumentParser:
 
-    @mock.patch('nemd.parserutils.ArgumentParser.error')
-    @pytest.mark.parametrize("argv,called",
-                             [(['1', '2'], False), (['1'], True),
-                              (['0', '0'], True)])
-    def testValidateOptions(self, error_mock, argv, called):
-        driver.validate_options([driver.FLAG_MILLER_INDICES] + argv)
-        assert error_mock.called == called
+    @pytest.mark.parametrize("miller_indices,valid", [(['1', '2'], True),
+                                                      (['1'], False),
+                                                      (['1', '1', '1'], False),
+                                                      (['0', '0'], False)])
+    def testValidateOptions(self, miller_indices, valid):
+        parser = driver.ArgumentParser()
+        argv = [driver.FLAG_MILLER_INDICES] + miller_indices
+        with mock.patch.object(parser, 'error'):
+            parser.parse_args(argv)
+            assert not valid == parser.error.called
