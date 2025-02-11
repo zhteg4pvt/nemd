@@ -8,6 +8,8 @@ Usage:
   source premake
 '
 
+. nemd_func
+
 # Shell Type and Root Directory
 if [ $(basename $0) = 'premake' ]
 then
@@ -22,17 +24,9 @@ fi
 export NEMD_SRC="$(readlink -f ${NEMD_SRC} | xargs dirname)" && echo $NEMD_SRC
 
 # Packages: NEMD, LAMMPS, and ALAMODE
-add_pypath() {
-  echo $1 && [ -d "$1" ] && echo $PYTHONPATH | grep -q "$1" && return
-  export PYTHONPATH="$1${PYTHONPATH:+":$PYTHONPATH"}"
-  }
 add_pypath $NEMD_SRC/module
 
 # Shell, Driver, Workflow, and Alamode
-add_path() {
-  echo $1 && [ -d "$1" ] && echo $PATH | grep -q "$1" && return
-  export PATH="$1${PATH:+":$PATH"}"
-  }
 add_path $NEMD_SRC/sh
 add_path $NEMD_SRC/driver
 add_path $NEMD_SRC/workflow

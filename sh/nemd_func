@@ -15,19 +15,34 @@ python() { python3.10 "$@"; }
 # Debug Printing
 [ -z $DEBUG ] && debug() { :; } || debug() { echo "$@"; }
 
-llvm() {
+add_path()
+{
+  echo $1 && [ -d "$1" ] && echo $PATH | grep -q "$1" && return
+  export PATH="$1${PATH:+":$PATH"}"
+}
+
+add_pypath()
+{
+  echo $1 && [ -d "$1" ] && echo $PYTHONPATH | grep -q "$1" && return
+  export PYTHONPATH="$1${PYTHONPATH:+":$PYTHONPATH"}"
+}
+
+llvm()
+{
   LLVM=$(brew --prefix llvm)/bin
   echo $PATH | grep -q $$LLVM || export PATH="$LLVM${PATH:+":$PATH"}"
 }
 
-git_update() {
+git_update()
+{
   set -- --init "$@"
   [ ! -z $SHALLOW ] && set -- --depth 1 "$@"
   set -- git submodule update "$@"
   "$@"
 }
 
-cmake_build() {
+cmake_build()
+{
   set -- cmake "$@" -B build
   echo "$@"; "$@"
   cmake --build build -j $(nproc 2>/dev/null || sysctl -n hw.logicalcpu)

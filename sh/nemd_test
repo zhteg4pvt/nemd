@@ -6,14 +6,15 @@ Run unit tests.
 Usage:
   nemd_test [file1 file2...]
   nemd_test -s -v [file1 file2...]
-  An empty argument runs all tests in the $NEMD_SRC/test/unit directory.
+  An empty argument runs all tests inside $NEMD_SRC/test/unit/
 '
-CMD="nemd_run -m pytest"
-if [ $# != 0 ] || [ -z $NEMD_SRC ]; then
-  $CMD "$@"
-  exit $?
-fi
 
-for SUB_DIR in "module" 'driver' 'worflow'; do
-    $CMD $NEMD_SRC/test/unit/$SUB_DIR/*_test.py -n auto
+for SUB_DIR in 'driver' 'workflow'; do add_pypath $NEMD_SRC/$SUB_DIR/; done
+
+. nemd_func
+set -- python -m pytest "$@"
+[ $# != 3 ] && { "$@"; exit $?; }
+
+for SUB_DIR in "module" 'driver' 'workflow'; do
+  "$@" $NEMD_SRC/test/unit/$SUB_DIR/*_test.py -n auto
 done

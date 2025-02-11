@@ -8,7 +8,7 @@ import functools
 
 import pytest
 
-from nemd import fileutils
+from nemd import osutils
 
 
 @pytest.fixture
@@ -21,7 +21,7 @@ def tmp_dir(request, tmpdir):
     :return tmpdir '_pytest._py.path.LocalPath': The temporary directory.
     """
 
-    with fileutils.chdir(tmpdir, rmtree=True):
+    with osutils.chdir(tmpdir, rmtree=True):
         yield tmpdir
 
 
