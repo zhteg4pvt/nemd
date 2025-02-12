@@ -9,6 +9,7 @@ Usage:
   An empty argument runs all tests inside $NEMD_SRC/test/unit/
 '
 . nemd_func
+[ -z $NEMD_SRC ] && add_pypath $(dirname $(which nemd_func))
 for SUB_DIR in 'driver' 'workflow'; do add_pypath $NEMD_SRC/$SUB_DIR/; done
 set -- python -m pytest "$@"
 [ $# != 3 ] && { "$@"; exit $?; }

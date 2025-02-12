@@ -13,7 +13,7 @@ Usage:
 git_update lammps
 
 set -- "$@" -D PKG_OPENMP=yes -D PKG_MANYBODY=on -D PKG_MOLECULE=on -D PKG_KSPACE=on \
--D PKG_RIGID=on -D Python_EXECUTABLE=$(python -c "import sys; print(sys.executable)")
+-D PKG_RIGID=on -D PKG_PYTHON=yes -D Python_EXECUTABLE=$(python -c "import sys; print(sys.executable)")
 
 # OS - dependent settings
 case $(uname) in

@@ -10,7 +10,7 @@ class TestArgumentParser:
                                                       (['1'], False),
                                                       (['1', '1', '1'], False),
                                                       (['0', '0'], False)])
-    def testValidateOptions(self, miller_indices, valid):
+    def testParseArgs(self, miller_indices, valid):
         parser = driver.ArgumentParser()
         argv = [driver.FLAG_MILLER_INDICES] + miller_indices
         with mock.patch.object(parser, 'error'):

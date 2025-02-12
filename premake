@@ -8,8 +8,6 @@ Usage:
   source premake
 '
 
-. nemd_func
-
 # Shell Type and Root Directory
 if [ $(basename $0) = 'premake' ]
 then
@@ -22,6 +20,8 @@ else
 fi
 [ ! -f $NEMD_SRC ] && echo "Cannot locate the source root" && return 1
 export NEMD_SRC="$(readlink -f ${NEMD_SRC} | xargs dirname)" && echo $NEMD_SRC
+
+. $NEMD_SRC/sh/nemd_func
 
 # Packages: NEMD, LAMMPS, and ALAMODE
 add_pypath $NEMD_SRC/module
