@@ -20,7 +20,7 @@ class Runner(jobcontrol.Runner):
         Set polymer builder, lammps builder, and custom dump tasks.
         """
         amorp_bldr = self.setOpr(task.AmorpBldr, jobname='amorp_bldr')
-        lammps_runner = self.setOpr(task.Lammps, jobname='lammps_runner')
+        lammps_runner = self.setOpr(task.Lammps, jobname='lammps')
         self.setPreAfter(amorp_bldr, lammps_runner)
         lmp_traj = self.setOpr(task.LmpTraj, jobname='lmp_traj')
         self.setPreAfter(lammps_runner, lmp_traj)

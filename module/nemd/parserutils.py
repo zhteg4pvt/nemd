@@ -745,7 +745,7 @@ class ArgumentParser(argparse.ArgumentParser):
             metavar=FLAG_ID.upper(),
             type=type_positive_int,
             nargs='*',
-            help='Select the test sub-folders according to these ids.')
+            help='Select the tests according to these ids.')
         self.add_argument(FlAG_NAME,
                           default=INTEGRATION,
                           choices=[INTEGRATION, SCIENTIFIC, PERFORMANCE],
@@ -755,7 +755,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self.add_argument(FLAG_DIR,
                           metavar=FLAG_DIR[1:].upper(),
                           type=type_dir,
-                          help='The test directory.')
+                          help='Search test(s) under this directory.')
         self.add_argument(
             jobutils.FLAG_SLOW,
             type=type_positive_float,
@@ -769,7 +769,7 @@ class ArgumentParser(argparse.ArgumentParser):
                           nargs='+',
                           choices=[CMD, CHECK, TAG],
                           default=[CMD, CHECK],
-                          help='cmd: run the jobs based on the cmd file; '
+                          help='cmd: run the commands in cmd file; '
                           'check: check the results; tag: update the tag file')
         self.validators.add(TestValidator)
 
@@ -837,8 +837,8 @@ class WorkflowParser(ArgumentParser):
                 nargs='+',
                 choices=[jobutils.TASK, jobutils.AGGREGATOR],
                 default=[jobutils.TASK, jobutils.AGGREGATOR],
-                help=f'{jobutils.TASK} runs tasks and registers files; '
-                f'{jobutils.AGGREGATOR} collects results.')
+                help=f'{jobutils.TASK}: run tasks and register files; '
+                f'{jobutils.AGGREGATOR}: collect results.')
             self.add_argument(
                 FLAG_PRJ_PATH,
                 type=type_dir,
@@ -865,5 +865,5 @@ class WorkflowParser(ArgumentParser):
                 type=type_bool,
                 choices=[symbols.ON, symbols.OFF],
                 dest=FLAG_DEBUG[1:].lower(),
-                help=f'{symbols.ON} enables debug mode for the workflow and '
-                f'sub-jobs; {symbols.OFF} disables it.')
+                help=f'{symbols.ON}: enable debug mode for the workflow and '
+                f'sub-jobs; {symbols.OFF}: disable the mode.')

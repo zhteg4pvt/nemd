@@ -327,6 +327,8 @@ class Runner(logutils.Base):
 
         jobs = self.jobs if self.jobs else self.agg_project.find_jobs(
             filter=filter)
+        if not jobs:
+            return
         for jobname, JobClass in self.classes.items():
             if not jobname.endswith(self.AGG_NAME_EXT):
                 continue
