@@ -16,7 +16,6 @@ from nemd import parserutils
 from nemd import pd
 from nemd import plotutils
 
-
 FLAG_MILLER_INDICES = '-miller_indices'
 
 

@@ -740,12 +740,11 @@ class ArgumentParser(argparse.ArgumentParser):
         """
         Add test related flags.
         """
-        self.add_argument(
-            FLAG_ID,
-            metavar=FLAG_ID.upper(),
-            type=type_positive_int,
-            nargs='*',
-            help='Select the tests according to these ids.')
+        self.add_argument(FLAG_ID,
+                          metavar=FLAG_ID.upper(),
+                          type=type_positive_int,
+                          nargs='*',
+                          help='Select the tests according to these ids.')
         self.add_argument(FlAG_NAME,
                           default=INTEGRATION,
                           choices=[INTEGRATION, SCIENTIFIC, PERFORMANCE],
@@ -805,17 +804,21 @@ class ArgumentParser(argparse.ArgumentParser):
                 dest=FLAG_CPU[1:].lower(),
                 help='Total number of CPUs (the number for one task).')
         if FLAG_DEBUG in self.JFLAGS:
-            self.add_argument(FLAG_DEBUG,
-                              action='store_true',
-                              dest=FLAG_DEBUG[1:].lower(),
-                              help='Additional printing and output files.')
+            self.add_argument(
+                FLAG_DEBUG,
+                nargs='?',
+                const=True,
+                type=type_bool,
+                choices=[symbols.ON, symbols.OFF],
+                dest=FLAG_DEBUG[1:].lower(),
+                help=f'{symbols.ON}: allow additional printing and output files'
+                f'; {symbols.OFF}: disable the mode.')
 
 
 class WorkflowParser(ArgumentParser):
     """
     A customized parser that provides additional features.
     """
-    JFLAGS = ArgumentParser.JFLAGS[:-1]
     WFLAGS = [FLAG_STATE_NUM, FLAG_CLEAN, FLAG_JTYPE, FLAG_SCREEN, FLAG_DEBUG]
 
     def add_workflow_arguments(self):
@@ -857,13 +860,3 @@ class WorkflowParser(ArgumentParser):
                 help=f'Print the serialization {jobutils.TQDM}, parallelization'
                 f' {jobutils.PROGRESS}, and {jobutils.JOB} details.')
             self.validators.add(WorkflowValidator)
-        if FLAG_DEBUG in self.WFLAGS:
-            self.add_argument(
-                FLAG_DEBUG,
-                nargs='?',
-                const=True,
-                type=type_bool,
-                choices=[symbols.ON, symbols.OFF],
-                dest=FLAG_DEBUG[1:].lower(),
-                help=f'{symbols.ON}: enable debug mode for the workflow and '
-                f'sub-jobs; {symbols.OFF}: disable the mode.')

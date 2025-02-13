@@ -25,9 +25,7 @@ class Lammps(logutils.Base):
     READ_DATA_RE = KEYWORD_RE.format(key=lammpsfix.READ_DATA)
     PAIR_STYLE_RE = KEYWORD_RE.format(key=lammpsin.In.PAIR_STYLE)
     PAIR_COEFF_RE = KEYWORD_RE.format(key=lammpsin.In.PAIR_COEFF)
-    ERROR_PREF = 'ERROR: '
-    ERROR_RE = re.compile(f'{ERROR_PREF}(.*)')
-
+    ERROR_RE = re.compile(f'ERROR: (.*)')
 
     def __init__(self, options, logger=None):
         """
@@ -148,10 +146,8 @@ class Lammps(logutils.Base):
         if not process.returncode:
             return
         with open(self.outfile, 'r') as fh:
-            info = fh.read()
-            matches = self.ERROR_RE.search(info)
-            errs = '\n'.join(matches.groups())
-            self.log_error(f"{self.ERROR_PREF}{errs}")
+            matches = self.ERROR_RE.finditer(fh.read())
+            self.log_error('\n'.join(x.group(1) for x in matches))
 
 
 def main(argv):

@@ -14,7 +14,7 @@ import types
 
 import wurlitzer
 
-from nemd import IS_DEBUG
+from nemd import DEBUG
 from nemd import envutils
 from nemd import jobutils
 from nemd import psutils
@@ -49,7 +49,7 @@ class FileHandler(logging.FileHandler):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        fmt = logging.Formatter(self.DEBUG_FMT if IS_DEBUG else self.INFO_FMT)
+        fmt = logging.Formatter(self.DEBUG_FMT if DEBUG else self.INFO_FMT)
         self.setFormatter(fmt)
 
     def emit(self, record):
@@ -86,7 +86,7 @@ class Logger(logging.Logger):
         :param level int: the level of the logger
         """
         if level is None:
-            level = logging.DEBUG if IS_DEBUG else logging.INFO
+            level = logging.DEBUG if DEBUG else logging.INFO
         super().setLevel(level)
 
     def infoJob(self, options):
@@ -151,7 +151,7 @@ def get_logger(pathname, log=False, file=False):
     name = os.path.splitext(os.path.basename(pathname))[0]
     logger = Logger.get(name)
     logger.setLevel()
-    if IS_DEBUG and not logger.hasHandlers():
+    if DEBUG and not logger.hasHandlers():
         outfile = name + '.debug'
         logger.addHandler(FileHandler(outfile, mode='w'))
         jobutils.add_outfile(outfile, file=file, log=log)

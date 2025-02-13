@@ -14,7 +14,7 @@ import types
 
 import pandas as pd
 
-from nemd import IS_DEBUG
+from nemd import DEBUG
 from nemd import analyzer
 from nemd import jobutils
 from nemd import lammpsfix
@@ -493,7 +493,7 @@ class CmdJob(taskbase.Job):
         Set the screen output.
         """
         scn = jobutils.get_arg(self.jargs, jobutils.FLAG_SCREEN)
-        if not scn and IS_DEBUG:
+        if not scn and DEBUG:
             return
         if scn and jobutils.JOB in scn:
             return
@@ -541,7 +541,7 @@ class CheckJob(taskbase.Base):
         """
         err = test.Check(job=self.job).run()
         self.message = err if err else False
-        if IS_DEBUG:
+        if DEBUG:
             raise ValueError(err)
 
     def post(self):
