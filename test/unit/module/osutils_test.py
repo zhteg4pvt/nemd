@@ -6,7 +6,7 @@ import pytest
 from nemd import osutils
 
 
-class TestFunction:
+class TestFunc:
 
     def testSymlink(self, tmp_dir):
         with open('original.txt', 'w') as fh:

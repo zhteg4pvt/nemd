@@ -84,21 +84,11 @@ class Memory:
         args = (self.peak, self.stop, self.intvl)
         self.thread = threading.Thread(target=self.setPeak, args=args)
 
-    def __enter__(self):
+    def start(self):
         """
-        Start the memory profiling thread if MEM_INTVL.
-
-        :return `queue.Queue`: The Queue to get the peak memory usage in MB.
+        Start the memory profiling thread.
         """
         self.thread.start()
-        return self.result
-
-    def __exit__(self, *args, **kwargs):
-        """
-        Stop the memory profiling thread and update the peak usage.
-        """
-        self.stop.set()
-        self.thread.join()
 
     @property
     def result(self):
@@ -107,8 +97,9 @@ class Memory:
 
         :return float: The peak memory usage in MB.
         """
-        self.__exit__()
-        return self.peak.get()
+        self.stop.set()
+        self.thread.join()
+        return self.peak.get(block=False)
 
     @staticmethod
     def setPeak(peak, stop, intvl):
