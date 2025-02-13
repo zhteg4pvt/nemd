@@ -1,3 +1,8 @@
+import os
+from pathlib import Path
+
+import pytest
+
 from nemd import osutils
 
 
@@ -16,3 +21,22 @@ class TestFunction:
         with open('link.txt', 'r') as fh:
             line = fh.read()
         assert 'second' == line
+
+
+class TestChdir:
+
+    @pytest.fixture
+    def chdir(self, name, rmtree):
+        return osutils.chdir(name, rmtree=rmtree)
+
+    @pytest.mark.parametrize('name,rmtree', [('mydir', False), ('mydir', True),
+                                             (os.curdir, True)])
+    def testChdir(self, chdir, name, rmtree, tmp_dir, filename='file.txt'):
+        with chdir as dirname:
+            Path(filename).touch()
+        assert name == dirname
+        is_file = Path(f'{chdir.original}/{name}/{filename}').is_file()
+        if dirname == os.curdir or not rmtree:
+            assert is_file
+            return
+        assert not is_file

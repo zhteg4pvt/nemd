@@ -36,7 +36,7 @@ class chdir:
         """
         self.dirname = dirname
         self.rmtree = rmtree
-        self.original = os.getcwd()
+        self.original = None
 
     def __enter__(self):
         """
@@ -45,12 +45,12 @@ class chdir:
 
         :return str: the working directory.
         """
+        self.original = os.getcwd()
         if self.dirname is os.curdir:
             return self.dirname
         if not os.path.exists(self.dirname):
             os.mkdir(self.dirname)
         os.chdir(self.dirname)
-        self.working = os.getcwd()
         return self.dirname
 
     def __exit__(self, *args, **kwargs):

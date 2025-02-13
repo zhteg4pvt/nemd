@@ -9,8 +9,8 @@ from nemd import constants
 class TestFunc:
 
     def testLogger(self):
-        env = os.environ | {'DEBUG': ''}
         cmd = "nemd_run -c 'import nemd, logging; assert not logging.getLogger().handlers'"
+        env = os.environ | {'DEBUG': ''}
         proc = subprocess.run(cmd,
                               text=True,
                               stdout=subprocess.PIPE,
