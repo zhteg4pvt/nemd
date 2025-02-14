@@ -3,22 +3,22 @@
 """
 datetime utilities.
 """
-from datetime import datetime
+import datetime
 
 HMS_FMT = '%H:%M:%S'
 HMS_MDY = f'{HMS_FMT} %m/%d/%Y'
-HMS_ZERO = datetime.strptime('00:00:00', HMS_FMT)
+HMS_ZERO = datetime.datetime.strptime('00:00:00', HMS_FMT)
 
 
 def ctime(fmt=HMS_MDY):
     """
     Get current time.
 
-    :param fmt str: the format to print current time
+    :param fmt str: the time format
     :return str: current time
     """
 
-    return datetime.now().strftime(fmt)
+    return datetime.datetime.now().strftime(fmt)
 
 
 def dtime(strftime, fmt=HMS_MDY):
@@ -29,7 +29,7 @@ def dtime(strftime, fmt=HMS_MDY):
     :param fmt str: the format to parse input time str
     :return 'datetime.datetime': the datatime
     """
-    return datetime.strptime(strftime, fmt)
+    return datetime.datetime.strptime(strftime, fmt)
 
 
 def delta2str(delta, fmt=HMS_FMT):
