@@ -519,7 +519,7 @@ class CellNumba(CellOrig):
         return excluded
 
 
-Cell = CellOrig if envutils.is_original_python() else CellNumba
+Cell = CellOrig if envutils.is_original() else CellNumba
 
 
 class DistCell(Cell):

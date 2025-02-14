@@ -86,7 +86,7 @@ class BaseNumba(BaseOrig):
         return np.array(numbautils.remainder(self, span))
 
 
-Base = BaseOrig if envutils.is_original_python() else BaseNumba
+Base = BaseOrig if envutils.is_original() else BaseNumba
 
 
 class Frame(Base):

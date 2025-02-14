@@ -20,7 +20,6 @@ def tmp_dir(request, tmpdir):
     :param tmpdir '_pytest._py.path.LocalPath': The temporary directory factory.
     :return tmpdir '_pytest._py.path.LocalPath': The temporary directory.
     """
-
     with osutils.chdir(tmpdir, rmtree=True):
         yield tmpdir
 

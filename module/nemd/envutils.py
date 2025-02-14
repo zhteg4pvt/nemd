@@ -5,8 +5,8 @@
 """
 This module handles system-wide environmental variables.
 """
+import importlib
 import os
-import pkgutil
 
 NEMD = 'nemd'
 NEMD_SRC = 'NEMD_SRC'
@@ -42,7 +42,7 @@ def get_python_mode():
     return os.environ.get(PYTHON, CACHE_MODE)
 
 
-def is_original_python():
+def is_original():
     """
     Whether the python mode is the original flavor.
 
@@ -74,7 +74,7 @@ def get_jit_kwargs(**kwargs):
     }
 
 
-def set_default_jobname(name):
+def set_jobname_default(name):
     """
     Set the default jobname of the current execution.
 
@@ -130,7 +130,7 @@ def get_module_dir(name=NEMD):
     pathname = get_nemd_src('module', name)
     if pathname:
         return pathname
-    return os.path.dirname(pkgutil.get_loader(name).path)
+    return os.path.dirname(importlib.util.find_spec(name).origin)
 
 
 def test_file(*args):

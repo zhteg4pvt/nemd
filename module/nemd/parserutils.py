@@ -780,7 +780,7 @@ class ArgumentParser(argparse.ArgumentParser):
             self.add_argument(jobutils.FLAG_NAME,
                               default=self.name,
                               help=argparse.SUPPRESS)
-            envutils.set_default_jobname(self.name)
+            envutils.set_jobname_default(self.name)
             self.add_argument(FLAG_JOBNAME,
                               dest=FLAG_JOBNAME[1:].lower(),
                               default=self.name,
