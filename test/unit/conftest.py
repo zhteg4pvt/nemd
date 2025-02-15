@@ -5,6 +5,7 @@ Test configuration, such as global testing fixtures...
 """
 import contextlib
 import functools
+from unittest import mock
 
 import pytest
 
@@ -22,6 +23,20 @@ def tmp_dir(request, tmpdir):
     """
     with osutils.chdir(tmpdir, rmtree=True):
         yield tmpdir
+
+
+@pytest.fixture
+def env(ekey, evalue):
+    """
+    Temporarily set environment.
+
+    :param ekey str: The environmental keyword.
+    :param evalue str: the environmental value.
+    :return environ dict: the environment.
+    """
+    environ = {} if evalue is None else {ekey: evalue}
+    with mock.patch.dict('os.environ', environ, clear=True):
+        yield environ
 
 
 @contextlib.contextmanager

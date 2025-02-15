@@ -8,19 +8,6 @@ from nemd import envutils
 
 class TestFunc:
 
-    @pytest.fixture
-    def env(self, ekey, evalue):
-        """
-        Temporarily set environment.
-
-        :param ekey str: The environmental keyword.
-        :param evalue str: the environmental value.
-        :return environ dict: the environment.
-        """
-        environ = {} if evalue is None else {ekey: evalue}
-        with mock.patch.dict('os.environ', environ, clear=True):
-            yield environ
-
     @pytest.mark.parametrize("ekey", ['INTERACTIVE'])
     @pytest.mark.parametrize("evalue", ['1', None])
     def testIsInteractive(self, evalue, env):
@@ -89,7 +76,7 @@ class TestFunc:
                                              ('fake/path', 'nemd'),
                                              (None, 'alamode'),
                                              ('fake/path', 'alamode')])
-    def testGetModuleDir(self, name, env, evalue):
+    def testGetModuleDir(self, name, evalue, env):
         module_dir = envutils.get_module_dir(name)
         assert module_dir.endswith(name)
         if not evalue:

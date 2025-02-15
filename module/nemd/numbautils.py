@@ -18,7 +18,7 @@ def jit(*args, **kwargs):
 
     :return 'function': decorated function or the decorator function.
     """
-    # decorator directly applies instead of being called with parameters as:
+    # direct=True when directly applied as:
     # @jit
     # def foo():
     direct = bool(args and callable(args[0]))
@@ -43,8 +43,8 @@ def remainder(dists, span):
 
     https://stackoverflow.com/questions/26671975/why-do-we-need-ieee-754-remainder
 
-    :param dists numpy.ndarray: distances
-    :param span numpy.ndarray: box span
+    :param distance vectors nx3 numpy.ndarray: each sublist is a vector
+    :param span numpy.ndarray: box span lengths
     :return list of floats: distances within half box span
     """
     dists -= np.round(np.divide(dists, span)) * span
