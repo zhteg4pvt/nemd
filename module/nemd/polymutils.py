@@ -373,8 +373,8 @@ class Moieties(cru.Moieties):
         edcombo.AddBond(*bonded, order=Chem.rdchem.BondType.SINGLE)
         mol = Chem.DeleteSubstructs(edcombo.GetMol(), WILD_MOL)
         # Measure the bond length
+        mol = structure.Mol(mol)
         with rdkitutils.capture_logging():
-            mol = structure.Mol(mol)
             mol.EmbedMolecule(useRandomCoords=True,
                               randomSeed=self.options.seed)
         bonded = [x.GetIdx() for x in mol.GetAtoms() if x.HasProp(MARKER)]
@@ -448,27 +448,23 @@ class Mol(structure.Mol, logutils.Base):
         """
         Embed the molecule with coordinates.
         """
-        with rdkitutils.capture_logging() as msgs:
-            self.EmbedMolecule(useRandomCoords=True,
-                               randomSeed=self.options.seed)
+        with rdkitutils.capture_logging(self.logger):
             # e.g. Mg+2 triggers the following ERROR:
             #   ERROR UFFTYPER: Unrecognized charge state for atom: 0
             # in addition, other WARNING messages are also captured
             #   WARNING UFFTYPER: Warning: hybridization set to SP3 for atom 0
-            for lvl, msg in msgs.items():
-                self.log(f"{lvl}: {msg}")
+            self.EmbedMolecule(useRandomCoords=True,
+                               randomSeed=self.options.seed)
 
     def embedMoieties(self):
         """
         Embed the molecule or moieties with coordinates.
         """
         for moiety in self.moieties.values():
-            with rdkitutils.capture_logging() as msgs:
+            with rdkitutils.capture_logging(self.logger):
                 moiety.embed(useRandomCoords=True,
                              randomSeed=self.options.seed)
-                moiety.setAllTrans()
-                for lvl, msg in msgs.items():
-                    self.log(f"{lvl}: {msg}")
+            moiety.setAllTrans()
 
     def embedPolymer(self):
         """

@@ -1,12 +1,21 @@
-import rdkit
+import pytest
+from rdkit import Chem
+from rdkit.Chem import AllChem
 
 from nemd import rdkitutils
 
 
 class TestFunction:
 
+    @pytest.mark.parametrize('smiles,raise_type,is_raise',
+                             [('CN(C)C=O', None, False),
+                              ('dafd', ValueError, True)])
+    def testMolFromSmiles(self, smiles, check_raise):
+        with check_raise():
+            rdkitutils.MolFromSmiles(smiles)
+
     def testCaptureLogging(self):
-        mol = rdkit.Chem.MolFromSmiles("[Mg+2]")
+        mol = Chem.MolFromSmiles("[Mg+2]")
         with rdkitutils.capture_logging() as log:
-            rdkit.Chem.AllChem.EmbedMolecule(mol, useRandomCoords=True)
+            AllChem.EmbedMolecule(mol, useRandomCoords=True)
             assert 2 == len(log)

@@ -10,33 +10,19 @@ from contextlib import contextmanager
 
 import rdkit
 from rdkit import Chem
-from rdkit import RDLogger
 from rdkit import rdBase
 
 from nemd import logutils
 
 
-@contextmanager
-def rdkit_preserve_hs():
-    ps = Chem.SmilesParserParams()
-    ps.removeHs = False
-    try:
-        yield ps
-    finally:
-        ps.removeHs = True
-
-
-@contextmanager
-def ignore_warnings():
-    lg = RDLogger.logger()
-    lg.setLevel(RDLogger.ERROR)
-    try:
-        yield lg
-    finally:
-        lg.setLevel(RDLogger.WARNING)
-
-
 def MolFromSmiles(*args, **kwargs):
+    """
+    Construct molecule from a SMILES, and raise errors instead of printing to
+    the script on failure. In addition, this module can be lazily imported.
+
+    :return `rdkit.Chem.rdchem.Mol`: the constructed molecule.
+    :raise ValueError: if no molecules can be constructed.
+    """
     with capture_logging() as logs:
         mol = Chem.MolFromSmiles(*args, **kwargs)
         if mol is None:
@@ -46,20 +32,23 @@ def MolFromSmiles(*args, **kwargs):
 
 
 @contextmanager
-def capture_logging():
+def capture_logging(logger=None):
     """
-    Capture logging messages from rdkit and return them as a dict.
+    Capture the rdkit logging messages. The captured messages are either printed
+    to the logger or return as a dictionary.
 
+    :param logger 'logging.Logger': the logger to print the messages.
     :return dict: keys are log levels (e.g. 'WARNING', 'ERROR'), and values are
         logging messages.
     """
     with open(os.devnull, 'w') as devnull:
         stream = rdkit.log_handler.setStream(devnull)
-        hdlr = logutils.Handler()
+        has_handler = logger and logger.hasHandlers()
+        hdlr = logger.handlers[0] if has_handler else logutils.Handler()
         rdkit.logger.addHandler(hdlr)
         rdBase.LogToPythonLogger()
         try:
-            yield hdlr.logs
+            yield None if has_handler else hdlr.logs
         finally:
             rdkit.log_handler.setStream(stream)
             rdkit.logger.removeHandler(hdlr)
@@ -75,3 +64,12 @@ def capture_logging():
 #         AllChem.EmbedMolecule(mol, useRandomCoords=True)
 #     mol.GetConformer().SetIntProp(pnames.MOL_ID, mol_id)
 #     return mol
+#
+# @contextmanager
+# def rdkit_preserve_hs():
+#     ps = Chem.SmilesParserParams()
+#     ps.removeHs = False
+#     try:
+#         yield ps
+#     finally:
+#         ps.removeHs = True
