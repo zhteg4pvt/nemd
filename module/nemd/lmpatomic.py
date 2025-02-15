@@ -181,7 +181,7 @@ class XYZ(PairCoeff):
         if type_map is None:
             return cls(array)
         index = cls.COLUMN_LABELS.index(TYPE_ID)
-        array[:, index] = type_map.map(array[:, index])
+        array[:, index] = type_map.index(array[:, index])
         return cls(array)
 
 
@@ -404,7 +404,7 @@ class Struct(structure.Struct):
 
         :return `Mass`: mass of each type of atom.
         """
-        return Mass.fromAtoms(table.TABLE.iloc[self.atm_types.on])
+        return Mass.fromAtoms(table.TABLE.iloc[self.atm_types.values])
 
     @property
     def pair_coeffs(self):
@@ -413,7 +413,7 @@ class Struct(structure.Struct):
 
         :return `PairCoeff`: the interaction between non-bond atoms.
         """
-        vdws = self.ff.vdws.loc[self.atm_types.on]
+        vdws = self.ff.vdws.loc[self.atm_types.values]
         return PairCoeff([[x.ene, x.dist] for x in vdws.itertuples()])
 
 

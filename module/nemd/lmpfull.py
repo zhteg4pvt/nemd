@@ -1032,7 +1032,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return `Mass`: mass of each type of atom.
         """
-        return Mass.fromAtoms(self.ff.atoms.loc[self.atm_types.on])
+        return Mass.fromAtoms(self.ff.atoms.loc[self.atm_types.values])
 
     @property
     def bond_coeffs(self):
@@ -1041,7 +1041,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return `BondCoeff`: the interaction between bonded atoms.
         """
-        bonds = self.ff.bonds.loc[self.bnd_types.on]
+        bonds = self.ff.bonds.loc[self.bnd_types.values]
         return BondCoeff([[x.ene, x.dist] for x in bonds.itertuples()])
 
     @property
@@ -1051,7 +1051,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return `AngleCoeff`: the three-atom angle interaction coefficients
         """
-        angles = self.ff.angles.loc[self.ang_types.on]
+        angles = self.ff.angles.loc[self.ang_types.values]
         return AngleCoeff([[x.ene, x.deg] for x in angles.itertuples()])
 
     @property
@@ -1061,7 +1061,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return `DihedralCoeff`: the four-atom torsion interaction coefficients
         """
-        dihes = self.ff.dihedrals.loc[self.dihe_types.on]
+        dihes = self.ff.dihedrals.loc[self.dihe_types.values]
         return DihedralCoeff([[x.k1, x.k2, x.k3, x.k4]
                               for x in dihes.itertuples()])
 
@@ -1072,7 +1072,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return `ImproperCoeff`: the four-atom improper interaction coefficients
         """
-        imprps = self.ff.impropers.loc[self.impr_types.on]
+        imprps = self.ff.impropers.loc[self.impr_types.values]
         # LAMMPS: K in K[1+d*cos(nx)] vs OPLS: [1 + cos(nx-gama)]
         # due to cos (θ - 180°) = cos (180° - θ) = - cos θ
         imprps = [[x.ene, 1 if x.deg == 0. else -1, x.n_parm]
@@ -1119,8 +1119,8 @@ class Struct(lmpatomic.Struct, In):
             bonds, angles = list(map(list, zip(*data)))
             bonds = Bond.concat([x for x in bonds if not x.empty])
             angles = Angle.concat([x for x in angles if not x.empty])
-            bond_types = self.bnd_types.map(bonds.values.flatten()) + 1
-            angle_types = self.ang_types.map(angles.values.flatten()) + 1
+            bond_types = self.bnd_types.index(bonds.values.flatten()) + 1
+            angle_types = self.ang_types.index(angles.values.flatten()) + 1
             self.options.rigid_bond = ' '.join(map(str, bond_types))
             self.options.rigid_angle = ' '.join(map(str, angle_types))
         super().shake()
