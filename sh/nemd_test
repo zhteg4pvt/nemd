@@ -10,7 +10,8 @@ Usage:
 '
 . nemd_func
 [ -z $NEMD_SRC ] && add_pypath $(dirname $(which nemd_func))
-for SUB_DIR in 'driver' 'workflow'; do add_pypath $NEMD_SRC/$SUB_DIR/; done
+[ -z $NEMD_SRC ] || for SUB_DIR in 'driver' 'workflow'; do add_pypath $NEMD_SRC/$SUB_DIR/; done
+
 set -- python -m pytest "$@"
 [ $# != 3 ] && { "$@"; exit $?; }
 

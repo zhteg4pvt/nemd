@@ -19,7 +19,7 @@ def get_file(elements, struct=None):
 
     https://docs.lammps.org/pair_sw.html
 
-    :param elements list: the elements to be included in the force field.
+    :param elements tuple: the elements to be included in the force field.
     :param struct `stillinger.Struct`: the structure to retrieve elements from.
     :return str: the force field pathname.
     """

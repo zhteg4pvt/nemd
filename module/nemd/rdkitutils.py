@@ -26,8 +26,7 @@ def MolFromSmiles(*args, **kwargs):
     with capture_logging() as logs:
         mol = Chem.MolFromSmiles(*args, **kwargs)
         if mol is None:
-            msg = "\n".join(f"{x}: {y}" for x, y in logs.items())
-            raise ValueError(msg)
+            raise ValueError("\n".join(f"{x}: {y}" for x, y in logs.items()))
         return mol
 
 

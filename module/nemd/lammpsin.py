@@ -73,7 +73,7 @@ class In:
         self.datafile = None
         self.dumpfile = None
         self.fh = None
-        self.setFilenames(self.options.jobname)
+        self.setFilenames(self.options.jobname if self.options else 'lmp')
 
     def setFilenames(self, jobname):
         """
