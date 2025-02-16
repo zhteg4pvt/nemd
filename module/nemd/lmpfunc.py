@@ -69,7 +69,7 @@ class Base:
         Shape the label for visualization.
 
         :param column str: one data column label
-        :return str: label to be displayed on the figure.
+        :return str: to be displayed on the figure label.
         """
         column = name.removeprefix('c_').removeprefix('v_').split('_')
         return ' '.join([x.capitalize() for x in column])
@@ -110,7 +110,7 @@ class Length(Base):
         To be overwritten.
         """
         with plotutils.get_pyplot(inav=False) as plt:
-            fig, ax = plt.subplots(1, 1, sharex=True, figsize=(8, 6))
+            fig, ax = plt.subplots(1, 1, figsize=(8, 6))
             column = self.getColumn(self.ending)
             ax.plot(self.data.index, column, label=self.DATA)
             ax.plot(self.data.index[self.sidx:],
@@ -143,7 +143,7 @@ class Press(Base):
 
 class Modulus(Press):
     """
-    Class to analyze press_vol (pressure & volume) data dumped by the LAMMPS.
+    Class to analyze press_vol (pressure & volume) data.
     """
 
     MODULUS = 'modulus'
@@ -240,7 +240,7 @@ class Modulus(Press):
         ax.legend(handles, labels)
 
 
-class Scale(Press):
+class Vol(Press):
     """
     Class to calculate the volume scale factor based on the target pressure and
     volume and press_vol (pressure & volume) data dumped by the LAMMPS.
@@ -301,68 +301,30 @@ class Scale(Press):
         Plot the data and save the figure.
         """
         with plotutils.get_pyplot(inav=False) as plt:
-            fig, ax = plt.subplots(1, 1, sharex=True, figsize=(8, 6))
+            fig, ax = plt.subplots(1, 1, figsize=(8, 6))
             ax.plot(self.getColumn(self.VOL),
                     self.getColumn(self.PRESS),
                     '.',
                     label=self.DATA)
             ax.plot(self.vol, self.ave, '--', label=self.FITTED)
-            ax.set_title(
-                f"{self.VOL.capitalize()} vs {self.PRESS.capitalize()}")
-            basename = os.path.basename(self.filename)
-            name = symbols.PERIOD.join(basename.split(symbols.PERIOD)[:-1])
+            ax.set_xlabel(self.VOL.capitalize())
+            ax.set_ylabel(self.PRESS.capitalize())
+            name = os.path.splitext(os.path.basename(self.filename))[0]
             fig.savefig(f"{name}_{self.SCALE}{self.PNG_EXT}")
 
 
-def getPress(filename):
+def getL(filename, last_pct=0.2, ending=Length.XL):
     """
-    Get the averaged pressure.
+    Get the box length in the one dimension.
 
     :param filename str: the filename with path to load data from
-    :return float: averaged pressure.
+    :param last_pct float: the last this percentage of the data are used
+    :param ending str: select the label ends with this string
+    :return float: box length
     """
-    press = Press(filename)
-    press.run()
-    return press.ave
-
-
-def getModulus(filename, record_num):
-    """
-    Get the bulk modulus.
-
-    :param filename str: the filename with path to load data from
-    :param record_num int: the recording number of each cycle.
-    :return float: the bulk modulus.
-    """
-    modulus = Modulus(filename, record_num)
-    modulus.run()
-    return modulus.modulus
-
-
-def getScaleFactor(press, filename):
-    """
-    Get the volume scale factor so that the pressure is expected to approach the
-    target by scaling the volume.
-
-    :param press float: the target pressure.
-    :param filename str: the filename with path to load data from.
-    :return float: the scale factor of the volume.
-    """
-    scale = Scale(press, filename)
-    scale.run()
-    return scale.factor
-
-
-def getBdryFactor(press, filename):
-    """
-    Get the boundary scale factor so that the pressure is expected to approach
-    the target by scaling the boundary length.
-
-    :param press float: the target pressure.
-    :param filename str: the filename with path to load data from.
-    :return float: the scale factor of the volume.
-    """
-    return getScaleFactor(press, filename)**(1 / 3)
+    box_length = Length(filename, last_pct=last_pct, ending=ending)
+    box_length.run()
+    return box_length.ave
 
 
 def getXL(filename):
@@ -395,15 +357,52 @@ def getZL(filename):
     return getL(filename, ending=Length.ZL)
 
 
-def getL(filename, last_pct=0.2, ending=Length.XL):
+def getPress(filename):
     """
-    Get the box length in the one dimension.
+    Get the averaged pressure.
 
     :param filename str: the filename with path to load data from
-    :param last_pct float: the last this percentage of the data are used
-    :param ending str: select the label ends with this string
-    :return float: box length
+    :return float: averaged pressure.
     """
-    box_length = Length(filename, last_pct=last_pct, ending=ending)
-    box_length.run()
-    return box_length.ave
+    press = Press(filename)
+    press.run()
+    return press.ave
+
+
+def getModulus(filename, record_num):
+    """
+    Get the bulk modulus.
+
+    :param filename str: the filename with path to load data from
+    :param record_num int: the recording number of each cycle.
+    :return float: the bulk modulus.
+    """
+    modulus = Modulus(filename, record_num)
+    modulus.run()
+    return modulus.modulus
+
+
+def getVolFactor(press, filename):
+    """
+    Get the volume scale factor so that the pressure is expected to approach the
+    target by scaling the volume.
+
+    :param press float: the target pressure.
+    :param filename str: the filename with path to load data from.
+    :return float: the scale factor of the volume.
+    """
+    scale = Vol(press, filename)
+    scale.run()
+    return scale.factor
+
+
+def getBdryFactor(press, filename):
+    """
+    Get the boundary scale factor so that the pressure is expected to approach
+    the target by scaling the boundary length.
+
+    :param press float: the target pressure.
+    :param filename str: the filename with path to load data from.
+    :return float: the scale factor of the volume.
+    """
+    return getVolFactor(press, filename)**(1 / 3)

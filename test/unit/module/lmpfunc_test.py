@@ -118,3 +118,69 @@ class TestModulus:
             modulus.subplot(ax, label)
             assert 2 == len(ax.lines)
             assert 1 == len(ax.collections)
+
+
+class TestVol:
+
+    @pytest.fixture
+    def vol(self, press):
+        return lmpfunc.Vol(press, PRESS_DATA)
+
+    @pytest.mark.parametrize('press', [(1)])
+    def testSetAve(self, vol):
+        vol.setData()
+        vol.setAve()
+        assert 100 == len(vol.vol)
+        assert 100 == len(vol.ave)
+
+    @pytest.mark.parametrize('press,expected', [(1, 1),
+                                                (100, 0.9774937675048474),
+                                                (-100, 1.03691022129205)])
+    def testSetAve(self, vol, expected):
+        vol.setData()
+        vol.setAve()
+        vol.setFactor()
+        np.testing.assert_almost_equal(vol.factor, expected)
+
+    @pytest.mark.parametrize('press', [(1)])
+    def testPlot(self, vol, tmp_dir):
+        vol.setData()
+        vol.setAve()
+        vol.plot()
+        os.path.isfile('press_vol_scale.png')
+
+
+class TestFunc:
+
+    def testGetL(self, tmp_dir):
+        np.testing.assert_almost_equal(lmpfunc.getL(XYZL_DATA), 159.1362)
+
+    def testGetXL(self, tmp_dir):
+        np.testing.assert_almost_equal(lmpfunc.getXL(XYZL_DATA), 159.1362)
+
+    def testGetYL(self, tmp_dir):
+        np.testing.assert_almost_equal(lmpfunc.getYL(XYZL_DATA), 159.1362)
+
+    def testGetZL(self, tmp_dir):
+        np.testing.assert_almost_equal(lmpfunc.getZL(XYZL_DATA), 159.1362)
+
+    def testGetPress(self):
+        np.testing.assert_almost_equal(lmpfunc.getPress(PRESS_DATA), 0.998426)
+
+    def testGetModulus(self, tmp_dir):
+        modulus = lmpfunc.getModulus(PRESS_DATA, 100)
+        np.testing.assert_almost_equal(modulus, 10)
+
+    @pytest.mark.parametrize('press,expected', [(1, 1),
+                                                (100, 0.9774937675048474),
+                                                (-100, 1.03691022129205)])
+    def testGetVolFactor(self, press, expected, tmp_dir):
+        factor = lmpfunc.getVolFactor(press, PRESS_DATA)
+        np.testing.assert_almost_equal(factor, expected)
+
+    @pytest.mark.parametrize('press,expected', [(1, 1),
+                                                (100, 0.9924409268894283),
+                                                (-100, 1.0121550629238298)])
+    def testGetBdryFactor(self, press, expected, tmp_dir):
+        factor = lmpfunc.getBdryFactor(press, PRESS_DATA)
+        np.testing.assert_almost_equal(factor, expected)
