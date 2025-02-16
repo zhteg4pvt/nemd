@@ -1,0 +1,1 @@
+nemd_run lmp_traj_driver.py amorp_bldr.custom.gz -data_file amorp_bldr.data -task density -cpu 1 -JOBNAME lmp_traj

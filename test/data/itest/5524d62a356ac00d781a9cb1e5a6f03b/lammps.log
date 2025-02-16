@@ -1,0 +1,19 @@
+..........Command Options..........
+inscript: amorp_bldr.in
+screen: none
+log: None
+data_file: amorp_bldr.data
+NAME: lammps
+jobname: lammps
+interactive: False
+python: 2
+cpu: 1
+debug: None
+JobStart: 19:47:21 02/15/2025
+...................................
+Running lammps simulations...
+
+[Tengs-MacBook-Pro.local:03940] shmem: mmap: an error occurred while determining whether or not /var/folders/bk/wg487n5j7573mcb1vjqqz1j00000gn/T//ompi.Tengs-MacBook-Pro.501/jf.0/2863923200/sm_segment.Tengs-MacBook-Pro.501.aab40000.0 could be created.
+
+Finished.
+19:47:26 02/15/2025

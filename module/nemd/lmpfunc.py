@@ -15,14 +15,9 @@ from nemd import plotutils
 from nemd import symbols
 
 
-class Press:
-    """
-    Class to analyze pressure data dumped by the LAMMPS.
-    """
+class Base:
 
     DATA = 'Data'
-    PRESS = 'press'
-    VOL = 'vol'
     PNG_EXT = '.png'
 
     def __init__(self, filename):
@@ -39,7 +34,6 @@ class Press:
         """
         self.setData()
         self.setAve()
-        self.plot()
 
     def setData(self):
         """
@@ -56,9 +50,9 @@ class Press:
         """
         Set the averaged data.
         """
-        self.ave = self.getColumn(self.PRESS).mean()
+        self.ave = self.data.mean()
 
-    def getColumn(self, ending=PRESS):
+    def getColumn(self, ending):
         """
         Get the column based the label ending str.
 
@@ -80,14 +74,8 @@ class Press:
         column = name.removeprefix('c_').removeprefix('v_').split('_')
         return ' '.join([x.capitalize() for x in column])
 
-    def plot(self):
-        """
-        To be overwritten.
-        """
-        pass
 
-
-class Length(Press):
+class Length(Base):
     """
     Class to analyze xyzl (hi - lo) data dumped by the LAMMPS.
     """
@@ -138,13 +126,27 @@ class Length(Press):
             fig.savefig(f"{name}_{self.ending}{self.PNG_EXT}")
 
 
+class Press(Base):
+    """
+    Class to analyze pressure data dumped by the LAMMPS.
+    """
+
+    PRESS = 'press'
+    VOL = 'vol'
+
+    def setAve(self):
+        """
+        Set the averaged data.
+        """
+        self.ave = self.getColumn(self.PRESS).mean()
+
+
 class Modulus(Press):
     """
     Class to analyze press_vol (pressure & volume) data dumped by the LAMMPS.
     """
 
     MODULUS = 'modulus'
-    DEFAULT = 10
     STD_DEV = '_(Std_Dev)'
     SMOOTHED = '_(Smoothed)'
 
@@ -164,6 +166,7 @@ class Modulus(Press):
         """
         super().run()
         self.setModulus()
+        self.plot()
 
     def setAve(self):
         """
@@ -183,15 +186,29 @@ class Modulus(Press):
             window = int(self.record_num / 10)
             self.ave[smoothed_lb] = savgol_filter(self.ave[column], window, 3)
 
+    def setModulus(self, lower_bound=10):
+        """
+        Set the bulk modulus.
+
+        :param lower_bound: the lower boundary of the modulus.
+        :return float: the bulk modulus from cycles.
+        """
+        press_lb = self.getColumn(self.PRESS).name + self.SMOOTHED
+        press_delta = self.ave[press_lb].max() - self.ave[press_lb].min()
+        vol_lb = self.getColumn(self.VOL).name + self.SMOOTHED
+        vol_delta = self.ave[vol_lb].max() - self.ave[vol_lb].min()
+        modulus = press_delta / vol_delta * self.ave[vol_lb].mean()
+        self.modulus = max([modulus, lower_bound])
+
     def plot(self):
         """
         Plot the data and save the figure.
         """
         with plotutils.get_pyplot(inav=False) as plt:
             fig, axes = plt.subplots(2, 1, sharex=True, figsize=(8, 6))
-            for id, (axis, column) in enumerate(zip(axes, self.data.columns)):
+            for idx, (axis, column) in enumerate(zip(axes, self.data.columns)):
                 self.subplot(axis, column)
-                if not id:
+                if not idx:
                     num = round(self.data.shape[0] / self.record_num)
                     axis.set_title(f"Sinusoidal Deformation ({num} cycles)")
             basename = os.path.basename(self.filename)
@@ -222,19 +239,6 @@ class Modulus(Press):
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles, labels)
 
-    def setModulus(self):
-        """
-        Set the bulk modulus.
-
-        :return float: the bulk modulus from cycles.
-        """
-        press_lb = self.getColumn(self.PRESS) + self.SMOOTHED
-        press_delta = self.ave[press_lb].max() - self.ave[press_lb].min()
-        vol_lb = self.getColumn(self.VOL) + self.SMOOTHED
-        vol_delta = self.ave[vol_lb].max() - self.ave[vol_lb].min()
-        modulus = press_delta / vol_delta * self.ave[vol_lb].mean()
-        self.modulus = max([modulus, self.DEFAULT])
-
 
 class Scale(Press):
     """
@@ -249,11 +253,10 @@ class Scale(Press):
         """
         :param press float: target pressure.
         """
-        self.press = press
         super().__init__(*args, **kwargs)
+        self.press = press
         self.vol = None
         self.factor = 1
-        self.fitted_press = None
 
     def run(self):
         """
@@ -261,30 +264,17 @@ class Scale(Press):
         """
         super().run()
         self.setFactor()
+        self.plot()
 
-    def plot(self):
+    def setAve(self):
         """
-        Plot the data and save the figure.
+        Set the averaged data.
         """
-        with plotutils.get_pyplot(inav=False) as plt:
-            fig, ax = plt.subplots(1, 1, sharex=True, figsize=(8, 6))
-            labels = {x: self.getLabel(x) for x in self.data.columns}
-            press_cl = [x for x in labels if x.endswith(self.PRESS)][0]
-            vol_cl = [x for x in labels if x.endswith(self.VOL)][0]
-            ax.plot(self.data[vol_cl],
-                    self.data[press_cl],
-                    '.',
-                    label=self.DATA)
-            coef = np.polyfit(self.data[vol_cl], self.data[press_cl], 1)
-            vmin, vmax = self.data[vol_cl].min(), self.data[vol_cl].max()
-            self.vol = np.linspace(vmin, vmax, 100)
-            self.fitted_press = np.poly1d(coef)(self.vol)
-            ax.plot(self.vol, self.fitted_press, '--', label=self.FITTED)
-            ax.set_title(
-                f"{self.VOL.capitalize()} vs {self.PRESS.capitalize()}")
-            basename = os.path.basename(self.filename)
-            name = symbols.PERIOD.join(basename.split(symbols.PERIOD)[:-1])
-            fig.savefig(f"{name}_{self.SCALE}{self.PNG_EXT}")
+        vol = self.getColumn(self.VOL)
+        vmin, vmax = vol.min(), vol.max()
+        self.vol = np.linspace(vmin, vmax, 100)
+        coef = np.polyfit(vol, self.getColumn(self.PRESS), 1)
+        self.ave = np.poly1d(coef)(self.vol)
 
     def setFactor(self, excluded_ratio=0.5):
         """
@@ -293,20 +283,35 @@ class Scale(Press):
         :param excluded_ratio float: the ratio of the data to be excluded from
             the fit.
         """
-        left_bound = int(self.fitted_press.shape[0] * excluded_ratio / 2)
-        right_bound = int(self.fitted_press.shape[0] * (1 - excluded_ratio))
-        fitted_press = self.fitted_press[left_bound + 1:right_bound]
+        left_bound = int(self.ave.shape[0] * excluded_ratio / 2)
+        right_bound = int(self.ave.shape[0] * (1 - excluded_ratio))
+        cropped = self.ave[left_bound + 1:right_bound]
         vol = self.vol[left_bound + 1:right_bound]
-        vol_cl = [x for x in self.data.columns if x.endswith(self.VOL)][0]
-        delta = self.data.groupby(by=vol_cl).std().mean().iloc[0] / 20
-        if self.press < fitted_press.min() - delta:
+        vol_name = self.getColumn(self.VOL).name
+        delta = self.data.groupby(by=vol_name).std().mean().iloc[0] / 20
+        if self.press < cropped.min() - delta:
             # Expand the volume as the target pressure is smaller
             self.factor = self.vol.max() / vol.mean()
-            return
-        if self.press > fitted_press.max() + delta:
+        if self.press > cropped.max() + delta:
             # Compress the volume as the target pressure is larger
             self.factor = self.vol.min() / vol.mean()
-            return
+
+    def plot(self):
+        """
+        Plot the data and save the figure.
+        """
+        with plotutils.get_pyplot(inav=False) as plt:
+            fig, ax = plt.subplots(1, 1, sharex=True, figsize=(8, 6))
+            ax.plot(self.getColumn(self.VOL),
+                    self.getColumn(self.PRESS),
+                    '.',
+                    label=self.DATA)
+            ax.plot(self.vol, self.ave, '--', label=self.FITTED)
+            ax.set_title(
+                f"{self.VOL.capitalize()} vs {self.PRESS.capitalize()}")
+            basename = os.path.basename(self.filename)
+            name = symbols.PERIOD.join(basename.split(symbols.PERIOD)[:-1])
+            fig.savefig(f"{name}_{self.SCALE}{self.PNG_EXT}")
 
 
 def getPress(filename):
