@@ -9,7 +9,6 @@ import networkx as nx
 import numpy as np
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from rdkit.Chem import Descriptors
 
 from nemd import symbols
 

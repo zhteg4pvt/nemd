@@ -31,7 +31,7 @@ class Press:
         """
         self.filename = filename
         self.data = None
-        self.ave_press = None
+        self.ave = None
 
     def run(self):
         """
@@ -56,27 +56,28 @@ class Press:
         """
         Set the averaged data.
         """
-        press_lb = self.getColumn(self.PRESS)
-        self.ave_press = self.data[press_lb].mean()
+        self.ave = self.getColumn(self.PRESS).mean()
 
     def getColumn(self, ending=PRESS):
         """
-        Get the column label based the ending str.
+        Get the column based the label ending str.
 
-        :param ending str: select the label ends with this string.
-        :return str: selected column label
+        :param ending str: select the column whose label ends with this string.
+        :return 'pandas.core.series.Series': selected column
         """
-        return [x for x in self.data.columns if x.endswith(ending)][0]
+        for label, column in self.data.items():
+            if label.endswith(ending):
+                return column
 
     @staticmethod
-    def getLabel(column):
+    def getLabel(name):
         """
         Shape the label for visualization.
 
         :param column str: one data column label
         :return str: label to be displayed on the figure.
         """
-        column = column.removeprefix('c_').removeprefix('v_').split('_')
+        column = name.removeprefix('c_').removeprefix('v_').split('_')
         return ' '.join([x.capitalize() for x in column])
 
     def plot(self):
@@ -86,7 +87,7 @@ class Press:
         pass
 
 
-class BoxLength(Press):
+class Length(Press):
     """
     Class to analyze xyzl (hi - lo) data dumped by the LAMMPS.
     """
@@ -103,9 +104,8 @@ class BoxLength(Press):
         """
         super().__init__(filename)
         self.last_pct = last_pct
-        self.sel_length = None
-        self.sindex = None
         self.ending = ending
+        self.sidx = None
 
     def setAve(self):
         """
@@ -113,10 +113,9 @@ class BoxLength(Press):
 
         :return float: the averaged box length in one dimension.
         """
-        column = self.getColumn(self.ending)
-        data = self.data[column]
-        self.sindex = math.floor(data.shape[0] * (1 - self.last_pct))
-        self.ave_length = data[self.sindex:].mean()
+        data = self.getColumn(self.ending)
+        self.sidx = math.floor(data.shape[0] * (1 - self.last_pct))
+        self.ave = data[self.sidx:].mean()
 
     def plot(self):
         """
@@ -125,14 +124,13 @@ class BoxLength(Press):
         with plotutils.get_pyplot(inav=False) as plt:
             fig, ax = plt.subplots(1, 1, sharex=True, figsize=(8, 6))
             column = self.getColumn(self.ending)
-            col = self.data[column]
-            ax.plot(self.data.index, col, label=self.DATA)
-            ax.plot(self.data.index[self.sindex:],
-                    col[self.sindex:],
+            ax.plot(self.data.index, column, label=self.DATA)
+            ax.plot(self.data.index[self.sidx:],
+                    column[self.sidx:],
                     'g',
                     label='Selected')
             ax.set_xlabel(self.data.index.name)
-            ax.set_ylabel(self.getLabel(column))
+            ax.set_ylabel(self.getLabel(column.name))
             handles, labels = ax.get_legend_handles_labels()
             ax.legend(handles, labels)
             basename = os.path.basename(self.filename)
@@ -320,7 +318,7 @@ def getPress(filename):
     """
     press = Press(filename)
     press.run()
-    return press.ave_press
+    return press.ave
 
 
 def getModulus(filename, record_num):
@@ -369,7 +367,7 @@ def getXL(filename):
     :param filename str: the filename with path to load data from
     :return float: box length
     """
-    return getL(filename, ending=BoxLength.XL)
+    return getL(filename, ending=Length.XL)
 
 
 def getYL(filename):
@@ -379,7 +377,7 @@ def getYL(filename):
     :param filename str: the filename with path to load data from
     :return float: box length
     """
-    return getL(filename, ending=BoxLength.YL)
+    return getL(filename, ending=Length.YL)
 
 
 def getZL(filename):
@@ -389,10 +387,10 @@ def getZL(filename):
     :param filename str: the filename with path to load data from
     :return float: box length
     """
-    return getL(filename, ending=BoxLength.ZL)
+    return getL(filename, ending=Length.ZL)
 
 
-def getL(filename, last_pct=0.2, ending=BoxLength.XL):
+def getL(filename, last_pct=0.2, ending=Length.XL):
     """
     Get the box length in the one dimension.
 
@@ -401,6 +399,6 @@ def getL(filename, last_pct=0.2, ending=BoxLength.XL):
     :param ending str: select the label ends with this string
     :return float: box length
     """
-    box_length = BoxLength(filename, last_pct=last_pct, ending=ending)
+    box_length = Length(filename, last_pct=last_pct, ending=ending)
     box_length.run()
-    return box_length.ave_length
+    return box_length.ave

@@ -26,11 +26,11 @@ class TestPress:
         np.testing.assert_almost_equal(-46.466, press.ave_press, 3)
 
 
-class TestBoxLength:
+class TestLength:
 
     @pytest.fixture
     def box_length(self):
-        return pyfunc.BoxLength(os.path.join(BASE_DIR, 'xyzl.data'))
+        return pyfunc.Length(os.path.join(BASE_DIR, 'xyzl.data'))
 
     def testSetData(self, box_length):
         box_length.setData()
