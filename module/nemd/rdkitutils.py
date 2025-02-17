@@ -43,7 +43,7 @@ def capture_logging(logger=None):
     with open(os.devnull, 'w') as devnull:
         stream = rdkit.log_handler.setStream(devnull)
         has_handler = logger and logger.hasHandlers()
-        hdlr = logger.handlers[0] if has_handler else logutils.Handler()
+        hdlr = logger.handlers[0] if has_handler else ndler()
         rdkit.logger.addHandler(hdlr)
         rdBase.LogToPythonLogger()
         try:

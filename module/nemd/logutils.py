@@ -1,8 +1,8 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
-This class creates loggers for modules and scripts, redirects stdout and stderr,
-logs messages and options, and parses log files.
+Creates loggers for modules and scripts, log messages and options, parse log
+files, and redirect stdout and stderr.
 """
 import contextlib
 import io
@@ -21,24 +21,38 @@ from nemd import psutils
 from nemd import symbols
 from nemd import timeutils
 
-STATUS_LOG = f'_status{symbols.LOG}'
 JOBSTART = 'JobStart:'
 FINISHED = 'Finished.'
-START = 'start'
-END = 'end'
-DELTA = 'delta'
-COMMAND_OPTIONS = 'Command Options'
-COMMAND_OPTIONS_START = f"." * 10 + COMMAND_OPTIONS + f"." * 10
-COMMAND_OPTIONS_END = f"." * (20 + len(COMMAND_OPTIONS))
+OPTIONS = 'Options'
+OPTIONS_START = f'..........{OPTIONS}..........'
+OPTIONS_END = OPTIONS_START.replace(OPTIONS, '.' * len(OPTIONS))
 COLON_SEP = f'{symbols.COLON} '
-MEMORY = 'memory'
-MEMORY_UNIT = 'MB'
-MEMORY = f'Peak {MEMORY} usage: %s {MEMORY_UNIT}'
+PEAK_MEMORY_USAGE = 'Peak memory usage'
+
+
+class Handler(logging.Handler):
+    """
+    This handler saves the records instead of printing.
+    """
+
+    def __init__(self, level=logging.INFO):
+        super().__init__(level=level)
+        self.logs = {}
+
+    def handle(self, record):
+        """
+        Record as dict key / value without of emitting.
+        """
+        key = record.levelname
+        previous = self.logs.get(key)
+        current = self.format(record)
+        self.logs[key] = f"{previous}\n{current}" if previous else current
+        return False
 
 
 class FileHandler(logging.FileHandler):
     """
-    Handler that controls the writing of the newline character.
+    This file handler controls the writing of the newline character.
 
     https://stackoverflow.com/questions/7168790/suppress-newline-in-python-logging-module
     """
@@ -95,13 +109,13 @@ class Logger(logging.Logger):
 
         :param options 'argparse.Namespace': command-line options
         """
-        self.info(COMMAND_OPTIONS_START)
+        self.info(OPTIONS_START)
         for key, val in options.__dict__.items():
             if type(val) is list:
                 val = symbols.SPACE.join(map(str, val))
             self.info(f"{key}{COLON_SEP}{val}")
         self.info(f"{JOBSTART} {timeutils.ctime()}")
-        self.info(COMMAND_OPTIONS_END)
+        self.info(OPTIONS_END)
 
     def log(self, msg, timestamp=False):
         """
@@ -139,31 +153,128 @@ class Logger(logging.Logger):
         return logger
 
 
-def get_logger(pathname, log=False, file=False):
+class LogReader:
     """
-    Get a module logger to print debug information.
+    A class to read the log file.
+    """
 
-    :param pathname str: pathname based on which logger name is generated
-    :param log bool: sets as the log file if True
-    :param file bool: set this file as the single output file
-    :return 'logging.Logger': the logger
-    """
-    name = os.path.splitext(os.path.basename(pathname))[0]
-    logger = Logger.get(name)
-    logger.setLevel()
-    if DEBUG and not logger.hasHandlers():
-        outfile = name + '.debug'
-        logger.addHandler(FileHandler(outfile, mode='w'))
-        jobutils.add_outfile(outfile, file=file, log=log)
-    return logger
+    INFO_SEP = ' INFO '
+    TOTOAL_TIME = 'Task Total Timing: '
+    MEMORY_RE = re.compile(fr'{PEAK_MEMORY_USAGE}: (\d+.\d+) (\w+)')
+    TIME_LEN = len(timeutils.ctime())
+    START = 'start'
+    END = 'end'
+    DELTA = 'delta'
+
+    def __init__(self, filepath, delay=False):
+        """
+        Initialize the LogReader object.
+
+        :param filepath str: the log filepath
+        :param delay bool: if True, delay the reading of the log file
+        """
+        self.filepath = filepath
+        self.lines = None
+        self.options = None
+        self.sidx = None
+        self.delay = delay
+        if self.delay:
+            return
+        self.run()
+
+    def run(self):
+        """
+        Run the log reader.
+        """
+        self.read()
+        self.setOptions()
+
+    def read(self):
+        """
+        Read the log file.
+        """
+        with open(self.filepath, 'r') as fh:
+            self.lines = [
+                x.split(self.INFO_SEP)[-1].strip() for x in fh.readlines()
+            ]
+
+    def setOptions(self):
+        """
+        Set the options from the log file.
+        """
+        block = None
+        for idx, line in enumerate(self.lines):
+            if line.endswith(OPTIONS_END):
+                self.sidx = idx + 1
+                break
+            if block is not None:
+                block.append(line)
+            if line.endswith(OPTIONS_START):
+                block = []
+        options = {}
+        for line in block:
+            key, val = line.split(COLON_SEP)
+            key = key.split()[-1]
+            vals = val.split()
+            options[key] = val if len(vals) == 1 else vals
+        self.options = types.SimpleNamespace(**options)
+
+    @property
+    def task_time(self):
+        """
+        Return the total task time.
+
+        :return 'datetime.timedelta': the task time
+        """
+        for line in self.lines[self.sidx:]:
+            if not line.startswith(self.TOTOAL_TIME):
+                continue
+            task_time = line.split(self.TOTOAL_TIME)[-1].strip()
+            return timeutils.str2delta(task_time)
+        # No total task timing found (driver log instead of workflow log)
+        return self.time()
+
+    def time(self, dtype=DELTA):
+        """
+        Return the specific time. (Start, End, or Delta)
+
+        :param dtype str: the starting time on START, the finishing time on END,
+            and the time span on DELTA.
+        :return: the specific time information
+        :rtype: 'datetime.datetime' on START / END; 'datetime.timedelta' on DELTA
+        """
+        job_start = symbols.SPACE.join(self.options.JobStart)
+        stime = timeutils.dtime(job_start)
+        if dtype == self.START:
+            return stime
+        try:
+            dtime = timeutils.dtime(self.lines[-1][-self.TIME_LEN:])
+        except ValueError:
+            return
+        if dtype == self.END:
+            return dtime
+        delta = dtime - stime
+        return delta
+
+    @property
+    def memory(self):
+        """
+        Return the peak memory usage.
+
+        :return float: the peak memory usage
+        """
+        for line in self.lines[self.sidx:]:
+            match = self.MEMORY_RE.search(line)
+            if not match:
+                continue
+            return float(match.group(1))
 
 
 class Script:
     """
     A class to handle the logging in running a script.
     """
-
-    MEMORY = MEMORY % '{value:.4f}'
+    MEMORY_FMT = f'{PEAK_MEMORY_USAGE}: {{value:.4f}} MB'
 
     def __init__(self, options, log=True, file=False):
         """
@@ -175,7 +286,7 @@ class Script:
         self.memory = None
         self.name = options.jobname
         self.logger = Logger.get(self.name)
-        self.outfile = self.name + symbols.LOG
+        self.outfile = self.name + symbols.LOG_EXT
         jobutils.add_outfile(self.outfile, file=file, log=log)
 
     def __enter__(self):
@@ -204,7 +315,7 @@ class Script:
         :raise Exception: when in DEBUG mode
         """
         if self.memory:
-            self.logger.log(f"{self.MEMORY.format(value=self.memory.result)}")
+            self.logger.log(f"{self.MEMORY_FMT.format(self.memory.result)}")
         if exc_type:
             while exc_tb.tb_next:
                 exc_tb = exc_tb.tb_next
@@ -272,19 +383,23 @@ class Base(object):
         sys.exit(1)
 
 
-class Handler(logging.Handler):
+def get_logger(pathname, log=False, file=False):
     """
-    This class saves the records instead of printing them.
+    Get a module logger to print debug information.
+
+    :param pathname str: pathname based on which logger name is generated
+    :param log bool: sets as the log file if True
+    :param file bool: set this file as the single output file
+    :return 'logging.Logger': the logger
     """
-
-    def __init__(self, level=logging.INFO):
-        super().__init__(level=level)
-        self.logs = {}
-
-    def handle(self, record):
-        key = record.levelname
-        self.logs[key] = self.logs.get(key, "") + self.format(record)
-        return False
+    name = os.path.splitext(os.path.basename(pathname))[0]
+    logger = Logger.get(name)
+    logger.setLevel()
+    if DEBUG and not logger.hasHandlers():
+        outfile = name + '.debug'
+        logger.addHandler(FileHandler(outfile, mode='w'))
+        jobutils.add_outfile(outfile, file=file, log=log)
+    return logger
 
 
 @contextlib.contextmanager
@@ -308,117 +423,3 @@ def redirect(*args, logger=None, **kwargs):
         err = err.getvalue()
         if err:
             logger.warning(err)
-
-
-class LogReader:
-    """
-    A class to read the log file.
-    """
-
-    INFO_SEP = ' INFO '
-    TOTOAL_TIME = 'Task Total Timing: '
-    MEMORY_RE = re.compile(MEMORY % '(\d+.\d+)')
-    TIME_LEN = len(timeutils.ctime())
-
-    def __init__(self, filepath, delay=False):
-        """
-        Initialize the LogReader object.
-
-        :param filepath str: the log filepath
-        :param delay bool: if True, delay the reading of the log file
-        """
-        self.filepath = filepath
-        self.lines = None
-        self.options = None
-        self.sidx = None
-        self.delay = delay
-        if self.delay:
-            return
-        self.run()
-
-    def run(self):
-        """
-        Run the log reader.
-        """
-        self.read()
-        self.setOptions()
-
-    def read(self):
-        """
-        Read the log file.
-        """
-        with open(self.filepath, 'r') as fh:
-            self.lines = [
-                x.split(self.INFO_SEP)[-1].strip() for x in fh.readlines()
-            ]
-
-    def setOptions(self):
-        """
-        Set the options from the log file.
-        """
-        block = None
-        for idx, line in enumerate(self.lines):
-            if line.endswith(COMMAND_OPTIONS_END):
-                self.sidx = idx + 1
-                break
-            if block is not None:
-                block.append(line)
-            if line.endswith(COMMAND_OPTIONS_START):
-                block = []
-        options = {}
-        for line in block:
-            key, val = line.split(COLON_SEP)
-            key = key.split()[-1]
-            vals = val.split()
-            options[key] = val if len(vals) == 1 else vals
-        self.options = types.SimpleNamespace(**options)
-
-    @property
-    def task_time(self):
-        """
-        Return the total task time.
-
-        :return 'datetime.timedelta': the task time
-        """
-        for line in self.lines[self.sidx:]:
-            if not line.startswith(self.TOTOAL_TIME):
-                continue
-            task_time = line.split(self.TOTOAL_TIME)[-1].strip()
-            return timeutils.str2delta(task_time)
-        # No total task timing found (driver log instead of workflow log)
-        return self.time()
-
-    def time(self, dtype=DELTA):
-        """
-        Return the specific time. (Start, End, or Delta)
-
-        :param dtype str: the starting time on START, the finishing time on END,
-            and the time span on DELTA.
-        :return: the specific time information
-        :rtype: 'datetime.datetime' on START / END; 'datetime.timedelta' on DELTA
-        """
-        job_start = symbols.SPACE.join(self.options.JobStart)
-        stime = timeutils.dtime(job_start)
-        if dtype == START:
-            return stime
-        try:
-            dtime = timeutils.dtime(self.lines[-1][-self.TIME_LEN:])
-        except ValueError:
-            return
-        if dtype == END:
-            return dtime
-        delta = dtime - stime
-        return delta
-
-    @property
-    def memory(self):
-        """
-        Return the peak memory usage.
-
-        :return float: the peak memory usage
-        """
-        for line in self.lines[self.sidx:]:
-            match = self.MEMORY_RE.search(line)
-            if not match:
-                continue
-            return float(match.group(1))

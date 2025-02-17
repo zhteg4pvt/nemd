@@ -233,7 +233,7 @@ class Runner(logutils.Base):
         """
         Look into each job and report the status.
         """
-        status_file = self.options.jobname + logutils.STATUS_LOG
+        status_file = f"{self.options.jobname}_status{symbols.LOG_EXT}"
         with open(status_file, 'w') as fh:
             # Fetching status and Fetching labels are printed to err handler
             self.project.print_status(detailed=True,

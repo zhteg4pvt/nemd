@@ -1,6 +1,5 @@
 from unittest import mock
 
-import pandas as pd
 import pytest
 
 from nemd import plotutils

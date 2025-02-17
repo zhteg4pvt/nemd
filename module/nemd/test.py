@@ -370,7 +370,7 @@ class CollectLog(Exist):
     CSV_EXT = '.csv'
     PNG_EXT = '.png'
     TIME_LB = f'{TIME.capitalize()} (min)'
-    MEMORY_LB = f'{MEMORY.capitalize()} ({logutils.MEMORY_UNIT})'
+    MEMORY_LB = f'{MEMORY.capitalize()} (MB)'
     LABELS = {TIME: TIME_LB, MEMORY: MEMORY_LB}
 
     def __init__(self, *args, **kwargs):

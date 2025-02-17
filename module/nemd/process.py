@@ -22,7 +22,7 @@ class Base:
     NAME = None
     PRE_RUN = None
     SEP = ' '
-    EXT = symbols.LOG
+    EXT = symbols.LOG_EXT
     EXTS = {}
 
     def __init__(self, tokens=None, name=None, jobname=None, files=None):
@@ -38,7 +38,7 @@ class Base:
         self._files = files
         if self.name is None:
             self.name = os.curdir
-        self.logfile = f'{self.jobname}{symbols.LOG}' if self.jobname else 'log'
+        self.logfile = f'{self.jobname}{symbols.LOG_EXT}' if self.jobname else 'log'
 
     def run(self):
         """

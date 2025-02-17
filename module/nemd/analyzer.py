@@ -32,7 +32,7 @@ class Base(logutils.Base):
     UNIT = None
     LABEL = f'{NAME.capitalize()} ({UNIT})'
     LABEL_RE = re.compile('(.*) +\((.*)\)')
-    ERR_LB = symbols.SD_PREFIX
+    ERR_LB = 'St Dev'
     DATA_EXT = '.csv'
     FIG_EXT = '.png'
     FLOAT_FMT = '%.4g'
@@ -112,7 +112,7 @@ class Base(logutils.Base):
         name = f'{datas[0].columns[0]} (num={vals.shape[-1]})'
         data = {
             name: vals.mean(axis=1),
-            f"{self.ERR_LB}{name}": vals.std(axis=1)
+            f"{self.ERR_LB} of {name}": vals.std(axis=1)
         }
         self.data = pd.DataFrame(data, index=index)
 
@@ -145,7 +145,7 @@ class Base(logutils.Base):
             err = sel.iloc[:, 0].std()
         else:
             err = sel.iloc[:, 1].mean()
-        self.result = pd.Series({name: ave, f"{self.ERR_LB}{name}": err})
+        self.result = pd.Series({name: ave, f"{self.ERR_LB} of {name}": err})
         self.result.index.name = sel.index.name
         label, unit, _ = self.parse(self.data.columns[0])
         stime, etime = sel.index[0], sel.index[-1]
@@ -456,7 +456,7 @@ class RDF(Clash):
         err = row.values[1] if len(row.values) > 1 else None
         self.result = pd.Series({
             name: row.values[0],
-            f"{self.ERR_LB}{name}": err
+            f"{self.ERR_LB} of {name}": err
         })
 
     @classmethod
@@ -481,7 +481,7 @@ class MSD(RDF):
     LABEL = f'{NAME.upper()} ({UNIT})'
     INDEX_LB = 'Tau (ps)'
     PROP_NAME = 'Diffusion Coefficient'
-    ERR_LB = f'Standard Error of '
+    ERR_LB = f'Standard Error'
 
     def setData(self, spct=0.1, epct=0.2):
         """
@@ -532,7 +532,7 @@ class MSD(RDF):
                  f' (R-squared: {rval**2:.4f}) linear fit of'
                  f' [{sel.index[0]:.4f} {sel.index[-1]:.4f}] ps')
         propname = self.getName()
-        errname = f"{self.ERR_LB}{propname}"
+        errname = f"{self.ERR_LB} of {propname}"
         self.result = pd.Series({propname: value, errname: std_err})
         self.result.index.name = sel.index.name
 
@@ -679,9 +679,9 @@ class Agg(logutils.Base):
         name = self.Anlz.getName(names=self.result.columns)
         self.Anlz.getName(names=self.result.columns)
         self.yvals = self.result[name]
-        ERR_LB_name = f"{self.Anlz.ERR_LB}{name}"
-        self.ydevs = self.result[ERR_LB_name]
-        x_lbs = list(set(self.result.columns).difference([name, ERR_LB_name]))
+        err_lb_name = f"{self.Anlz.ERR_LB} of {name}"
+        self.ydevs = self.result[err_lb_name]
+        x_lbs = list(set(self.result.columns).difference([name, err_lb_name]))
         self.xvals = self.result[x_lbs]
         rename = {
             x: ' '.join([y.capitalize() for y in x.split('_')])
