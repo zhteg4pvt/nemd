@@ -710,7 +710,7 @@ class PackedStruct(Struct):
                     # Print progress every 10% if conformer number > 10
                     nth = math.floor((conf_id + 1) / conf_num * 10)
                     pct = f"{int((conf_id + 1) / conf_num * 100)}%"
-                    logger.debug(pct if pct == "100%" else pct + ", [!n]")
+                    logger.debug(pct, newline=pct == "100%")
                 # Whether all molecules successfully placed
                 if conf_id == conf_num - 1:
                     return
@@ -935,9 +935,8 @@ class GrownStruct(PackedStruct):
         for index, conf in enumerate(self.conformer, start=1):
             conf.placeInitFrag()
             if index >= threshold:
-                new_line = "" if index == self.conformer_total else ", [!n]"
-                logger.debug(
-                    f"{int(index / self.conformer_total * 100)}%{new_line}")
+                msg = f"{int(index / self.conformer_total * 100)}%"
+                logger.debug(msg, newline=index == self.conformer_total)
                 threshold = round(threshold + tenth, 1)
 
         logger.debug(f'{self.conformer_total} initiators have been placed.')

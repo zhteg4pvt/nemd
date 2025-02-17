@@ -308,7 +308,7 @@ class AggJob(Base):
         for job in self.jobs:
             for filename in job.doc.get(jobutils.LOGFILE, {}).values():
                 try:
-                    log = logutils.LogReader(job.fn(filename))
+                    log = logutils.Reader(job.fn(filename))
                 except FileNotFoundError:
                     continue
                 log.run()
@@ -331,7 +331,7 @@ class AggJob(Base):
             self.message = False
             return
         total_time = timeutils.delta2str(info.time.sum())
-        self.log(logutils.LogReader.TOTOAL_TIME + total_time)
+        self.log(logutils.Reader.TOTOAL_TIME + total_time)
         self.log(data.fillna('').to_markdown(index=False))
         self.message = False
 

@@ -16,7 +16,7 @@ from nemd import symbols
 from nemd import task
 
 
-class LogReader(logutils.LogReader):
+class LogReader(logutils.Reader):
     """
     A LAMMPS log reader customized for substructure.
     """

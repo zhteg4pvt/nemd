@@ -406,7 +406,7 @@ class CollectLog(Exist):
         Set the time and memory data from the log files.
         """
         files = {x: y for x, y in self.kwargs.items() if os.path.exists(y)}
-        rdrs = [logutils.LogReader(x) for x in files.values()]
+        rdrs = [logutils.Reader(x) for x in files.values()]
         names = [x.options.NAME for x in rdrs]
         params = [x.removeprefix(y)[1:] for x, y in zip(files.keys(), names)]
         index = pd.Index(params, name=Param(dir=self.args[-1]).label)
@@ -565,7 +565,7 @@ class Tag(Cmd):
         if logfiles is None:
             return
         for logfile in logfiles.values():
-            self.logs.append(logutils.LogReader(self.job.fn(logfile)))
+            self.logs.append(logutils.Reader(self.job.fn(logfile)))
 
     def setSlow(self):
         """

@@ -30,6 +30,52 @@ COLON_SEP = f'{symbols.COLON} '
 PEAK_MEMORY_USAGE = 'Peak memory usage'
 
 
+def get_logger(name, log=False, file=False):
+    """
+    Get a module logger to print debug information.
+
+    :param name str: logger name or the python script pathname
+    :param log bool: sets as the log file if True
+    :param file bool: set this file as the single output file
+    :return 'logging.Logger': the logger
+    """
+    isfile = name.endswith('.py')
+    if isfile:
+        name, _ = os.path.splitext(os.path.basename(name))
+    logger_class = logging.getLoggerClass()
+    logging.setLoggerClass(Logger)
+    logger = logging.getLogger(name)
+    logging.setLoggerClass(logger_class)
+    if not logger.handlers and (not isfile or DEBUG):
+        outfile = f"{name}{'.debug' if isfile else symbols.LOG_EXT}"
+        logger.addHandler(FileHandler(outfile, mode='w'))
+        jobutils.add_outfile(outfile, file=file, log=log)
+    return logger
+
+
+@contextlib.contextmanager
+def redirect(*args, logger=None, **kwargs):
+    """
+    Redirecting all kinds of stdout in Python via wurlitzer
+    https://eli.thegreenplace.net/2015/redirecting-all-kinds-of-stdout-in-python/
+
+    :param logger 'logging.Logger': the logger to print the out and err messages.
+    """
+    out, err = io.StringIO(), io.StringIO()
+    try:
+        with wurlitzer.pipes(out, err):
+            yield None
+    finally:
+        if logger is None:
+            return
+        out = out.getvalue()
+        if out:
+            logger.warning(out)
+        err = err.getvalue()
+        if err:
+            logger.warning(err)
+
+
 class Handler(logging.Handler):
     """
     This handler saves the records instead of printing.
@@ -69,23 +115,24 @@ class FileHandler(logging.FileHandler):
     def emit(self, record):
         """
         See parent method for documentation.
+
+        Words with one line: xxx[!n], [!n]xxx[!n], [!n]xxx
         """
-        newline = not record.msg.endswith(self.NO_NEWLINE)
-        pre_newline = self.terminator == '\n'
-        self.terminator = '\n' if newline else ''
-        record.msg = record.msg.replace(self.NO_NEWLINE, '')
-        if not pre_newline:
+        if self.terminator != '\n':
             record.msg = self.NO_NEWLINE + record.msg
+        self.terminator = '' if record.msg.endswith(self.NO_NEWLINE) else '\n'
         return super().emit(record)
 
     def format(self, record):
         """
         See parent method for documentation.
         """
-        default = not self.formatter or record.msg.startswith(self.NO_NEWLINE)
-        fmt = logging._defaultFormatter if default else self.formatter
-        record.msg = record.msg.replace(self.NO_NEWLINE, '')
-        return fmt.format(record)
+        # 2025-02-17 12:04:12,254 DEBUG 16%, 33%, 50%, 66%, 83%, 100%
+        if record.msg.startswith(self.NO_NEWLINE):
+            return record.msg.replace(self.NO_NEWLINE, '')
+        if record.msg.endswith(self.NO_NEWLINE):
+            record.msg = record.msg.replace(self.NO_NEWLINE, '')
+        return super().format(record)
 
 
 class Logger(logging.Logger):
@@ -93,15 +140,12 @@ class Logger(logging.Logger):
     A logger for driver so that customer-facing information can be saved.
     """
 
-    def setLevel(self, level=None):
+    def __init__(self, *args, **kwargs):
         """
-        Set the level of the logger.
-
         :param level int: the level of the logger
         """
-        if level is None:
-            level = logging.DEBUG if DEBUG else logging.INFO
-        super().setLevel(level)
+        kwargs['level'] = logging.DEBUG if DEBUG else logging.INFO
+        super().__init__(*args, **kwargs)
 
     def infoJob(self, options):
         """
@@ -135,25 +179,77 @@ class Logger(logging.Logger):
         :param msg str: the msg to be printed
         :param timestamp bool: append time information after the message
         """
-        self.log(msg + '\nAborting...', timestamp=timestamp)
+        self.log(msg)
+        self.log('Aborting...', timestamp=timestamp)
         sys.exit(1)
 
-    @classmethod
-    def get(cls, name):
+    def debug(self, msg, *args, newline=True, **kwargs):
         """
-        Get the logger.
+        Debug message to the logger.
 
-        :param name: the logger name
-        :return 'logging.Logger': the logger
+        :param msg str: the message to be printed out
+        :param newline bool: whether to append the \n
         """
-        logger_class = logging.getLoggerClass()
-        logging.setLoggerClass(cls)
-        logger = logging.getLogger(name)
-        logging.setLoggerClass(logger_class)
-        return logger
+        msg = msg if newline else f'{msg}, {FileHandler.NO_NEWLINE}'
+        super().debug(msg, *args, **kwargs)
 
 
-class LogReader:
+class Script:
+    """
+    A class to handle the logging in running a script.
+    """
+    MEMORY_FMT = f'{PEAK_MEMORY_USAGE}: {{value:.4f}} MB'
+
+    def __init__(self, options, **kwargs):
+        """
+        :param options str: the command-line options
+        """
+        self.options = options
+        self.logger = None
+        self.memory = None
+        self.kwargs = kwargs
+        self.outfile = self.options.jobname + symbols.LOG_EXT
+        jobutils.add_outfile(self.outfile, **kwargs)
+
+    def __enter__(self):
+        """
+        Create the logger and start the memory monitoring if requested.
+
+        :return `Logger`: the logger object to print messages
+        """
+        self.logger = get_logger(self.options.jobname, log=True, **self.kwargs)
+        self.logger.infoJob(self.options)
+        intvl = envutils.get_mem_intvl()
+        if intvl is not None:
+            self.memory = psutils.Memory(intvl)
+            self.memory.thread.start()
+        return self.logger
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Stop the memory monitoring and print the messages.
+
+        :param exc_type `type`: the exception type
+        :param exc_val Exception: the exception
+        :param exc_tb traceback: the traceback object
+        :raise Exception: when in DEBUG mode
+        """
+        if self.memory:
+            self.logger.log(f"{self.MEMORY_FMT.format(self.memory.result)}")
+        if exc_type:
+            while exc_tb.tb_next:
+                exc_tb = exc_tb.tb_next
+            if isinstance(exc_val, SystemExit):
+                # log_error calls sys.exit(1)
+                return
+            self.logger.log(f"File {exc_tb.tb_frame.f_code.co_filename}, "
+                            f"line {exc_tb.tb_frame.f_lineno}\n"
+                            f"{exc_type.__name__}: {exc_val.args}")
+            raise exc_val
+        self.logger.log(FINISHED, timestamp=True)
+
+
+class Reader:
     """
     A class to read the log file.
     """
@@ -270,65 +366,6 @@ class LogReader:
             return float(match.group(1))
 
 
-class Script:
-    """
-    A class to handle the logging in running a script.
-    """
-    MEMORY_FMT = f'{PEAK_MEMORY_USAGE}: {{value:.4f}} MB'
-
-    def __init__(self, options, log=True, file=False):
-        """
-        :param options str: the command-line options
-        :param log bool: sets as the log file if True
-        :param file bool: set this file as the single output file
-        """
-        self.options = options
-        self.memory = None
-        self.name = options.jobname
-        self.logger = Logger.get(self.name)
-        self.outfile = self.name + symbols.LOG_EXT
-        jobutils.add_outfile(self.outfile, file=file, log=log)
-
-    def __enter__(self):
-        """
-        Create the logger and start the memory monitoring if requested.
-
-        :return `Logger`: the logger object to print messages
-        """
-        self.logger.setLevel()
-        if not self.logger.hasHandlers():
-            self.logger.addHandler(FileHandler(self.outfile, mode='w'))
-        self.logger.infoJob(self.options)
-        intvl = envutils.get_mem_intvl()
-        if intvl is not None:
-            self.memory = psutils.Memory(intvl)
-            self.memory.thread.start()
-        return self.logger
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        Stop the memory monitoring and print the messages.
-
-        :param exc_type `type`: the exception type
-        :param exc_val Exception: the exception
-        :param exc_tb traceback: the traceback object
-        :raise Exception: when in DEBUG mode
-        """
-        if self.memory:
-            self.logger.log(f"{self.MEMORY_FMT.format(self.memory.result)}")
-        if exc_type:
-            while exc_tb.tb_next:
-                exc_tb = exc_tb.tb_next
-            if isinstance(exc_val, SystemExit):
-                # log_error calls sys.exit(1)
-                return
-            self.logger.log(f"File {exc_tb.tb_frame.f_code.co_filename}, "
-                            f"line {exc_tb.tb_frame.f_lineno}\n"
-                            f"{exc_type.__name__}: {exc_val.args}")
-            raise exc_val
-        self.logger.log(FINISHED, timestamp=True)
-
-
 class Base(object):
     """
     A base class with a logger to print logging messages.
@@ -381,45 +418,3 @@ class Base(object):
         """
         self.log(msg + '\nAborting...', timestamp=True)
         sys.exit(1)
-
-
-def get_logger(pathname, log=False, file=False):
-    """
-    Get a module logger to print debug information.
-
-    :param pathname str: pathname based on which logger name is generated
-    :param log bool: sets as the log file if True
-    :param file bool: set this file as the single output file
-    :return 'logging.Logger': the logger
-    """
-    name = os.path.splitext(os.path.basename(pathname))[0]
-    logger = Logger.get(name)
-    logger.setLevel()
-    if DEBUG and not logger.hasHandlers():
-        outfile = name + '.debug'
-        logger.addHandler(FileHandler(outfile, mode='w'))
-        jobutils.add_outfile(outfile, file=file, log=log)
-    return logger
-
-
-@contextlib.contextmanager
-def redirect(*args, logger=None, **kwargs):
-    """
-    Redirecting all kinds of stdout in Python via wurlitzer
-    https://eli.thegreenplace.net/2015/redirecting-all-kinds-of-stdout-in-python/
-
-    :param logger 'logging.Logger': the logger to print the out and err messages.
-    """
-    out, err = io.StringIO(), io.StringIO()
-    try:
-        with wurlitzer.pipes(out, err):
-            yield None
-    finally:
-        if logger is None:
-            return
-        out = out.getvalue()
-        if out:
-            logger.warning(out)
-        err = err.getvalue()
-        if err:
-            logger.warning(err)
