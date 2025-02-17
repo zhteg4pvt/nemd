@@ -232,7 +232,7 @@ class Distribution(Installer):
         oplsua_dir = data_dir.joinpath('ff', 'oplsua')
         nemd += [oplsua_dir.joinpath(f'*.{x}') for x in ['npy', self.PARQUET]]
         # LAMMPS
-        lammps = [str(self.locate(self.LMP))]
+        lammps = [str(self.locate(self.LMP)), 'lammps/potentials/Si.sw']
         # ALAMODE
         alamode = [str(self.locate(x)) for x in self.ALM_EXES]
         tools = pathlib.Path(self.ALAMODE, 'tools')

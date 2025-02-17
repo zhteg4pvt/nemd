@@ -78,10 +78,10 @@ def pop_arg(args, flag, val=None):
     :param args list: the arg list
     :param flag str: set the value after this flag
     :param val str: the default if no flag found or no value(s) followed
-    :return str or list: the value(s) after the flag
+    :return list: the values after the flag
     """
-    arg = get_arg(args, flag)
-    if arg is None:
+    values = get_arg(args, flag, first=False)
+    if values is None:
         try:
             args.remove(flag)
         except ValueError:
@@ -89,10 +89,10 @@ def pop_arg(args, flag, val=None):
         return val
 
     flag_idx = args.index(flag)
-    deta = len(arg) if isinstance(arg, list) else 1
+    deta = len(values) if isinstance(values, list) else 1
     for idx in reversed(range(flag_idx, flag_idx + deta + 1)):
         args.pop(idx)
-    return arg
+    return values
 
 
 def set_arg(args, flag, val):
@@ -139,7 +139,7 @@ def add_outfile(outfile,
     :param jobname str: register the file under this jobname
     :param document str: the job control information is saved into this file
     :param file bool: set this file as the single output file
-    :param file bool: set this file as the log file
+    :param log bool: set this file as the log file
     """
     if outfile is None:
         return
