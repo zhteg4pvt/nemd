@@ -46,10 +46,11 @@ def get_logger(name, log=False, file=False):
     logging.setLoggerClass(Logger)
     logger = logging.getLogger(name)
     logging.setLoggerClass(logger_class)
-    if not logger.handlers and (not isfile or DEBUG):
-        outfile = f"{name}{'.debug' if isfile else symbols.LOG_EXT}"
-        logger.addHandler(FileHandler(outfile, mode='w'))
-        jobutils.add_outfile(outfile, file=file, log=log)
+    if logger.handlers or (isfile and not DEBUG):
+        return logger
+    outfile = f"{name}{'.debug' if isfile else symbols.LOG_EXT}"
+    logger.addHandler(FileHandler(outfile, mode='w'))
+    jobutils.add_outfile(outfile, file=file, log=log)
     return logger
 
 
@@ -61,19 +62,16 @@ def redirect(*args, logger=None, **kwargs):
 
     :param logger 'logging.Logger': the logger to print the out and err messages.
     """
-    out, err = io.StringIO(), io.StringIO()
+    stdout = io.StringIO()
     try:
-        with wurlitzer.pipes(out, err):
+        with wurlitzer.pipes(stdout=stdout, stderr=wurlitzer.STDOUT):
             yield None
     finally:
         if logger is None:
             return
-        out = out.getvalue()
+        out = stdout.getvalue()
         if out:
             logger.warning(out)
-        err = err.getvalue()
-        if err:
-            logger.warning(err)
 
 
 class Handler(logging.Handler):
@@ -144,7 +142,7 @@ class Logger(logging.Logger):
         """
         :param level int: the level of the logger
         """
-        kwargs['level'] = logging.DEBUG if DEBUG else logging.INFO
+        kwargs.setdefault('level', logging.DEBUG if DEBUG else logging.INFO)
         super().__init__(*args, **kwargs)
 
     def infoJob(self, options):
