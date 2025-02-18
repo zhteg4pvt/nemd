@@ -21,7 +21,7 @@ from nemd import logutils
 from nemd import symbols
 from nemd import typer
 
-logger = logutils.get_logger(__file__)
+logger = logutils.Logger.get(__file__)
 
 IDX = 'idx'
 TYPE_ID = symbols.TYPE_ID

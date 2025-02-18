@@ -63,7 +63,7 @@ class Runner(logutils.Base):
         self.agg_project = None
         self.prereq = collections.defaultdict(list)
         # flow/project.py gets logger from logging.getLogger(__name__)
-        logutils.get_logger('flow.project')
+        logutils.Logger.get('flow.project')
 
     def run(self):
         """

@@ -30,30 +30,6 @@ COLON_SEP = f'{symbols.COLON} '
 PEAK_MEMORY_USAGE = 'Peak memory usage'
 
 
-def get_logger(name, log=False, file=False):
-    """
-    Get a module logger to print debug information.
-
-    :param name str: logger name or the python script pathname
-    :param log bool: sets as the log file if True
-    :param file bool: set this file as the single output file
-    :return 'logging.Logger': the logger
-    """
-    isfile = name.endswith('.py')
-    if isfile:
-        name, _ = os.path.splitext(os.path.basename(name))
-    logger_class = logging.getLoggerClass()
-    logging.setLoggerClass(Logger)
-    logger = logging.getLogger(name)
-    logging.setLoggerClass(logger_class)
-    if logger.handlers or (isfile and not DEBUG):
-        return logger
-    outfile = f"{name}{'.debug' if isfile else symbols.LOG_EXT}"
-    logger.addHandler(FileHandler(outfile, mode='w'))
-    jobutils.add_outfile(outfile, file=file, log=log)
-    return logger
-
-
 @contextlib.contextmanager
 def redirect(*args, logger=None, **kwargs):
     """
@@ -92,45 +68,6 @@ class Handler(logging.Handler):
         current = self.format(record)
         self.logs[key] = f"{previous}\n{current}" if previous else current
         return False
-
-
-class FileHandler(logging.FileHandler):
-    """
-    This file handler controls the writing of the newline character.
-
-    https://stackoverflow.com/questions/7168790/suppress-newline-in-python-logging-module
-    """
-
-    NO_NEWLINE = '[!n]'
-    INFO_FMT = '%(message)s'
-    DEBUG_FMT = f'%(asctime)s %(levelname)s {INFO_FMT}'
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        fmt = logging.Formatter(self.DEBUG_FMT if DEBUG else self.INFO_FMT)
-        self.setFormatter(fmt)
-
-    def emit(self, record):
-        """
-        See parent method for documentation.
-
-        Words with one line: xxx[!n], [!n]xxx[!n], [!n]xxx
-        """
-        if self.terminator != '\n':
-            record.msg = self.NO_NEWLINE + record.msg
-        self.terminator = '' if record.msg.endswith(self.NO_NEWLINE) else '\n'
-        return super().emit(record)
-
-    def format(self, record):
-        """
-        See parent method for documentation.
-        """
-        # 2025-02-17 12:04:12,254 DEBUG 16%, 33%, 50%, 66%, 83%, 100%
-        if record.msg.startswith(self.NO_NEWLINE):
-            return record.msg.replace(self.NO_NEWLINE, '')
-        if record.msg.endswith(self.NO_NEWLINE):
-            record.msg = record.msg.replace(self.NO_NEWLINE, '')
-        return super().format(record)
 
 
 class Logger(logging.Logger):
@@ -181,15 +118,67 @@ class Logger(logging.Logger):
         self.log('Aborting...', timestamp=timestamp)
         sys.exit(1)
 
-    def debug(self, msg, *args, newline=True, **kwargs):
+    @classmethod
+    def get(cls, name, log=False, file=False, fmt='%(message)s'):
         """
-        Debug message to the logger.
+        Get a module logger to print debug information.
 
-        :param msg str: the message to be printed out
-        :param newline bool: whether to append the \n
+        :param name str: logger name or the python script pathname
+        :param log bool: sets as the log file if True
+        :param file bool: set this file as the single output file
+        :param fmt str: the formatter of the handler
+        :return 'logging.Logger': the logger
         """
-        msg = msg if newline else f'{msg}, {FileHandler.NO_NEWLINE}'
-        super().debug(msg, *args, **kwargs)
+        if DEBUG:
+            fmt = f'%(asctime)s %(levelname)s {fmt}'
+        isfile = name.endswith('.py')
+        if isfile:
+            name, _ = os.path.splitext(os.path.basename(name))
+        # getLogger() either create new or retrieve previous logger
+        logger_class = logging.getLoggerClass()
+        logging.setLoggerClass(cls)
+        logger = logging.getLogger(name)
+        logging.setLoggerClass(logger_class)
+        if logger.handlers:
+            return logger
+        # Add file handler
+        if isfile and not DEBUG:
+            # No file handler for module logger outside the debug mode
+            return logger
+        # File handler for driver/workflow in any mode and module in debug mode
+        outfile = f"{name}{'.debug' if isfile else symbols.LOG_EXT}"
+        jobutils.add_outfile(outfile, file=file, log=log)
+        hdlr = logging.FileHandler(outfile, mode='w')
+        hdlr.setFormatter(logging.Formatter(fmt))
+        logger.addHandler(hdlr)
+        return logger
+
+    @contextlib.contextmanager
+    def oneLine(self, terminator=' ', fmt='%(message)s'):
+        """
+        Print messages within one line.
+
+        :param terminator: the separator between messages.
+        :param fmt: the formatter of one message.
+        """
+        try:
+            terminators = {}
+            for handler in self.handlers:
+                if isinstance(handler, logging.StreamHandler):
+                    terminators[handler] = handler.terminator
+                    handler.terminator = terminator
+            self._log(self.level, '', ())
+            formatters, fmt = {}, logging.Formatter(fmt)
+            for handler in terminators.keys():
+                formatters[handler] = handler.formatter
+                handler.setFormatter(fmt)
+            yield
+        finally:
+            for handler, terminator in terminators.items():
+                handler.terminator = terminator
+            self._log(self.level, '', ())
+            for handler, formatter in formatters.items():
+                handler.setFormatter(formatter)
 
 
 class Script:
@@ -215,7 +204,7 @@ class Script:
 
         :return `Logger`: the logger object to print messages
         """
-        self.logger = get_logger(self.options.jobname, log=True, **self.kwargs)
+        self.logger = Logger.get(self.options.jobname, log=True, **self.kwargs)
         self.logger.infoJob(self.options)
         intvl = envutils.get_mem_intvl()
         if intvl is not None:

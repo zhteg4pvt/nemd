@@ -29,7 +29,7 @@ from nemd import lmpfull
 from nemd import logutils
 from nemd import symbols
 
-logger = logutils.get_logger(__file__)
+logger = logutils.Logger.get(__file__)
 
 
 class GriddedConf(lmpfull.Conformer):
@@ -697,30 +697,31 @@ class PackedStruct(Struct):
         :raise DensityError: if the max number of trials at this density is
             reached or the chance of achieving the goal is too low.
         """
-        trial_id, conf_num, finished, nth = 1, self.conformer_total, [], -1
+        conf_num, placed = self.conformer_total, []
         for trial_id in range(1, max_trial + 1):
-            for conf_id, conf in enumerate(self.conformer):
-                try:
-                    conf.setConformer()
-                except ConfError:
-                    self.reset()
-                    break
-                # One conformer successfully placed
-                if nth != math.floor((conf_id + 1) / conf_num * 10):
-                    # Print progress every 10% if conformer number > 10
-                    nth = math.floor((conf_id + 1) / conf_num * 10)
-                    pct = f"{int((conf_id + 1) / conf_num * 100)}%"
-                    logger.debug(pct, newline=pct == "100%")
-                # Whether all molecules successfully placed
-                if conf_id == conf_num - 1:
+            with logger.oneLine():
+                nth = -1
+                for conf_id, conf in enumerate(self.conformer):
+                    try:
+                        conf.setConformer()
+                    except ConfError:
+                        self.reset()
+                        break
+                    # One conformer successfully placed
+                    if nth != math.floor((conf_id + 1) / conf_num * 10):
+                        # Print progress every 10% if conformer number > 10
+                        nth = math.floor((conf_id + 1) / conf_num * 10)
+                        logger.debug(f"{int((conf_id + 1) / conf_num * 100)}%")
+                else:
+                    # All molecules successfully placed
                     return
             # Current conformer failed
             logger.debug(f'{trial_id} trail fails.')
             logger.debug(f'Only {conf_id} / {conf_num} molecules placed.')
-            finished.append(conf_id)
+            placed.append(conf_id)
             if not bool(trial_id % int(max_trial / 10)):
-                delta = conf_num - np.average(finished)
-                std = np.std(finished)
+                delta = conf_num - np.average(placed)
+                std = np.std(placed)
                 if not std:
                     raise DensityError
                 zscore = abs(delta) / std
@@ -930,14 +931,13 @@ class GrownStruct(PackedStruct):
         Place the initiators into cell.
         """
         logger.debug(f'Placing {self.conformer_total} initiators...')
-
-        tenth, threshold, = self.conformer_total / 10., 0
-        for index, conf in enumerate(self.conformer, start=1):
-            conf.placeInitFrag()
-            if index >= threshold:
-                msg = f"{int(index / self.conformer_total * 100)}%"
-                logger.debug(msg, newline=index == self.conformer_total)
-                threshold = round(threshold + tenth, 1)
+        with logger.oneLine():
+            tenth, threshold, = self.conformer_total / 10., 0
+            for index, conf in enumerate(self.conformer, start=1):
+                conf.placeInitFrag()
+                if index >= threshold:
+                    logger.debug(f"{int(index / self.conformer_total * 100)}%")
+                    threshold = round(threshold + tenth, 1)
 
         logger.debug(f'{self.conformer_total} initiators have been placed.')
         if self.conformer_total == 1:

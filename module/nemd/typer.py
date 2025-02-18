@@ -14,7 +14,7 @@ from nemd import envutils
 from nemd import logutils
 from nemd import symbols
 
-logger = logutils.get_logger(__file__)
+logger = logutils.Logger.get(__file__)
 
 
 class Typer:
