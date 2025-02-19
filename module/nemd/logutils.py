@@ -119,7 +119,7 @@ class Logger(logging.Logger):
         sys.exit(1)
 
     @classmethod
-    def get(cls, name, log=False, file=False, fmt='%(message)s'):
+    def get(cls, name, log=False, file=False, fmt=None):
         """
         Get a module logger to print debug information.
 
@@ -129,8 +129,8 @@ class Logger(logging.Logger):
         :param fmt str: the formatter of the handler
         :return 'logging.Logger': the logger
         """
-        if DEBUG:
-            fmt = f'%(asctime)s %(levelname)s {fmt}'
+        if fmt is None:
+            fmt = '%(asctime)s %(levelname)s %(message)s' if DEBUG else '%(message)s'
         isfile = name.endswith('.py')
         if isfile:
             name, _ = os.path.splitext(os.path.basename(name))
@@ -161,7 +161,8 @@ class Logger(logging.Logger):
         :param level int: the logging level
         :param separator str: the separator between messages.
         :param fmt str: the formatter of one message.
-        :
+        :return `function`: the function to print one message as a word followed
+            by a seperator within a line.
         """
         fmt = logging.Formatter(fmt)
         try:

@@ -95,13 +95,16 @@ class TestLogger:
     @pytest.mark.parametrize('name', ['/root/myname.py', 'myname'])
     @pytest.mark.parametrize('log', [True, False])
     @pytest.mark.parametrize('file', [True, False])
-    @pytest.mark.parametrize('debug', ['', '1'])
-    def testGet(self, name, log, file, debug, logger):
+    @pytest.mark.parametrize('debug,fmt',
+                             [('', '%(message)s'),
+                              ('1', '%(asctime)s %(levelname)s %(message)s')])
+    def testGet(self, name, log, file, debug, fmt, logger):
         has_hdlr = not (name.endswith('.py') and not debug)
         assert has_hdlr == bool(logger.handlers)
         assert has_hdlr == os.path.isfile(symbols.FN_DOCUMENT)
         if not has_hdlr:
             return
+        assert fmt == logger.handlers[0].formatter._fmt
         with open(symbols.FN_DOCUMENT) as fh:
             data = json.load(fh)
             assert file == ('jobname' in data.get('outfile', {}))
@@ -124,3 +127,24 @@ class TestLogger:
         with open(logfile) as fh:
             data = fh.read()
         assert data.endswith('hi wa last \n') if debug else not data
+
+
+class TestScript:
+
+    @pytest.mark.parametrize('is_raise,raise_type,msg',
+                             [(False, None, 'Finished.'),
+                              (True, ValueError, "ValueError: ('hi',)"),
+                              (True, SystemExit, "E_R_R_O_R\nAborting...")])
+    def test(self, raise_type, check_raise, msg, tmp_dir):
+        options = types.SimpleNamespace(wa='1', hi='la', jobname='jobname')
+        logging.Logger.manager.loggerDict.pop(options.jobname, None)
+        with check_raise():
+            with logutils.Script(options) as logger:
+                if raise_type:
+                    if raise_type == SystemExit:
+                        logger.error('E_R_R_O_R')
+                    else:
+                        raise raise_type('hi')
+        with open('jobname.log') as fh:
+            data = fh.read()
+        assert msg in data
