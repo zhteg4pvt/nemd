@@ -13,38 +13,31 @@ from nemd import symbols
 
 class TestFunc:
 
-    def testRedirect(self, capsys):
+    @pytest.mark.parametrize('is_err', [False, True])
+    def testRedirect(self, is_err, capsys):
         logger = mock.Mock()
         with capsys.disabled():
             with logutils.redirect(logger=logger):
-                sys.stdout.write("warning")
-        logger.warning.assert_called_with('warning')
-        with capsys.disabled():
-            with logutils.redirect(logger=logger):
-                sys.stderr.write("error")
-        logger.warning.assert_called_with('error')
+                (sys.stderr if is_err else sys.stdout).write('msg')
+        logger.warning.assert_called_with('msg')
 
 
 class TestHandler:
-
-    @pytest.fixture
-    def logger(self):
-        logger = logging.Logger('test')
-        logger.addHandler(logutils.Handler())
-        return logger
 
     @pytest.mark.parametrize('level,key', [(logging.DEBUG, 'DEBUG'),
                                            (logging.INFO, 'INFO'),
                                            (logging.WARNING, 'WARNING'),
                                            (logging.ERROR, 'ERROR')])
-    def testHandle(self, level, key, logger):
+    def testHandle(self, level, key):
+        hdlr = logutils.Handler()
+        logger = logging.Logger('test')
+        logger.addHandler(hdlr)
         logger.log(level=level, msg='first')
         logger.log(level=level, msg='second')
         logger.log(level=logging.CRITICAL, msg='third')
-        logs = logger.handlers[0].logs
-        assert 'third' == logs['CRITICAL']
+        assert 'third' == hdlr.logs['CRITICAL']
         msg = None if level == logging.DEBUG else 'first\nsecond'
-        assert msg == logs.get(key)
+        assert msg == hdlr.logs.get(key)
 
 
 class TestLogger:
@@ -95,16 +88,13 @@ class TestLogger:
     @pytest.mark.parametrize('name', ['/root/myname.py', 'myname'])
     @pytest.mark.parametrize('log', [True, False])
     @pytest.mark.parametrize('file', [True, False])
-    @pytest.mark.parametrize('debug,fmt',
-                             [('', '%(message)s'),
-                              ('1', '%(asctime)s %(levelname)s %(message)s')])
-    def testGet(self, name, log, file, debug, fmt, logger):
+    @pytest.mark.parametrize('debug', ['', '1'])
+    def testGet(self, name, log, file, debug, logger):
         has_hdlr = not (name.endswith('.py') and not debug)
         assert has_hdlr == bool(logger.handlers)
         assert has_hdlr == os.path.isfile(symbols.FN_DOCUMENT)
         if not has_hdlr:
             return
-        assert fmt == logger.handlers[0].formatter._fmt
         with open(symbols.FN_DOCUMENT) as fh:
             data = json.load(fh)
             assert file == ('jobname' in data.get('outfile', {}))
@@ -131,12 +121,25 @@ class TestLogger:
 
 class TestScript:
 
+    @pytest.mark.parametrize('ekey,evalue', [('MEM_INTVL', ''),
+                                             ('MEM_INTVL', '0.001')])
+    def testEnter(self, env, evalue, tmp_dir):
+        options = types.SimpleNamespace(hi='la', jobname='jobname')
+        logging.Logger.manager.loggerDict.pop(options.jobname, None)
+        with logutils.Script(options):
+            pass
+        with open('jobname.log') as fh:
+            data = fh.read()
+        assert '..........Options..........\n' in data
+        assert 'hi: la\n' in data
+        assert bool(evalue) == ('Peak memory usage:' in data)
+
     @pytest.mark.parametrize('is_raise,raise_type,msg',
                              [(False, None, 'Finished.'),
                               (True, ValueError, "ValueError: ('hi',)"),
                               (True, SystemExit, "E_R_R_O_R\nAborting...")])
-    def test(self, raise_type, check_raise, msg, tmp_dir):
-        options = types.SimpleNamespace(wa='1', hi='la', jobname='jobname')
+    def testExit(self, raise_type, check_raise, msg, tmp_dir):
+        options = types.SimpleNamespace(jobname='jobname')
         logging.Logger.manager.loggerDict.pop(options.jobname, None)
         with check_raise():
             with logutils.Script(options) as logger:

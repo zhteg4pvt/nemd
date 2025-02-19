@@ -12,6 +12,7 @@ This module provides conformer search using three methods.
 """
 import functools
 import itertools
+import logging
 import math
 import warnings
 
@@ -20,7 +21,6 @@ import numpy as np
 import pandas as pd
 import rdkit
 import scipy
-import logging
 
 from nemd import box
 from nemd import constants

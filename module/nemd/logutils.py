@@ -74,13 +74,13 @@ class Logger(logging.Logger):
     """
     A logger for driver so that customer-facing information can be saved.
     """
+    DEBUG_EXT = '.debug'
 
     def __init__(self, *args, **kwargs):
-        """
-        :param level int: the level of the logger
-        """
-        kwargs.setdefault('level', logging.DEBUG if DEBUG else logging.INFO)
         super().__init__(*args, **kwargs)
+        if self.level:
+            return
+        self.setLevel(logging.DEBUG if DEBUG else logging.INFO)
 
     def infoJob(self, options):
         """
@@ -119,75 +119,56 @@ class Logger(logging.Logger):
         sys.exit(1)
 
     @classmethod
-    def get(cls, name, log=False, file=False, fmt=None):
+    def get(cls, name, fmt='%(message)s', ext=symbols.LOG_EXT, **kwargs):
         """
         Get a module logger to print debug information.
 
         :param name str: logger name or the python script pathname
-        :param log bool: sets as the log file if True
-        :param file bool: set this file as the single output file
-        :param fmt str: the formatter of the handler
+        :param fmt str: the handler Formatter
+        :param ext str: the filename extension of the FileHandler
         :return 'logging.Logger': the logger
         """
-        if fmt is None:
-            fmt = '%(asctime)s %(levelname)s %(message)s' if DEBUG else '%(message)s'
-        isfile = name.endswith('.py')
-        if isfile:
+        if name.endswith('.py'):
             name, _ = os.path.splitext(os.path.basename(name))
-        # Either create new or retrieve previous logger
+            ext = cls.DEBUG_EXT
+        # Create new or retrieve previous
         logger_class = logging.getLoggerClass()
         logging.setLoggerClass(cls)
         logger = logging.getLogger(name)
         logging.setLoggerClass(logger_class)
-        if logger.handlers:
-            return logger
-        # File handler
-        if isfile and not DEBUG:
-            # No file handler for module logger outside the debug mode
+        if logger.handlers or (ext == cls.DEBUG_EXT and not DEBUG):
             return logger
         # File handler for driver/workflow in any mode and module in debug mode
-        outfile = f"{name}{'.debug' if isfile else symbols.LOG_EXT}"
-        jobutils.add_outfile(outfile, file=file, log=log)
-        hdlr = logging.FileHandler(outfile, mode='w')
+        filename = f"{name}{ext}"
+        jobutils.add_outfile(filename, **kwargs)
+        hdlr = logging.FileHandler(filename, mode='w')
         hdlr.setFormatter(logging.Formatter(fmt))
         logger.addHandler(hdlr)
         return logger
 
     @contextlib.contextmanager
-    def oneLine(self, level, separator=' ', fmt='%(message)s'):
+    def oneLine(self, level, separator=' '):
         """
         Print messages within one line to StreamHandler.
 
         :param level int: the logging level
         :param separator str: the separator between messages.
-        :param fmt str: the formatter of one message.
         :return `function`: the function to print one message as a word followed
             by a seperator within a line.
         """
-        fmt = logging.Formatter(fmt)
         try:
-            stream_handlers = [
-                x for x in self.handlers
-                if isinstance(x, logging.StreamHandler)
-            ]
-            terminators = {x: x.terminator for x in stream_handlers}
-            for handler in stream_handlers:
-                handler.terminator = ''
-            if self.isEnabledFor(level):
-                self._log(level, '', ())
-            for handler in stream_handlers:
+            terminators = {
+                x: x.terminator
+                for x in self.handlers if isinstance(x, logging.StreamHandler)
+            }
+            for handler in terminators.keys():
                 handler.terminator = separator
-            formatters = {x: x.formatter for x in stream_handlers}
-            for handler in stream_handlers:
-                handler.setFormatter(fmt)
             yield self.debug if level == logging.DEBUG else self.log
         finally:
             for handler, terminator in terminators.items():
                 handler.terminator = terminator
             if self.isEnabledFor(level):
                 self._log(level, '', ())
-            for handler, formatter in formatters.items():
-                handler.setFormatter(formatter)
 
 
 class Script:
@@ -231,7 +212,7 @@ class Script:
         :raise Exception: when in DEBUG mode
         """
         if self.memory:
-            self.logger.log(f"{self.MEMORY_FMT.format(self.memory.result)}")
+            self.logger.log(self.MEMORY_FMT.format(value=self.memory.result))
         if exc_type:
             while exc_tb.tb_next:
                 exc_tb = exc_tb.tb_next
