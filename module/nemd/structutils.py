@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 import rdkit
 import scipy
-from scipy.spatial.transform import Rotation
+import logging
 
 from nemd import box
 from nemd import constants
@@ -61,8 +61,8 @@ class GriddedConf(lmpfull.Conformer):
             vector
         """
         mtrx = np.identity(4)
-        rotation, _ = Rotation.align_vectors(tvect, ivect)
-        mtrx[:-1, :-1] = rotation.as_matrix()
+        rot, _ = scipy.spatial.transform.Rotation.align_vectors(tvect, ivect)
+        mtrx[:-1, :-1] = rot.as_matrix()
         rdkit.Chem.rdMolTransforms.TransformConformer(self, mtrx)
 
     def translate(self, vec=None, transform=None):
@@ -125,7 +125,8 @@ class PackedConf(GriddedConf):
         if seed is None:
             seed = np.random.randint(0, 2**32 - 1)
         mtrx = np.identity(4)
-        mtrx[:-1, :-1] = Rotation.random(random_state=seed).as_matrix()
+        rotation = scipy.spatial.transform.Rotation.random(random_state=seed)
+        mtrx[:-1, :-1] = rotation.as_matrix()
         rdkit.Chem.rdMolTransforms.TransformConformer(self, mtrx)
 
     def hasClash(self, aids=None):
@@ -699,7 +700,7 @@ class PackedStruct(Struct):
         """
         conf_num, placed = self.conformer_total, []
         for trial_id in range(1, max_trial + 1):
-            with logger.oneLine():
+            with logger.oneLine(logging.DEBUG) as log:
                 nth = -1
                 for conf_id, conf in enumerate(self.conformer):
                     try:
@@ -711,7 +712,7 @@ class PackedStruct(Struct):
                     if nth != math.floor((conf_id + 1) / conf_num * 10):
                         # Print progress every 10% if conformer number > 10
                         nth = math.floor((conf_id + 1) / conf_num * 10)
-                        logger.debug(f"{int((conf_id + 1) / conf_num * 100)}%")
+                        log(f"{int((conf_id + 1) / conf_num * 100)}%")
                 else:
                     # All molecules successfully placed
                     return
@@ -931,12 +932,12 @@ class GrownStruct(PackedStruct):
         Place the initiators into cell.
         """
         logger.debug(f'Placing {self.conformer_total} initiators...')
-        with logger.oneLine():
+        with logger.oneLine(logging.DEBUG) as log:
             tenth, threshold, = self.conformer_total / 10., 0
             for index, conf in enumerate(self.conformer, start=1):
                 conf.placeInitFrag()
                 if index >= threshold:
-                    logger.debug(f"{int(index / self.conformer_total * 100)}%")
+                    log(f"{int(index / self.conformer_total * 100)}%")
                     threshold = round(threshold + tenth, 1)
 
         logger.debug(f'{self.conformer_total} initiators have been placed.')

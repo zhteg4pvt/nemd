@@ -134,14 +134,14 @@ class Logger(logging.Logger):
         isfile = name.endswith('.py')
         if isfile:
             name, _ = os.path.splitext(os.path.basename(name))
-        # getLogger() either create new or retrieve previous logger
+        # Either create new or retrieve previous logger
         logger_class = logging.getLoggerClass()
         logging.setLoggerClass(cls)
         logger = logging.getLogger(name)
         logging.setLoggerClass(logger_class)
         if logger.handlers:
             return logger
-        # Add file handler
+        # File handler
         if isfile and not DEBUG:
             # No file handler for module logger outside the debug mode
             return logger
@@ -154,29 +154,37 @@ class Logger(logging.Logger):
         return logger
 
     @contextlib.contextmanager
-    def oneLine(self, terminator=' ', fmt='%(message)s'):
+    def oneLine(self, level, separator=' ', fmt='%(message)s'):
         """
-        Print messages within one line.
+        Print messages within one line to StreamHandler.
 
-        :param terminator: the separator between messages.
-        :param fmt: the formatter of one message.
+        :param level int: the logging level
+        :param separator str: the separator between messages.
+        :param fmt str: the formatter of one message.
+        :
         """
+        fmt = logging.Formatter(fmt)
         try:
-            terminators = {}
-            for handler in self.handlers:
-                if isinstance(handler, logging.StreamHandler):
-                    terminators[handler] = handler.terminator
-                    handler.terminator = terminator
-            self._log(self.level, '', ())
-            formatters, fmt = {}, logging.Formatter(fmt)
-            for handler in terminators.keys():
-                formatters[handler] = handler.formatter
+            stream_handlers = [
+                x for x in self.handlers
+                if isinstance(x, logging.StreamHandler)
+            ]
+            terminators = {x: x.terminator for x in stream_handlers}
+            for handler in stream_handlers:
+                handler.terminator = ''
+            if self.isEnabledFor(level):
+                self._log(level, '', ())
+            for handler in stream_handlers:
+                handler.terminator = separator
+            formatters = {x: x.formatter for x in stream_handlers}
+            for handler in stream_handlers:
                 handler.setFormatter(fmt)
-            yield
+            yield self.debug if level == logging.DEBUG else self.log
         finally:
             for handler, terminator in terminators.items():
                 handler.terminator = terminator
-            self._log(self.level, '', ())
+            if self.isEnabledFor(level):
+                self._log(level, '', ())
             for handler, formatter in formatters.items():
                 handler.setFormatter(formatter)
 

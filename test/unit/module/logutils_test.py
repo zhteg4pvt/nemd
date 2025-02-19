@@ -47,25 +47,6 @@ class TestHandler:
         assert msg == logs.get(key)
 
 
-# class TestFileHandler:
-#
-#     @pytest.fixture
-#     def hdlr(self, tmp_dir):
-#         return logutils.FileHandler('name.log')
-#
-#     @pytest.mark.parametrize('msgs,expected',
-#                              [(['hello', 'hi'], ['hello', 'hi']),
-#                               (['1[!n]', '2[!n]', '3'], ['1[!n]', '[!n]2[!n]', '[!n]3'])])
-#     def testEmit(self, msgs, expected, hdlr):
-#
-#         for msg, emsg in zip(msgs, expected):
-#             record = logging.LogRecord('', 10, '', 0, msg, None, None)
-#             with mock.patch.object(hdlr, 'format') as mocked:
-#                 mocked.return_value = ''
-#                 hdlr.emit(record)
-#             assert emsg == record.msg
-
-
 class TestLogger:
 
     @pytest.fixture
@@ -110,26 +91,6 @@ class TestLogger:
         assert 'hi\n' in lines[0]
         assert 'Aborting...\n' in lines[1]
 
-    @pytest.mark.parametrize('ekey,evalue', [('JOBNAME', 'jnm')])
-    @pytest.mark.parametrize('name', ['name'])
-    @pytest.mark.parametrize('log,file', [(False, False)])
-    @pytest.mark.parametrize('debug', ['', '1'])
-    @pytest.mark.parametrize('newline', [False, True])
-    def testDebug(self, name, debug, logger, newline):
-        logger.debug('hi', newline=newline)
-        logger.debug('wa', newline=newline)
-        logger.debug('last')
-        logfile = 'name.log' if name == 'name' else 'name.debug'
-        if not os.path.isfile(logfile):
-            return
-        with open(logfile) as fh:
-            data = fh.read()
-        if not debug:
-            assert not data
-            return
-        ending_str = 'DEBUG last\n' if newline else 'DEBUG hi, wa, last\n'
-        assert data.endswith(ending_str)
-
     @pytest.mark.parametrize('ekey,evalue', [('JOBNAME', 'jobname')])
     @pytest.mark.parametrize('name', ['/root/myname.py', 'myname'])
     @pytest.mark.parametrize('log', [True, False])
@@ -145,3 +106,21 @@ class TestLogger:
             data = json.load(fh)
             assert file == ('jobname' in data.get('outfile', {}))
             assert log == ('jobname' in data.get('logfile', {}))
+
+    @pytest.mark.parametrize('ekey,evalue', [('JOBNAME', 'jnm')])
+    @pytest.mark.parametrize('name', ['name', '/root/name.py'])
+    @pytest.mark.parametrize('log,file', [(False, False)])
+    @pytest.mark.parametrize('debug', ['', '1'])
+    def testOneLine(self, name, debug, logger):
+        with logger.oneLine(logging.DEBUG) as log:
+            log('hi')
+            log('wa')
+            log('last')
+        isfile = not (name.endswith('.py') and not debug)
+        logfile = 'name.log' if name == 'name' else 'name.debug'
+        assert isfile == os.path.isfile(logfile)
+        if not isfile:
+            return
+        with open(logfile) as fh:
+            data = fh.read()
+        assert data.endswith('hi wa last \n') if debug else not data
