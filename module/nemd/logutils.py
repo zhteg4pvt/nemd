@@ -72,15 +72,31 @@ class Handler(logging.Handler):
 
 class Logger(logging.Logger):
     """
-    A logger for driver so that customer-facing information can be saved.
+    A script logger to save information into a file.
     """
-    DEBUG_EXT = '.debug'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.level:
-            return
+        self.setUp()
+
+    def setUp(self, ext=symbols.LOG_EXT):
+        """
+        Set up the logger. (e.g., level, handler)
+
+        :param ext str: the filename extension of the FileHandler
+        """
         self.setLevel(logging.DEBUG if DEBUG else logging.INFO)
+        basename, name_ext = os.path.splitext(self.name)
+        if name_ext.startswith('.py'):
+            if not DEBUG:
+                return
+            ext = '.debug'
+        # File handler for driver/workflow in any mode and module in debug mode
+        filename = f"{basename}{ext}"
+        jobutils.add_outfile(filename)
+        hdlr = logging.FileHandler(filename, mode='w')
+        hdlr.setFormatter(logging.Formatter('%(message)s'))
+        self.addHandler(hdlr)
 
     def infoJob(self, options):
         """
@@ -119,31 +135,18 @@ class Logger(logging.Logger):
         sys.exit(1)
 
     @classmethod
-    def get(cls, name, fmt='%(message)s', ext=symbols.LOG_EXT, **kwargs):
+    def get(cls, name):
         """
         Get a module logger to print debug information.
 
         :param name str: logger name or the python script pathname
-        :param fmt str: the handler Formatter
-        :param ext str: the filename extension of the FileHandler
         :return 'logging.Logger': the logger
         """
-        if name.endswith('.py'):
-            name, _ = os.path.splitext(os.path.basename(name))
-            ext = cls.DEBUG_EXT
         # Create new or retrieve previous
         logger_class = logging.getLoggerClass()
         logging.setLoggerClass(cls)
-        logger = logging.getLogger(name)
+        logger = logging.getLogger(os.path.basename(name))
         logging.setLoggerClass(logger_class)
-        if logger.handlers or (ext == cls.DEBUG_EXT and not DEBUG):
-            return logger
-        # File handler for driver/workflow in any mode and module in debug mode
-        filename = f"{name}{ext}"
-        jobutils.add_outfile(filename, **kwargs)
-        hdlr = logging.FileHandler(filename, mode='w')
-        hdlr.setFormatter(logging.Formatter(fmt))
-        logger.addHandler(hdlr)
         return logger
 
     @contextlib.contextmanager
@@ -182,11 +185,9 @@ class Script:
         :param options str: the command-line options
         """
         self.options = options
+        self.kwargs = {**dict(log=True), **kwargs}
         self.logger = None
         self.memory = None
-        self.kwargs = kwargs
-        self.outfile = self.options.jobname + symbols.LOG_EXT
-        jobutils.add_outfile(self.outfile, **kwargs)
 
     def __enter__(self):
         """
@@ -194,7 +195,9 @@ class Script:
 
         :return `Logger`: the logger object to print messages
         """
-        self.logger = Logger.get(self.options.jobname, log=True, **self.kwargs)
+        self.logger = Logger.get(self.options.jobname)
+        logfile = os.path.basename(self.logger.handlers[0].baseFilename)
+        jobutils.add_outfile(logfile, **self.kwargs)
         self.logger.infoJob(self.options)
         intvl = envutils.get_mem_intvl()
         if intvl is not None:

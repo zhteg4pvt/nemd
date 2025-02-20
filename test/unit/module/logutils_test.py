@@ -43,15 +43,13 @@ class TestHandler:
 class TestLogger:
 
     @pytest.fixture
-    def logger(self, name, log, file, debug, env, tmp_dir):
-        logger_name, _ = os.path.splitext(os.path.basename(name))
-        logging.Logger.manager.loggerDict.pop(logger_name, None)
+    def logger(self, name, debug, env, tmp_dir):
+        logging.Logger.manager.loggerDict.pop(os.path.basename(name), None)
         with mock.patch('nemd.logutils.DEBUG') as mocked:
             mocked.__bool__.return_value = bool(debug)
-            return logutils.Logger.get(name, log=log, file=file)
+            return logutils.Logger.get(name)
 
     @pytest.mark.parametrize('name,ekey,evalue', [('name', 'JOBNAME', 'jnm')])
-    @pytest.mark.parametrize('log,file', [(False, False)])
     @pytest.mark.parametrize('debug', ['', '1'])
     def testInfoJob(self, logger):
         logger.infoJob(types.SimpleNamespace(wa=1, hi=[3, 6]))
@@ -63,7 +61,6 @@ class TestLogger:
         assert 'JobStart:' in data
 
     @pytest.mark.parametrize('name,ekey,evalue', [('name', 'JOBNAME', 'jnm')])
-    @pytest.mark.parametrize('log,file', [(False, False)])
     @pytest.mark.parametrize('debug', ['', '1'])
     @pytest.mark.parametrize('timestamp', [False, True])
     def testLog(self, timestamp, logger):
@@ -73,7 +70,6 @@ class TestLogger:
         assert (timestamp == False) == data.endswith('hi\n')
 
     @pytest.mark.parametrize('name,ekey,evalue', [('name', 'JOBNAME', 'jnm')])
-    @pytest.mark.parametrize('log,file', [(False, False)])
     @pytest.mark.parametrize('debug', ['', '1'])
     def testError(self, logger):
         with mock.patch('nemd.logutils.sys') as mocked:
@@ -86,23 +82,14 @@ class TestLogger:
 
     @pytest.mark.parametrize('ekey,evalue', [('JOBNAME', 'jobname')])
     @pytest.mark.parametrize('name', ['/root/myname.py', 'myname'])
-    @pytest.mark.parametrize('log', [True, False])
-    @pytest.mark.parametrize('file', [True, False])
     @pytest.mark.parametrize('debug', ['', '1'])
-    def testGet(self, name, log, file, debug, logger):
+    def testGet(self, name, debug, logger):
         has_hdlr = not (name.endswith('.py') and not debug)
         assert has_hdlr == bool(logger.handlers)
         assert has_hdlr == os.path.isfile(symbols.FN_DOCUMENT)
-        if not has_hdlr:
-            return
-        with open(symbols.FN_DOCUMENT) as fh:
-            data = json.load(fh)
-            assert file == ('jobname' in data.get('outfile', {}))
-            assert log == ('jobname' in data.get('logfile', {}))
 
     @pytest.mark.parametrize('ekey,evalue', [('JOBNAME', 'jnm')])
     @pytest.mark.parametrize('name', ['name', '/root/name.py'])
-    @pytest.mark.parametrize('log,file', [(False, False)])
     @pytest.mark.parametrize('debug', ['', '1'])
     def testOneLine(self, name, debug, logger):
         with logger.oneLine(logging.DEBUG) as log:
@@ -121,13 +108,18 @@ class TestLogger:
 
 class TestScript:
 
-    @pytest.mark.parametrize('ekey,evalue', [('MEM_INTVL', ''),
-                                             ('MEM_INTVL', '0.001')])
-    def testEnter(self, env, evalue, tmp_dir):
+    @pytest.mark.parametrize('ekey,evalue,log,file',
+                             [('MEM_INTVL', '', False, True),
+                              ('MEM_INTVL', '0.001', True, False)])
+    def testEnter(self, env, evalue, log, file, tmp_dir):
         options = types.SimpleNamespace(hi='la', jobname='jobname')
         logging.Logger.manager.loggerDict.pop(options.jobname, None)
-        with logutils.Script(options):
+        with logutils.Script(options, log=log, file=file):
             pass
+        with open(symbols.FN_DOCUMENT) as fh:
+            data = json.load(fh)
+        assert file == ('outfile' in data)
+        assert log == ('logfile' in data)
         with open('jobname.log') as fh:
             data = fh.read()
         assert '..........Options..........\n' in data
