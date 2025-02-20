@@ -113,7 +113,7 @@ class Amorphous(logutils.Base):
                 continue
             else:
                 return
-        self.log_error(
+        self.error(
             f"Amorphous structure cannot be built with density as low as "
             f"{density} g/cm^3")
 
@@ -123,7 +123,7 @@ class Amorphous(logutils.Base):
         """
         self.struct.writeData()
         for warning in self.struct.getWarnings():
-            self.log_warning(f'{warning}')
+            self.warning(f'{warning}')
         self.struct.writeIn()
         self.log(f'Data file written into {self.struct.datafile}')
         self.log(f'In script written into {self.struct.inscript}')

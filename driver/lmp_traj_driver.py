@@ -71,7 +71,7 @@ class Traj(logutils.Base):
         self.traj = traj.Traj(self.options.traj, options=self.options)
         self.traj.load()
         if len(self.traj) == 0:
-            self.log_error(f'{self.options.traj} contains no frames.')
+            self.error(f'{self.options.traj} contains no frames.')
         # Report the number of frames, (starting time), and ending time
         self.log(f"{len(self.traj)} trajectory frames found.")
         if self.traj.tasks:

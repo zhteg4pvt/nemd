@@ -36,7 +36,7 @@ STATUS_LOG = f'_status{LOG}'
 logger = logutils.DebugLogger.get(__file__)
 
 
-def log_debug(msg):
+def debug(msg):
 
     if logger is None:
         return
@@ -193,7 +193,7 @@ class LammpsInput(LammpsBase):
 
             expected = self.ALL_ITEMS.get(cmd_key)
             if not expected:
-                log_debug(f"{cmd_key} is not a known key.")
+                debug(f"{cmd_key} is not a known key.")
                 continue
             if len(cmd_values) == 1:
                 cmd_value = cmd_values[0]
@@ -308,10 +308,10 @@ class EnergyReader(object):
                 self.start_line_num += 1
                 if one_line.startswith(self.THERMO_SPACE):
                     # thermo 1000
-                    log_debug(one_line)
+                    debug(one_line)
                     self.thermo_intvl = int(one_line.split()[-1])
                 elif one_line.startswith(self.RUN):
-                    log_debug(one_line)
+                    debug(one_line)
                     # run 400000000
                     self.total_step_num = int(one_line.split()[-1])
                 one_line = file_energy.readline()
@@ -324,7 +324,7 @@ class EnergyReader(object):
             }
 
     def loadData(self):
-        log_debug(
+        debug(
             f'Loading {self.total_line_num} lines of {self.energy_file} starting from line {self.start_line_num}'
         )
         try:
@@ -335,7 +335,7 @@ class EnergyReader(object):
         except ValueError as err:
             # Wrong number of columns at line 400003
             err_str = str(err)
-            log_debug(err_str + f' in loading {self.energy_file}: {err_str}')
+            debug(err_str + f' in loading {self.energy_file}: {err_str}')
             self.total_line_num = int(
                 err_str.split()[-1]) - self.start_line_num - 1
         else:

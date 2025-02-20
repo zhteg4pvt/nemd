@@ -147,7 +147,7 @@ class Lammps(logutils.Base):
             return
         with open(self.outfile, 'r') as fh:
             matches = self.ERROR_RE.finditer(fh.read())
-            self.log_error('\n'.join(x.group(1) for x in matches))
+            self.error('\n'.join(x.group(1) for x in matches))
 
 
 def main(argv):

@@ -65,7 +65,7 @@ class TestAmorphous:
         assert np.allclose(edges, amorp.struct.box.hi, atol=0.01)
 
     @mock.patch('nemd.structutils.PackedStruct.runWithDensity')
-    @mock.patch('amorp_bldr_driver.log_error')
+    @mock.patch('amorp_bldr_driver.error')
     @pytest.mark.parametrize("argv,threshold,density",
                              [(['[Ar]', '-density', '2.65'], 2.63, 2.55),
                               (['[Ar]', '-density', '2.5'], 0.25, 0.2),

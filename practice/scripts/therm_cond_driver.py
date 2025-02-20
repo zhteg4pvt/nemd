@@ -29,7 +29,7 @@ LOG_LAMMPS = 'log.lammps'
 JOBNAME = os.path.basename(__file__).split('.')[0].replace('_driver', '')
 
 
-def log_debug(msg):
+def debug(msg):
     if logger:
         logger.debug(msg)
 
@@ -40,7 +40,7 @@ def log(msg, timestamp=False):
     logutils.log(logger, msg, timestamp=timestamp)
 
 
-def log_error(msg):
+def error(msg):
     log(msg + '\nAborting...', timestamp=True)
     sys.exit(1)
 
@@ -136,7 +136,7 @@ class Nemd(object):
         try:
             self.loadLog()
         except ValueError as err:
-            log_error(str(err))
+            error(str(err))
         self.loadTemp()
         self.loadEne()
         self.plot()

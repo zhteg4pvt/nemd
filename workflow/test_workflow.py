@@ -67,7 +67,7 @@ class Test(jobcontrol.Runner, logutils.Base):
             dirs = glob.glob(os.path.join(self.options.dir, '[0-9]' * 4))
 
         if not dirs:
-            self.log_error(f'No valid tests found in {self.options.dir}.')
+            self.error(f'No valid tests found in {self.options.dir}.')
 
         if any([self.options.slow, self.options.label]):
             dirs = [
@@ -75,7 +75,7 @@ class Test(jobcontrol.Runner, logutils.Base):
                 if test.Tag(x, options=self.options).selected()
             ]
         if not dirs:
-            self.log_error('All tests are skipped according to the tag file.')
+            self.error('All tests are skipped according to the tag file.')
         return dirs
 
     def setAggJobs(self):

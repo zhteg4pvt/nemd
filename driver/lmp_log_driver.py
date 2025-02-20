@@ -53,7 +53,7 @@ class Log(logutils.Base):
         lmp_log.run()
         self.thermo = lmp_log.thermo
         if self.thermo.empty:
-            self.log_error(f"No thermo output found in {self.options.log}.")
+            self.error(f"No thermo output found in {self.options.log}.")
         self.log(f"{self.thermo.shape[0]} steps of thermo data found.")
         self.log(f"Averages results from {self.thermo.range[0]:.3f} ps to "
                  f"{self.thermo.range[1]:.3f} ps")
@@ -70,8 +70,8 @@ class Log(logutils.Base):
         tasks = set(self.options.task)
         self.options.task = tasks.intersection(avail)
         missed = symbols.COMMA_SEP.join(tasks.difference(self.options.task))
-        self.log_warning(f"{missed} tasks cannot be found out of "
-                         f"{symbols.COMMA_SEP.join(avail)}.")
+        self.warning(f"{missed} tasks cannot be found out of "
+                     f"{symbols.COMMA_SEP.join(avail)}.")
 
     def analyze(self):
         """

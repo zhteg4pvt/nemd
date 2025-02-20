@@ -31,5 +31,6 @@ JobStart: 19:46:58 02/15/2025
 [19:46:59] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
 Data file written into amorp_bldr.data
 In script written into amorp_bldr.in
+Peak memory usage: 183.6974 MB
 Finished.
 19:47:07 02/15/2025

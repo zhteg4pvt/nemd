@@ -179,7 +179,7 @@ class Runner(logutils.Base):
             self.jobs.append(job)
 
         if not self.jobs:
-            self.log_error('No jobs to run.')
+            self.error('No jobs to run.')
 
     def cleanJobs(self):
         """
@@ -314,7 +314,7 @@ class Runner(logutils.Base):
         try:
             self.agg_project = flow.project.FlowProject.get_project(prj)
         except LookupError as err:
-            self.log_error(str(err))
+            self.error(str(err))
 
     def cleanAggJobs(self, filter=None):
         """
@@ -344,7 +344,7 @@ class Runner(logutils.Base):
             self.agg_project.run(np=1, progress=prog)
         except IndexError:
             # workspace dir removed
-            self.log_error(f"no jobs to aggregate.")
+            self.error(f"no jobs to aggregate.")
 
     def setPreAfter(self, pre, cur):
         """

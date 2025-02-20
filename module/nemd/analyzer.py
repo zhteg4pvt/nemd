@@ -371,7 +371,7 @@ class Clash(TrajBase):
         if self.data is not None:
             return
         if not self.gids:
-            self.log_warning("No atoms selected for clash counting.")
+            self.warning("No atoms selected for clash counting.")
             self.data = pd.DataFrame({self.LABEL: []})
             return
         dcell = dist.Cell(gids=set(self.gids), struct=self.df_reader)
@@ -404,7 +404,7 @@ class RDF(Clash):
         if self.data is not None:
             return
         if len(self.gids) < 2:
-            self.log_warning("RDF requires least two atoms selected.")
+            self.warning("RDF requires least two atoms selected.")
             self.data = pd.DataFrame(data={self.LABEL: []})
             return
 
@@ -422,7 +422,7 @@ class RDF(Clash):
         rdf, num = np.zeros((bins)), len(self.gids)
         tenth, threshold, = len(self.traj.sel) / 10., 0
         for idx, frm in enumerate(self.traj.sel, start=1):
-            self.log_debug(f"Analyzing frame {idx} for RDF..")
+            self.debug(f"Analyzing frame {idx} for RDF..")
             dists = dcell.getDists(frm)
             hist, edge = np.histogram(dists, range=hist_range, bins=bins)
             mid = np.array([x for x in zip(edge[:-1], edge[1:])]).mean(axis=1)
@@ -493,7 +493,7 @@ class MSD(RDF):
         if self.data is not None:
             return
         if not self.gids:
-            self.log_warning("No atoms selected for MSD.")
+            self.warning("No atoms selected for MSD.")
             self.data = pd.DataFrame({self.LABEL: []})
             return
         gids = list(self.gids)

@@ -19,7 +19,7 @@ FLAG_Z_CELL_NUM = '-z_cell_num'
 JOBNAME = os.path.basename(__file__).split('.')[0].replace('_driver', '')
 
 
-def log_debug(msg):
+def debug(msg):
     if logger:
         logger.debug(msg)
 

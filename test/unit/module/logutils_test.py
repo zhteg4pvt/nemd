@@ -181,7 +181,7 @@ class TestReader:
     def reader(self, data):
         return logutils.Reader(data)
 
-    @pytest.mark.parametrize('data,num', [(AMORP_LOG, 35), (MB_LMP_LOG, 59)])
+    @pytest.mark.parametrize('data,num', [(AMORP_LOG, 36), (MB_LMP_LOG, 59)])
     def testRead(self, num, raw):
         assert num == len(raw.lines)
 
@@ -192,7 +192,7 @@ class TestReader:
         assert debug == raw.options.debug
         assert 2 == len(raw.options.JobStart)
 
-    @pytest.mark.parametrize('data,onum,num', [(AMORP_LOG, 28, 5),
+    @pytest.mark.parametrize('data,onum,num', [(AMORP_LOG, 28, 6),
                                                (MB_LMP_LOG, 34, 23)])
     def testCropOptions(self, onum, num, raw):
         assert onum == len(raw.cropOptions())
@@ -211,10 +211,38 @@ class TestReader:
     def testTime(self, dtype, expected, reader):
         assert expected == str(reader.time(dtype=dtype))
 
-    @pytest.mark.parametrize(
-        'data,mem',
-        [(AMORP_LOG, None),
-         (os.path.join(ITEST_DIR, '5298ba6e8ee5816f98390647debcfa26',
-                       'amorp_bldr.log'), 183.6974)])
+    @pytest.mark.parametrize('data,mem', [(AMORP_LOG, 183.6974),
+                                          (MB_LMP_LOG, None)])
     def testMemory(self, mem, reader):
         assert mem == reader.memory
+
+
+class TestBase:
+
+    @pytest.fixture
+    def base(self):
+        return logutils.Base(logger=mock.Mock())
+
+    @mock.patch('nemd.logutils.print')
+    @pytest.mark.parametrize('has_logger', [False, True])
+    def testDebug(self, mocked, has_logger):
+        base = logutils.Base(logger=mock.Mock() if has_logger else None)
+        base.debug('msg')
+        (base.logger.debug if has_logger else mocked).assert_called_with('msg')
+
+    @mock.patch('nemd.logutils.print')
+    @pytest.mark.parametrize('has_logger', [False, True])
+    def testLog(self, mocked, has_logger):
+        base = logutils.Base(logger=mock.Mock() if has_logger else None)
+        base.log('msg')
+        (base.logger.log if has_logger else mocked).assert_called_with('msg')
+
+    def testWarning(self, base):
+        base.warning('msg')
+        base.logger.log.assert_called_with("WARNING: msg")
+
+    @mock.patch('nemd.logutils.sys')
+    def testError(self, mocked, base):
+        base.error('msg')
+        base.logger.log.assert_called_with("msg\nAborting...", timestamp=True)
+        mocked.exit.assert_called_with(1)

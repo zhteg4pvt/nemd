@@ -1,1 +1,1 @@
-collect_log(time,memory) && exist(0049.csv, 0049_time_memory.png)
+collect_log(time,memory) && glob(0049.csv, 0049_time*.png)
