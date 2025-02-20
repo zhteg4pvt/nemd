@@ -210,3 +210,11 @@ class TestReader:
                               ('delta', '0:00:09')])
     def testTime(self, dtype, expected, reader):
         assert expected == str(reader.time(dtype=dtype))
+
+    @pytest.mark.parametrize(
+        'data,mem',
+        [(AMORP_LOG, None),
+         (os.path.join(ITEST_DIR, '5298ba6e8ee5816f98390647debcfa26',
+                       'amorp_bldr.log'), 183.6974)])
+    def testMemory(self, mem, reader):
+        assert mem == reader.memory

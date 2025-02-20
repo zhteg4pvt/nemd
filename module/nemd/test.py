@@ -436,7 +436,8 @@ class CollectLog(Exist):
                 fig = plt.figure(figsize=(10, 6))
                 ax1 = fig.add_subplot(1, 1, 1)
                 data = self.data.get(label)
-                twinx = key == self.TIME and self.MEMORY in self.args
+                twinx = key == self.TIME and self.MEMORY in self.args and not self.data[
+                    self.MEMORY_LB].isnull().all()
                 color = 'g' if twinx else 'k'
                 ax1.plot(self.data.index, data, f'{color}-.*')
                 ax1.set_xlabel(self.data.index.name)

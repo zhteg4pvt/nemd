@@ -28,7 +28,7 @@ class LogReader(logutils.Reader):
         :param smiles str: the substructure smiles
         :return str: the value of the substructure
         """
-        for line in self.lines[self.sidx:]:
+        for line in self.lines:
             if not line.startswith(smiles):
                 continue
             # e.g. 'CCCC dihedral angle: 73.50 deg'
