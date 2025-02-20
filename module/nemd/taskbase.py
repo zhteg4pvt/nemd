@@ -311,7 +311,6 @@ class AggJob(Base):
                     log = logutils.Reader(job.fn(filename))
                 except FileNotFoundError:
                     continue
-                log.run()
                 info.append([log.options.NAME, log.task_time, job.id])
         info = pd.DataFrame(info, columns=[self.NAME, self.TIME, self.ID])
         # Group the jobs by the labels
@@ -331,7 +330,7 @@ class AggJob(Base):
             self.message = False
             return
         total_time = timeutils.delta2str(info.time.sum())
-        self.log(logutils.Reader.TOTOAL_TIME + total_time)
+        self.log(logutils.Reader.TOTAL_TIME + total_time)
         self.log(data.fillna('').to_markdown(index=False))
         self.message = False
 

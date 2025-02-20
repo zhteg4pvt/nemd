@@ -43,67 +43,59 @@ class TestHandler:
 class TestLogger:
 
     @pytest.fixture
-    def logger(self, name, debug, env, tmp_dir):
-        logging.Logger.manager.loggerDict.pop(os.path.basename(name), None)
+    def logger(self, tmp_dir):
+        return logutils.Logger('name')
+
+    @pytest.mark.parametrize('name', ['myname.py', 'myname'])
+    @pytest.mark.parametrize('debug', ['', '1'])
+    def testSetUp(self, name, debug, tmp_dir):
+        logger = logutils.Logger(name, delay=True)
         with mock.patch('nemd.logutils.DEBUG') as mocked:
             mocked.__bool__.return_value = bool(debug)
-            return logutils.Logger.get(name)
+            logger.setUp()
+        has_hdlr = not (name.endswith('.py') and not debug)
+        assert has_hdlr == bool(logger.handlers)
 
-    @pytest.mark.parametrize('name,ekey,evalue', [('name', 'JOBNAME', 'jnm')])
-    @pytest.mark.parametrize('debug', ['', '1'])
     def testInfoJob(self, logger):
         logger.infoJob(types.SimpleNamespace(wa=1, hi=[3, 6]))
-        with open('name.log') as fh:
+        with open(logger.handlers[0].baseFilename) as fh:
             data = fh.read()
         assert '...Options...' in data
         assert 'wa: 1\n' in data
         assert 'hi: 3 6\n' in data
         assert 'JobStart:' in data
 
-    @pytest.mark.parametrize('name,ekey,evalue', [('name', 'JOBNAME', 'jnm')])
-    @pytest.mark.parametrize('debug', ['', '1'])
     @pytest.mark.parametrize('timestamp', [False, True])
     def testLog(self, timestamp, logger):
         logger.log('hi', timestamp=timestamp)
-        with open('name.log') as fh:
+        with open(logger.handlers[0].baseFilename) as fh:
             data = fh.read()
         assert (timestamp == False) == data.endswith('hi\n')
 
-    @pytest.mark.parametrize('name,ekey,evalue', [('name', 'JOBNAME', 'jnm')])
-    @pytest.mark.parametrize('debug', ['', '1'])
     def testError(self, logger):
         with mock.patch('nemd.logutils.sys') as mocked:
             logger.error('hi')
             assert mocked.exit.called
-        with open('name.log') as fh:
+        with open(logger.handlers[0].baseFilename) as fh:
             lines = fh.readlines()
         assert 'hi\n' in lines[0]
         assert 'Aborting...\n' in lines[1]
 
-    @pytest.mark.parametrize('ekey,evalue', [('JOBNAME', 'jobname')])
-    @pytest.mark.parametrize('name', ['/root/myname.py', 'myname'])
-    @pytest.mark.parametrize('debug', ['', '1'])
-    def testGet(self, name, debug, logger):
-        has_hdlr = not (name.endswith('.py') and not debug)
-        assert has_hdlr == bool(logger.handlers)
-        assert has_hdlr == os.path.isfile(symbols.FN_DOCUMENT)
+    def testGet(self, tmp_dir):
+        logging.Logger.manager.loggerDict.pop('jobname', None)
+        created = logutils.Logger.get('jobname')
+        assert isinstance(created, logutils.Logger)
+        previous = logutils.Logger.get('jobname')
+        assert created == previous
 
-    @pytest.mark.parametrize('ekey,evalue', [('JOBNAME', 'jnm')])
-    @pytest.mark.parametrize('name', ['name', '/root/name.py'])
-    @pytest.mark.parametrize('debug', ['', '1'])
-    def testOneLine(self, name, debug, logger):
+    def testOneLine(self, logger):
         with logger.oneLine(logging.DEBUG) as log:
             log('hi')
             log('wa')
             log('last')
-        isfile = not (name.endswith('.py') and not debug)
-        logfile = 'name.log' if name == 'name' else 'name.debug'
-        assert isfile == os.path.isfile(logfile)
-        if not isfile:
-            return
-        with open(logfile) as fh:
+        with open(logger.handlers[0].baseFilename) as fh:
             data = fh.read()
-        assert data.endswith('hi wa last \n') if debug else not data
+        assert data.endswith('hi wa last \n')
 
 
 class TestScript:

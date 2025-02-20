@@ -75,8 +75,13 @@ class Logger(logging.Logger):
     A script logger to save information into a file.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, delay=False, **kwargs):
+        """
+        :param delay bool: if True, delay the reading of the log file
+        """
         super().__init__(*args, **kwargs)
+        if delay:
+            return
         self.setUp()
 
     def setUp(self, ext=symbols.LOG_EXT):
@@ -234,33 +239,32 @@ class Reader:
     A class to read the log file.
     """
 
-    INFO_SEP = ' INFO '
-    TOTOAL_TIME = 'Task Total Timing: '
+    TOTAL_TIME = 'Task Total Timing: '
     MEMORY_RE = re.compile(fr'{PEAK_MEMORY_USAGE}: (\d+.\d+) (\w+)')
     TIME_LEN = len(timeutils.ctime())
     START = 'start'
     END = 'end'
     DELTA = 'delta'
 
-    def __init__(self, filepath, delay=False):
+    def __init__(self, namepath, delay=False):
         """
         Initialize the LogReader object.
 
-        :param filepath str: the log filepath
+        :param namepath str: the log namepath
         :param delay bool: if True, delay the reading of the log file
         """
-        self.filepath = filepath
+        self.namepath = namepath
         self.lines = None
         self.options = None
         self.sidx = None
         self.delay = delay
         if self.delay:
             return
-        self.run()
+        self.setUp()
 
-    def run(self):
+    def setUp(self):
         """
-        Run the log reader.
+        Setup the log reader.
         """
         self.read()
         self.setOptions()
@@ -269,10 +273,8 @@ class Reader:
         """
         Read the log file.
         """
-        with open(self.filepath, 'r') as fh:
-            self.lines = [
-                x.split(self.INFO_SEP)[-1].strip() for x in fh.readlines()
-            ]
+        with open(self.namepath, 'r') as fh:
+            self.lines = [x.strip() for x in fh.readlines()]
 
     def setOptions(self):
         """
@@ -280,12 +282,12 @@ class Reader:
         """
         block = None
         for idx, line in enumerate(self.lines):
-            if line.endswith(OPTIONS_END):
+            if line == OPTIONS_END:
                 self.sidx = idx + 1
                 break
             if block is not None:
                 block.append(line)
-            if line.endswith(OPTIONS_START):
+            if line == OPTIONS_START:
                 block = []
         options = {}
         for line in block:
@@ -303,9 +305,9 @@ class Reader:
         :return 'datetime.timedelta': the task time
         """
         for line in self.lines[self.sidx:]:
-            if not line.startswith(self.TOTOAL_TIME):
+            if not line.startswith(self.TOTAL_TIME):
                 continue
-            task_time = line.split(self.TOTOAL_TIME)[-1].strip()
+            task_time = line.split(self.TOTAL_TIME)[-1].strip()
             return timeutils.str2delta(task_time)
         # No total task timing found (driver log instead of workflow log)
         return self.time()
