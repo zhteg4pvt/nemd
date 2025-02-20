@@ -6,7 +6,7 @@ from nemd import envutils
 from nemd import parserutils
 from nemd import polymutils
 
-TEST_DIR = envutils.test_file('polym_builder')
+TEST_DIR = envutils.test_data('polym_builder')
 
 
 def get_parser():

@@ -6,8 +6,8 @@ import pytest
 
 from nemd import envutils
 
-LOG = envutils.test_file('ar', 'gas', 'lammps.log')
-DATA_FILE = envutils.test_file('ar', 'gas', 'ar100.data')
+LOG = envutils.test_data('ar', 'gas', 'lammps.log')
+DATA_FILE = envutils.test_data('ar', 'gas', 'ar100.data')
 
 
 class TestLmpLog:

@@ -1,4 +1,4 @@
-..........Command Options..........
+..........Options..........
 cru: [Ar]
 cru_num: 1
 mol_num: 100
@@ -27,7 +27,7 @@ python: 2
 cpu: 1
 debug: None
 JobStart: 19:46:58 02/15/2025
-...................................
+...........................
 [19:46:59] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
 Data file written into amorp_bldr.data
 In script written into amorp_bldr.in

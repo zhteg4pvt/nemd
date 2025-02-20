@@ -7,11 +7,11 @@ from nemd import molview
 from nemd import oplsua
 from nemd import traj
 
-COOH123 = envutils.test_file(os.path.join('polym_builder', 'cooh123.data'))
-NACL_DATA = envutils.test_file(os.path.join('trajs', 'NaCl.data'))
-NACL_CUSTOM = envutils.test_file(os.path.join('trajs', 'NaCl.custom'))
-CC_DATA = envutils.test_file(os.path.join('trajs', 'CC.data'))
-CC_CUSTOM = envutils.test_file(os.path.join('trajs', 'CC.custom'))
+COOH123 = envutils.test_data(os.path.join('polym_builder', 'cooh123.data'))
+NACL_DATA = envutils.test_data(os.path.join('trajs', 'NaCl.data'))
+NACL_CUSTOM = envutils.test_data(os.path.join('trajs', 'NaCl.custom'))
+CC_DATA = envutils.test_data(os.path.join('trajs', 'CC.data'))
+CC_CUSTOM = envutils.test_data(os.path.join('trajs', 'CC.custom'))
 
 
 class TestTransConformer(object):

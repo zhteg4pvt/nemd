@@ -7,7 +7,7 @@ from nemd import envutils
 from nemd import traj
 
 TRAJS = 'trajs'
-BASE_DIR = envutils.test_file(TRAJS)
+BASE_DIR = envutils.test_data(TRAJS)
 CC3COOH = os.path.join(BASE_DIR, 'CC3COOH.custom')
 CC3COOH_RANDOMIZED = os.path.join(BASE_DIR, 'CC3COOH_randomized.custom')
 

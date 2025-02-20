@@ -85,7 +85,7 @@ class TestFunc:
 
     @pytest.mark.parametrize("args", [('dirname', 'filename')])
     def testGetModuleDir(self, args):
-        assert envutils.test_file(*args).endswith(os.path.join(*args))
+        assert envutils.test_data(*args).endswith(os.path.join(*args))
 
     @pytest.mark.parametrize("module,base,args,endswith",
                              [('nemd', None, ('ff', ), 'nemd/data/ff'),

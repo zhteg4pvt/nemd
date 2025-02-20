@@ -133,9 +133,9 @@ def get_module_dir(name=NEMD):
     return os.path.dirname(importlib.util.find_spec(name).origin)
 
 
-def test_file(*args):
+def test_data(*args):
     """
-    Get the pathname of a test file.
+    Get the pathname of the test data.
 
     :param args str list: the directory and file name of the test file.
     :return str: the pathname

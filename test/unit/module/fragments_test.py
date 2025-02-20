@@ -15,7 +15,7 @@ BENZENE = 'C1=CC=CC=C1'
 CC3COOH = '[H]OC(=O)CCC(CC(C)C(=O)O[H])C(=O)O[H]'
 COOHPOLYM = 'This is the above SMILES with polymer properties marked'
 POLYM_BUILDER = 'polym_builder'
-BASE_DIR = envutils.test_file(POLYM_BUILDER)
+BASE_DIR = envutils.test_data(POLYM_BUILDER)
 BUTANE_DATA = os.path.join(BASE_DIR, 'butane.data')
 
 
@@ -264,7 +264,7 @@ class TestFragMols:
         mol1 = getMol(self.SMILES1, mol_id=1)
         mol2 = getMol(self.SMILES2, mol_id=2)
         mol3 = getMol(self.SMILES3, mol_id=3)
-        data_file = envutils.test_file(
+        data_file = envutils.test_data(
             os.path.join('polym_builder', 'cooh6x3.data'))
         box = [
             0, 19.321654197203486, 0, 19.321654197203486, 0, 19.321654197203486

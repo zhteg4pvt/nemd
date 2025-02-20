@@ -9,10 +9,10 @@ from nemd import envutils
 from nemd import task
 from nemd import traj
 
-AR_IN = envutils.test_file('ar', 'gas', 'ar100.in')
-AR_DATA = envutils.test_file('ar', 'gas', 'ar100.data')
-AR_CUSTOM = envutils.test_file('ar', 'gas', 'ar100.custom')
-AR_CUSTOM_GZ = envutils.test_file('ar', 'gas', 'ar100.custom.gz')
+AR_IN = envutils.test_data('ar', 'gas', 'ar100.in')
+AR_DATA = envutils.test_data('ar', 'gas', 'ar100.data')
+AR_CUSTOM = envutils.test_data('ar', 'gas', 'ar100.custom')
+AR_CUSTOM_GZ = envutils.test_data('ar', 'gas', 'ar100.custom.gz')
 
 
 class TestValidator:

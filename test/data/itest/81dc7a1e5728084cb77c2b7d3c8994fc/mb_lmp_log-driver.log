@@ -1,4 +1,4 @@
-..........Command Options..........
+..........Options..........
 struct_rg: ('CCCC', 0.0, 10.0, 5.0)
 cru: CCCC
 cru_num: None
@@ -33,7 +33,7 @@ clean: False
 jtype: task, aggregator
 prj_path: .
 JobStart: 19:37:58 11/06/24
-...................................
+...........................
 2 / 2 completed jobs.
 2 / 2 succeeded jobs.
 2 jobs found for aggregation.

@@ -9,7 +9,7 @@ from nemd import rdkitutils
 
 BUTANE = 'CCCC'
 CC3COOH = '[H]OC(=O)CCC(CC(C)C(=O)O[H])C(=O)O[H]'
-BUTANE_DATA = envutils.test_file(os.path.join('polym_builder', 'cooh123.data'))
+BUTANE_DATA = envutils.test_data(os.path.join('polym_builder', 'cooh123.data'))
 
 
 class TestOplsTyper:

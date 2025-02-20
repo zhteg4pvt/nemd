@@ -21,11 +21,10 @@ from nemd import psutils
 from nemd import symbols
 from nemd import timeutils
 
+STDERR = 'stderr'
 JOBSTART = 'JobStart:'
 FINISHED = 'Finished.'
 OPTIONS = 'Options'
-OPTIONS_START = f'..........{OPTIONS}..........'
-OPTIONS_END = OPTIONS_START.replace(OPTIONS, '.' * len(OPTIONS))
 COLON_SEP = f'{symbols.COLON} '
 PEAK_MEMORY_USAGE = 'Peak memory usage'
 
@@ -37,17 +36,24 @@ def redirect(*args, logger=None, **kwargs):
     https://eli.thegreenplace.net/2015/redirecting-all-kinds-of-stdout-in-python/
 
     :param logger 'logging.Logger': the logger to print the out and err messages.
+    :return dict: the redirected stdout and stderr
     """
-    stdout = io.StringIO()
+    redirected = {}
+    out = {x: io.StringIO() for x in ['stdout', STDERR]}
     try:
-        with wurlitzer.pipes(stdout=stdout, stderr=wurlitzer.STDOUT):
-            yield None
+        with wurlitzer.pipes(**out):
+            yield redirected
     finally:
+        out = {x: y.getvalue() for x, y in out.items()}
+        out = {x: y for x, y in out.items() if y}
+        for key, value in out.items():
+            redirected[key] = value
         if logger is None:
             return
-        out = stdout.getvalue()
-        if out:
-            logger.warning(out)
+        for key, msg in redirected.items():
+            if key == STDERR:
+                logger.info(f'The following {STDERR} is found:')
+            logger.info(msg)
 
 
 class Handler(logging.Handler):
@@ -55,8 +61,8 @@ class Handler(logging.Handler):
     This handler saves the records instead of printing.
     """
 
-    def __init__(self, level=logging.INFO):
-        super().__init__(level=level)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.logs = {}
 
     def handle(self, record):
@@ -74,6 +80,8 @@ class Logger(logging.Logger):
     """
     A script logger to save information into a file.
     """
+    OPTIONS_START = f'..........{OPTIONS}..........'
+    OPTIONS_END = OPTIONS_START.replace(OPTIONS, '.' * len(OPTIONS))
 
     def __init__(self, *args, delay=False, **kwargs):
         """
@@ -109,13 +117,13 @@ class Logger(logging.Logger):
 
         :param options 'argparse.Namespace': command-line options
         """
-        self.info(OPTIONS_START)
+        self.info(self.OPTIONS_START)
         for key, val in options.__dict__.items():
             if type(val) is list:
                 val = symbols.SPACE.join(map(str, val))
             self.info(f"{key}{COLON_SEP}{val}")
         self.info(f"{JOBSTART} {timeutils.ctime()}")
-        self.info(OPTIONS_END)
+        self.info(self.OPTIONS_END)
 
     def log(self, msg, timestamp=False):
         """
@@ -164,6 +172,7 @@ class Logger(logging.Logger):
         :return `function`: the function to print one message as a word followed
             by a seperator within a line.
         """
+        assert level != logging.ERROR
         try:
             terminators = {
                 x: x.terminator
@@ -171,7 +180,15 @@ class Logger(logging.Logger):
             }
             for handler in terminators.keys():
                 handler.terminator = separator
-            yield self.debug if level == logging.DEBUG else self.log
+            match level:
+                case logging.DEBUG:
+                    yield self.debug
+                case logging.INFO:
+                    yield self.log
+                case logging.WARNING:
+                    yield self.warning
+                case logging.CRITICAL:
+                    yield self.critical
         finally:
             for handler, terminator in terminators.items():
                 handler.terminator = terminator
@@ -256,16 +273,9 @@ class Reader:
         self.namepath = namepath
         self.lines = None
         self.options = None
-        self.sidx = None
         self.delay = delay
         if self.delay:
             return
-        self.setUp()
-
-    def setUp(self):
-        """
-        Setup the log reader.
-        """
         self.read()
         self.setOptions()
 
@@ -280,22 +290,32 @@ class Reader:
         """
         Set the options from the log file.
         """
-        block = None
-        for idx, line in enumerate(self.lines):
-            if line == OPTIONS_END:
-                self.sidx = idx + 1
-                break
-            if block is not None:
-                block.append(line)
-            if line == OPTIONS_START:
-                block = []
         options = {}
-        for line in block:
+        for line in self.cropOptions():
             key, val = line.split(COLON_SEP)
             key = key.split()[-1]
             vals = val.split()
             options[key] = val if len(vals) == 1 else vals
         self.options = types.SimpleNamespace(**options)
+
+    def cropOptions(self):
+        """
+        Crop the option lines.
+
+        :return list: option lines.
+        """
+        for idx, line in enumerate(self.lines):
+            match line:
+                case Logger.OPTIONS_START:
+                    start = idx
+                case Logger.OPTIONS_END:
+                    end = idx
+                    break
+        else:
+            return []
+        option_lines = self.lines[start + 1:end]
+        self.lines = self.lines[end + 1:]
+        return option_lines
 
     @property
     def task_time(self):
@@ -304,7 +324,7 @@ class Reader:
 
         :return 'datetime.timedelta': the task time
         """
-        for line in self.lines[self.sidx:]:
+        for line in self.lines:
             if not line.startswith(self.TOTAL_TIME):
                 continue
             task_time = line.split(self.TOTAL_TIME)[-1].strip()
@@ -341,7 +361,7 @@ class Reader:
 
         :return float: the peak memory usage
         """
-        for line in self.lines[self.sidx:]:
+        for line in self.lines:
             match = self.MEMORY_RE.search(line)
             if not match:
                 continue

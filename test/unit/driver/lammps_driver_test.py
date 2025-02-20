@@ -8,11 +8,11 @@ import pytest
 from nemd import envutils
 from nemd import task
 
-AR_IN = envutils.test_file('ar', 'single', 'single.in')
-MISSING_DAT_IN = envutils.test_file('ar', 'single', 'missing_dat.in')
-AR_DATA = envutils.test_file('ar', 'single', 'single.data')
-SI_IN = envutils.test_file('si', 'crystal_builder.in')
-SI_DATA = envutils.test_file('si', 'crystal_builder.data')
+AR_IN = envutils.test_data('ar', 'single', 'single.in')
+MISSING_DAT_IN = envutils.test_data('ar', 'single', 'missing_dat.in')
+AR_DATA = envutils.test_data('ar', 'single', 'single.data')
+SI_IN = envutils.test_data('si', 'crystal_builder.in')
+SI_DATA = envutils.test_data('si', 'crystal_builder.data')
 
 
 class TestValidator:
@@ -60,7 +60,7 @@ class TestLammps:
         lmp.readContents()
         lmp.addPath()
         lmp.setPairCoeff()
-        assert envutils.test_file('si', 'Si.sw') in lmp.contents
+        assert envutils.test_data('si', 'Si.sw') in lmp.contents
 
     @pytest.mark.parametrize("argv", [([SI_IN])])
     def testWriteIn(self, lmp, tmp_dir):
