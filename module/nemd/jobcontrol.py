@@ -74,7 +74,7 @@ class Runner(logutils.Base):
         2) run a project with task jobs
         3) run a project with aggregator jobs
         """
-        if jobutils.TASK in self.options.jtype:
+        if symbols.TASK in self.options.jtype:
             self.setJob()
             self.setProject()
             self.setState()
@@ -85,7 +85,7 @@ class Runner(logutils.Base):
             self.runJobs()
             self.logStatus()
             self.logMessage()
-        if jobutils.AGGREGATOR in self.options.jtype:
+        if symbols.AGGREGATOR in self.options.jtype:
             self.setAggJobs()
             self.setAggProject()
             self.cleanAggJobs()
@@ -143,7 +143,7 @@ class Runner(logutils.Base):
             # No cpu specified
             # Debug mode: 1 cpu as total to avoid parallelism
             # Production mode: 75% of cpu count as total to avoid overloading
-            total = 1 if self.options.debug else round(os.cpu_count() * 0.75)
+            total = 1 if self.options.DEBUG else round(os.cpu_count() * 0.75)
             # Single cpu per job ensures efficiency
             self.cpu = [max([total, 1]), 1]
             return
@@ -208,11 +208,11 @@ class Runner(logutils.Base):
         """
         Plot the task workflow graph.
         """
-        if not self.options.debug:
+        if not self.options.DEBUG:
             return
         import matplotlib
         obackend = matplotlib.get_backend()
-        backend = obackend if self.options.interactive else 'Agg'
+        backend = obackend if self.options.INTERACTIVE else 'Agg'
         matplotlib.use(backend)
         import matplotlib.pyplot as plt
         depn = np.asarray(self.project.detect_operation_graph())
@@ -223,17 +223,17 @@ class Runner(logutils.Base):
         fig = plt.figure()
         ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
         nx.draw_networkx(graph, pos, ax=ax, labels=labels)
-        if self.options.interactive:
+        if self.options.INTERACTIVE:
             print("Showing task workflow graph. Click X to close the figure "
                   "and continue..")
             plt.show(block=True)
-        fig.savefig(self.options.jobname + '_nx.png')
+        fig.savefig(self.options.JOBNAME + '_nx.png')
 
     def logStatus(self):
         """
         Look into each job and report the status.
         """
-        status_file = f"{self.options.jobname}_status{symbols.LOG_EXT}"
+        status_file = f"{self.options.JOBNAME}_status{symbols.LOG_EXT}"
         with open(status_file, 'w') as fh:
             # Fetching status and Fetching labels are printed to err handler
             self.project.print_status(detailed=True,

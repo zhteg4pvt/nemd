@@ -35,7 +35,7 @@ class Plotter:
         self.ylim = None
         self.xticks = None
         self.xlabels = None
-        self.outfile = self.options.jobname + self.PNG_EXT
+        self.outfile = self.options.JOBNAME + self.PNG_EXT
 
     def run(self):
         """
@@ -79,7 +79,7 @@ class Plotter:
         """
         Plot the frequency vs wave vector with k-point vertical lines.
         """
-        with plotutils.get_pyplot(inav=self.options.interactive) as plt:
+        with plotutils.get_pyplot(inav=self.options.INTERACTIVE) as plt:
             fig = plt.figure(figsize=(10, 6))
             ax = fig.add_subplot(1, 1, 1)
             for col in self.data.columns:
@@ -145,7 +145,7 @@ class Dispersion(logutils.Base):
         Write the phonon dispersion.
         """
         self.crystal.mode = alamode.SUGGEST
-        kwargs = dict(jobname=self.options.jobname)
+        kwargs = dict(jobname=self.options.JOBNAME)
         suggest = alamode.exe(self.crystal, **kwargs)
         self.log(f"Suggested displacements are written as {suggest[0]}")
         files = [self.struct.datafile] + suggest

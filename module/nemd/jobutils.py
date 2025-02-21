@@ -9,21 +9,18 @@ registers output.
 import json
 import os
 import re
+import types
 
 from nemd import envutils
-from nemd import symbols
 
 NEMD_RUN = 'nemd_run'
 NEMD_MODULE = 'nemd_module'
 
-OUTFILE = 'outfile'
-LOGFILE = 'logfile'
-OUTFILES = 'outfiles'
-FLAG_INTERACTIVE = '-INTERACTIVE'
-FLAG_JOBNAME = '-JOBNAME'
 FLAG_NAME = '-NAME'
-FLAG_DEBUG = '-DEBUG'
+FLAG_JOBNAME = '-JOBNAME'
 FLAG_PYTHON = '-PYTHON'
+FLAG_INTERACTIVE = '-INTERACTIVE'
+FLAG_DEBUG = '-DEBUG'
 FLAG_CPU = '-cpu'
 FLAG_SEED = '-seed'
 FLAG_DIR = '-dir'
@@ -35,8 +32,14 @@ PROGRESS = 'progress'
 TQDM = 'tqdm'
 JOB = 'job'
 
-TASK = 'task'
-AGGREGATOR = 'aggregator'
+LOGFILE = 'logfile'
+OUTFILE = 'outfile'
+OUTFILES = 'outfiles'
+
+SIGNAC = 'signac'
+JSON_EXT = '.json'
+FN_DOCUMENT = f'{SIGNAC}_job_document{JSON_EXT}'
+FN_STATE_POINT = f'{SIGNAC}_statepoint{JSON_EXT}'
 
 
 def get_arg(args, flag, default=None, first=True):
@@ -129,7 +132,7 @@ def get_name(file):
 
 def add_outfile(outfile,
                 jobname=None,
-                document=symbols.FN_DOCUMENT,
+                document=FN_DOCUMENT,
                 file=False,
                 log=False):
     """
@@ -161,3 +164,45 @@ def add_outfile(outfile,
         data[LOGFILE].setdefault(jobname, outfile)
     with open(document, 'w') as fh:
         json.dump(data, fh)
+
+
+class Job:
+    """
+    A class to mimic a signac.job.Job for testing purpose.
+    """
+
+    def __init__(self, job_dir=os.curdir):
+        """
+        Initialize a Job object.
+
+        :param job_dir str: the directory of the job
+        """
+        self.dir = job_dir
+        self.statepoint = self.load(FN_STATE_POINT)
+        self.doc = self.load(FN_DOCUMENT)
+        self.document = self.doc
+        self.project = types.SimpleNamespace(doc={},
+                                             workspace='workspace',
+                                             path=os.curdir)
+
+    def load(self, basename):
+        """
+        Load the json file.
+
+        :param basename str: the file name to be loaded.
+        :return dict: the loaded json dictionary.
+        """
+        pathname = os.path.join(self.dir, basename)
+        if not os.path.isfile(pathname):
+            return {}
+        with open(pathname, 'r') as fh:
+            return json.load(fh)
+
+    def fn(self, filename):
+        """
+        Return the full path of the file in the job directory.
+
+        :param filename str: the file name
+        :return str: the full path of the file
+        """
+        return os.path.join(self.dir, filename) if self.dir else filename

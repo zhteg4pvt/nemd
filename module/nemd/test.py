@@ -3,19 +3,15 @@
 """
 This module provides test related classes to parse files for command, parameter,
 checking, and labels.
-
-
 """
 import datetime
 import filecmp
 import functools
 import glob
-import json
 import os
 import re
 import shlex
 import sys
-import types
 
 import numpy as np
 import pandas as pd
@@ -709,48 +705,6 @@ class Tag(Cmd):
                 if tagged_label.startswith(label):
                     return True
         return False
-
-
-class Job:
-    """
-    A class to mimic a signac.job.Job for testing purpose.
-    """
-
-    def __init__(self, job_dir=os.curdir):
-        """
-        Initialize a Job object.
-
-        :param job_dir str: the directory of the job
-        """
-        self.dir = job_dir
-        self.statepoint = self.load(symbols.FN_STATE_POINT)
-        self.doc = self.load(symbols.FN_DOCUMENT)
-        self.document = self.doc
-        self.project = types.SimpleNamespace(doc={},
-                                             workspace='workspace',
-                                             path=os.curdir)
-
-    def load(self, basename):
-        """
-        Load the json file.
-
-        :param basename str: the file name to be loaded.
-        :return dict: the loaded json dictionary.
-        """
-        pathname = os.path.join(self.dir, basename)
-        if not os.path.isfile(pathname):
-            return {}
-        with open(pathname, 'r') as fh:
-            return json.load(fh)
-
-    def fn(self, filename):
-        """
-        Return the full path of the file in the job directory.
-
-        :param filename str: the file name
-        :return str: the full path of the file
-        """
-        return os.path.join(self.dir, filename) if self.dir else filename
 
 
 if __name__ == "__main__":

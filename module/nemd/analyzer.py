@@ -66,8 +66,8 @@ class Base(logutils.Base):
         if isinstance(options, str):
             return f"{options}_{cls.NAME}{cls.DATA_EXT}"
         if not hasattr(options, 'jobs'):
-            return f"{options.jobname}_{cls.NAME}{cls.DATA_EXT}"
-        filename = f"{options.jobname}_{cls.NAME}_{options.id}{cls.DATA_EXT}"
+            return f"{options.JOBNAME}_{cls.NAME}{cls.DATA_EXT}"
+        filename = f"{options.JOBNAME}_{cls.NAME}_{options.id}{cls.DATA_EXT}"
         return os.path.join(options.dir, filename)
 
     def run(self):
@@ -196,7 +196,7 @@ class Base(logutils.Base):
         """
         if self.data.empty:
             return
-        with plotutils.get_pyplot(inav=self.options.interactive,
+        with plotutils.get_pyplot(inav=self.options.INTERACTIVE,
                                   name=self.DESCR.upper()) as plt:
             fig = plt.figure(figsize=(10, 6))
             ax = fig.add_axes([0.13, 0.1, 0.8, 0.8])
@@ -328,7 +328,7 @@ class View(TrajBase):
         frm_vw.addTraces()
         frm_vw.setFrames(self.traj)
         frm_vw.updateLayout()
-        frm_vw.show(outfile=self.outfile, inav=self.options.interactive)
+        frm_vw.show(outfile=self.outfile, inav=self.options.INTERACTIVE)
         self.log(f'{self.DESCR.capitalize()} data written into {self.outfile}')
 
 
@@ -622,7 +622,7 @@ class Agg(logutils.Base):
         self.ydevs = None
         self.xvals = None
         self.result = pd.DataFrame()
-        self.outfile = f"{self.options.jobname}_{self.task}{self.DATA_EXT}"
+        self.outfile = f"{self.options.JOBNAME}_{self.task}{self.DATA_EXT}"
         self.Anlz = None if self.task in self.TO_SKIP else ANLZ[self.task]
 
     def run(self):
@@ -643,7 +643,7 @@ class Agg(logutils.Base):
         """
         self.log(f"Aggregation Task: {self.task}")
         shared = vars(self.options)
-        if self.options.interactive:
+        if self.options.INTERACTIVE:
             shared = shared.copy()
             shared['interactive'] = len(self.jobs) > 1
         for parm, jobs in self.groups:
@@ -708,7 +708,7 @@ class Agg(logutils.Base):
         """
         if self.xvals.empty:
             return
-        with plotutils.get_pyplot(inav=self.options.interactive,
+        with plotutils.get_pyplot(inav=self.options.INTERACTIVE,
                                   name=self.task.upper()) as plt:
             fig = plt.figure(figsize=(10, 6))
             ax = fig.add_axes([0.13, 0.1, 0.8, 0.8])

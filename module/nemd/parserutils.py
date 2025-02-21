@@ -16,6 +16,7 @@ from nemd import np
 from nemd import rdkitutils
 from nemd import sw
 from nemd import symbols
+from nemd import DEBUG
 
 FLAG_STATE_NUM = '-state_num'
 FLAG_CLEAN = '-clean'
@@ -782,18 +783,18 @@ class ArgumentParser(argparse.ArgumentParser):
                               help=argparse.SUPPRESS)
             envutils.set_jobname_default(self.name)
             self.add_argument(FLAG_JOBNAME,
-                              dest=FLAG_JOBNAME[1:].lower(),
+                              dest=FLAG_JOBNAME[1:],
                               default=self.name,
                               help='Name output files.')
         if FLAG_INTERACTIVE in self.JFLAGS:
             self.add_argument(FLAG_INTERACTIVE,
-                              dest=FLAG_INTERACTIVE[1:].lower(),
+                              dest=FLAG_INTERACTIVE[1:],
                               action='store_true',
                               help='Pause for user input.')
         if FLAG_PYTHON in self.JFLAGS:
             self.add_argument(FLAG_PYTHON,
                               default=envutils.CACHE_MODE,
-                              dest=FLAG_PYTHON[1:].lower(),
+                              dest=FLAG_PYTHON[1:],
                               choices=envutils.PYTHON_MODES,
                               help='0: native; 1: compiled; 2: cached.')
         if FLAG_CPU in self.JFLAGS:
@@ -801,16 +802,17 @@ class ArgumentParser(argparse.ArgumentParser):
                 FLAG_CPU,
                 type=type_positive_int,
                 nargs='+',
-                dest=FLAG_CPU[1:].lower(),
+                dest=FLAG_CPU[1:],
                 help='Total number of CPUs (the number for one task).')
         if FLAG_DEBUG in self.JFLAGS:
             self.add_argument(
                 FLAG_DEBUG,
+                default=DEBUG,
                 nargs='?',
                 const=True,
                 type=type_bool,
                 choices=[symbols.ON, symbols.OFF],
-                dest=FLAG_DEBUG[1:].lower(),
+                dest=FLAG_DEBUG[1:],
                 help=f'{symbols.ON}: allow additional printing and output files'
                 f'; {symbols.OFF}: disable the mode.')
 
@@ -838,10 +840,10 @@ class WorkflowParser(ArgumentParser):
             self.add_argument(
                 FLAG_JTYPE,
                 nargs='+',
-                choices=[jobutils.TASK, jobutils.AGGREGATOR],
-                default=[jobutils.TASK, jobutils.AGGREGATOR],
-                help=f'{jobutils.TASK}: run tasks and register files; '
-                f'{jobutils.AGGREGATOR}: collect results.')
+                choices=[symbols.TASK, symbols.AGGREGATOR],
+                default=[symbols.TASK, symbols.AGGREGATOR],
+                help=f'{symbols.TASK}: run tasks and register files; '
+                f'{symbols.AGGREGATOR}: collect results.')
             self.add_argument(
                 FLAG_PRJ_PATH,
                 type=type_dir,

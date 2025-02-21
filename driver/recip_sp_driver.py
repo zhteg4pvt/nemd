@@ -320,7 +320,7 @@ class RecipSp(logutils.Base):
         """
         Plot the real and reciprocal paces.
         """
-        with plotutils.get_pyplot(inav=self.options.interactive) as plt:
+        with plotutils.get_pyplot(inav=self.options.INTERACTIVE) as plt:
             fig = plt.figure(figsize=(15, 9))
             ax1 = fig.add_subplot(1, 2, 1)
             ax2 = fig.add_subplot(1, 2, 2)
@@ -345,7 +345,7 @@ class RecipSp(logutils.Base):
             idxs = ' '.join(map('{:.4g}'.format, self.options.miller_indices))
             fig.suptitle(f'Miller indices ({idxs})')
             fig.tight_layout()
-            fname = self.options.jobname + self.PNG_EXT
+            fname = self.options.JOBNAME + self.PNG_EXT
             fig.savefig(fname)
             jobutils.add_outfile(fname, file=True)
             self.log(f'Figure saved as {fname}')

@@ -129,7 +129,7 @@ class TestScript:
                               ('MEM_INTVL', '0.001', True, False)])
     def testEnter(self, evalue, env, log, file, tmp_dir):
         options = types.SimpleNamespace(hi='la', jobname='jobname')
-        logging.Logger.manager.loggerDict.pop(options.jobname, None)
+        logging.Logger.manager.loggerDict.pop(options.JOBNAME, None)
         with mock.patch('nemd.logutils.psutils.Memory') as mocked:
             with mock.patch('nemd.logutils.Script.__exit__') as mocked:
                 with logutils.Script(options, log=log, file=file):
@@ -150,7 +150,7 @@ class TestScript:
                               (True, SystemExit, "E_R_R_O_R\nAborting...")])
     def testExit(self, evalue, raise_type, check_raise, msg, env, tmp_dir):
         options = types.SimpleNamespace(jobname='jobname')
-        logging.Logger.manager.loggerDict.pop(options.jobname, None)
+        logging.Logger.manager.loggerDict.pop(options.JOBNAME, None)
         with check_raise():
             with logutils.Script(options) as logger:
                 if raise_type:
@@ -189,7 +189,7 @@ class TestReader:
                                             (MB_LMP_LOG, 'False')])
     def testSetOptions(self, debug, raw):
         raw.setOptions()
-        assert debug == raw.options.debug
+        assert debug == raw.options.DEBUG
         assert 2 == len(raw.options.JobStart)
 
     @pytest.mark.parametrize('data,onum,num', [(AMORP_LOG, 28, 6),

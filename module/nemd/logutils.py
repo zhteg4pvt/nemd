@@ -217,7 +217,7 @@ class Script:
 
         :return `Logger`: the logger object to print messages
         """
-        self.logger = Logger.get(self.options.jobname)
+        self.logger = Logger.get(self.options.JOBNAME)
         logfile = os.path.basename(self.logger.handlers[0].baseFilename)
         jobutils.add_outfile(logfile, **self.kwargs)
         self.logger.infoJob(self.options)

@@ -577,8 +577,8 @@ class LogAgg(taskbase.AggJob):
         Main method to run the aggregator job.
         """
         options = types.SimpleNamespace(
-            jobname=self.options.jobname,
-            interactive=self.options.interactive,
+            JOBNAME=self.options.JOBNAME,
+            INTERACTIVE=self.options.INTERACTIVE,
             name=self.jobname.split(symbols.POUND_SEP)[0],
             dir=os.path.relpath(self.project.workspace, self.project.path))
         self.log(f"{len(self.jobs)} jobs found for aggregation.")
