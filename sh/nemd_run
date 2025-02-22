@@ -10,7 +10,7 @@ Set environmental variables from command-line arguments.
   1. -JOBNAME [STR]: jobname based on which output files are named
   2. -PYTHON [INT]: the python mode (e.g., 0: original, 1: compiled)
   3. -DEBUG: debug mode for additional printing and output files
-  4. -INTERACTIVE: pop up the interactive GUI
+  4. -INTERAC: pop up the interactive GUI
 
 Supported additional flags:
   -m venv|yapf|pytest|cProfile
@@ -19,7 +19,7 @@ Supported additional flags:
 '
 FLAG_PYTHON="-PYTHON"
 FLAG_JOBNAME="-JOBNAME"
-FLAG_INTERACTIVE="-INTERACTIVE"
+FLAG_INTERAC="-INTERAC"
 
 # Help
 [ "$1" = "-h" ] && echo "Example: nemd_run mol_bldr_driver.py [Ar]" && exit 0
@@ -46,7 +46,7 @@ val=''; for nxt in "$@" ''; do
     -*)
       [ -z ${FLAG_PYTHON##$val*} ] && export PYTHON=$nxt
       [ -z ${FLAG_JOBNAME##$val*} ] && export JOBNAME=$nxt
-      [ -z ${FLAG_INTERACTIVE##$val*} ] && export INTERACTIVE='1'
+      [ -z ${FLAG_INTERAC##$val*} ] && export INTERAC='1'
       ;;
     esac
   val=$nxt

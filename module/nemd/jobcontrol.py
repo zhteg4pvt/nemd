@@ -212,7 +212,7 @@ class Runner(logutils.Base):
             return
         import matplotlib
         obackend = matplotlib.get_backend()
-        backend = obackend if self.options.INTERACTIVE else 'Agg'
+        backend = obackend if self.options.INTERAC else 'Agg'
         matplotlib.use(backend)
         import matplotlib.pyplot as plt
         depn = np.asarray(self.project.detect_operation_graph())
@@ -223,7 +223,7 @@ class Runner(logutils.Base):
         fig = plt.figure()
         ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
         nx.draw_networkx(graph, pos, ax=ax, labels=labels)
-        if self.options.INTERACTIVE:
+        if self.options.INTERAC:
             print("Showing task workflow graph. Click X to close the figure "
                   "and continue..")
             plt.show(block=True)

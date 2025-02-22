@@ -28,27 +28,8 @@ class MolBldrJob(taskbase.Job):
     """
     Class to run the molecule builder.
     """
-
     FILE = 'mol_bldr_driver.py'
-
-    @staticmethod
-    def add_arguments(parser, **kwargs):
-        """
-        Add job specific arguments to the parser.
-
-        :param parser ArgumentParser: the parse to add arguments
-        """
-        parser.add_polym_arguments()
-        parser.add_bldr_arguments()
-        parser.add_md_arguments()
-        parser.suppress(buffer=f"{symbols.DEFAULT_CUT * 4}",
-                        mol_num=[1],
-                        temp=0,
-                        timestep=1,
-                        press=1,
-                        relax_time=0,
-                        prod_time=0,
-                        prod_ens=lammpsfix.NVE)
+    ParserClass = parserutils.MolBldr
 
 
 class AmorpBldrJob(taskbase.Job):
@@ -56,40 +37,7 @@ class AmorpBldrJob(taskbase.Job):
     Class to run the amorphous builder.
     """
     FILE = 'amorp_bldr_driver.py'
-    FLAG_DENSITY = '-density'
-    FLAG_METHOD = '-method'
-    GRID = 'grid'
-    PACK = 'pack'
-    GROW = 'grow'
-    METHODS = [GRID, PACK, GROW]
-
-    @classmethod
-    def add_arguments(cls, parser, **kwargs):
-        """
-        Add job specific arguments to the parser.
-
-        :param parser ArgumentParser: the parse to add arguments
-        """
-        parser.add_polym_arguments()
-        parser.add_bldr_arguments()
-        parser.add_argument(
-            cls.FLAG_DENSITY,
-            metavar='g/cm^3',
-            type=functools.partial(parserutils.type_ranged_float,
-                                   bottom=0,
-                                   included_bottom=False,
-                                   top=30),
-            default=0.5,
-            help=f'The density used for {cls.PACK} and {cls.GROW} cells.')
-        parser.add_argument(
-            cls.FLAG_METHOD,
-            choices=cls.METHODS,
-            default=cls.GROW,
-            help=f'place molecules into the space {cls.GRID}; {cls.PACK} '
-            f'molecules with random rotation and translation; {cls.GROW} '
-            'molecules by rotating rigid fragments.')
-        parser.add_md_arguments()
-        parser.suppress([parserutils.FLAG_SUBSTRUCT])
+    ParserClass = parserutils.AmorpBldr
 
 
 class XtalBldrJob(taskbase.Job):
@@ -97,20 +45,7 @@ class XtalBldrJob(taskbase.Job):
     Class to run the crystal builder.
     """
     FILE = 'xtal_bldr_driver.py'
-    FLAG_SCALED_RANGE = '-scaled_range'
-
-    @classmethod
-    def add_arguments(cls, parser, **kwargs):
-        """
-        Add job specific arguments to the parser.
-
-        :param parser ArgumentParser: the parse to add arguments
-        """
-        parser.add_xtal_arguments()
-        parser.add_bldr_arguments()
-        parser.add_md_arguments()
-        parser.suppress(parserutils.BLDR_FLAGS)
-        parser.set_defaults(force_field=[symbols.SW])
+    ParserClass = parserutils.XtalBldr
 
 
 class LammpsJob(taskbase.Job):
@@ -118,63 +53,8 @@ class LammpsJob(taskbase.Job):
     Class to run the lammps simulation.
     """
     FILE = 'lammps_driver.py'
+    ParserClass = parserutils.Lammps
     ARGS_TMPL = [None]
-    FLAG_INSCRIPT = 'inscript'
-    FLAG_LOG = '-log'
-    FLAG_DATA_FILE = '-data_file'
-
-    @classmethod
-    def add_arguments(cls, parser, positional=False):
-        """
-        Add job specific arguments to the parser.
-
-        :param parser ArgumentParser: the parse to add arguments
-        :param positional bool: whether to add positional arguments
-        """
-        if positional:
-            parser.add_argument(cls.FLAG_INSCRIPT,
-                                metavar=cls.FLAG_INSCRIPT.upper(),
-                                type=parserutils.type_file,
-                                help='Read input from this file.')
-        parser.add_argument(jobutils.FLAG_SCREEN,
-                            default=symbols.NONE,
-                            help='Where to send screen output.')
-        parser.add_argument(jobutils.FLAG_LOG,
-                            metavar=jobutils.FLAG_LOG[1:].upper(),
-                            help='Print logging information into this file.')
-        parser.add_argument(cls.FLAG_DATA_FILE,
-                            metavar=cls.FLAG_DATA_FILE[1:].upper(),
-                            type=parserutils.type_file,
-                            help='Data file to get force field information')
-        if positional:
-            parser.validators.add(cls.Validator)
-
-    class Validator(parserutils.Validator):
-
-        def run(self):
-            """
-            When not provided, try to locate the data file based on the input script.
-
-            :raises FileNotFoundError: if data file is required but doesn't exist.
-            """
-            if self.options.data_file:
-                return
-
-            with open(self.options.inscript, 'r') as fh:
-                contents = fh.read()
-            matched = re.search(lammpsfix.READ_DATA_RE, contents)
-            if not matched:
-                return
-            # try to find data file in the current dir and in the input script dir
-            data_file = matched.group(1)
-            if not os.path.isfile(data_file):
-                dirname = os.path.dirname(self.options.inscript)
-                data_file = os.path.join(dirname, data_file)
-
-            if not os.path.isfile(data_file):
-                raise FileNotFoundError(f"No data file {data_file} found.")
-
-            self.options.data_file = data_file
 
     def rmUnknown(self, args):
         """
@@ -209,14 +89,7 @@ class LogJob(taskbase.Job):
 
     FILE = 'lmp_log_driver.py'
     ARGS_TMPL = [None]
-    FLAG_DATA_FILE = '-data_file'
-    FLAG_LAST_PCT = '-last_pct'
-    FLAG_SLICE = '-slice'
-    TASK_CHOICES = analyzer.THERMO.keys()
-    TASK_HELP = 'Searches, combines and averages thermodynamic info.'
-    LAST_FRM = analyzer.THERMO.keys()
-    FLAG = 'log'
-    HELP = 'LAMMPS log file to analyze.'
+    ParserClass = parserutils.Log
 
     def addfiles(self):
         """
@@ -224,8 +97,7 @@ class LogJob(taskbase.Job):
         """
         args = super().addfiles()
         log_file = args.pop(0)
-        return [log_file, self.FLAG_DATA_FILE,
-                self.getDataFile(log_file)] + args
+        return [log_file, parserutils.Log.FLAG_DATA_FILE, self.getDataFile(log_file)] + args
 
     def getDataFile(self, log_file):
         """
@@ -238,86 +110,13 @@ class LogJob(taskbase.Job):
                     continue
                 return match.group(1)
 
-    @classmethod
-    def add_arguments(cls, parser, positional=False):
-        """
-        Add job specific arguments to the parser.
-
-        :param parser ArgumentParser: the parse to add arguments
-        :param positional bool: whether to add positional arguments
-        """
-        if positional:
-            parser.add_argument(cls.FLAG,
-                                metavar=cls.FLAG.upper(),
-                                type=parserutils.type_file,
-                                help=cls.HELP)
-        else:
-            parser.set_defaults(task=[symbols.TOTENG])
-        parser.add_argument(cls.FLAG_DATA_FILE,
-                            metavar=cls.FLAG_DATA_FILE[1:].upper(),
-                            type=parserutils.type_file,
-                            help='The file of the structure and force field.')
-        parser.add_argument(parserutils.FLAG_TASK,
-                            type=str.lower,
-                            choices=cls.TASK_CHOICES,
-                            nargs='+',
-                            help=cls.TASK_HELP)
-        parser.add_argument(
-            cls.FLAG_LAST_PCT,
-            type=LastPct.type,
-            default=LastPct(0.2),
-            help=f"{', '.join(cls.LAST_FRM)} average results from this last "
-            "percentage to the end.")
-        parser.add_argument(cls.FLAG_SLICE,
-                            metavar='START END STEP',
-                            action=parserutils.Slice,
-                            nargs='+',
-                            help="Slice the input data before the analysis by "
-                            "END, START END, or START END STEP.")
-
-
-class LastPct(float):
-    """
-    Class to validate the last percentage argument and get the start index of
-    the input data.
-    """
-
-    def getSidx(self, data, buffer=0):
-        """
-        Get the start index of the data.
-
-        :param data tuple, or numpy.ndarray: on which the length is determined
-        :param buffer int: the buffer step to be added to the start index
-        :return int: the start index
-        """
-        num = len(data)
-        sidx = min(max(num - 1, 0), round(num * (1 - self)))
-        return max(0, sidx - buffer) if buffer else sidx
-
-    @classmethod
-    def type(cls, arg):
-        """
-        Check whether the argument can be converted to a percentage.
-
-        :param arg str: the input argument.
-        :return `cls`: the customized last percentage
-        """
-        value = parserutils.type_ranged_float(arg, include_top=False, top=1)
-        return cls(value)
-
 
 class TrajJob(LogJob):
     """
     Class to run lammps traj driver.
     """
     FILE = 'lmp_traj_driver.py'
-    TASK_CHOICES = analyzer.TRAJ.keys()
-    TASK_DEFAULT = analyzer.Density.NAME
-    TASK_HELP = ', '.join(x.__doc__.strip().lower()
-                          for x in analyzer.TRAJ.values())
-    LAST_FRM = [x.NAME for x in [analyzer.MSD, analyzer.RDF]]
-    FLAG = 'traj'
-    HELP = 'Custom dump file to analyze.'
+    ParserClass = parserutils.Traj
 
     def addfiles(self):
         """
@@ -337,34 +136,6 @@ class TrajJob(LogJob):
                 if not match:
                     continue
                 return match.group(2)
-
-    @classmethod
-    def add_arguments(cls, parser, positional=False):
-        """
-        Add job specific arguments to the parser.
-
-        :param parser ArgumentParser: the parse to add arguments
-        :param positional bool: whether to add positional arguments
-        """
-        super().add_arguments(parser, positional=positional)
-        parser.set_defaults(task=[cls.TASK_DEFAULT])
-        parser.add_argument('-sel', help=f'The element of the selected atoms.')
-        if positional:
-            parser.validators.add(cls.TrajValidator)
-
-    class TrajValidator(parserutils.Validator):
-
-        def run(self):
-            """
-            Validate the command options.
-
-            :raise ValueError: no data file with data-requested tasks.
-            """
-            tasks = set(self.options.task)
-            data_rqd_tasks = tasks.intersection(analyzer.DATA_RQD)
-            if data_rqd_tasks and not self.options.data_file:
-                raise ValueError(f"Please specify {TrajJob.FLAG_DATA_FILE} to"
-                                 f" run {', '.join(data_rqd_tasks)} tasks.")
 
 
 class CmdJob(taskbase.Job):
@@ -389,7 +160,7 @@ class CmdJob(taskbase.Job):
         :param write bool: the msg to be printed
         :return str: the command as str
         """
-        msg = os.path.basename(self.job.statepoint[parserutils.FLAG_DIR])
+        msg = os.path.basename(self.job.statepoint[jobutils.FLAG_DIR])
         if self.cmd.comment:
             msg = f"{msg}: {self.cmd.comment}"
         return super().getCmd(prefix=f"echo \'# {msg}\'", write=write)
@@ -578,7 +349,7 @@ class LogAgg(taskbase.AggJob):
         """
         options = types.SimpleNamespace(
             JOBNAME=self.options.JOBNAME,
-            INTERACTIVE=self.options.INTERACTIVE,
+            INTERAC=self.options.INTERAC,
             name=self.jobname.split(symbols.POUND_SEP)[0],
             dir=os.path.relpath(self.project.workspace, self.project.path))
         self.log(f"{len(self.jobs)} jobs found for aggregation.")
@@ -604,7 +375,7 @@ class LogAgg(taskbase.AggJob):
         series = {}
         for job in self.jobs:
             statepoint = dict(job.statepoint)
-            statepoint.pop(parserutils.FLAG_SEED, None)
+            statepoint.pop(jobutils.FLAG_SEED, None)
             params = {
                 x[1:] if x.startswith('-') else x: y
                 for x, y in statepoint.items()
@@ -642,7 +413,7 @@ class TestAgg(taskbase.AggJob):
         """
         if self.options is None or len(self.options.id) == 0:
             return
-        dirs = [x.statepoint[parserutils.FLAG_DIR] for x in self.jobs]
+        dirs = [x.statepoint[jobutils.FLAG_DIR] for x in self.jobs]
         ids = [int(os.path.basename(x)) for x in dirs]
         self.jobs = [y for x, y in zip(ids, self.jobs) if x in self.options.id]
 

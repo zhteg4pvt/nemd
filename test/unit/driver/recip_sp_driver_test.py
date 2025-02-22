@@ -8,14 +8,14 @@ import recip_sp_driver as driver
 from nemd import plotutils
 
 
-class TestArgumentParser:
+class TestDriverParser:
 
     @pytest.mark.parametrize("miller_indices,valid", [(['1', '2'], True),
                                                       (['1'], False),
                                                       (['1', '1', '1'], False),
                                                       (['0', '0'], False)])
     def testParseArgs(self, miller_indices, valid):
-        parser = driver.ArgumentParser()
+        parser = driver.DriverParser()
         argv = [driver.FLAG_MILLER_INDICES] + miller_indices
         with mock.patch.object(parser, 'error'):
             parser.parse_args(argv)

@@ -276,7 +276,7 @@ class RecipSp(logutils.Base):
 
     def __init__(self, options, **kwargs):
         """
-        :param options 'argparse.ArgumentParser':  Parsed command-line options
+        :param options 'argparse.DriverParser':  Parsed command-line options
         """
         super().__init__(**kwargs)
         self.options = options
@@ -320,7 +320,7 @@ class RecipSp(logutils.Base):
         """
         Plot the real and reciprocal paces.
         """
-        with plotutils.get_pyplot(inav=self.options.INTERACTIVE) as plt:
+        with plotutils.get_pyplot(inav=self.options.INTERAC) as plt:
             fig = plt.figure(figsize=(15, 9))
             ax1 = fig.add_subplot(1, 2, 1)
             ax2 = fig.add_subplot(1, 2, 2)
@@ -351,7 +351,7 @@ class RecipSp(logutils.Base):
             self.log(f'Figure saved as {fname}')
 
 
-class ArgumentParser(parserutils.ArgumentParser):
+class DriverParser(parserutils.DriverParser):
     """
     The argument parser with additional validations.
     """
@@ -381,7 +381,7 @@ class ArgumentParser(parserutils.ArgumentParser):
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(__file__, descr=__doc__)
+    parser = DriverParser(__file__, descr=__doc__)
     options = parser.parse_args(sys.argv[1:])
     with logutils.Script(options) as logger:
         recip_sp = RecipSp(options, logger=logger)

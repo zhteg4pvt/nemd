@@ -25,7 +25,7 @@ class Plotter:
     def __init__(self, filename, options=None, unit=THZ):
         """
         :param filename str: the file containing the dispersion data
-        :param options 'argparse.ArgumentParser':  Parsed command-line options
+        :param options 'argparse.DriverParser':  Parsed command-line options
         :param unit str: the unit of the y data (either THz or cm^-1)
         """
         self.filename = filename
@@ -79,7 +79,7 @@ class Plotter:
         """
         Plot the frequency vs wave vector with k-point vertical lines.
         """
-        with plotutils.get_pyplot(inav=self.options.INTERACTIVE) as plt:
+        with plotutils.get_pyplot(inav=self.options.INTERAC) as plt:
             fig = plt.figure(figsize=(10, 6))
             ax = fig.add_subplot(1, 1, 1)
             for col in self.data.columns:
@@ -103,7 +103,7 @@ class Dispersion(logutils.Base):
 
     def __init__(self, options, logger=None):
         """
-        :param options 'argparse.ArgumentParser': Parsed command-line options
+        :param options 'argparse.DriverParser': Parsed command-line options
         :param logger 'logging.Logger':  Logger for logging messages.
         """
         super().__init__(logger=logger)
@@ -179,10 +179,10 @@ def get_parser(parser=None):
     """
     The user-friendly command-line parser.
 
-    :param parser ArgumentParser: the parse to add arguments
+    :param parser DriverParser: the parse to add arguments
     """
     if parser is None:
-        parser = parserutils.ArgumentParser(__file__, descr=__doc__)
+        parser = parserutils.DriverParser(__file__, descr=__doc__)
     parser.add_xtal_arguments()
     parser.add_bldr_arguments()
     parser.add_job_arguments()
@@ -191,9 +191,16 @@ def get_parser(parser=None):
     parser.set_defaults(force_field=[symbols.SW])
     return parser
 
+class Parser(parserutils.XtalBldr):
+
+    @classmethod
+    def setUp(cls, parser, **kwargs):
+        super().setUp(parser, **kwargs)
+        parser.suppress(no_minimize=True, temp=0)
+        parser.set_defaults(force_field=[symbols.SW])
 
 def main(argv):
-    parser = get_parser()
+    parser = Parser(__file__, descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options) as logger:
         dispersio = Dispersion(options, logger=logger)

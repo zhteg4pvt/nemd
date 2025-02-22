@@ -14,6 +14,7 @@ from nemd import np
 from nemd import polymutils
 from nemd import structutils
 from nemd import task
+from nemd import parserutils
 
 
 class Amorphous(logutils.Base):
@@ -23,7 +24,7 @@ class Amorphous(logutils.Base):
 
     def __init__(self, options, **kwargs):
         """
-        :param options 'argparse.ArgumentParser':  Parsed command-line options
+        :param options 'argparse.DriverParser':  Parsed command-line options
         """
         super().__init__(**kwargs)
         self.options = options
@@ -63,7 +64,7 @@ class Amorphous(logutils.Base):
         """
         Build gridded cell.
         """
-        if self.options.method != task.AmorpBldrJob.GRID:
+        if self.options.method != parserutils.AmorpBldr.GRID:
             return
 
         self.struct = structutils.GriddedStruct.fromMols(self.mols,
@@ -77,7 +78,7 @@ class Amorphous(logutils.Base):
         :param mini_density float: the minium density for liquid and solid when
             reducing it automatically.
         """
-        if self.options.method != task.AmorpBldrJob.PACK:
+        if self.options.method != parserutils.AmorpBldr.PACK:
             return
         self.create(ClassStruct=structutils.PackedStruct)
 
@@ -85,7 +86,7 @@ class Amorphous(logutils.Base):
         """
         Build packed cell.
         """
-        if self.options.method != task.AmorpBldrJob.GROW:
+        if self.options.method != parserutils.AmorpBldr.GROW:
             return
         self.create(ClassStruct=structutils.GrownStruct)
 

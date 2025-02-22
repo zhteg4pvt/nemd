@@ -196,7 +196,7 @@ class Base(logutils.Base):
         """
         if self.data.empty:
             return
-        with plotutils.get_pyplot(inav=self.options.INTERACTIVE,
+        with plotutils.get_pyplot(inav=self.options.INTERAC,
                                   name=self.DESCR.upper()) as plt:
             fig = plt.figure(figsize=(10, 6))
             ax = fig.add_axes([0.13, 0.1, 0.8, 0.8])
@@ -328,7 +328,7 @@ class View(TrajBase):
         frm_vw.addTraces()
         frm_vw.setFrames(self.traj)
         frm_vw.updateLayout()
-        frm_vw.show(outfile=self.outfile, inav=self.options.INTERACTIVE)
+        frm_vw.show(outfile=self.outfile, inav=self.options.INTERAC)
         self.log(f'{self.DESCR.capitalize()} data written into {self.outfile}')
 
 
@@ -643,7 +643,7 @@ class Agg(logutils.Base):
         """
         self.log(f"Aggregation Task: {self.task}")
         shared = vars(self.options)
-        if self.options.INTERACTIVE:
+        if self.options.INTERAC:
             shared = shared.copy()
             shared['interactive'] = len(self.jobs) > 1
         for parm, jobs in self.groups:
@@ -708,7 +708,7 @@ class Agg(logutils.Base):
         """
         if self.xvals.empty:
             return
-        with plotutils.get_pyplot(inav=self.options.INTERACTIVE,
+        with plotutils.get_pyplot(inav=self.options.INTERAC,
                                   name=self.task.upper()) as plt:
             fig = plt.figure(figsize=(10, 6))
             ax = fig.add_axes([0.13, 0.1, 0.8, 0.8])

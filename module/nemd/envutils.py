@@ -13,7 +13,7 @@ NEMD_SRC = 'NEMD_SRC'
 DEBUG = 'DEBUG'
 PYTHON = 'PYTHON'
 JOBNAME = 'JOBNAME'
-INTERACTIVE = 'INTERACTIVE'
+INTERAC = 'INTERAC'
 MEM_INTVL = 'MEM_INTVL'
 PYTHON_MODE = '-1'  # without compilation
 ORIGINAL_MODE = '0'  # native python
@@ -30,7 +30,7 @@ def is_interactive():
 
     :return bool: If interactive mode is on.
     """
-    return os.environ.get(INTERACTIVE)
+    return os.environ.get(INTERAC)
 
 
 def get_python_mode():

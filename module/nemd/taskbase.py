@@ -105,6 +105,7 @@ class Job(Base):
     NOTE: this is a cmd job.
     """
 
+    ParserClass = parserutils.Driver
     SPECIAL_CHAR_RE = re.compile("[@!#%^&*()<>?|}{:]")
     QUOTED_RE = re.compile('^".*"$|^\'.*\'$')
     PRE_RUN = jobutils.NEMD_RUN
@@ -201,23 +202,10 @@ class Job(Base):
         The user-friendly command-line parser.
 
         :param descr str: the descr of the program
-        :return 'argparse.ArgumentParser': argparse figures out how to parse
+        :return 'argparse.DriverParser': argparse figures out how to parse
           those out of sys.argv.
         """
-        parser = parserutils.ArgumentParser(cls.FILE, descr=descr)
-        cls.add_arguments(parser, positional=True)
-        parser.add_job_arguments()
-        return parser
-
-    def add_arguments(self, *args, **kwargs):
-        """
-        Add job specific arguments to the parser. This method can be overridden
-        by the subclass to add more arguments.
-
-        :param parser 'argparse.ArgumentParser': the parser to add arguments to
-        :param positional bool: whether to add positional arguments
-        """
-        pass
+        return cls.ParserClass(cls.FILE, descr=descr)
 
     def setName(self, args):
         """

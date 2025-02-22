@@ -142,7 +142,7 @@ def get_parser():
     """
     The user-friendly command-line parser.
 
-    :return 'argparse.ArgumentParser': argparse figures out how to parse those
+    :return 'argparse.DriverParser': argparse figures out how to parse those
         out of sys.argv.
     """
     parser = parserutils.WorkflowParser(__file__, descr=__doc__)
@@ -156,7 +156,7 @@ def get_parser():
     parser.suppress([task.LogJob.FLAG_LAST_PCT, task.LogJob.FLAG_SLICE])
     parser.add_job_arguments()
     parser.add_workflow_arguments()
-    parser.suppress([parserutils.FLAG_STATE_NUM, parserutils.FLAG_SUBSTRUCT])
+    parser.suppress([parser.FLAG_STATE_NUM, parserutils.FLAG_SUBSTRUCT])
     return parser
 
 

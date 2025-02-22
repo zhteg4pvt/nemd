@@ -7,6 +7,7 @@ import argparse
 import functools
 import os
 import random
+import re
 
 from nemd import cru
 from nemd import envutils
@@ -17,58 +18,7 @@ from nemd import rdkitutils
 from nemd import sw
 from nemd import symbols
 from nemd import DEBUG
-
-FLAG_STATE_NUM = '-state_num'
-FLAG_CLEAN = '-clean'
-FLAG_JTYPE = '-jtype'
-FLAG_CPU = jobutils.FLAG_CPU
-FLAG_INTERACTIVE = jobutils.FLAG_INTERACTIVE
-FLAG_JOBNAME = jobutils.FLAG_JOBNAME
-FLAG_DEBUG = jobutils.FLAG_DEBUG
-FLAG_PYTHON = jobutils.FLAG_PYTHON
-FLAG_PRJ_PATH = '-prj_path'
-FLAG_SCREEN = jobutils.FLAG_SCREEN
-
-FLAG_SUBSTRUCT = '-substruct'
-FLAG_NO_MINIMIZE = '-no_minimize'
-FLAG_RIGID_BOND = '-rigid_bond'
-FLAG_RIGID_ANGLE = '-rigid_angle'
-BLDR_FLAGS = [
-    FLAG_SUBSTRUCT, FLAG_NO_MINIMIZE, FLAG_RIGID_BOND, FLAG_RIGID_ANGLE
-]
-
-FLAG_CRU = 'cru'
-FLAG_CRU_NUM = '-cru_num'
-FLAG_MOL_NUM = '-mol_num'
-FLAG_BUFFER = '-buffer'
-FLAG_SEED = jobutils.FLAG_SEED
-
-FlAG_NAME = '-name'
-FlAG_DIMENSION = '-dimension'
-FLAG_SCALED_FACTOR = '-scale_factor'
-
-FLAG_TIMESTEP = '-timestep'
-FLAG_STEMP = '-stemp'
-FLAG_TEMP = '-temp'
-FLAG_TDAMP = '-tdamp'
-FLAG_PRESS = '-press'
-FLAG_PDAMP = '-pdamp'
-FLAG_RELAX_TIME = '-relax_time'
-FLAG_PROD_TIME = '-prod_time'
-FLAG_PROD_ENS = '-prod_ens'
-FlAG_FORCE_FIELD = '-force_field'
-
-INTEGRATION = 'integration'
-SCIENTIFIC = 'scientific'
-PERFORMANCE = 'performance'
-
-FLAG_ID = 'id'
-FLAG_DIR = jobutils.FLAG_DIR
-FLAG_TASK = '-task'
-FLAG_LABEL = '-label'
-CMD = 'cmd'
-CHECK = 'check'
-TAG = 'tag'
+from nemd import analyzer
 
 ONES = (1, 1, 1)
 
@@ -260,6 +210,36 @@ def type_cru_smiles(arg, allow_reg=True, canonize=True):
     return mol.getSmiles(canonize=canonize)
 
 
+class LastPct(float):
+    """
+    Class to validate the last percentage argument and get the start index of
+    the input data.
+    """
+
+    def getSidx(self, data, buffer=0):
+        """
+        Get the start index of the data.
+
+        :param data tuple, or numpy.ndarray: on which the length is determined
+        :param buffer int: the buffer step to be added to the start index
+        :return int: the start index
+        """
+        num = len(data)
+        sidx = min(max(num - 1, 0), round(num * (1 - self)))
+        return max(0, sidx - buffer) if buffer else sidx
+
+    @classmethod
+    def type(cls, arg):
+        """
+        Check whether the argument can be converted to a percentage.
+
+        :param arg str: the input argument.
+        :return `cls`: the customized last percentage
+        """
+        value = type_ranged_float(arg, include_top=False, top=1)
+        return cls(value)
+
+
 class Action(argparse.Action):
     """
     Argparse action that errors on ArgumentTypeError in doTyping().
@@ -269,7 +249,7 @@ class Action(argparse.Action):
         """
         The action to be taken when the argument is parsed.
 
-        :param parser `ArgumentParser`: the parser object.
+        :param parser `DriverParser`: the parser object.
         :param 'argparse.Namespace': partially parsed arguments.
         :param values list: the values to be parsed.
         :param option_string str: the option string (flog)
@@ -480,21 +460,47 @@ class MolValidator(Validator):
                          f'{len(self.options.mol_num)} molecules found.')
 
 
-class TestValidator(Validator):
-    """
-    Class to validate the input options.
-    """
+class LammpsValidator(Validator):
 
     def run(self):
         """
-        Main method to run the validation.
+        When not provided, try to locate the data file based on the input script.
 
-        :raises ValueError: if the input directory is None.
+        :raises FileNotFoundError: if data file is required but doesn't exist.
         """
-        if self.options.dir is None:
-            self.options.dir = envutils.get_nemd_src('test', self.options.name)
-        if not self.options.dir:
-            raise ValueError(f'Please define the test dir via {FLAG_DIR}')
+        if self.options.data_file:
+            return
+
+        with open(self.options.inscript, 'r') as fh:
+            contents = fh.read()
+        matched = re.search(lammpsfix.READ_DATA_RE, contents)
+        if not matched:
+            return
+        # try to find data file in the current dir and in the input script dir
+        data_file = matched.group(1)
+        if not os.path.isfile(data_file):
+            dirname = os.path.dirname(self.options.inscript)
+            data_file = os.path.join(dirname, data_file)
+
+        if not os.path.isfile(data_file):
+            raise FileNotFoundError(f"No data file {data_file} found.")
+
+        self.options.data_file = data_file
+
+
+class TrajValidator(Validator):
+
+    def run(self):
+        """
+        Validate the command options.
+
+        :raise ValueError: no data file with data-requested tasks.
+        """
+        tasks = set(self.options.task)
+        data_rqd_tasks = tasks.intersection(analyzer.DATA_RQD)
+        if data_rqd_tasks and not self.options.data_file:
+            raise ValueError(f"Please specify {Lammps.FLAG_DATA_FILE} to"
+                             f" run {', '.join(data_rqd_tasks)} tasks.")
 
 
 class ArgumentDefaultsHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -510,19 +516,24 @@ class ArgumentDefaultsHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
         super().add_usage(usage, actions, groups, prefix)
 
 
-class ArgumentParser(argparse.ArgumentParser):
+class Driver(argparse.ArgumentParser):
     """
     A customized parser that provides additional features.
     """
-    JFLAGS = [
-        FLAG_INTERACTIVE, FLAG_JOBNAME, FLAG_PYTHON, FLAG_CPU, FLAG_DEBUG
-    ]
+    # Job
+    FLAG_INTERAC = jobutils.FLAG_INTERAC
+    FLAG_JOBNAME = jobutils.FLAG_JOBNAME
+    FLAG_PYTHON = jobutils.FLAG_PYTHON
+    FLAG_CPU = jobutils.FLAG_CPU
+    FLAG_DEBUG = jobutils.FLAG_DEBUG
+    JFLAGS = [FLAG_INTERAC, FLAG_JOBNAME, FLAG_PYTHON, FLAG_CPU, FLAG_DEBUG]
 
     def __init__(self,
-                 file='name_driver.py',
+                 file='name_seed.py',
                  formatter_class=ArgumentDefaultsHelpFormatter,
                  descr=None,
                  validators=None,
+                 delay=False,
                  **kwargs):
         """
         :param file str: script filename which defines the default jobname.
@@ -535,30 +546,59 @@ class ArgumentParser(argparse.ArgumentParser):
             kwargs.update(description=descr)
         super().__init__(formatter_class=formatter_class, **kwargs)
         self.file = file
+        self.delay = delay
         self.validators = set() if validators is None else validators
-        self.setUp()
+        if self.delay:
+            return
+        self.setUp(self, seed=True)
+        self.addJob()
 
-    def setUp(self):
-        """
-        Set up the parser.
-        """
-        pass
+    @classmethod
+    def setUp(cls, parser, seed=False):
+        ...
 
-    def parse_args(self, argv):
+    def addJob(self):
         """
-        Parse the command line arguments and perform the validations.
-
-        :param argv list: command line arguments.
-        :rtype 'argparse.Namespace': the parsed arguments.
+        Add job control related flags.
         """
-        options = super().parse_args(argv)
-        for Validator in self.validators:
-            val = Validator(options)
-            try:
-                val.run()
-            except ValueError as err:
-                self.error(err)
-        return options
+        if self.FLAG_JOBNAME in self.JFLAGS:
+            self.add_argument(jobutils.FLAG_NAME,
+                              default=self.name,
+                              help=argparse.SUPPRESS)
+            envutils.set_jobname_default(self.name)
+            self.add_argument(self.FLAG_JOBNAME,
+                              dest=self.FLAG_JOBNAME[1:],
+                              default=self.name,
+                              help='Name output files.')
+        if self.FLAG_INTERAC in self.JFLAGS:
+            self.add_argument(self.FLAG_INTERAC,
+                              dest=self.FLAG_INTERAC[1:],
+                              action='store_true',
+                              help='Pause for user input.')
+        if self.FLAG_PYTHON in self.JFLAGS:
+            self.add_argument(self.FLAG_PYTHON,
+                              default=envutils.CACHE_MODE,
+                              dest=self.FLAG_PYTHON[1:],
+                              choices=envutils.PYTHON_MODES,
+                              help='0: native; 1: compiled; 2: cached.')
+        if self.FLAG_CPU in self.JFLAGS:
+            self.add_argument(
+                self.FLAG_CPU,
+                type=type_positive_int,
+                nargs='+',
+                dest=self.FLAG_CPU[1:],
+                help='Total number of CPUs (the number for one task).')
+        if self.FLAG_DEBUG in self.JFLAGS:
+            self.add_argument(
+                self.FLAG_DEBUG,
+                default=DEBUG,
+                nargs='?',
+                const=True,
+                type=type_bool,
+                choices=[symbols.ON, symbols.OFF],
+                dest=self.FLAG_DEBUG[1:],
+                help=f'{symbols.ON}: allow additional printing and output files'
+                f'; {symbols.OFF}: disable the mode.')
 
     @property
     @functools.cache
@@ -586,275 +626,443 @@ class ArgumentParser(argparse.ArgumentParser):
                 axn.help = argparse.SUPPRESS
                 continue
 
-    def add_bldr_arguments(self):
+    def parse_args(self, argv):
+        """
+        Parse the command line arguments and perform the validations.
+
+        :param argv list: command line arguments.
+        :rtype 'argparse.Namespace': the parsed arguments.
+        """
+        options = super().parse_args(argv)
+        for Validator in self.validators:
+            val = Validator(options)
+            try:
+                val.run()
+            except ValueError as err:
+                self.error(err)
+        return options
+
+
+class Bldr(Driver):
+
+    FlAG_FORCE_FIELD = '-force_field'
+    FLAG_SUBSTRUCT = '-substruct'
+
+    @classmethod
+    def setUp(cls, parser, seed=False):
         """
         Add builder flags.
         """
-        self.add_argument(
-            FLAG_BUFFER,
-            metavar=FLAG_BUFFER[1:].upper(),
-            type=type_positive_float,
-            help='The buffer distance between molecules in the grid cell.')
-        self.add_argument(FLAG_NO_MINIMIZE,
-                          action='store_true',
-                          help='Skip the structure minimization step.')
-        self.add_argument(
-            FLAG_RIGID_BOND,
-            metavar=FLAG_RIGID_BOND[1:].upper(),
-            type=type_positive_int,
-            nargs='+',
-            help='The lengths of these types are fixed during the simulation.')
-        self.add_argument(
-            FLAG_RIGID_ANGLE,
-            metavar=FLAG_RIGID_ANGLE[1:].upper(),
-            type=type_positive_int,
-            nargs='+',
-            help='The angles of these types are fixed during the simulation.')
-        self.add_argument(FLAG_SUBSTRUCT,
+        parser.add_argument(cls.FLAG_SUBSTRUCT,
                           metavar='SMILES (VALUE)',
                           nargs='+',
                           action=Struct,
                           help='set or measure the substructure geometry.')
-        self.add_argument(
-            FlAG_FORCE_FIELD,
-            metavar=FlAG_FORCE_FIELD[1:].upper(),
+        parser.add_argument(
+            cls.FlAG_FORCE_FIELD,
+            metavar=cls.FlAG_FORCE_FIELD[1:].upper(),
             action=ForceField,
             nargs='+',
             default=symbols.OPLSUA_TIP3P,
             help=f'The force field type:\n'
             f'1) {symbols.OPLSUA} [{symbols.PIPE.join(symbols.WMODELS)}] '
             f'2) {symbols.SW}')
-        self.suppress([FLAG_BUFFER, FLAG_RIGID_BOND, FLAG_RIGID_ANGLE])
 
-    def add_polym_arguments(self):
+
+class MolBase(Bldr):
+
+    FLAG_CRU = 'cru'
+    FLAG_CRU_NUM = '-cru_num'
+    FLAG_MOL_NUM = '-mol_num'
+    FLAG_BUFFER = '-buffer'
+
+    @classmethod
+    def setUp(cls, parser, **kwargs):
         """
         Add polymer builder flags.
         """
-        self.add_argument(FLAG_CRU,
-                          metavar=FLAG_CRU.upper(),
+        parser.add_argument(cls.FLAG_CRU,
+                          metavar=cls.FLAG_CRU.upper(),
                           type=type_cru_smiles,
                           nargs='+',
                           help='SMILES of the constitutional repeat units.')
-        self.add_argument(
-            FLAG_CRU_NUM,
-            metavar=FLAG_CRU_NUM[1:].upper(),
+        parser.add_argument(
+            cls.FLAG_CRU_NUM,
+            metavar=cls.FLAG_CRU_NUM[1:].upper(),
             type=type_positive_int,
             nargs='+',
             help='Number of constitutional repeat unit per polymer')
-        self.add_argument(FLAG_MOL_NUM,
-                          metavar=FLAG_MOL_NUM[1:].upper(),
+        parser.add_argument(cls.FLAG_MOL_NUM,
+                          metavar=cls.FLAG_MOL_NUM[1:].upper(),
                           type=type_positive_int,
                           nargs='+',
                           help='Number of molecules in the amorphous cell')
-        self.validators.add(MolValidator)
+        parser.add_argument(jobutils.FLAG_SEED,
+                            metavar=jobutils.FLAG_SEED[1:].upper(),
+                            type=type_random_seed,
+                            help='Set random state.')
+        # The buffer distance between molecules in the grid cell
+        parser.add_argument(
+            cls.FLAG_BUFFER,
+            metavar=cls.FLAG_BUFFER[1:].upper(),
+            type=type_positive_float,
+            help=argparse.SUPPRESS)
+        parser.validators.add(MolValidator)
+        super().setUp(parser, **kwargs)
+        Md.setUp(parser, seed=False)
 
-    def add_xtal_arguments(self):
+
+class MolBldr(MolBase):
+
+    FLAG_SUBSTRUCT = '-substruct'
+
+    @classmethod
+    def setUp(cls, parser, **kwargs):
+        """
+        """
+        super().setUp(parser)
+        parser.suppress(buffer=f"{symbols.DEFAULT_CUT * 4}",
+                      mol_num=[1],
+                      temp=0,
+                      timestep=1,
+                      press=1,
+                      relax_time=0,
+                      prod_time=0,
+                      prod_ens=lammpsfix.NVE)
+
+class AmorpBldr(MolBase):
+
+    FLAG_DENSITY = '-density'
+    FLAG_METHOD = '-method'
+    GRID = 'grid'
+    PACK = 'pack'
+    GROW = 'grow'
+    METHODS = [GRID, PACK, GROW]
+
+    @classmethod
+    def setUp(cls, parser, **kwargs):
+        """
+        """
+        super().setUp(parser, **kwargs)
+        parser.add_argument(
+            cls.FLAG_DENSITY,
+            metavar='g/cm^3',
+            type=functools.partial(type_ranged_float,
+                                   bottom=0,
+                                   included_bottom=False,
+                                   top=30),
+            default=0.5,
+            help=f'The density used for {cls.PACK} and {cls.GROW} cells.')
+        parser.add_argument(
+            cls.FLAG_METHOD,
+            choices=cls.METHODS,
+            default=cls.GROW,
+            help=f'place molecules into the space {cls.GRID}; {cls.PACK} '
+            f'molecules with random rotation and translation; {cls.GROW} '
+            'molecules by rotating rigid fragments.')
+
+
+class XtalBldr(Bldr):
+
+    FlAG_NAME = jobutils.FlAG_NAME
+    FlAG_DIMENSION = '-dimension'
+    FLAG_SCALED_FACTOR = '-scale_factor'
+
+    @classmethod
+    def setUp(self, *args, **kwargs):
+        super().setUp(*args, **kwargs)
+        self.set_defaults(force_field=[symbols.SW])
+
+    @classmethod
+    def setUp(cls, parser, **kwargs):
         """
         Add crystal builder flags.
         """
         # FIXME: support more choices based on crystals.Crystal.builtins
-        self.add_argument(
-            FlAG_NAME,
+        parser.add_argument(
+            cls.FlAG_NAME,
             default='Si',
             choices=['Si'],
             help='Name to retrieve the crystal structure from the database.')
-        self.add_argument(
-            FlAG_DIMENSION,
+        parser.add_argument(
+            cls.FlAG_DIMENSION,
             default=ONES,
             nargs='+',
-            metavar=FlAG_DIMENSION.upper()[1:],
+            metavar=cls.FlAG_DIMENSION[1:].upper(),
             type=int,
             action=Three,
             help='Duplicate the unit cell by these factors to generate the '
             'supercell.')
-        self.add_argument(
-            FLAG_SCALED_FACTOR,
+        parser.add_argument(
+            cls.FLAG_SCALED_FACTOR,
             default=ONES,
             nargs='+',
-            metavar=FLAG_SCALED_FACTOR.upper()[1:],
+            metavar=cls.FLAG_SCALED_FACTOR[1:].upper(),
             type=type_positive_float,
             action=Three,
             help='Each lattice vector is scaled by the corresponding factor.')
+        super().setUp(parser, **kwargs)
+        parser.set_defaults(force_field=[symbols.SW])
+        Md.setUp(parser, **kwargs)
 
-    def add_md_arguments(self):
+
+class Md(Driver):
+
+    FLAG_TIMESTEP = '-timestep'
+    FLAG_STEMP = '-stemp'
+    FLAG_TEMP = '-temp'
+    FLAG_TDAMP = '-tdamp'
+    FLAG_PRESS = '-press'
+    FLAG_PDAMP = '-pdamp'
+    FLAG_RELAX_TIME = '-relax_time'
+    FLAG_PROD_TIME = '-prod_time'
+    FLAG_PROD_ENS = '-prod_ens'
+    FLAG_NO_MINIMIZE = '-no_minimize'
+    FLAG_RIGID_BOND = '-rigid_bond'
+    FLAG_RIGID_ANGLE = '-rigid_angle'
+
+    @classmethod
+    def setUp(cls, parser, seed=False):
         """
         The molecular dynamics flags.
         """
-        self.add_argument(FLAG_SEED,
-                          metavar=FLAG_SEED[1:].upper(),
-                          type=type_random_seed,
-                          help='Set random state.')
-        self.add_argument(FLAG_TIMESTEP,
+        if seed:
+            parser.add_argument(jobutils.FLAG_SEED,
+                              metavar=jobutils.FLAG_SEED[1:].upper(),
+                              type=type_random_seed,
+                              help='Set random state.')
+        parser.add_argument(cls.FLAG_TIMESTEP,
                           metavar='fs',
                           type=type_positive_float,
                           default=1,
                           help=f'Timestep for the MD simulation.')
-        self.add_argument(
-            FLAG_STEMP,
+        parser.add_argument(
+            cls.FLAG_STEMP,
             metavar='K',
             type=type_positive_float,
             default=10,
             # 'Initialize the atoms with this temperature.'
             help=argparse.SUPPRESS)
-        self.add_argument(FLAG_TEMP,
-                          metavar=FLAG_TEMP[1:].upper(),
+        parser.add_argument(cls.FLAG_TEMP,
+                          metavar=cls.FLAG_TEMP[1:].upper(),
                           type=type_nonnegative_float,
                           default=300,
                           help=f'The equilibrium temperature target. A zero '
                           f'for single point energy.')
-        self.add_argument(
-            FLAG_TDAMP,
-            metavar=FLAG_TDAMP[1:].upper(),
+        parser.add_argument(
+            cls.FLAG_TDAMP,
+            metavar=cls.FLAG_TDAMP[1:].upper(),
             type=type_positive_float,
             default=100,
             # Temperature damping parameter (x timestep to get the param)
             help=argparse.SUPPRESS)
-        self.add_argument(FLAG_PRESS,
-                          metavar=FLAG_PRESS[1:].upper(),
+        parser.add_argument(cls.FLAG_PRESS,
+                          metavar=cls.FLAG_PRESS[1:].upper(),
                           type=float,
                           default=1,
                           help="The equilibrium pressure target.")
-        self.add_argument(
-            FLAG_PDAMP,
-            metavar=FLAG_PDAMP[1:].upper(),
+        parser.add_argument(
+            cls.FLAG_PDAMP,
+            metavar=cls.FLAG_PDAMP[1:].upper(),
             type=type_positive_float,
             default=1000,
             # Pressure damping parameter (x timestep to get the param)
             help=argparse.SUPPRESS)
-        self.add_argument(FLAG_RELAX_TIME,
+        parser.add_argument(cls.FLAG_RELAX_TIME,
                           metavar='ns',
                           type=type_nonnegative_float,
                           default=1,
                           help='Relaxation simulation time.')
-        self.add_argument(FLAG_PROD_TIME,
+        parser.add_argument(cls.FLAG_PROD_TIME,
                           metavar='ns',
                           type=type_positive_float,
                           default=1,
                           help='Production simulation time.')
-        self.add_argument(FLAG_PROD_ENS,
+        parser.add_argument(cls.FLAG_PROD_ENS,
                           choices=lammpsfix.ENSEMBLES,
                           default=lammpsfix.NVE,
                           help='Production ensemble.')
-        self.validators.add(Validator)
-
-    def add_test_arguments(self):
-        """
-        Add test related flags.
-        """
-        self.add_argument(FLAG_ID,
-                          metavar=FLAG_ID.upper(),
-                          type=type_positive_int,
-                          nargs='*',
-                          help='Select the tests according to these ids.')
-        self.add_argument(FlAG_NAME,
-                          default=INTEGRATION,
-                          choices=[INTEGRATION, SCIENTIFIC, PERFORMANCE],
-                          help=f'{INTEGRATION}: reproducible; '
-                          f'{SCIENTIFIC}: physical meaningful; '
-                          f'{PERFORMANCE}: resource efficient.')
-        self.add_argument(FLAG_DIR,
-                          metavar=FLAG_DIR[1:].upper(),
-                          type=type_dir,
-                          help='Search test(s) under this directory.')
-        self.add_argument(
-            jobutils.FLAG_SLOW,
-            type=type_positive_float,
-            metavar='SECOND',
-            help='Skip (sub)tests marked with time longer than this criteria.')
-        self.add_argument(FLAG_LABEL,
-                          nargs='+',
-                          metavar='LABEL',
-                          help='Select the tests marked with the given label.')
-        self.add_argument(FLAG_TASK,
-                          nargs='+',
-                          choices=[CMD, CHECK, TAG],
-                          default=[CMD, CHECK],
-                          help='cmd: run the commands in cmd file; '
-                          'check: check the results; tag: update the tag file')
-        self.validators.add(TestValidator)
-
-    def add_job_arguments(self):
-        """
-        Add job control related flags.
-        """
-        if FLAG_JOBNAME in self.JFLAGS:
-            self.add_argument(jobutils.FLAG_NAME,
-                              default=self.name,
-                              help=argparse.SUPPRESS)
-            envutils.set_jobname_default(self.name)
-            self.add_argument(FLAG_JOBNAME,
-                              dest=FLAG_JOBNAME[1:],
-                              default=self.name,
-                              help='Name output files.')
-        if FLAG_INTERACTIVE in self.JFLAGS:
-            self.add_argument(FLAG_INTERACTIVE,
-                              dest=FLAG_INTERACTIVE[1:],
-                              action='store_true',
-                              help='Pause for user input.')
-        if FLAG_PYTHON in self.JFLAGS:
-            self.add_argument(FLAG_PYTHON,
-                              default=envutils.CACHE_MODE,
-                              dest=FLAG_PYTHON[1:],
-                              choices=envutils.PYTHON_MODES,
-                              help='0: native; 1: compiled; 2: cached.')
-        if FLAG_CPU in self.JFLAGS:
-            self.add_argument(
-                FLAG_CPU,
-                type=type_positive_int,
-                nargs='+',
-                dest=FLAG_CPU[1:],
-                help='Total number of CPUs (the number for one task).')
-        if FLAG_DEBUG in self.JFLAGS:
-            self.add_argument(
-                FLAG_DEBUG,
-                default=DEBUG,
-                nargs='?',
-                const=True,
-                type=type_bool,
-                choices=[symbols.ON, symbols.OFF],
-                dest=FLAG_DEBUG[1:],
-                help=f'{symbols.ON}: allow additional printing and output files'
-                f'; {symbols.OFF}: disable the mode.')
+        # Skip the structure minimization step
+        parser.add_argument(cls.FLAG_NO_MINIMIZE,
+                          action='store_true',
+                          help=argparse.SUPPRESS)
+        # The lengths of these types are fixed during the simulation
+        parser.add_argument(
+            cls.FLAG_RIGID_BOND,
+            metavar=cls.FLAG_RIGID_BOND[1:].upper(),
+            type=type_positive_int,
+            nargs='+',
+            help=argparse.SUPPRESS)
+        # The angles of these types are fixed during the simulation
+        parser.add_argument(
+            cls.FLAG_RIGID_ANGLE,
+            metavar=cls.FLAG_RIGID_ANGLE[1:].upper(),
+            type=type_positive_int,
+            nargs='+',
+            help=argparse.SUPPRESS)
+        parser.validators.add(Validator)
 
 
-class WorkflowParser(ArgumentParser):
+class Lammps(Driver):
+
+    FLAG_INSCRIPT = 'inscript'
+    FLAG_LOG = '-log'
+    FLAG_DATA_FILE = '-data_file'
+
+    @classmethod
+    def setUp(cls, parser, seed=False):
+        """
+        Add job specific arguments to the parser.
+
+        :param parser DriverParser: the parse to add arguments
+        :param seed bool: whether to add seed arguments
+        """
+        if seed:
+            parser.add_argument(cls.FLAG_INSCRIPT,
+                                metavar=cls.FLAG_INSCRIPT.upper(),
+                                type=type_file,
+                                help='Read input from this file.')
+            parser.add_argument(jobutils.FLAG_SCREEN,
+                                default=symbols.NONE,
+                                help='Where to send screen output.')
+        parser.add_argument(jobutils.FLAG_LOG,
+                            metavar=jobutils.FLAG_LOG[1:].upper(),
+                            help='Print logging information into this file.')
+        parser.add_argument(cls.FLAG_DATA_FILE,
+                            metavar=cls.FLAG_DATA_FILE[1:].upper(),
+                            type=type_file,
+                            help='Data file to get force field information')
+        if seed:
+            parser.validators.add(LammpsValidator)
+
+
+class Log(Driver):
+
+    FLAG_DATA_FILE = '-data_file'
+    FLAG_LAST_PCT = '-last_pct'
+    FLAG_SLICE = '-slice'
+    TASKS = analyzer.THERMO.keys()
+    TASK_HELP = 'Searches, combines and averages thermodynamic info.'
+    LAST_FRM = analyzer.THERMO.keys()
+    FLAG = 'log'
+    HELP = 'LAMMPS log file to analyze.'
+
+    @classmethod
+    def setUp(cls, parser, seed=False):
+        """
+        Add job specific arguments to the parser.
+
+        :param parser DriverParser: the parse to add arguments
+        :param seed bool: whether to add seed arguments
+        """
+        if seed:
+            parser.add_argument(cls.FLAG,
+                                metavar=cls.FLAG.upper(),
+                                type=type_file,
+                                help=cls.HELP)
+            parser.add_argument(cls.FLAG_DATA_FILE,
+                                metavar=cls.FLAG_DATA_FILE[1:].upper(),
+                                type=type_file,
+                                help='The file of the structure and force field.')
+        else:
+            parser.set_defaults(task=[symbols.TOTENG])
+        parser.add_argument(jobutils.FLAG_TASK,
+                            type=str.lower,
+                            choices=cls.TASKS,
+                            nargs='+',
+                            help=cls.TASK_HELP)
+        parser.add_argument(
+            cls.FLAG_LAST_PCT,
+            type=LastPct.type,
+            default=LastPct(0.2),
+            help=f"{', '.join(cls.LAST_FRM)} average results from this last "
+            "percentage to the end.")
+        parser.add_argument(cls.FLAG_SLICE,
+                            metavar='START END STEP',
+                            action=Slice,
+                            nargs='+',
+                            help="Slice the input data before the analysis by "
+                            "END, START END, or START END STEP.")
+
+
+class Traj(Log):
+
+    TASKS = analyzer.TRAJ.keys()
+    TASK_DEFAULT = analyzer.Density.NAME
+    TASK_HELP = ', '.join(x.__doc__.strip().lower()
+                          for x in analyzer.TRAJ.values())
+    LAST_FRM = [x.NAME for x in [analyzer.MSD, analyzer.RDF]]
+    FLAG = 'traj'
+    HELP = 'Custom dump file to analyze.'
+
+    @classmethod
+    def setUp(cls, parser, seed=False):
+        """
+        Add job specific arguments to the parser.
+
+        :param parser DriverParser: the parse to add arguments
+        :param seed bool: whether to add seed arguments
+        """
+        super().setUp(parser, seed=seed)
+        parser.set_defaults(task=[cls.TASK_DEFAULT])
+        parser.add_argument('-sel', help=f'The element of the selected atoms.')
+        if seed:
+            parser.validators.add(TrajValidator)
+
+
+class Workflow(Driver):
     """
     A customized parser that provides additional features.
     """
-    WFLAGS = [FLAG_STATE_NUM, FLAG_CLEAN, FLAG_JTYPE, FLAG_SCREEN, FLAG_DEBUG]
+    # Workflow
+    FLAG_STATE_NUM = '-state_num'
+    FLAG_CLEAN = '-clean'
+    FLAG_JTYPE = '-jtype'
+    FLAG_PRJ_PATH = '-prj_path'
+    FLAG_SCREEN = jobutils.FLAG_SCREEN
+    WFLAGS = [FLAG_STATE_NUM, FLAG_CLEAN, FLAG_JTYPE, FLAG_SCREEN]
 
-    def add_workflow_arguments(self):
+    def __init__(self, *args, **kwargs):
+        """
+        Set up the parser.
+        """
+        super().__init__(*args, **kwargs)
+        if self.delay:
+            return
+        self.addWorkflow()
+
+    def addWorkflow(self):
         """
         Add workflow related flags.
         """
-        if FLAG_STATE_NUM in self.WFLAGS:
+        if self.FLAG_STATE_NUM in self.WFLAGS:
             self.add_argument(
-                FLAG_STATE_NUM,
+                self.FLAG_STATE_NUM,
                 default=1,
-                metavar=FLAG_STATE_NUM[1:].upper(),
+                metavar=self.FLAG_STATE_NUM[1:].upper(),
                 type=type_positive_int,
                 help='Total number of the states (e.g., dynamical system).')
-        if FLAG_JTYPE in self.WFLAGS:
+        if self.FLAG_JTYPE in self.WFLAGS:
             # Task jobs have to register outfiles to be considered as completed
             # Aggregator jobs collect results from finished task jobs
             self.add_argument(
-                FLAG_JTYPE,
+                self.FLAG_JTYPE,
                 nargs='+',
                 choices=[symbols.TASK, symbols.AGGREGATOR],
                 default=[symbols.TASK, symbols.AGGREGATOR],
                 help=f'{symbols.TASK}: run tasks and register files; '
                 f'{symbols.AGGREGATOR}: collect results.')
             self.add_argument(
-                FLAG_PRJ_PATH,
+                self.FLAG_PRJ_PATH,
                 type=type_dir,
                 help='The aggregator jobs collect jobs from this directory.')
-        if FLAG_CLEAN in self.WFLAGS:
-            self.add_argument(FLAG_CLEAN,
+        if self.FLAG_CLEAN in self.WFLAGS:
+            self.add_argument(self.FLAG_CLEAN,
                               action='store_true',
                               help='Clean previous workflow results.')
-        if FLAG_SCREEN in self.WFLAGS:
+        if self.FLAG_SCREEN in self.WFLAGS:
             self.add_argument(
-                FLAG_SCREEN,
+                self.FLAG_SCREEN,
                 nargs='+',
                 choices=[
                     jobutils.TQDM, jobutils.PROGRESS, jobutils.JOB, symbols.OFF

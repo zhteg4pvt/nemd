@@ -8,7 +8,7 @@ from nemd import envutils
 
 class TestFunc:
 
-    @pytest.mark.parametrize("ekey", ['INTERACTIVE'])
+    @pytest.mark.parametrize("ekey", ['INTERAC'])
     @pytest.mark.parametrize("evalue", ['1', None])
     def testIsInteractive(self, evalue, env):
         assert evalue == envutils.is_interactive()

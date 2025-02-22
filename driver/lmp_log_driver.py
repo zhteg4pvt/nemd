@@ -20,7 +20,7 @@ class Log(logutils.Base):
 
     def __init__(self, options, logger=None):
         """
-        :param options 'argparse.ArgumentParser': Parsed command-line options
+        :param options 'argparse.DriverParser': Parsed command-line options
         :param logger 'logging.Logger': the logger to log messages
         """
         super().__init__(logger=logger)

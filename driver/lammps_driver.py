@@ -13,7 +13,7 @@ from nemd import lammpsfix
 from nemd import lammpsin
 from nemd import logutils
 from nemd import symbols
-from nemd import task
+from nemd import parserutils
 
 
 class Lammps(logutils.Base):
@@ -29,7 +29,7 @@ class Lammps(logutils.Base):
 
     def __init__(self, options, logger=None):
         """
-        :param options 'argparse.ArgumentParser':  Parsed command-line options
+        :param options 'argparse.DriverParser':  Parsed command-line options
         :param logger 'logging.Logger':  Logger for logging messages.
         """
         super().__init__(logger=logger)
@@ -106,7 +106,7 @@ class Lammps(logutils.Base):
         Set the arguments for the lammps executable.
         """
         self.args = [jobutils.FLAG_IN, os.path.basename(self.options.inscript)]
-        self.args += [task.LammpsJob.FLAG_LOG, self.outfile]
+        self.args += [parserutils.Lammps.FLAG_LOG, self.outfile]
         self.args += [jobutils.FLAG_SCREEN, self.options.screen]
 
     def setGpu(self):
@@ -151,7 +151,7 @@ class Lammps(logutils.Base):
 
 
 def main(argv):
-    parser = task.LammpsJob.get_parser()
+    parser = parserutils.Lammps(__file__, descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options) as logger:
         lmp = Lammps(options, logger=logger)

@@ -22,6 +22,10 @@ from nemd import logutils
 from nemd import parserutils
 from nemd import task
 from nemd import test
+from nemd import jobutils
+from nemd import envutils
+
+FLAG_DIR = jobutils.FLAG_DIR
 
 
 class Test(jobcontrol.Runner, logutils.Base):
@@ -50,7 +54,7 @@ class Test(jobcontrol.Runner, logutils.Base):
         """
         Set state with test dirs.
         """
-        self.state = {parserutils.FLAG_DIR: self.getDirs()}
+        self.state = {FLAG_DIR: self.getDirs()}
 
     @functools.cache
     def getDirs(self):
@@ -88,33 +92,86 @@ class Test(jobcontrol.Runner, logutils.Base):
         """
         Report the task timing after filtering.
         """
-        flag_dirs = [{parserutils.FLAG_DIR: x} for x in self.getDirs()]
+        flag_dirs = [{FLAG_DIR: x} for x in self.getDirs()]
         super().cleanAggJobs(filter={"$or": flag_dirs})
 
 
-class WorkflowParser(parserutils.WorkflowParser):
+class TestValidator(parserutils.Validator):
+    """
+    Class to validate the input options.
+    """
+
+    def run(self):
+        """
+        Main method to run the validation.
+
+        :raises ValueError: if the input directory is None.
+        """
+        if self.options.dir is None:
+            self.options.dir = envutils.get_nemd_src('test', self.options.name)
+        if not self.options.dir:
+            raise ValueError(f'Please define the test dir via {FLAG_DIR}')
+
+
+class Parser(parserutils.Workflow):
     """
     A customized parser that supports cross argument validation options.
     """
 
-    WFLAGS = parserutils.WorkflowParser.WFLAGS[1:]
+    WFLAGS = parserutils.Workflow.WFLAGS[1:]
+    FLAG_ID = 'id'
+    FLAG_TASK = jobutils.FLAG_TASK
+    FLAG_LABEL = '-label'
+    CMD = 'cmd'
+    CHECK = 'check'
+    TAG = 'tag'
 
+    INTEGRATION = 'integration'
+    SCIENTIFIC = 'scientific'
+    PERFORMANCE = 'performance'
+    NAMES = [INTEGRATION, SCIENTIFIC, PERFORMANCE]
+    TASKS = [CMD, CHECK, TAG]
 
-def get_parser():
-    """
-    The user-friendly command-line parser.
-
-    :return 'ArgumentParser': argparse figures out how to parse sys.argv.
-    """
-    parser = WorkflowParser(__file__, descr=__doc__)
-    parser.add_test_arguments()
-    parser.add_job_arguments()
-    parser.add_workflow_arguments()
-    return parser
+    @classmethod
+    def setUp(cls, parser, **kwargs):
+        """
+        Add test related flags.
+        """
+        parser.add_argument(cls.FLAG_ID,
+                          metavar=cls.FLAG_ID.upper(),
+                          type=parserutils.type_positive_int,
+                          nargs='*',
+                          help='Select the tests according to these ids.')
+        parser.add_argument(jobutils.FlAG_NAME,
+                          default=cls.INTEGRATION,
+                          choices=cls.NAMES,
+                          help=f'{cls.INTEGRATION}: reproducible; '
+                          f'{cls.SCIENTIFIC}: physical meaningful; '
+                          f'{cls.PERFORMANCE}: resource efficient.')
+        parser.add_argument(FLAG_DIR,
+                          metavar=FLAG_DIR[1:].upper(),
+                          type=parserutils.type_dir,
+                          help='Search test(s) under this directory.')
+        parser.add_argument(
+            jobutils.FLAG_SLOW,
+            type=parserutils.type_positive_float,
+            metavar='SECOND',
+            help='Skip (sub)tests marked with time longer than this criteria.')
+        parser.add_argument(cls.FLAG_LABEL,
+                          nargs='+',
+                          metavar='LABEL',
+                          help='Select the tests marked with the given label.')
+        parser.add_argument(cls.FLAG_TASK,
+                          nargs='+',
+                          choices=cls.TASKS,
+                          default=[cls.CMD, cls.CHECK],
+                          help='cmd: run the commands in cmd file; '
+                          'check: check the results; tag: update the tag file')
+        parser.validators.add(TestValidator)
 
 
 def main(argv):
-    parser = get_parser()
+    parser = Parser(__file__, descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options, file=True) as logger:
         obj = Test(options, argv, logger=logger)

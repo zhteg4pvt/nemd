@@ -9,9 +9,9 @@ from nemd import jobcontrol
 from nemd import logutils
 from nemd import np
 from nemd import parserutils
-from nemd import symbols
 from nemd import task
 
+FLAG_SCALED_RANGE = '-scaled_range'
 
 class Runner(jobcontrol.Runner):
 
@@ -45,15 +45,15 @@ def get_parser():
     """
     The user-friendly command-line parser.
 
-    :return 'argparse.ArgumentParser': argparse figures out how to parse those
+    :return 'argparse.DriverParser': argparse figures out how to parse those
         out of sys.argv.
     """
     parser = parserutils.WorkflowParser(__file__, descr=__doc__)
     parser.add_argument(
-        task.XtalBldrJob.FLAG_SCALED_RANGE,
+        FLAG_SCALED_RANGE,
         default=(0.95, 1.05, 0.01),  # yapf: disable
         nargs='+',
-        metavar=task.XtalBldrJob.FLAG_SCALED_RANGE.upper()[1:],
+        metavar=FLAG_SCALED_RANGE[1:].upper(),
         type=parserutils.type_positive_float,
         help='The range of scale factors on the crystal lattice parameters.')
     task.XtalBldrJob.add_arguments(parser)

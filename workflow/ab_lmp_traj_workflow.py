@@ -21,8 +21,8 @@ class Runner(jobcontrol.Runner):
         """
         amorp_bldr = self.setOpr(task.AmorpBldr, jobname='amorp_bldr')
         lammps_runner = self.setOpr(task.Lammps, jobname='lammps')
-        self.setPreAfter(amorp_bldr, lammps_runner)
         lmp_traj = self.setOpr(task.LmpTraj, jobname='lmp_traj')
+        self.setPreAfter(amorp_bldr, lammps_runner)
         self.setPreAfter(lammps_runner, lmp_traj)
 
     def setAggJobs(self):
@@ -33,23 +33,18 @@ class Runner(jobcontrol.Runner):
         super().setAggJobs()
 
 
-def get_parser():
-    """
-    The user-friendly command-line parser.
+class Parser(parserutils.Workflow):
 
-    :return 'argparse.ArgumentParser':  argparse figures out how to parse those
-        out of sys.argv.
-    """
-    parser = parserutils.WorkflowParser(__file__, descr=__doc__)
-    task.AmorpBldrJob.add_arguments(parser)
-    task.TrajJob.add_arguments(parser)
-    parser.add_job_arguments()
-    parser.add_workflow_arguments()
-    return parser
+    @classmethod
+    def setUp(cls, parser, **kwargs):
+        parserutils.AmorpBldr.setUp(parser, driver=True)
+        parserutils.Lammps.setUp(parser)
+        parserutils.Traj.setUp(parser)
+        super().setUp(parser, **kwargs)
 
 
 def main(argv):
-    parser = get_parser()
+    parser = Parser(__file__, descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options, file=True) as logger:
         runner = Runner(options, argv, logger=logger)
