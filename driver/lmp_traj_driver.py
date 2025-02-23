@@ -12,7 +12,6 @@ from nemd import lammpsdata
 from nemd import logutils
 from nemd import parserutils
 from nemd import symbols
-from nemd import task
 from nemd import traj
 
 
@@ -105,7 +104,7 @@ class Traj(logutils.Base):
 
 
 def main(argv):
-    parser = task.TrajJob.get_parser(descr=__doc__)
+    parser = parserutils.Traj(__file__, descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options, file=True) as logger:
         cdump = Traj(options, logger=logger)

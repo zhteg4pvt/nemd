@@ -178,8 +178,8 @@ class Dispersion(logutils.Base):
 class Parser(parserutils.XtalBldr):
 
     @classmethod
-    def setUp(cls, parser, **kwargs):
-        super().setUp(parser, **kwargs)
+    def add(cls, parser, **kwargs):
+        super().add(parser, **kwargs)
         parser.suppress(no_minimize=True, temp=0)
         parser.set_defaults(force_field=[symbols.SW])
 
@@ -188,8 +188,8 @@ def main(argv):
     parser = Parser(__file__, descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options) as logger:
-        dispersio = Dispersion(options, logger=logger)
-        dispersio.run()
+        dispersion = Dispersion(options, logger=logger)
+        dispersion.run()
 
 
 if __name__ == "__main__":

@@ -172,7 +172,7 @@ class Job(Base):
 
         :param args list: the command line arguments before removing unknowns
         """
-        parser = self.get_parser()
+        parser = self.ParserClass(self.FILE)
         _, unknown = parser.parse_known_args(args)
         try:
             first = next(i for i, x in enumerate(unknown) if x.startswith('-'))
@@ -194,18 +194,6 @@ class Job(Base):
             flag_index = args.index(val)
             for index in reversed(range(flag_index, flag_index + lidx + 1)):
                 args.pop(index)
-
-    @classmethod
-    @functools.cache
-    def get_parser(cls, descr=None):
-        """
-        The user-friendly command-line parser.
-
-        :param descr str: the descr of the program
-        :return 'argparse.Driver': argparse figures out how to parse
-          those out of sys.argv.
-        """
-        return cls.ParserClass(cls.FILE, descr=descr)
 
     def setName(self, args):
         """

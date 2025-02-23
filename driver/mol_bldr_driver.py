@@ -7,9 +7,9 @@ import sys
 
 from nemd import jobutils
 from nemd import logutils
+from nemd import parserutils
 from nemd import polymutils
 from nemd import structutils
-from nemd import task
 
 
 class Grid(logutils.Base):
@@ -84,7 +84,7 @@ class Grid(logutils.Base):
 
 
 def main(argv):
-    parser = task.MolBldrJob.get_parser(descr=__doc__)
+    parser = parserutils.MolBldr(__file__, descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options) as logger:
         cell = Grid(options, logger=logger)

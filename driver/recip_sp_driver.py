@@ -356,23 +356,22 @@ class Parser(parserutils.Driver):
     The argument parser with additional validations.
     """
 
-    @classmethod
-    def setUp(cls, parser, **kwargs):
+    def setUp(self):
         """
         The user-friendly command-line parser.
         """
-        parser.add_argument(FLAG_MILLER_INDICES,
-                            metavar=FLAG_MILLER_INDICES[1:].upper(),
-                            default=[0.5, 2],
-                            type=parserutils.type_float,
-                            nargs='+',
-                            help='Plot the planes of this Miller indices.')
+        self.add_argument(FLAG_MILLER_INDICES,
+                          metavar=FLAG_MILLER_INDICES[1:].upper(),
+                          default=[0.5, 2],
+                          type=parserutils.type_float,
+                          nargs='+',
+                          help='Plot the planes of this Miller indices.')
 
-    def parse_args(self, argv):
+    def parse_args(self, *args, **kwargs):
         """
         See parent class for details.
         """
-        options = super().parse_args(argv)
+        options = super().parse_args(*args, **kwargs)
         if len(options.miller_indices) != 2:
             self.error('Please provide two floats as the Miller indices.')
         if not any(options.miller_indices):

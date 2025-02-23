@@ -45,7 +45,7 @@ class Runner(jobcontrol.Runner):
 class Parser(parserutils.Workflow):
 
     @classmethod
-    def setUp(cls, parser, **kwargs):
+    def add(cls, parser, **kwargs):
         parser.add_argument(
             FLAG_SCALED_RANGE,
             default=(0.95, 1.05, 0.01),  # yapf: disable
@@ -54,8 +54,8 @@ class Parser(parserutils.Workflow):
             type=parserutils.type_positive_float,
             help='The range of scale factors on the crystal lattice parameters.'
         )
-        parserutils.XtalBldr.setUp(parser, append=False)
-        parserutils.Log.setUp(parser)
+        parserutils.XtalBldr.add(parser, append=False)
+        parserutils.Log.add(parser)
 
 
 def main(argv):

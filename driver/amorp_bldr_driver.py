@@ -14,7 +14,6 @@ from nemd import np
 from nemd import parserutils
 from nemd import polymutils
 from nemd import structutils
-from nemd import task
 
 
 class Amorphous(logutils.Base):
@@ -133,7 +132,7 @@ class Amorphous(logutils.Base):
 
 
 def main(argv):
-    parser = task.AmorpBldrJob.get_parser(descr=__doc__)
+    parser = parserutils.AmorpBldr(__file__, descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options) as logger:
         cell = Amorphous(options, logger=logger)

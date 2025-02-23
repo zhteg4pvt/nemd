@@ -97,7 +97,10 @@ class LogJob(taskbase.Job):
         """
         args = super().addfiles()
         log_file = args.pop(0)
-        return [log_file, parserutils.Log.FLAG_DATA_FILE, self.getDataFile(log_file)] + args
+        return [
+            log_file, parserutils.Log.FLAG_DATA_FILE,
+            self.getDataFile(log_file)
+        ] + args
 
     def getDataFile(self, log_file):
         """

@@ -17,13 +17,13 @@ import glob
 import os
 import sys
 
+from nemd import envutils
 from nemd import jobcontrol
+from nemd import jobutils
 from nemd import logutils
 from nemd import parserutils
 from nemd import task
 from nemd import test
-from nemd import jobutils
-from nemd import envutils
 
 FLAG_DIR = jobutils.FLAG_DIR
 
@@ -132,42 +132,41 @@ class Parser(parserutils.Workflow):
     NAMES = [INTEGRATION, SCIENTIFIC, PERFORMANCE]
     TASKS = [CMD, CHECK, TAG]
 
-    @classmethod
-    def setUp(cls, parser, **kwargs):
+    def setUp(self):
         """
         Add test related flags.
         """
-        parser.add_argument(cls.FLAG_ID,
-                          metavar=cls.FLAG_ID.upper(),
+        self.add_argument(self.FLAG_ID,
+                          metavar=self.FLAG_ID.upper(),
                           type=parserutils.type_positive_int,
                           nargs='*',
                           help='Select the tests according to these ids.')
-        parser.add_argument(jobutils.FlAG_NAME,
-                          default=cls.INTEGRATION,
-                          choices=cls.NAMES,
-                          help=f'{cls.INTEGRATION}: reproducible; '
-                          f'{cls.SCIENTIFIC}: physical meaningful; '
-                          f'{cls.PERFORMANCE}: resource efficient.')
-        parser.add_argument(FLAG_DIR,
+        self.add_argument(jobutils.FlAG_NAME,
+                          default=self.INTEGRATION,
+                          choices=self.NAMES,
+                          help=f'{self.INTEGRATION}: reproducible; '
+                          f'{self.SCIENTIFIC}: physical meaningful; '
+                          f'{self.PERFORMANCE}: resource efficient.')
+        self.add_argument(FLAG_DIR,
                           metavar=FLAG_DIR[1:].upper(),
                           type=parserutils.type_dir,
                           help='Search test(s) under this directory.')
-        parser.add_argument(
+        self.add_argument(
             jobutils.FLAG_SLOW,
             type=parserutils.type_positive_float,
             metavar='SECOND',
             help='Skip (sub)tests marked with time longer than this criteria.')
-        parser.add_argument(cls.FLAG_LABEL,
+        self.add_argument(self.FLAG_LABEL,
                           nargs='+',
                           metavar='LABEL',
                           help='Select the tests marked with the given label.')
-        parser.add_argument(cls.FLAG_TASK,
+        self.add_argument(self.FLAG_TASK,
                           nargs='+',
-                          choices=cls.TASKS,
-                          default=[cls.CMD, cls.CHECK],
+                          choices=self.TASKS,
+                          default=[self.CMD, self.CHECK],
                           help='cmd: run the commands in cmd file; '
                           'check: check the results; tag: update the tag file')
-        parser.validators.add(TestValidator)
+        self.validators.add(TestValidator)
 
 
 def main(argv):

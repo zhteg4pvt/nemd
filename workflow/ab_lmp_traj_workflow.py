@@ -36,11 +36,9 @@ class Runner(jobcontrol.Runner):
 class Parser(parserutils.Workflow):
 
     @classmethod
-    def setUp(cls, parser, **kwargs):
-        parserutils.AmorpBldr.setUp(parser, append=False)
-        parserutils.Lammps.setUp(parser)
-        parserutils.Traj.setUp(parser)
-        super().setUp(parser, **kwargs)
+    def add(cls, parser, **kwargs):
+        parserutils.AmorpBldr.add(parser, append=False)
+        parserutils.Traj.add(parser)
 
 
 def main(argv):

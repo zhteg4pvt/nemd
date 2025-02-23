@@ -9,8 +9,8 @@ from nemd import analyzer
 from nemd import lammpsdata
 from nemd import lmplog
 from nemd import logutils
+from nemd import parserutils
 from nemd import symbols
-from nemd import task
 
 
 class Log(logutils.Base):
@@ -86,7 +86,7 @@ class Log(logutils.Base):
 
 
 def main(argv):
-    parser = task.LogJob.get_parser()
+    parser = parserutils.Log(__file__, descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options, file=True) as logger:
         log = Log(options, logger=logger)

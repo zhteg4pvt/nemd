@@ -19,7 +19,7 @@ from nemd import task
 FLAG_SUBSTRUCT = parserutils.Bldr.FLAG_SUBSTRUCT
 
 
-class LogReader(logutils.Reader):
+class Reader(logutils.Reader):
     """
     A LAMMPS log reader customized for substructure.
     """
@@ -80,7 +80,7 @@ class AnalyzerAgg(analyzer.Agg):
         # Read the reported value from the log (e.g. dihedral angle: 73.50 deg)
         job = self.groups[0][1][0]
         for logfile in job.doc[jobutils.LOGFILE].values():
-            reader = LogReader(job.fn(logfile))
+            reader = Reader(job.fn(logfile))
             if reader.options.NAME != task.MolBldrJob.name:
                 continue
             self.result.substruct = reader.getSubstruct(smiles)
@@ -175,14 +175,14 @@ class Parser(parserutils.Workflow):
     WFLAGS = parserutils.Workflow.WFLAGS[1:]
 
     @classmethod
-    def setUp(cls, parser, **kwargs):
+    def add(cls, parser, **kwargs):
         parser.add_argument('-struct_rg',
                             metavar='SMILES START END STEP',
                             nargs='+',
                             action=StructRgAction,
                             help='The range of the degree to scan in degrees.')
-        parserutils.MolBldr.setUp(parser, seed=True)
-        parserutils.Log.setUp(parser)
+        parserutils.MolBldr.add(parser, append=False)
+        parserutils.Log.add(parser)
         parser.suppress([
             parserutils.Log.FLAG_LAST_PCT, parserutils.Log.FLAG_SLICE,
             FLAG_SUBSTRUCT
