@@ -11,10 +11,10 @@ import sys
 from nemd import jobutils
 from nemd import logutils
 from nemd import np
+from nemd import parserutils
 from nemd import polymutils
 from nemd import structutils
 from nemd import task
-from nemd import parserutils
 
 
 class Amorphous(logutils.Base):
@@ -24,7 +24,7 @@ class Amorphous(logutils.Base):
 
     def __init__(self, options, **kwargs):
         """
-        :param options 'argparse.DriverParser':  Parsed command-line options
+        :param options 'argparse.Driver':  Parsed command-line options
         """
         super().__init__(**kwargs)
         self.options = options

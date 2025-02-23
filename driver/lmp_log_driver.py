@@ -20,7 +20,7 @@ class Log(logutils.Base):
 
     def __init__(self, options, logger=None):
         """
-        :param options 'argparse.DriverParser': Parsed command-line options
+        :param options 'argparse.Driver': Parsed command-line options
         :param logger 'logging.Logger': the logger to log messages
         """
         super().__init__(logger=logger)
@@ -64,7 +64,7 @@ class Log(logutils.Base):
         """
         parsed = [analyzer.Base.parse(x) for x in self.thermo.columns]
         avail = [name.lower() for name, unit, _ in parsed]
-        if self.options.task is None:
+        if symbols.ALL in self.options.task:
             self.options.task = [x for x in avail if x in analyzer.THERMO]
             return
         tasks = set(self.options.task)

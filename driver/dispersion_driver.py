@@ -25,7 +25,7 @@ class Plotter:
     def __init__(self, filename, options=None, unit=THZ):
         """
         :param filename str: the file containing the dispersion data
-        :param options 'argparse.DriverParser':  Parsed command-line options
+        :param options 'argparse.Driver':  Parsed command-line options
         :param unit str: the unit of the y data (either THz or cm^-1)
         """
         self.filename = filename
@@ -103,7 +103,7 @@ class Dispersion(logutils.Base):
 
     def __init__(self, options, logger=None):
         """
-        :param options 'argparse.DriverParser': Parsed command-line options
+        :param options 'argparse.Driver': Parsed command-line options
         :param logger 'logging.Logger':  Logger for logging messages.
         """
         super().__init__(logger=logger)
@@ -175,22 +175,6 @@ class Dispersion(logutils.Base):
         jobutils.add_outfile(plotter.outfile)
 
 
-def get_parser(parser=None):
-    """
-    The user-friendly command-line parser.
-
-    :param parser DriverParser: the parse to add arguments
-    """
-    if parser is None:
-        parser = parserutils.DriverParser(__file__, descr=__doc__)
-    parser.add_xtal_arguments()
-    parser.add_bldr_arguments()
-    parser.add_job_arguments()
-    parser.suppress(parserutils.BLDR_FLAGS)
-    parser.suppress(no_minimize=True, temp=0)
-    parser.set_defaults(force_field=[symbols.SW])
-    return parser
-
 class Parser(parserutils.XtalBldr):
 
     @classmethod
@@ -198,6 +182,7 @@ class Parser(parserutils.XtalBldr):
         super().setUp(parser, **kwargs)
         parser.suppress(no_minimize=True, temp=0)
         parser.set_defaults(force_field=[symbols.SW])
+
 
 def main(argv):
     parser = Parser(__file__, descr=__doc__)

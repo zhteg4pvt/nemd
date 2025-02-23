@@ -3,6 +3,7 @@
 """
 This workflow runs molecule builder, lammps simulation, and log analyzer.
 """
+import argparse
 import sys
 
 from nemd import analyzer
@@ -14,6 +15,8 @@ from nemd import parserutils
 from nemd import rdkitutils
 from nemd import symbols
 from nemd import task
+
+FLAG_SUBSTRUCT = parserutils.Bldr.FLAG_SUBSTRUCT
 
 
 class LogReader(logutils.Reader):
@@ -124,11 +127,11 @@ class Runner(jobcontrol.Runner):
         if self.options.struct_rg is None:
             return
         if self.options.struct_rg[1] is None:
-            self.state[parserutils.FLAG_SUBSTRUCT] = self.options.struct_rg[:1]
+            self.state[FLAG_SUBSTRUCT] = self.options.struct_rg[:1]
             return
         range_values = map(str, np.arange(*self.options.struct_rg[1:]))
         structs = [f"{self.options.struct_rg[0]} {x}" for x in range_values]
-        self.state[parserutils.FLAG_SUBSTRUCT] = structs
+        self.state[FLAG_SUBSTRUCT] = structs
 
     def setAggJobs(self):
         """
@@ -138,30 +141,57 @@ class Runner(jobcontrol.Runner):
         super().setAggJobs()
 
 
-def get_parser():
+class StructRgAction(parserutils.StructAction):
     """
-    The user-friendly command-line parser.
+    Action for argparse that allows a mandatory smile str followed by optional
+    START END, and STEP values of type float, float, and int, respectively.
+    """
 
-    :return 'argparse.DriverParser': argparse figures out how to parse those
-        out of sys.argv.
-    """
-    parser = parserutils.WorkflowParser(__file__, descr=__doc__)
-    parser.add_argument('-struct_rg',
-                        metavar='SMILES START END STEP',
-                        nargs='+',
-                        action=parserutils.StructRg,
-                        help='The range of the degree to scan in degrees.')
-    task.MolBldrJob.add_arguments(parser)
-    task.LogJob.add_arguments(parser)
-    parser.suppress([task.LogJob.FLAG_LAST_PCT, task.LogJob.FLAG_SLICE])
-    parser.add_job_arguments()
-    parser.add_workflow_arguments()
-    parser.suppress([parser.FLAG_STATE_NUM, parserutils.FLAG_SUBSTRUCT])
-    return parser
+    def doTyping(self, smiles, start=None, end=None, step=None):
+        """
+        Check the validity of the smiles string and the range.
+
+        :param smiles str: the smiles str to select a substructure.
+        :param start str: the start to define a range.
+        :param end str: the end to define a range.
+        :param step str: the step to define a range.
+        :return str, float, float, float: the smiles str, start, end, and step.
+        """
+        _, start = super().doTyping(smiles, start)
+        if start is None:
+            return [smiles, None]
+        if end is None or step is None:
+            raise argparse.ArgumentTypeError(
+                "start, end, and step partially provided.")
+        return [
+            smiles, start,
+            parserutils.type_float(end),
+            parserutils.type_float(step)
+        ]
+
+
+class Parser(parserutils.Workflow):
+
+    WFLAGS = parserutils.Workflow.WFLAGS[1:]
+
+    @classmethod
+    def setUp(cls, parser, **kwargs):
+        parser.add_argument('-struct_rg',
+                            metavar='SMILES START END STEP',
+                            nargs='+',
+                            action=StructRgAction,
+                            help='The range of the degree to scan in degrees.')
+        parserutils.MolBldr.setUp(parser, seed=True)
+        parserutils.Log.setUp(parser)
+        parser.suppress([
+            parserutils.Log.FLAG_LAST_PCT, parserutils.Log.FLAG_SLICE,
+            FLAG_SUBSTRUCT
+        ])
+        return parser
 
 
 def main(argv):
-    parser = get_parser()
+    parser = Parser(__file__, descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options, file=True) as logger:
         runner = Runner(options, argv, logger=logger)

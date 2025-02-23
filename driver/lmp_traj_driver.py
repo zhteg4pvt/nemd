@@ -10,10 +10,10 @@ import sys
 from nemd import analyzer
 from nemd import lammpsdata
 from nemd import logutils
+from nemd import parserutils
 from nemd import symbols
 from nemd import task
 from nemd import traj
-from nemd import parserutils
 
 
 class Traj(logutils.Base):
@@ -25,7 +25,7 @@ class Traj(logutils.Base):
 
     def __init__(self, options, logger=None):
         """
-        :param options 'argparse.DriverParser': Parsed command-line options
+        :param options 'argparse.Driver': Parsed command-line options
         :param logger 'logging.Logger': the logger to log messages
         """
         super().__init__(logger=logger)
@@ -80,7 +80,9 @@ class Traj(logutils.Base):
                 f"{', '.join(self.traj.tasks)} analyze all frames and save per "
                 f"frame results {symbols.ELEMENT_OF} [{self.traj.time[0]:.3f}, "
                 f"{self.traj.time[-1]:.3f}] ps")
-        lf_tasks = [x for x in self.options.task if x in parserutils.Traj.LAST_FRM]
+        lf_tasks = [
+            x for x in self.options.task if x in parserutils.Traj.LAST_FRM
+        ]
         if lf_tasks:
             label, unit, _ = analyzer.Base.parse(self.traj.time.name)
             self.log(

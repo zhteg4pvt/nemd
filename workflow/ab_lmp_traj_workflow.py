@@ -37,7 +37,7 @@ class Parser(parserutils.Workflow):
 
     @classmethod
     def setUp(cls, parser, **kwargs):
-        parserutils.AmorpBldr.setUp(parser, driver=True)
+        parserutils.AmorpBldr.setUp(parser, append=False)
         parserutils.Lammps.setUp(parser)
         parserutils.Traj.setUp(parser)
         super().setUp(parser, **kwargs)

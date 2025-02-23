@@ -202,7 +202,7 @@ class Job(Base):
         The user-friendly command-line parser.
 
         :param descr str: the descr of the program
-        :return 'argparse.DriverParser': argparse figures out how to parse
+        :return 'argparse.Driver': argparse figures out how to parse
           those out of sys.argv.
         """
         return cls.ParserClass(cls.FILE, descr=descr)

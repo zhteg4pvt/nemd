@@ -12,8 +12,8 @@ from nemd import jobutils
 from nemd import lammpsfix
 from nemd import lammpsin
 from nemd import logutils
-from nemd import symbols
 from nemd import parserutils
+from nemd import symbols
 
 
 class Lammps(logutils.Base):
@@ -29,7 +29,7 @@ class Lammps(logutils.Base):
 
     def __init__(self, options, logger=None):
         """
-        :param options 'argparse.DriverParser':  Parsed command-line options
+        :param options 'argparse.Driver':  Parsed command-line options
         :param logger 'logging.Logger':  Logger for logging messages.
         """
         super().__init__(logger=logger)

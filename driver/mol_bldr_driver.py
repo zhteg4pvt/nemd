@@ -19,7 +19,7 @@ class Grid(logutils.Base):
 
     def __init__(self, options, **kwargs):
         """
-        :param options 'argparse.DriverParser':  Parsed command-line options
+        :param options 'argparse.Driver':  Parsed command-line options
         :param ff 'OplsParser': the force field class.
         """
         super().__init__(**kwargs)

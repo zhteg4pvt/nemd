@@ -19,7 +19,7 @@ class Crystal(logutils.Base):
 
     def __init__(self, options, **kwargs):
         """
-        :param options 'argparse.DriverParser': Parsed command-line options
+        :param options 'argparse.Driver': Parsed command-line options
         """
         super().__init__(**kwargs)
         self.options = options

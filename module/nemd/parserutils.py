@@ -9,6 +9,8 @@ import os
 import random
 import re
 
+from nemd import DEBUG
+from nemd import analyzer
 from nemd import cru
 from nemd import envutils
 from nemd import jobutils
@@ -17,10 +19,6 @@ from nemd import np
 from nemd import rdkitutils
 from nemd import sw
 from nemd import symbols
-from nemd import DEBUG
-from nemd import analyzer
-
-ONES = (1, 1, 1)
 
 
 def type_file(arg):
@@ -249,7 +247,7 @@ class Action(argparse.Action):
         """
         The action to be taken when the argument is parsed.
 
-        :param parser `DriverParser`: the parser object.
+        :param parser `argparse.ArgumentParser`: the parser object.
         :param 'argparse.Namespace': partially parsed arguments.
         :param values list: the values to be parsed.
         :param option_string str: the option string (flog)
@@ -260,7 +258,7 @@ class Action(argparse.Action):
             parser.error(f"{err} ({option_string})")
 
 
-class ForceField(Action):
+class ForceFieldAction(Action):
     """
     Argparse action that allows a mandatory force field name fallowed by an
     optional water model name.
@@ -290,7 +288,7 @@ class ForceField(Action):
         return name, *args
 
 
-class Slice(Action):
+class SliceAction(Action):
     """
     Argparse action that allows a mandatory END, and optional START and STEP
     to slice a range of values.
@@ -314,7 +312,7 @@ class Slice(Action):
         return start, stop, step
 
 
-class Struct(Action):
+class StructAction(Action):
     """
     Action for argparse that allows a mandatory smile str followed by an optional
     VALUE of float type.
@@ -334,32 +332,7 @@ class Struct(Action):
         return smiles, value
 
 
-class StructRg(Struct):
-    """
-    Action for argparse that allows a mandatory smile str followed by optional
-    START END, and STEP values of type float, float, and int, respectively.
-    """
-
-    def doTyping(self, smiles, start=None, end=None, step=None):
-        """
-        Check the validity of the smiles string and the range.
-
-        :param smiles str: the smiles str to select a substructure.
-        :param start str: the start to define a range.
-        :param end str: the end to define a range.
-        :param step str: the step to define a range.
-        :return str, float, float, float: the smiles str, start, end, and step.
-        """
-        _, start = super().doTyping(smiles, start)
-        if start is None:
-            return [smiles, None]
-        if end is None or step is None:
-            raise argparse.ArgumentTypeError(
-                "start, end, and step partially provided.")
-        return [smiles, start, type_float(end), type_float(step)]
-
-
-class Three(Action):
+class ThreeAction(Action):
     """
     Argparse action that allow three values.
     """
@@ -402,24 +375,6 @@ class Validator:
         random.seed(self.options.seed)
 
 
-class WorkflowValidator(Validator):
-    """
-    Class to validate workflow related arguments after parse_args().
-    """
-
-    def __init__(self, options):
-        """
-        param options 'argparse.Namespace': Command line options.
-        """
-        self.options = options
-
-    def run(self):
-        """
-        Main method to run the validation.
-        """
-        os.environ['TQDM_DISABLE'] = '' if self.options.screen else '1'
-
-
 class MolValidator(Validator):
     """
     Class to validate molecule related arguments after parse_args().
@@ -460,7 +415,10 @@ class MolValidator(Validator):
                          f'{len(self.options.mol_num)} molecules found.')
 
 
-class LammpsValidator(Validator):
+class LmpValidator(Validator):
+    """
+    Class to validate lammps related arguments after parse_args().
+    """
 
     def run(self):
         """
@@ -489,6 +447,9 @@ class LammpsValidator(Validator):
 
 
 class TrajValidator(Validator):
+    """
+    Class to validate trajectory related arguments after parse_args().
+    """
 
     def run(self):
         """
@@ -501,6 +462,24 @@ class TrajValidator(Validator):
         if data_rqd_tasks and not self.options.data_file:
             raise ValueError(f"Please specify {Lammps.FLAG_DATA_FILE} to"
                              f" run {', '.join(data_rqd_tasks)} tasks.")
+
+
+class WorkflowValidator(Validator):
+    """
+    Class to validate workflow related arguments after parse_args().
+    """
+
+    def __init__(self, options):
+        """
+        param options 'argparse.Namespace': Command line options.
+        """
+        self.options = options
+
+    def run(self):
+        """
+        Main method to run the validation.
+        """
+        os.environ['TQDM_DISABLE'] = '' if self.options.screen else '1'
 
 
 class ArgumentDefaultsHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -518,9 +497,8 @@ class ArgumentDefaultsHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
 
 class Driver(argparse.ArgumentParser):
     """
-    A customized parser that provides additional features.
+    Parser with job arguments.
     """
-    # Job
     FLAG_INTERAC = jobutils.FLAG_INTERAC
     FLAG_JOBNAME = jobutils.FLAG_JOBNAME
     FLAG_PYTHON = jobutils.FLAG_PYTHON
@@ -550,11 +528,17 @@ class Driver(argparse.ArgumentParser):
         self.validators = set() if validators is None else validators
         if self.delay:
             return
-        self.setUp(self, seed=True)
+        self.setUp(self, append=False)
         self.addJob()
 
     @classmethod
-    def setUp(cls, parser, seed=False):
+    def setUp(cls, parser, append=True):
+        """
+        Set up the parser.
+
+        :param parser `argparse.ArgumentParser`: the parser instance to set up
+        :param append `bool`: whether this appends to other setup.
+        """
         ...
 
     def addJob(self):
@@ -644,24 +628,33 @@ class Driver(argparse.ArgumentParser):
 
 
 class Bldr(Driver):
-
+    """
+    Parser with builder arguments.
+    """
     FlAG_FORCE_FIELD = '-force_field'
     FLAG_SUBSTRUCT = '-substruct'
 
     @classmethod
-    def setUp(cls, parser, seed=False):
+    def addBldr(cls, parser, append=True):
         """
-        Add builder flags.
+        Set up the builder arguments.
+
+        :param parser `argparse.ArgumentParser`: the parser instance to set up
+        :param seed `bool`: whether this is a seeding job in the workflow
         """
+        parser.add_argument(jobutils.FLAG_SEED,
+                            metavar=jobutils.FLAG_SEED[1:].upper(),
+                            type=type_random_seed,
+                            help='Set random state.')
         parser.add_argument(cls.FLAG_SUBSTRUCT,
-                          metavar='SMILES (VALUE)',
-                          nargs='+',
-                          action=Struct,
-                          help='set or measure the substructure geometry.')
+                            metavar='SMILES (VALUE)',
+                            nargs='+',
+                            action=StructAction,
+                            help='set or measure the substructure geometry.')
         parser.add_argument(
             cls.FlAG_FORCE_FIELD,
             metavar=cls.FlAG_FORCE_FIELD[1:].upper(),
-            action=ForceField,
+            action=ForceFieldAction,
             nargs='+',
             default=symbols.OPLSUA_TIP3P,
             help=f'The force field type:\n'
@@ -670,7 +663,9 @@ class Bldr(Driver):
 
 
 class MolBase(Bldr):
-
+    """
+    Parser with basic molecular arguments.
+    """
     FLAG_CRU = 'cru'
     FLAG_CRU_NUM = '-cru_num'
     FLAG_MOL_NUM = '-mol_num'
@@ -679,13 +674,16 @@ class MolBase(Bldr):
     @classmethod
     def setUp(cls, parser, **kwargs):
         """
-        Add polymer builder flags.
+        Set up the basic molecular arguments.
+
+        :param parser `argparse.ArgumentParser`: the parser instance to set up
+        :param seed `bool`: whether this is a seeding job in the workflow
         """
         parser.add_argument(cls.FLAG_CRU,
-                          metavar=cls.FLAG_CRU.upper(),
-                          type=type_cru_smiles,
-                          nargs='+',
-                          help='SMILES of the constitutional repeat units.')
+                            metavar=cls.FLAG_CRU.upper(),
+                            type=type_cru_smiles,
+                            nargs='+',
+                            help='SMILES of the constitutional repeat units.')
         parser.add_argument(
             cls.FLAG_CRU_NUM,
             metavar=cls.FLAG_CRU_NUM[1:].upper(),
@@ -693,45 +691,49 @@ class MolBase(Bldr):
             nargs='+',
             help='Number of constitutional repeat unit per polymer')
         parser.add_argument(cls.FLAG_MOL_NUM,
-                          metavar=cls.FLAG_MOL_NUM[1:].upper(),
-                          type=type_positive_int,
-                          nargs='+',
-                          help='Number of molecules in the amorphous cell')
-        parser.add_argument(jobutils.FLAG_SEED,
-                            metavar=jobutils.FLAG_SEED[1:].upper(),
-                            type=type_random_seed,
-                            help='Set random state.')
+                            metavar=cls.FLAG_MOL_NUM[1:].upper(),
+                            type=type_positive_int,
+                            nargs='+',
+                            help='Number of molecules in the amorphous cell')
         # The buffer distance between molecules in the grid cell
-        parser.add_argument(
-            cls.FLAG_BUFFER,
-            metavar=cls.FLAG_BUFFER[1:].upper(),
-            type=type_positive_float,
-            help=argparse.SUPPRESS)
+        parser.add_argument(cls.FLAG_BUFFER,
+                            metavar=cls.FLAG_BUFFER[1:].upper(),
+                            type=type_positive_float,
+                            help=argparse.SUPPRESS)
         parser.validators.add(MolValidator)
+        cls.addBldr(parser)
         super().setUp(parser, **kwargs)
-        Md.setUp(parser, seed=False)
+        Md.setUp(parser, append=True)
 
 
 class MolBldr(MolBase):
-
-    FLAG_SUBSTRUCT = '-substruct'
+    """
+    Parser with molecule arguments.
+    """
 
     @classmethod
     def setUp(cls, parser, **kwargs):
         """
+        Set up the single-molecule arguments.
+
+        :param parser `argparse.ArgumentParser`: the parser instance to set up
+        :param seed `bool`: whether this is a seeding job in the workflow
         """
         super().setUp(parser)
         parser.suppress(buffer=f"{symbols.DEFAULT_CUT * 4}",
-                      mol_num=[1],
-                      temp=0,
-                      timestep=1,
-                      press=1,
-                      relax_time=0,
-                      prod_time=0,
-                      prod_ens=lammpsfix.NVE)
+                        mol_num=[1],
+                        temp=0,
+                        timestep=1,
+                        press=1,
+                        relax_time=0,
+                        prod_time=0,
+                        prod_ens=lammpsfix.NVE)
+
 
 class AmorpBldr(MolBase):
-
+    """
+    Parser with amorphous-cell arguments.
+    """
     FLAG_DENSITY = '-density'
     FLAG_METHOD = '-method'
     GRID = 'grid'
@@ -740,10 +742,13 @@ class AmorpBldr(MolBase):
     METHODS = [GRID, PACK, GROW]
 
     @classmethod
-    def setUp(cls, parser, **kwargs):
+    def addBldr(cls, parser, **kwargs):
         """
+        Set up the amorphous-cell arguments.
+
+        :param parser `argparse.ArgumentParser`: the parser instance to set up
+        :param seed `bool`: whether this is a seeding job in the workflow
         """
-        super().setUp(parser, **kwargs)
         parser.add_argument(
             cls.FLAG_DENSITY,
             metavar='g/cm^3',
@@ -760,13 +765,17 @@ class AmorpBldr(MolBase):
             help=f'place molecules into the space {cls.GRID}; {cls.PACK} '
             f'molecules with random rotation and translation; {cls.GROW} '
             'molecules by rotating rigid fragments.')
+        super().addBldr(parser, **kwargs)
 
 
 class XtalBldr(Bldr):
-
+    """
+    Parser with crystal arguments.
+    """
     FlAG_NAME = jobutils.FlAG_NAME
     FlAG_DIMENSION = '-dimension'
     FLAG_SCALED_FACTOR = '-scale_factor'
+    ONES = (1, 1, 1)
 
     @classmethod
     def setUp(self, *args, **kwargs):
@@ -776,7 +785,9 @@ class XtalBldr(Bldr):
     @classmethod
     def setUp(cls, parser, **kwargs):
         """
-        Add crystal builder flags.
+        Set up the crystal arguments.
+
+        :param parser `argparse.ArgumentParser`: the parser instance to set up
         """
         # FIXME: support more choices based on crystals.Crystal.builtins
         parser.add_argument(
@@ -786,20 +797,20 @@ class XtalBldr(Bldr):
             help='Name to retrieve the crystal structure from the database.')
         parser.add_argument(
             cls.FlAG_DIMENSION,
-            default=ONES,
+            default=cls.ONES,
             nargs='+',
             metavar=cls.FlAG_DIMENSION[1:].upper(),
             type=int,
-            action=Three,
+            action=ThreeAction,
             help='Duplicate the unit cell by these factors to generate the '
             'supercell.')
         parser.add_argument(
             cls.FLAG_SCALED_FACTOR,
-            default=ONES,
+            default=cls.ONES,
             nargs='+',
             metavar=cls.FLAG_SCALED_FACTOR[1:].upper(),
             type=type_positive_float,
-            action=Three,
+            action=ThreeAction,
             help='Each lattice vector is scaled by the corresponding factor.')
         super().setUp(parser, **kwargs)
         parser.set_defaults(force_field=[symbols.SW])
@@ -807,7 +818,9 @@ class XtalBldr(Bldr):
 
 
 class Md(Driver):
-
+    """
+    Parser with molecular dynamics arguments.
+    """
     FLAG_TIMESTEP = '-timestep'
     FLAG_STEMP = '-stemp'
     FLAG_TEMP = '-temp'
@@ -822,20 +835,18 @@ class Md(Driver):
     FLAG_RIGID_ANGLE = '-rigid_angle'
 
     @classmethod
-    def setUp(cls, parser, seed=False):
+    def setUp(cls, parser, append=True):
         """
-        The molecular dynamics flags.
+        Set up the molecular dynamics arguments.
+
+        :param parser `argparse.ArgumentParser`: the parser instance to set up
+        :param append `bool`: whether this appends to other setup
         """
-        if seed:
-            parser.add_argument(jobutils.FLAG_SEED,
-                              metavar=jobutils.FLAG_SEED[1:].upper(),
-                              type=type_random_seed,
-                              help='Set random state.')
         parser.add_argument(cls.FLAG_TIMESTEP,
-                          metavar='fs',
-                          type=type_positive_float,
-                          default=1,
-                          help=f'Timestep for the MD simulation.')
+                            metavar='fs',
+                            type=type_positive_float,
+                            default=1,
+                            help=f'Timestep for the MD simulation.')
         parser.add_argument(
             cls.FLAG_STEMP,
             metavar='K',
@@ -844,11 +855,11 @@ class Md(Driver):
             # 'Initialize the atoms with this temperature.'
             help=argparse.SUPPRESS)
         parser.add_argument(cls.FLAG_TEMP,
-                          metavar=cls.FLAG_TEMP[1:].upper(),
-                          type=type_nonnegative_float,
-                          default=300,
-                          help=f'The equilibrium temperature target. A zero '
-                          f'for single point energy.')
+                            metavar=cls.FLAG_TEMP[1:].upper(),
+                            type=type_nonnegative_float,
+                            default=300,
+                            help=f'The equilibrium temperature target. A zero '
+                            f'for single point energy.')
         parser.add_argument(
             cls.FLAG_TDAMP,
             metavar=cls.FLAG_TDAMP[1:].upper(),
@@ -857,10 +868,10 @@ class Md(Driver):
             # Temperature damping parameter (x timestep to get the param)
             help=argparse.SUPPRESS)
         parser.add_argument(cls.FLAG_PRESS,
-                          metavar=cls.FLAG_PRESS[1:].upper(),
-                          type=float,
-                          default=1,
-                          help="The equilibrium pressure target.")
+                            metavar=cls.FLAG_PRESS[1:].upper(),
+                            type=float,
+                            default=1,
+                            help="The equilibrium pressure target.")
         parser.add_argument(
             cls.FLAG_PDAMP,
             metavar=cls.FLAG_PDAMP[1:].upper(),
@@ -869,152 +880,158 @@ class Md(Driver):
             # Pressure damping parameter (x timestep to get the param)
             help=argparse.SUPPRESS)
         parser.add_argument(cls.FLAG_RELAX_TIME,
-                          metavar='ns',
-                          type=type_nonnegative_float,
-                          default=1,
-                          help='Relaxation simulation time.')
+                            metavar='ns',
+                            type=type_nonnegative_float,
+                            default=1,
+                            help='Relaxation simulation time.')
         parser.add_argument(cls.FLAG_PROD_TIME,
-                          metavar='ns',
-                          type=type_positive_float,
-                          default=1,
-                          help='Production simulation time.')
+                            metavar='ns',
+                            type=type_positive_float,
+                            default=1,
+                            help='Production simulation time.')
         parser.add_argument(cls.FLAG_PROD_ENS,
-                          choices=lammpsfix.ENSEMBLES,
-                          default=lammpsfix.NVE,
-                          help='Production ensemble.')
+                            choices=lammpsfix.ENSEMBLES,
+                            default=lammpsfix.NVE,
+                            help='Production ensemble.')
+        if not append:
+            parser.add_argument(jobutils.FLAG_SEED,
+                                metavar=jobutils.FLAG_SEED[1:].upper(),
+                                type=type_random_seed,
+                                help='Set random state.')
         # Skip the structure minimization step
         parser.add_argument(cls.FLAG_NO_MINIMIZE,
-                          action='store_true',
-                          help=argparse.SUPPRESS)
+                            action='store_true',
+                            help=argparse.SUPPRESS)
         # The lengths of these types are fixed during the simulation
-        parser.add_argument(
-            cls.FLAG_RIGID_BOND,
-            metavar=cls.FLAG_RIGID_BOND[1:].upper(),
-            type=type_positive_int,
-            nargs='+',
-            help=argparse.SUPPRESS)
+        parser.add_argument(cls.FLAG_RIGID_BOND,
+                            metavar=cls.FLAG_RIGID_BOND[1:].upper(),
+                            type=type_positive_int,
+                            nargs='+',
+                            help=argparse.SUPPRESS)
         # The angles of these types are fixed during the simulation
-        parser.add_argument(
-            cls.FLAG_RIGID_ANGLE,
-            metavar=cls.FLAG_RIGID_ANGLE[1:].upper(),
-            type=type_positive_int,
-            nargs='+',
-            help=argparse.SUPPRESS)
+        parser.add_argument(cls.FLAG_RIGID_ANGLE,
+                            metavar=cls.FLAG_RIGID_ANGLE[1:].upper(),
+                            type=type_positive_int,
+                            nargs='+',
+                            help=argparse.SUPPRESS)
         parser.validators.add(Validator)
 
 
 class Lammps(Driver):
-
+    """
+    Parser with lammps arguments.
+    """
     FLAG_INSCRIPT = 'inscript'
     FLAG_LOG = '-log'
     FLAG_DATA_FILE = '-data_file'
 
     @classmethod
-    def setUp(cls, parser, seed=False):
+    def setUp(cls, parser, append=True):
         """
-        Add job specific arguments to the parser.
+        Set up the molecular dynamics arguments.
 
-        :param parser DriverParser: the parse to add arguments
-        :param seed bool: whether to add seed arguments
+        :param parser `argparse.ArgumentParser`: the parser instance to set up
+        :param append `bool`: whether this appends other setup.
         """
-        if seed:
-            parser.add_argument(cls.FLAG_INSCRIPT,
-                                metavar=cls.FLAG_INSCRIPT.upper(),
-                                type=type_file,
-                                help='Read input from this file.')
-            parser.add_argument(jobutils.FLAG_SCREEN,
-                                default=symbols.NONE,
-                                help='Where to send screen output.')
-        parser.add_argument(jobutils.FLAG_LOG,
-                            metavar=jobutils.FLAG_LOG[1:].upper(),
-                            help='Print logging information into this file.')
+        if append:
+            return
+        parser.add_argument(cls.FLAG_INSCRIPT,
+                            metavar=cls.FLAG_INSCRIPT.upper(),
+                            type=type_file,
+                            help='Read input from this file.')
         parser.add_argument(cls.FLAG_DATA_FILE,
                             metavar=cls.FLAG_DATA_FILE[1:].upper(),
                             type=type_file,
                             help='Data file to get force field information')
-        if seed:
-            parser.validators.add(LammpsValidator)
+        parser.add_argument(jobutils.FLAG_LOG,
+                            metavar=jobutils.FLAG_LOG[1:].upper(),
+                            help='Print logging information into this file.')
+        parser.add_argument(jobutils.FLAG_SCREEN,
+                            default=symbols.NONE,
+                            help='Where to send screen output.')
+        parser.validators.add(LmpValidator)
 
 
 class Log(Driver):
-
+    """
+    Parser with lammps-log arguments.
+    """
     FLAG_DATA_FILE = '-data_file'
     FLAG_LAST_PCT = '-last_pct'
     FLAG_SLICE = '-slice'
-    TASKS = analyzer.THERMO.keys()
+    TASKS = [*analyzer.THERMO.keys(), symbols.ALL]
     TASK_HELP = 'Searches, combines and averages thermodynamic info.'
     LAST_FRM = analyzer.THERMO.keys()
-    FLAG = 'log'
-    HELP = 'LAMMPS log file to analyze.'
 
     @classmethod
-    def setUp(cls, parser, seed=False):
+    def setUp(cls, parser, append=True, task=symbols.TOTENG):
         """
         Add job specific arguments to the parser.
 
-        :param parser DriverParser: the parse to add arguments
-        :param seed bool: whether to add seed arguments
+        :param parser argparse.ArgumentParser: the parse to add arguments
+        :param append bool: whether this appends to other setup
+        :param task str: the default task
         """
-        if seed:
-            parser.add_argument(cls.FLAG,
-                                metavar=cls.FLAG.upper(),
+        if not append:
+            parser.add_argument(cls.__name__.lower(),
+                                metavar=cls.__name__.upper(),
                                 type=type_file,
-                                help=cls.HELP)
-            parser.add_argument(cls.FLAG_DATA_FILE,
-                                metavar=cls.FLAG_DATA_FILE[1:].upper(),
-                                type=type_file,
-                                help='The file of the structure and force field.')
-        else:
-            parser.set_defaults(task=[symbols.TOTENG])
+                                help=f'The {cls.__name__} file to analyze.')
         parser.add_argument(jobutils.FLAG_TASK,
                             type=str.lower,
+                            default=[task],
                             choices=cls.TASKS,
                             nargs='+',
                             help=cls.TASK_HELP)
+        if not append:
+            parser.add_argument(
+                cls.FLAG_DATA_FILE,
+                metavar=cls.FLAG_DATA_FILE[1:].upper(),
+                type=type_file,
+                help='The file of the structure and force field.')
         parser.add_argument(
             cls.FLAG_LAST_PCT,
             type=LastPct.type,
             default=LastPct(0.2),
             help=f"{', '.join(cls.LAST_FRM)} average results from this last "
             "percentage to the end.")
-        parser.add_argument(cls.FLAG_SLICE,
-                            metavar='START END STEP',
-                            action=Slice,
-                            nargs='+',
-                            help="Slice the input data before the analysis by "
-                            "END, START END, or START END STEP.")
+        parser.add_argument(
+            cls.FLAG_SLICE,
+            metavar='START END STEP',
+            action=SliceAction,
+            nargs='+',
+            help="SliceAction the input data before the analysis by "
+            "END, START END, or START END STEP.")
 
 
 class Traj(Log):
-
+    """
+    Parser with lammps-trajectory arguments.
+    """
     TASKS = analyzer.TRAJ.keys()
-    TASK_DEFAULT = analyzer.Density.NAME
     TASK_HELP = ', '.join(x.__doc__.strip().lower()
                           for x in analyzer.TRAJ.values())
     LAST_FRM = [x.NAME for x in [analyzer.MSD, analyzer.RDF]]
-    FLAG = 'traj'
-    HELP = 'Custom dump file to analyze.'
 
     @classmethod
-    def setUp(cls, parser, seed=False):
+    def setUp(cls, parser, append=True, task=analyzer.Density.NAME):
         """
         Add job specific arguments to the parser.
 
-        :param parser DriverParser: the parse to add arguments
+        :param parser argparse.ArgumentParser: the parse to add arguments
         :param seed bool: whether to add seed arguments
+        :param task str: the default task
         """
-        super().setUp(parser, seed=seed)
-        parser.set_defaults(task=[cls.TASK_DEFAULT])
+        super().setUp(parser, append=append, task=task)
         parser.add_argument('-sel', help=f'The element of the selected atoms.')
-        if seed:
+        if not append:
             parser.validators.add(TrajValidator)
 
 
 class Workflow(Driver):
     """
-    A customized parser that provides additional features.
+    Parser with workflow arguments.
     """
-    # Workflow
     FLAG_STATE_NUM = '-state_num'
     FLAG_CLEAN = '-clean'
     FLAG_JTYPE = '-jtype'
