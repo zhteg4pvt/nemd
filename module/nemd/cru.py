@@ -83,9 +83,7 @@ class Moieties(collections.UserDict):
         """
         num = len(moiety.wild_card)
         if num and num == len(moiety.capping()):
-            # Marked initiator
             return self.INITIATOR
-
         try:
             return self.ROLES[num]
         except IndexError:
@@ -133,7 +131,9 @@ class Mol(Moieties):
             constitutional repeat units.
         """
         regulars = self.frags[self.REGULAR]
-        if regulars and len(self.frags) > 1:
+        if not regulars:
+            return
+        if len(self.frags) > 1:
             raise MoietyError(
                 f"{Chem.MolToSmiles(self.mol)} mixes regular molecules with "
                 f"constitutional repeat units.")
@@ -187,6 +187,8 @@ class Mol(Moieties):
 
         :raise MoietyError: The monomer does not have a head marked.
         """
+        if not self.frags[self.MONOMER] and not self.frags[self.REGULAR]:
+            raise MoietyError(f'Neither regular nor monomer found.')
         for mol in self.frags[self.MONOMER]:
             map_nums = [x.GetAtomMapNum() for x in mol.wild_card]
             if Moiety.HEAD_ID not in map_nums:

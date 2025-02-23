@@ -126,14 +126,14 @@ def type_nonnegative_float(arg):
     return type_ranged_float(arg, bottom=0)
 
 
-def type_positive_float(arg):
+def type_positive_float(arg, **kwargs):
     """
     Check whether the argument can be converted to a positive float.
 
     :param arg str: the input argument.
     :return `float`: the converted positive value.
     """
-    return type_ranged_float(arg, bottom=0, included_bottom=False)
+    return type_ranged_float(arg, bottom=0, included_bottom=False, **kwargs)
 
 
 def type_int(arg):
@@ -193,6 +193,7 @@ def type_cru_smiles(arg, allow_reg=True, canonize=True):
     Check whether the argument is a SMILES that can be converted to
     constitutional repeating unit.
 
+    :param arg str: the input argument
     :param allow_reg bool: whether to allow regular molecule (without wildcard).
     :param canonize bool: whether to canonize the SMILES.
     :return `rdkit.Chem.rdchem.Mol: the converted molecule.
@@ -234,7 +235,7 @@ class LastPct(float):
         :param arg str: the input argument.
         :return `cls`: the customized last percentage
         """
-        value = type_ranged_float(arg, include_top=False, top=1)
+        value = type_positive_float(arg, include_top=False, top=1)
         return cls(value)
 
 

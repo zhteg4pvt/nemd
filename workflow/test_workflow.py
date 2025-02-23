@@ -117,7 +117,6 @@ class Parser(parserutils.Workflow):
     """
     A customized parser that supports cross argument validation options.
     """
-
     WFLAGS = parserutils.Workflow.WFLAGS[1:]
     FLAG_ID = 'id'
     FLAG_TASK = jobutils.FLAG_TASK
