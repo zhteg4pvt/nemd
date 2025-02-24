@@ -162,6 +162,18 @@ def type_positive_int(arg):
     return value
 
 
+def type_nonnegative_int(arg):
+    """
+    Check whether the argument can be converted to a positive integer.
+
+    :param arg str: the input argument.
+    :return `int: the converted positive integer.
+    """
+    value = type_int(arg)
+    type_ranged(value, bottom=0)
+    return value
+
+
 def type_random_seed(arg):
     """
     Check whether the argument can be converted to a random seed.
@@ -241,12 +253,12 @@ class LastPct(float):
 
 class Action(argparse.Action):
     """
-    Argparse action that errors on ArgumentTypeError in doTyping().
+    Take this action with multiple input values following the type check.
     """
 
     def __call__(self, parser, namespace, values, option_string=None):
         """
-        The action to be taken when the argument is parsed.
+        The action to be taken when the arguments are parsed.
 
         :param parser `argparse.ArgumentParser`: the parser object.
         :param 'argparse.Namespace': partially parsed arguments.
@@ -257,6 +269,14 @@ class Action(argparse.Action):
             setattr(namespace, self.dest, self.doTyping(*values))
         except argparse.ArgumentTypeError as err:
             parser.error(f"{err} ({option_string})")
+
+    def doTyping(self, *args):
+        """
+        Check the input values.
+
+        :return *args list: the modified values.
+        """
+        return args
 
 
 class ForceFieldAction(Action):
@@ -306,11 +326,10 @@ class SliceAction(Action):
         args = [None if x == 'None' else type_int(x) for x in args]
         sliced = slice(*args)
         start = 0 if sliced.start is None else sliced.start
-        stop = sliced.stop
         step = 1 if sliced.step is None else sliced.step
-        if start < 0 or (stop is not None and stop < 0) or step <= 0:
-            raise argparse.ArgumentTypeError(f"{args} invalid for islice.")
-        return start, stop, step
+        if step == 0 or start > sliced.stop:
+            raise argparse.ArgumentTypeError(f"{args} invalid for slice.")
+        return start, sliced.stop, step
 
 
 class StructAction(Action):
@@ -995,6 +1014,7 @@ class Log(Driver):
         parser.add_argument(
             cls.FLAG_SLICE,
             metavar='START END STEP',
+            type=type_nonnegative_int,
             action=SliceAction,
             nargs='+',
             help="SliceAction the input data before the analysis by "

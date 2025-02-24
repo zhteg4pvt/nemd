@@ -1,5 +1,6 @@
 import argparse
 import os
+from unittest import mock
 
 import pytest
 
@@ -100,6 +101,12 @@ class TestType:
         with check_raise():
             parserutils.type_positive_int(arg)
 
+    @pytest.mark.parametrize('arg,is_raise', [('1', False), ('0', False),
+                                              ('-1', True)])
+    def testNonnegativeInt(self, arg, check_raise):
+        with check_raise():
+            parserutils.type_nonnegative_int(arg)
+
     @pytest.mark.parametrize('arg,is_raise', [('0', False), ('1234', False),
                                               ('-1', True), (2**31, True)])
     def testRandomSeed(self, arg, check_raise):
@@ -136,3 +143,47 @@ class TestLastPct:
     def testLastPctGetSidx(self, data, arg, buffer, sidx):
         ptc = parserutils.LastPct.type(arg)
         assert sidx == ptc.getSidx(data, buffer=buffer)
+
+
+class ArgumentParser(argparse.ArgumentParser):
+
+    def check(self, args, err=False, expected=None):
+        values = self.parse_args(args=['-flag', *args]).flag
+        assert err == self.error.called
+        if err:
+            return
+        assert (tuple(args) if expected is None else expected) == values
+
+
+class TestAction:
+
+    @pytest.fixture
+    def parser(self, action):
+        parser = ArgumentParser()
+        parser.add_argument('-flag', nargs='+', action=action)
+        parser.error = mock.Mock()
+        return parser
+
+    @mock.patch('nemd.parserutils.Action.doTyping')
+    @pytest.mark.parametrize('action', [parserutils.Action])
+    def testDoTyping(self, mocked, parser):
+        parser.parse_args(['-flag', '1', '2'])
+        assert mocked.called
+
+    @pytest.mark.parametrize('action', [parserutils.ForceFieldAction])
+    @pytest.mark.parametrize('args,expected,err',
+                             [(['SW'], None, False),
+                              (['OPLSUA'], ('OPLSUA', 'TIP3P'), False),
+                              (['OPLSUA', 'SPCE'], None, False),
+                              (['OPLSUA', 'NOT_VALID'], None, True)])
+    def testForceField(self, args, parser, expected, err):
+        parser.check(args, err, expected)
+
+    @pytest.mark.parametrize('action', [parserutils.SliceAction])
+    @pytest.mark.parametrize('args,expected,err',
+                             [(['9'], (0, 9, 1), False),
+                              (['9', '1'], None, True),
+                              (['1', '9', '3'], (1, 9, 3), False),
+                              (['1', '9', '0'], None, True)])
+    def testSliceAction(self, args, parser, expected, err):
+        parser.check(args, err, expected)
