@@ -145,32 +145,32 @@ class TestLastPct:
         assert sidx == ptc.getSidx(data, buffer=buffer)
 
 
-class ArgumentParser(argparse.ArgumentParser):
-
-    def check(self, args, err=False, expected=None):
-        values = self.parse_args(args=['-flag', *args]).flag
-        assert err == self.error.called
-        if err:
-            return
-        assert (tuple(args) if expected is None else expected) == values
-
-
 class TestAction:
 
+    class ArgumentParser(argparse.ArgumentParser):
+
+        def check(self, args, err=False, expected=None):
+            values = self.parse_args(args=['-flag', *args]).flag
+            assert err == self.error.called
+            if err:
+                return
+            assert (tuple(args) if expected is None else expected) == values
+
     @pytest.fixture
-    def parser(self, action):
-        parser = ArgumentParser()
-        parser.add_argument('-flag', nargs='+', action=action)
+    def parser(self, action, dtype):
+        parser = self.ArgumentParser()
+        parser.add_argument('-flag', nargs='+', type=dtype, action=action)
         parser.error = mock.Mock()
         return parser
 
     @mock.patch('nemd.parserutils.Action.doTyping')
-    @pytest.mark.parametrize('action', [parserutils.Action])
+    @pytest.mark.parametrize('action,dtype', [(parserutils.Action, str)])
     def testDoTyping(self, mocked, parser):
         parser.parse_args(['-flag', '1', '2'])
         assert mocked.called
 
-    @pytest.mark.parametrize('action', [parserutils.ForceFieldAction])
+    @pytest.mark.parametrize('action,dtype',
+                             [(parserutils.ForceFieldAction, str)])
     @pytest.mark.parametrize('args,expected,err',
                              [(['SW'], None, False),
                               (['OPLSUA'], ('OPLSUA', 'TIP3P'), False),
@@ -179,11 +179,30 @@ class TestAction:
     def testForceField(self, args, parser, expected, err):
         parser.check(args, err, expected)
 
-    @pytest.mark.parametrize('action', [parserutils.SliceAction])
+    @pytest.mark.parametrize(
+        'action,dtype',
+        [(parserutils.SliceAction, parserutils.type_positive_int)])
     @pytest.mark.parametrize('args,expected,err',
                              [(['9'], (0, 9, 1), False),
                               (['9', '1'], None, True),
                               (['1', '9', '3'], (1, 9, 3), False),
                               (['1', '9', '0'], None, True)])
-    def testSliceAction(self, args, parser, expected, err):
+    def testSlice(self, args, parser, expected, err):
+        parser.check(args, err, expected)
+
+    @pytest.mark.parametrize('action,dtype', [(parserutils.StructAction, str)])
+    @pytest.mark.parametrize('args,expected,err',
+                             [(['CCC', '36'], ('CCC', 36), False),
+                              (['CC'], ('CC', None), False),
+                              (['CCC', 'non_float'], None, True),
+                              (['non_smiles'], None, True)])
+    def testStruct(self, args, parser, expected, err):
+        parser.check(args, err, expected)
+
+    @pytest.mark.parametrize('action,dtype', [(parserutils.ThreeAction, str)])
+    @pytest.mark.parametrize('args,expected,err',
+                             [(['1', '2', '3', '4'], ('1', '2', '3'), False),
+                              (['1'], ('1', '1', '1'), False),
+                              (['1', '2'], None, True), ([], None, True)])
+    def testThree(self, args, parser, expected, err):
         parser.check(args, err, expected)

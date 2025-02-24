@@ -23,7 +23,7 @@ from nemd import symbols
 
 def type_file(arg):
     """
-    Check whether the argument is an existing file.
+    Check file existence.
 
     :param arg str: the input argument.
     :return str: the existing namepath of the file.
@@ -36,7 +36,7 @@ def type_file(arg):
 
 def type_dir(arg):
     """
-    Check whether the argument is an existing directory.
+    Check directory existence.
 
     :param arg str: the input argument.
     :return str: the existing directory path.
@@ -49,7 +49,7 @@ def type_dir(arg):
 
 def type_bool(arg):
     """
-    Check whether the argument can be converted to a boolean value.
+    Check and convert to a boolean.
 
     :param arg str: the input argument.
     :return str: the coverted boolean value.
@@ -66,7 +66,7 @@ def type_bool(arg):
 
 def type_float(arg):
     """
-    Check whether the argument can be converted to a float.
+    Check and convert to a float.
 
     :param arg str: the input argument.
     :return `float`: the converted float value.
@@ -84,14 +84,14 @@ def type_ranged(value,
                 included_bottom=True,
                 include_top=True):
     """
-    Check whether the value is within the range.
+    Check whether the float is within the range.
 
-    :param value `float` or `int`: the value to be checked.
-    :param bottom `float` or `int`: the lower bound of the range.
-    :param top `float` or `int`: the upper bound of the range.
+    :param value `float`: the value to be checked.
+    :param bottom `float``: the lower bound of the range.
+    :param top `float`: the upper bound of the range.
     :param included_bottom bool: whether the lower bound is allowed
     :param include_top bool: whether the upper bound is allowed
-    :return `float` or `int`: the checked value.
+    :return `float`: the checked value.
     :raise ArgumentTypeError: argument is not within the range.
     """
     if included_bottom and value < bottom:
@@ -107,7 +107,7 @@ def type_ranged(value,
 
 def type_ranged_float(arg, **kwargs):
     """
-    Check whether the argument can be converted to a float within the range.
+    Check and convert to a float within the range.
 
     :param arg str: the input argument.
     :return `float`: the converted value within the range.
@@ -118,7 +118,7 @@ def type_ranged_float(arg, **kwargs):
 
 def type_nonnegative_float(arg):
     """
-    Check whether the argument can be converted to a non-negative float.
+    Check and convert to a non-negative float.
 
     :param arg str: the input argument.
     :return `float`: the converted non-negative value.
@@ -128,7 +128,7 @@ def type_nonnegative_float(arg):
 
 def type_positive_float(arg, **kwargs):
     """
-    Check whether the argument can be converted to a positive float.
+    Check and convert to a positive float.
 
     :param arg str: the input argument.
     :return `float`: the converted positive value.
@@ -138,7 +138,7 @@ def type_positive_float(arg, **kwargs):
 
 def type_int(arg):
     """
-    Check whether the argument can be converted to an integer.
+    Check and convert to an integer.
 
     :param arg str: the input argument.
     :return `int:: the converted integer.
@@ -152,7 +152,7 @@ def type_int(arg):
 
 def type_positive_int(arg):
     """
-    Check whether the argument can be converted to a positive integer.
+    Check and convert to a positive integer.
 
     :param arg str: the input argument.
     :return `int: the converted positive integer.
@@ -164,7 +164,7 @@ def type_positive_int(arg):
 
 def type_nonnegative_int(arg):
     """
-    Check whether the argument can be converted to a positive integer.
+    Check and convert to a nonnegative integer.
 
     :param arg str: the input argument.
     :return `int: the converted positive integer.
@@ -176,7 +176,7 @@ def type_nonnegative_int(arg):
 
 def type_random_seed(arg):
     """
-    Check whether the argument can be converted to a random seed.
+    Check and convert to a random seed.
 
     :param arg str: the input argument.
     :return `int: the converted random seed.
@@ -187,7 +187,7 @@ def type_random_seed(arg):
 
 def type_smiles(arg):
     """
-    Check whether the argument is a smiles that can be converted to molecule.
+    Check and convert a smiles to a molecule.
 
     :param arg str: the input argument.
     :return `rdkit.Chem.rdchem.Mol: the converted molecule.
@@ -202,36 +202,35 @@ def type_smiles(arg):
 
 def type_cru_smiles(arg, allow_reg=True, canonize=True):
     """
-    Check whether the argument is a SMILES that can be converted to
-    constitutional repeating unit.
+    Check whether the smiles can be converted to constitutional repeating units.
 
     :param arg str: the input argument
     :param allow_reg bool: whether to allow regular molecule (without wildcard).
     :param canonize bool: whether to canonize the SMILES.
     :return `rdkit.Chem.rdchem.Mol: the converted molecule.
-    :raise ArgumentTypeError: 1) regular molecule(s) found but allow_reg=False;
-        2) constitutional repeating units and regular molecules are mixed;
-        3) constitutional repeating units are insufficient to build a polymer.
+    :raise ArgumentTypeError: when unable to build a molecule from the smiles
     """
     mol = cru.Mol(type_smiles(arg), allow_reg=allow_reg)
     try:
         mol.run()
     except cru.MoietyError as err:
+        # 1) regular molecule(s) found but allow_reg=False
+        # 2) constitutional repeating units and regular molecules are mixed
+        # 3) constitutional repeating units are insufficient to build a polymer
         raise argparse.ArgumentTypeError(str(err))
     return mol.getSmiles(canonize=canonize)
 
 
 class LastPct(float):
     """
-    Class to validate the last percentage argument and get the start index of
-    the input data.
+    The last percentage class to get the start index.
     """
 
     def getSidx(self, data, buffer=0):
         """
         Get the start index of the data.
 
-        :param data tuple, or numpy.ndarray: on which the length is determined
+        :param data list: on which the length is determined
         :param buffer int: the buffer step to be added to the start index
         :return int: the start index
         """
@@ -253,20 +252,20 @@ class LastPct(float):
 
 class Action(argparse.Action):
     """
-    Take this action with multiple input values following the type check.
+    Action on multiple values after the type check.
     """
 
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(self, parser, options, values, option_string=None):
         """
-        The action to be taken when the arguments are parsed.
+        Call this on parsing the arguments.
 
         :param parser `argparse.ArgumentParser`: the parser object.
-        :param 'argparse.Namespace': partially parsed arguments.
+        :param options 'argparse.Namespace': partially parsed arguments.
         :param values list: the values to be parsed.
-        :param option_string str: the option string (flog)
+        :param option_string str: the option string (e.g., -flag)
         """
         try:
-            setattr(namespace, self.dest, self.doTyping(*values))
+            setattr(options, self.dest, self.doTyping(*values))
         except argparse.ArgumentTypeError as err:
             parser.error(f"{err} ({option_string})")
 
@@ -278,69 +277,70 @@ class Action(argparse.Action):
         """
         return args
 
+    def error(self, msg):
+        """
+        Raise ArgumentTypeError with the message.
+
+        :raise argparse.ArgumentTypeError: the raised error
+        """
+        raise argparse.ArgumentTypeError(msg)
+
 
 class ForceFieldAction(Action):
     """
-    Argparse action that allows a mandatory force field name fallowed by an
-    optional water model name.
+    Action on a force field name optionally followed by a water model name.
     """
 
     def doTyping(self, name, *args):
         """
-        Check the validity of the force field and water model.
+        Check the force field and water model.
 
         :param name str: the force field name
         :return list: force field name, additional arguments
         """
-        choices = None
         match name:
             case symbols.SW:
                 if args and not sw.get_file(args):
-                    choices = f"elements set from {sw.NAME_ELEMENTS} sub-lists"
+                    self.error(f"Choose from {sw.NAME_ELEMENTS} sub-lists")
             case symbols.OPLSUA:
                 if not args:
                     args = [symbols.TIP3P]
                 if args[0] not in symbols.WMODELS:
-                    choices = f"water models from {symbols.WMODELS}"
+                    self.error(f"Choose water models from {symbols.WMODELS}")
             case _:
-                choices = f"force field from {symbols.FF_NAMES}"
-        if choices:
-            raise argparse.ArgumentTypeError(f"Please choose {choices}.")
+                self.error(f"Choose force field from {symbols.FF_NAMES}")
         return name, *args
 
 
 class SliceAction(Action):
     """
-    Argparse action that allows a mandatory END, and optional START and STEP
-    to slice a range of values.
+    Action on slice integers: 1) END; 2) START STEP; 3) START END STEP
     """
 
     def doTyping(self, *args):
         """
-        Check the validity of the slice arguments.
+        Check the slice arguments.
 
         :param args list of str: the arguments for the slice function.
             (1: END; 2: START, END; 3: START, END, STEP)
         :return list of int: start, stop, and step
         """
-        args = [None if x == 'None' else type_int(x) for x in args]
         sliced = slice(*args)
         start = 0 if sliced.start is None else sliced.start
         step = 1 if sliced.step is None else sliced.step
         if step == 0 or start > sliced.stop:
-            raise argparse.ArgumentTypeError(f"{args} invalid for slice.")
+            self.error(f"{args} invalid for slice.")
         return start, sliced.stop, step
 
 
 class StructAction(Action):
     """
-    Action for argparse that allows a mandatory smile str followed by an optional
-    VALUE of float type.
+    Action on smile str optionally followed by a float.
     """
 
     def doTyping(self, smiles, value=None):
         """
-        Check the validity of the slice arguments.
+        Check the slice arguments.
 
         :param smiles str: the smiles str to select a substructure.
         :param value str: the target value for the substructure to be set.
@@ -359,18 +359,14 @@ class ThreeAction(Action):
 
     def doTyping(self, *args):
         """
-        Check the validity of the smiles string and the range.
+        Check and return the first three arguments.
 
-        :param smiles str: the smiles str to select a substructure.
-        :param start str: the start to define a range.
-        :param end str: the end to define a range.
-        :param step str: the step to define a range.
-        :return str, float, float, float: the smiles str, start, end, and step.
+        :return tuple: the first three arguments
         """
         if len(args) == 1:
             return args * 3
         if len(args) == 2:
-            raise ValueError(f"{self.option_strings[0]} expects three values.")
+            raise self.error(f"{self.option_strings[0]} expects three values.")
         return args[:3]
 
 
