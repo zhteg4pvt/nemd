@@ -78,6 +78,20 @@ def type_float(arg):
         raise argparse.ArgumentTypeError(f'Cannot convert {arg} to a float.')
 
 
+def type_int(arg):
+    """
+    Check and convert to an integer.
+
+    :param arg str: the input argument.
+    :return `int:: the converted integer.
+    :raise ArgumentTypeError: argument cannot be converted to an integer.
+    """
+    try:
+        return int(arg)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f'Cannot convert {arg} to an integer')
+
+
 def type_ranged(value,
                 bottom=-symbols.MAX_INT32,
                 top=symbols.MAX_INT32,
@@ -136,20 +150,6 @@ def type_positive_float(arg, **kwargs):
     return type_ranged_float(arg, bottom=0, included_bottom=False, **kwargs)
 
 
-def type_int(arg):
-    """
-    Check and convert to an integer.
-
-    :param arg str: the input argument.
-    :return `int:: the converted integer.
-    :raise ArgumentTypeError: argument cannot be converted to an integer.
-    """
-    try:
-        return int(arg)
-    except ValueError:
-        raise argparse.ArgumentTypeError(f'Cannot convert {arg} to an integer')
-
-
 def type_positive_int(arg):
     """
     Check and convert to a positive integer.
@@ -174,15 +174,30 @@ def type_nonnegative_int(arg):
     return value
 
 
-def type_random_seed(arg):
+def type_screen(arg):
     """
-    Check and convert to a random seed.
+    Set TQDM_DISABLE environmental variable.
 
     :param arg str: the input argument.
-    :return `int: the converted random seed.
+    :return `str: the input argument.
+    """
+    if arg == jobutils.PROGRESS:
+        os.environ['TQDM_DISABLE'] = ''
+    return arg
+
+
+def type_random_seed(arg):
+    """
+    Check, convert, and set a random seed.
+
+    :param arg str: the input argument.
+    :return `int`: the converted random seed.
     """
     value = type_int(arg)
-    return type_ranged(value, bottom=0, top=symbols.MAX_INT32)
+    type_ranged(value, bottom=0, top=symbols.MAX_INT32)
+    np.random.seed(value)
+    random.seed(value)
+    return value
 
 
 def type_smiles(arg):
@@ -366,13 +381,13 @@ class ThreeAction(Action):
         if len(args) == 1:
             return args * 3
         if len(args) == 2:
-            raise self.error(f"{self.option_strings[0]} expects three values.")
+            self.error(f"{self.option_strings[0]} expects three values.")
         return args[:3]
 
 
 class Validator:
     """
-    Class to validate arguments after parse_args().
+    Class to check cross-flag arguments after parse_args().
     """
 
     def __init__(self, options):
@@ -383,12 +398,9 @@ class Validator:
 
     def run(self):
         """
-        Set the random seed.
+        Check cross-flag values.
         """
-        if self.options.seed is None:
-            self.options.seed = np.random.randint(0, symbols.MAX_INT32)
-        np.random.seed(self.options.seed)
-        random.seed(self.options.seed)
+        pass
 
 
 class MolValidator(Validator):
@@ -478,18 +490,6 @@ class TrajValidator(Validator):
         if data_rqd_tasks and not self.options.data_file:
             raise ValueError(f"Please specify {Lammps.FLAG_DATA_FILE} to"
                              f" run {', '.join(data_rqd_tasks)} tasks.")
-
-
-class WorkflowValidator(Validator):
-    """
-    Class to validate workflow related arguments after parse_args().
-    """
-
-    def run(self):
-        """
-        Main method to run the validation.
-        """
-        os.environ['TQDM_DISABLE'] = '' if self.options.screen else '1'
 
 
 class ArgumentDefaultsHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -613,6 +613,17 @@ class Driver(argparse.ArgumentParser):
         """
         return jobutils.get_name(self.file)
 
+    @staticmethod
+    @functools.cache
+    def getSeed():
+        """
+        Get a random seed and set the default state with it.
+
+        :return int: the default random seed.
+        """
+        value = np.random.randint(0, symbols.MAX_INT32)
+        return type_random_seed(value)
+
     def suppress(self, to_suppress=None, **kwargs):
         """
         Supress the help messages of specified arguments.
@@ -664,6 +675,7 @@ class Bldr(Driver):
         parser.add_argument(jobutils.FLAG_SEED,
                             metavar=jobutils.FLAG_SEED[1:].upper(),
                             type=type_random_seed,
+                            default=cls.getSeed(),
                             help='Set random state.')
         parser.add_argument(cls.FLAG_SUBSTRUCT,
                             metavar='SMILES (VALUE)',
@@ -755,13 +767,12 @@ class Md(Driver):
                             type=type_positive_float,
                             default=1,
                             help=f'Timestep for the MD simulation.')
-        parser.add_argument(
-            cls.FLAG_STEMP,
-            metavar='K',
-            type=type_positive_float,
-            default=10,
-            # 'Initialize the atoms with this temperature.'
-            help=argparse.SUPPRESS)
+        # 'Initialize the atoms with this temperature.'
+        parser.add_argument(cls.FLAG_STEMP,
+                            metavar='K',
+                            type=type_positive_float,
+                            default=10,
+                            help=argparse.SUPPRESS)
         parser.add_argument(cls.FLAG_TEMP,
                             metavar=cls.FLAG_TEMP[1:].upper(),
                             type=type_nonnegative_float,
@@ -780,13 +791,12 @@ class Md(Driver):
                             type=float,
                             default=1,
                             help="The equilibrium pressure target.")
-        parser.add_argument(
-            cls.FLAG_PDAMP,
-            metavar=cls.FLAG_PDAMP[1:].upper(),
-            type=type_positive_float,
-            default=1000,
-            # Pressure damping parameter (x timestep to get the param)
-            help=argparse.SUPPRESS)
+        # Pressure damping parameter (x timestep to get the param)
+        parser.add_argument(cls.FLAG_PDAMP,
+                            metavar=cls.FLAG_PDAMP[1:].upper(),
+                            type=type_positive_float,
+                            default=1000,
+                            help=argparse.SUPPRESS)
         parser.add_argument(cls.FLAG_RELAX_TIME,
                             metavar='ns',
                             type=type_nonnegative_float,
@@ -805,6 +815,7 @@ class Md(Driver):
             parser.add_argument(jobutils.FLAG_SEED,
                                 metavar=jobutils.FLAG_SEED[1:].upper(),
                                 type=type_random_seed,
+                                default=cls.getSeed(),
                                 help='Set random state.')
         # Skip the structure minimization step
         parser.add_argument(cls.FLAG_NO_MINIMIZE,
@@ -822,7 +833,6 @@ class Md(Driver):
                             type=type_positive_int,
                             nargs='+',
                             help=argparse.SUPPRESS)
-        parser.validators.add(Validator)
 
 
 class MolBldr(MolBase):
@@ -1051,6 +1061,7 @@ class Workflow(Driver):
     FLAG_PRJ_PATH = '-prj_path'
     FLAG_SCREEN = jobutils.FLAG_SCREEN
     WFLAGS = [FLAG_STATE_NUM, FLAG_CLEAN, FLAG_JTYPE, FLAG_SCREEN]
+    SCREENS = [jobutils.PROGRESS, jobutils.JOB, symbols.OFF]
 
     def __init__(self, *args, **kwargs):
         """
@@ -1091,12 +1102,12 @@ class Workflow(Driver):
                               action='store_true',
                               help='Clean previous workflow results.')
         if self.FLAG_SCREEN in self.WFLAGS:
+            os.environ['TQDM_DISABLE'] = '1'
             self.add_argument(
                 self.FLAG_SCREEN,
                 nargs='+',
-                choices=[
-                    jobutils.TQDM, jobutils.PROGRESS, jobutils.JOB, symbols.OFF
-                ],
-                help=f'Print the serialization {jobutils.TQDM}, parallelization'
-                f' {jobutils.PROGRESS}, and {jobutils.JOB} details.')
-            self.validators.add(WorkflowValidator)
+                choices=self.SCREENS,
+                type=type_screen,
+                help=f'{jobutils.PROGRESS}: serialization and parallelization; '
+                f'{jobutils.JOB}: cmd process details.; {symbols.OFF}: no '
+                f'printing')

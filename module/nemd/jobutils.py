@@ -31,7 +31,6 @@ FLAG_SLOW = '-slow'
 FLAG_LOG = '-log'
 FLAG_IN = '-in'
 PROGRESS = 'progress'
-TQDM = 'tqdm'
 JOB = 'job'
 
 LOGFILE = 'logfile'

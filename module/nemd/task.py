@@ -74,7 +74,10 @@ class LammpsJob(taskbase.Job):
             end = next(x for x in range(start, end) if args[x].startswith('-'))
         except StopIteration:
             pass
-        to_rm = [x for x in range(start, end) if x not in self.SCREEN_CHOICES]
+        to_rm = [
+            x for x in range(start, end)
+            if x not in parserutils.Workflow.SCREENS
+        ]
         for idx in reversed(to_rm):
             args.pop(idx)
         if len(to_rm) == end - start:

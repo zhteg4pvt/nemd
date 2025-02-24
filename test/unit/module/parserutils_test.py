@@ -45,6 +45,12 @@ class TestType:
         with check_raise():
             assert val == parserutils.type_float(arg)
 
+    @pytest.mark.parametrize('arg,is_raise', [('0', False), ('1.12', True),
+                                              ('-1', False)])
+    def testInt(self, arg, check_raise):
+        with check_raise():
+            parserutils.type_int(arg)
+
     @pytest.mark.parametrize('bottom,top', [(100, 200)])
     @pytest.mark.parametrize('value,included_bottom,include_top,is_raise',
                              [(123, True, True, False),
@@ -89,12 +95,6 @@ class TestType:
         with check_raise():
             parserutils.type_positive_float(arg)
 
-    @pytest.mark.parametrize('arg,is_raise', [('0', False), ('1.12', True),
-                                              ('-1', False)])
-    def testInt(self, arg, check_raise):
-        with check_raise():
-            parserutils.type_int(arg)
-
     @pytest.mark.parametrize('arg,is_raise', [('1', False), ('0', True),
                                               ('-1', True)])
     def testPositiveInt(self, arg, check_raise):
@@ -106,6 +106,14 @@ class TestType:
     def testNonnegativeInt(self, arg, check_raise):
         with check_raise():
             parserutils.type_nonnegative_int(arg)
+
+    @pytest.mark.parametrize('is_raise,ekey', [(False, 'TQDM_DISABLE')])
+    @pytest.mark.parametrize('evalue', ['', '1'])
+    @pytest.mark.parametrize('arg', ['wa', 'progress'])
+    def testScreen(self, arg, evalue, env, check_raise):
+        parserutils.type_screen(arg)
+        tqdm = arg == 'progress' or not evalue
+        assert bool(tqdm) == (not os.environ.get('TQDM_DISABLE'))
 
     @pytest.mark.parametrize('arg,is_raise', [('0', False), ('1234', False),
                                               ('-1', True), (2**31, True)])
