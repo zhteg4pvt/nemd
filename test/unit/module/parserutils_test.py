@@ -7,7 +7,9 @@ import pytest
 from nemd import envutils
 from nemd import parserutils
 
-AR_DIR = envutils.test_data('ar', 'gas')
+AR_DIR = envutils.test_data('ar')
+IN_FILE = os.path.join(AR_DIR, 'ar100.in')
+MISS_DATA_IN = os.path.join(AR_DIR, 'single.in')
 TRAJ_FILE = os.path.join(AR_DIR, 'ar100.custom.gz')
 
 
@@ -214,3 +216,75 @@ class TestAction:
                               (['1', '2'], None, True), ([], None, True)])
     def testThree(self, args, parser, expected, err):
         parser.check(args, err, expected)
+
+
+class TestValidator:
+
+    @pytest.fixture
+    def parser(self, valid, flags, kwargss):
+        if flags is None:
+            flags = []
+        if kwargss is None:
+            kwargss = [{}]
+        if isinstance(kwargss, dict):
+            kwargss = [kwargss]
+        if len(kwargss) == 1:
+            kwargss = kwargss * len(flags)
+        parser = parserutils.Driver(validators=set([valid]))
+        parser.error = mock.Mock()
+        for flag, kwargs in zip(flags, kwargss):
+            if kwargs is None:
+                kwargs = {}
+            parser.add_argument(flag, **kwargs)
+        return parser
+
+    @pytest.fixture
+    def args(self, flags, values):
+        fvals = [[x, y] for x, y in zip(flags, values) if y is not None]
+        fvals = [[x, *y] if isinstance(y, list) else [x, y] for x, y in fvals]
+        return [y for x in fvals for y in x]
+
+    @pytest.mark.parametrize('valid,flags,kwargss',
+                             [(parserutils.Valid, None, None)])
+    def testRun(self, parser):
+        with mock.patch('nemd.parserutils.Valid.run') as mocked:
+            parser.parse_args([])
+        assert mocked.called
+
+    @pytest.mark.parametrize('valid', [parserutils.MolValid])
+    @pytest.mark.parametrize('flags', [('-cru', '-cru_num', '-mol_num')])
+    @pytest.mark.parametrize('kwargss', [{'nargs': '+'}])
+    @pytest.mark.parametrize('values,err',
+                             [((['C'], None, None), False),
+                              ((['C', 'O'], None, None), False),
+                              ((['C', 'O'], ['1', '2'], None), False),
+                              ((['C', 'O'], ['1', '2'], ['4', '5']), False),
+                              ((['C', 'O'], ['1'], ['4', '5']), True),
+                              ((['C', 'O'], ['1', '2'], ['5']), True)])
+    def testMol(self, parser, err, args):
+        parser.parse_args(args)
+        assert err == parser.error.called
+
+    @pytest.mark.parametrize('valid', [parserutils.LmpValid])
+    @pytest.mark.parametrize('flags', [('-inscript', '-data_file')])
+    @pytest.mark.parametrize('kwargss', [None])
+    @pytest.mark.parametrize(
+        'values,err', [((IN_FILE, None), False), ((MISS_DATA_IN, None), True),
+                       ((MISS_DATA_IN, 'my.data'), False),
+                       ((os.path.join(AR_DIR, 'mydata.in'), None), False),
+                       ((os.path.join(AR_DIR, 'empty.in'), None), False)])
+    def testLmp(self, values, parser, err, args, tmp_dir):
+        with open('my.data', 'w') as fh:
+            fh.write('This is a data file')
+        parser.parse_args(args)
+        assert err == parser.error.called
+
+    @pytest.mark.parametrize('valid', [parserutils.TrajValid])
+    @pytest.mark.parametrize('flags', [(['-task', '-data_file'])])
+    @pytest.mark.parametrize('kwargss', [([{'nargs': '+'}, None])])
+    @pytest.mark.parametrize('values,err', [((['density'], None), True),
+                                            ((['xyz'], None), False),
+                                            ((['density'], 'my.data'), False)])
+    def testTraj(self, values, parser, err, args):
+        parser.parse_args(args)
+        assert err == parser.error.called

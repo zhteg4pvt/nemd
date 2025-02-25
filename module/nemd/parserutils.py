@@ -369,7 +369,7 @@ class StructAction(Action):
 
 class ThreeAction(Action):
     """
-    Argparse action that allow three values.
+    Action that allows three values.
     """
 
     def doTyping(self, *args):
@@ -385,9 +385,9 @@ class ThreeAction(Action):
         return args[:3]
 
 
-class Validator:
+class Valid:
     """
-    Class to check cross-flag arguments after parse_args().
+    Validate cross-flag arguments after parse_args().
     """
 
     def __init__(self, options):
@@ -398,12 +398,12 @@ class Validator:
 
     def run(self):
         """
-        Check cross-flag values.
+        Validate cross-flag values.
         """
         pass
 
 
-class MolValidator(Validator):
+class MolValid(Valid):
     """
     Class to validate molecule related arguments after parse_args().
     """
@@ -443,7 +443,7 @@ class MolValidator(Validator):
                          f'{len(self.options.mol_num)} molecules found.')
 
 
-class LmpValidator(Validator):
+class LmpValid(Valid):
     """
     Class to validate lammps related arguments after parse_args().
     """
@@ -462,9 +462,10 @@ class LmpValidator(Validator):
         matched = re.search(lammpsfix.READ_DATA_RE, contents)
         if not matched:
             return
-        # try to find data file in the current dir and in the input script dir
+
         data_file = matched.group(1)
         if not os.path.isfile(data_file):
+            # Data file not found relative to the current directory
             dirname = os.path.dirname(self.options.inscript)
             data_file = os.path.join(dirname, data_file)
 
@@ -474,7 +475,7 @@ class LmpValidator(Validator):
         self.options.data_file = data_file
 
 
-class TrajValidator(Validator):
+class TrajValid(Valid):
     """
     Class to validate trajectory related arguments after parse_args().
     """
@@ -483,7 +484,7 @@ class TrajValidator(Validator):
         """
         Validate the command options.
 
-        :raise ValueError: no data file with data-requested tasks.
+        :raise ValueError: tasks request data file but not provided.
         """
         tasks = set(self.options.task)
         data_rqd_tasks = tasks.intersection(analyzer.DATA_RQD)
@@ -648,11 +649,11 @@ class Driver(argparse.ArgumentParser):
         :rtype 'argparse.Namespace': the parsed arguments.
         """
         options = super().parse_args(args=args, **kwargs)
-        for Validator in self.validators:
-            val = Validator(options)
+        for Valid in self.validators:
+            val = Valid(options)
             try:
                 val.run()
-            except ValueError as err:
+            except (ValueError, FileNotFoundError) as err:
                 self.error(err)
         return options
 
@@ -731,7 +732,7 @@ class MolBase(Bldr):
                             metavar=cls.FLAG_BUFFER[1:].upper(),
                             type=type_positive_float,
                             help=argparse.SUPPRESS)
-        parser.validators.add(MolValidator)
+        parser.validators.add(MolValid)
         cls.addBldr(parser)
         super().add(parser, **kwargs)
         Md.add(parser, append=True)
@@ -971,7 +972,7 @@ class Lammps(Driver):
         parser.add_argument(jobutils.FLAG_SCREEN,
                             default=symbols.NONE,
                             help='Where to send screen output.')
-        parser.validators.add(LmpValidator)
+        parser.validators.add(LmpValid)
 
 
 class Log(Driver):
@@ -1048,7 +1049,7 @@ class Traj(Log):
         super().add(parser, append=append, task=task)
         parser.add_argument('-sel', help=f'The element of the selected atoms.')
         if not append:
-            parser.validators.add(TrajValidator)
+            parser.validators.add(TrajValid)
 
 
 class Workflow(Driver):

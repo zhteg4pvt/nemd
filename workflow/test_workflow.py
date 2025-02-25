@@ -96,7 +96,7 @@ class Test(jobcontrol.Runner, logutils.Base):
         super().cleanAggJobs(filter={"$or": flag_dirs})
 
 
-class TestValidator(parserutils.Validator):
+class TestValid(parserutils.Valid):
     """
     Class to validate the input options.
     """
@@ -117,7 +117,7 @@ class Parser(parserutils.Workflow):
     """
     A customized parser that supports cross argument validation options.
     """
-    WFLAGS = parserutils.Workflow.WFLAGS[1:-1]
+    WFLAGS = parserutils.Workflow.WFLAGS[1:]
     FLAG_ID = 'id'
     FLAG_TASK = jobutils.FLAG_TASK
     FLAG_LABEL = '-label'
@@ -165,7 +165,8 @@ class Parser(parserutils.Workflow):
                           default=[self.CMD, self.CHECK],
                           help='cmd: run the commands in cmd file; '
                           'check: check the results; tag: update the tag file')
-        self.validators.add(TestValidator)
+        self.validators.add(TestValid)
+        self.suppress([parserutils.Workflow.FLAG_SCREEN])
 
 
 def main(argv):
