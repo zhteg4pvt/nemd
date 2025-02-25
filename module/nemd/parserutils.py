@@ -493,19 +493,6 @@ class TrajValid(Valid):
                              f" run {', '.join(data_rqd_tasks)} tasks.")
 
 
-class ArgumentDefaultsHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
-    """
-    A customized formatter for the argument help message.
-    """
-
-    def add_usage(self, usage, actions, groups, prefix='Usage: '):
-        """
-        See parent class for details.
-        :rtype:
-        """
-        super().add_usage(usage, actions, groups, prefix)
-
-
 class Driver(argparse.ArgumentParser):
     """
     Parser with job arguments.
@@ -518,28 +505,34 @@ class Driver(argparse.ArgumentParser):
     JFLAGS = [FLAG_INTERAC, FLAG_JOBNAME, FLAG_PYTHON, FLAG_CPU, FLAG_DEBUG]
 
     def __init__(self,
-                 file='name_seed.py',
-                 formatter_class=ArgumentDefaultsHelpFormatter,
+                 file='name_driver.py',
+                 formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                  descr=None,
-                 validators=None,
+                 valids=None,
                  delay=False,
+                 conflict_handler='resolve',
                  **kwargs):
         """
         :param file str: script filename which defines the default jobname.
         :param formatter_class 'ArgumentDefaultsHelpFormatter': the formatter
             class to display the customized help message
         :param descr str: the script description displayed as the help message.
-        :param validators set: across-argument validators after parse_args()
+        :param valids set: across-argument valids after parse_args()
         :param delay bool: delay the setup.
+        :param conflict_handler str: the action when two actions with the same
+            option string
         """
         if descr is not None:
             kwargs.update(description=descr)
-        super().__init__(formatter_class=formatter_class, **kwargs)
+        super().__init__(formatter_class=formatter_class,
+                         conflict_handler=conflict_handler,
+                         **kwargs)
         self.file = file
         self.delay = delay
-        self.validators = set() if validators is None else validators
+        self.valids = set() if valids is None else valids
         if self.delay:
             return
+        self.name = jobutils.get_name(self.file)
         self.setUp()
         self.add(self, append=False)
         self.addJob()
@@ -552,12 +545,9 @@ class Driver(argparse.ArgumentParser):
         pass
 
     @classmethod
-    def add(cls, parser, append=True):
+    def add(cls, *args, **kwargs):
         """
         Add arguments to the parser.
-
-        :param parser `argparse.ArgumentParser`: the parser instance to set up
-        :param append `bool`: whether this appends to a previous parser.
         """
         pass
 
@@ -599,31 +589,25 @@ class Driver(argparse.ArgumentParser):
                 nargs='?',
                 const=True,
                 type=type_bool,
-                choices=[symbols.ON, symbols.OFF],
+                choices=[True, False],
                 dest=self.FLAG_DEBUG[1:],
-                help=f'{symbols.ON}: allow additional printing and output files'
-                f'; {symbols.OFF}: disable the mode.')
+                help='True allows additional printing and output files; '
+                'False disables the mode.')
 
-    @property
-    @functools.cache
-    def name(self):
+    @classmethod
+    def addSeed(cls, parser, **kwargs):
         """
-        Return the default jobname.
+        Get a random seed, set the state, and add to the parser.
 
-        :return str: the default jobname.
+        :param parser `argparse.ArgumentParser`: the parser instance to set up
         """
-        return jobutils.get_name(self.file)
-
-    @staticmethod
-    @functools.cache
-    def getSeed():
-        """
-        Get a random seed and set the default state with it.
-
-        :return int: the default random seed.
-        """
-        value = np.random.randint(0, symbols.MAX_INT32)
-        return type_random_seed(value)
+        default = np.random.randint(0, symbols.MAX_INT32)
+        type_random_seed(default)
+        parser.add_argument(jobutils.FLAG_SEED,
+                            metavar=jobutils.FLAG_SEED[1:].upper(),
+                            type=type_random_seed,
+                            default=default,
+                            help='Set random state.')
 
     def suppress(self, to_suppress=None, **kwargs):
         """
@@ -649,7 +633,7 @@ class Driver(argparse.ArgumentParser):
         :rtype 'argparse.Namespace': the parsed arguments.
         """
         options = super().parse_args(args=args, **kwargs)
-        for Valid in self.validators:
+        for Valid in self.valids:
             val = Valid(options)
             try:
                 val.run()
@@ -666,18 +650,13 @@ class Bldr(Driver):
     FLAG_SUBSTRUCT = '-substruct'
 
     @classmethod
-    def addBldr(cls, parser, append=True):
+    def addBldr(cls, parser, **kwargs):
         """
         Set up the builder arguments.
 
         :param parser `argparse.ArgumentParser`: the parser instance to set up
-        :param append `bool`: whether this appends to a previous parser.
         """
-        parser.add_argument(jobutils.FLAG_SEED,
-                            metavar=jobutils.FLAG_SEED[1:].upper(),
-                            type=type_random_seed,
-                            default=cls.getSeed(),
-                            help='Set random state.')
+        cls.addSeed(parser)
         parser.add_argument(cls.FLAG_SUBSTRUCT,
                             metavar='SMILES (VALUE)',
                             nargs='+',
@@ -689,9 +668,8 @@ class Bldr(Driver):
             action=ForceFieldAction,
             nargs='+',
             default=symbols.OPLSUA_TIP3P,
-            help=f'The force field type:\n'
-            f'1) {symbols.OPLSUA} [{symbols.PIPE.join(symbols.WMODELS)}] '
-            f'2) {symbols.SW}')
+            help=f'The force field type: 1) {symbols.OPLSUA} '
+            f'[{symbols.PIPE.join(symbols.WMODELS)}]; 2) {symbols.SW}')
 
 
 class MolBase(Bldr):
@@ -732,10 +710,10 @@ class MolBase(Bldr):
                             metavar=cls.FLAG_BUFFER[1:].upper(),
                             type=type_positive_float,
                             help=argparse.SUPPRESS)
-        parser.validators.add(MolValid)
-        cls.addBldr(parser)
+        parser.valids.add(MolValid)
+        cls.addBldr(parser, **kwargs)
         super().add(parser, **kwargs)
-        Md.add(parser, append=True)
+        Md.add(parser)
 
 
 class Md(Driver):
@@ -756,7 +734,7 @@ class Md(Driver):
     FLAG_RIGID_ANGLE = '-rigid_angle'
 
     @classmethod
-    def add(cls, parser, append=True):
+    def add(cls, parser, **kwargs):
         """
         Set up the molecular dynamics arguments.
 
@@ -812,12 +790,7 @@ class Md(Driver):
                             choices=lammpsfix.ENSEMBLES,
                             default=lammpsfix.NVE,
                             help='Production ensemble.')
-        if not append:
-            parser.add_argument(jobutils.FLAG_SEED,
-                                metavar=jobutils.FLAG_SEED[1:].upper(),
-                                type=type_random_seed,
-                                default=cls.getSeed(),
-                                help='Set random state.')
+        cls.addSeed(parser)
         # Skip the structure minimization step
         parser.add_argument(cls.FLAG_NO_MINIMIZE,
                             action='store_true',
@@ -951,12 +924,11 @@ class Lammps(Driver):
     FLAG_DATA_FILE = '-data_file'
 
     @classmethod
-    def add(cls, parser, append=True):
+    def add(cls, parser, **kwargs):
         """
         Set up the molecular dynamics arguments.
 
         :param parser `argparse.ArgumentParser`: the parser instance to set up
-        :param append `bool`: whether this appends to a previous parser.
         """
         parser.add_argument(cls.FLAG_INSCRIPT,
                             metavar=cls.FLAG_INSCRIPT.upper(),
@@ -972,7 +944,7 @@ class Lammps(Driver):
         parser.add_argument(jobutils.FLAG_SCREEN,
                             default=symbols.NONE,
                             help='Where to send screen output.')
-        parser.validators.add(LmpValid)
+        parser.valids.add(LmpValid)
 
 
 class Log(Driver):
@@ -1006,12 +978,10 @@ class Log(Driver):
                             choices=cls.TASKS,
                             nargs='+',
                             help=cls.TASK_HELP)
-        if not append:
-            parser.add_argument(
-                cls.FLAG_DATA_FILE,
-                metavar=cls.FLAG_DATA_FILE[1:].upper(),
-                type=type_file,
-                help='The file of the structure and force field.')
+        parser.add_argument(cls.FLAG_DATA_FILE,
+                            metavar=cls.FLAG_DATA_FILE[1:].upper(),
+                            type=type_file,
+                            help='The file of the structure and force field.')
         parser.add_argument(
             cls.FLAG_LAST_PCT,
             type=LastPct.type,
@@ -1049,7 +1019,7 @@ class Traj(Log):
         super().add(parser, append=append, task=task)
         parser.add_argument('-sel', help=f'The element of the selected atoms.')
         if not append:
-            parser.validators.add(TrajValid)
+            parser.valids.add(TrajValid)
 
 
 class Workflow(Driver):

@@ -230,7 +230,7 @@ class TestValidator:
             kwargss = [kwargss]
         if len(kwargss) == 1:
             kwargss = kwargss * len(flags)
-        parser = parserutils.Driver(validators=set([valid]))
+        parser = parserutils.Driver(valids=set([valid]))
         parser.error = mock.Mock()
         for flag, kwargs in zip(flags, kwargss):
             if kwargs is None:
@@ -243,13 +243,6 @@ class TestValidator:
         fvals = [[x, y] for x, y in zip(flags, values) if y is not None]
         fvals = [[x, *y] if isinstance(y, list) else [x, y] for x, y in fvals]
         return [y for x in fvals for y in x]
-
-    @pytest.mark.parametrize('valid,flags,kwargss',
-                             [(parserutils.Valid, None, None)])
-    def testRun(self, parser):
-        with mock.patch('nemd.parserutils.Valid.run') as mocked:
-            parser.parse_args([])
-        assert mocked.called
 
     @pytest.mark.parametrize('valid', [parserutils.MolValid])
     @pytest.mark.parametrize('flags', [('-cru', '-cru_num', '-mol_num')])
@@ -288,3 +281,56 @@ class TestValidator:
     def testTraj(self, values, parser, err, args):
         parser.parse_args(args)
         assert err == parser.error.called
+
+
+class TestDriver:
+
+    @pytest.fixture
+    def parser(self):
+        return parserutils.Driver(valids=[parserutils.Valid])
+
+    def testSetUp(self):
+        with mock.patch('nemd.parserutils.Driver.setUp') as mocked:
+            parserutils.Driver()
+        assert mocked.called
+
+    def testAdd(self):
+        with mock.patch('nemd.parserutils.Driver.add') as mocked:
+            parser = parserutils.Driver()
+        mocked.assert_called_with(parser, append=False)
+
+    @pytest.mark.parametrize('ekey', ['DEBUG'])
+    @pytest.mark.parametrize('evalue', [None, '1'])
+    @pytest.mark.parametrize('DEBUG,expected',
+                             [(None, None), ('NO_VALUE', True), ('True', True),
+                              ('False', False), ('on', True), ('off', False)])
+    def testAddJob(self, DEBUG, expected, evalue, env):
+        if expected is None:
+            expected = bool(evalue)
+        with mock.patch('nemd.parserutils.DEBUG', bool(evalue)):
+            parser = parserutils.Driver(valids=[parserutils.Valid])
+        args = [
+            '-JOBNAME', 'hi', '-cpu', '3', '1', '-PYTHON', '-1', '-NAME', 'wa'
+        ]
+        if DEBUG is not None:
+            args += ['-DEBUG'] if DEBUG == 'NO_VALUE' else ['-DEBUG', DEBUG]
+        options = parser.parse_args(args)
+        assert 'hi' == options.JOBNAME
+        assert [3, 1] == options.cpu
+        assert '-1' == options.PYTHON
+        assert 'wa' == options.NAME
+        assert expected == options.DEBUG
+
+    def testAddSeed(self, parser):
+        parser.addSeed(parser)
+        options = parser.parse_args([])
+        assert isinstance(options.seed, int)
+        options = parser.parse_args(['-seed', '12'])
+        assert 12 == options.seed
+
+    def testParseArgs(self):
+        parser = parserutils.Driver(valids=[parserutils.Valid])
+        with mock.patch('nemd.parserutils.Valid.run') as mocked:
+            options = parser.parse_args(['-JOBNAME', 'hi'])
+        assert mocked.called
+        assert 'hi' == options.JOBNAME

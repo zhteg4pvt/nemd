@@ -165,7 +165,7 @@ class Parser(parserutils.Workflow):
                           default=[self.CMD, self.CHECK],
                           help='cmd: run the commands in cmd file; '
                           'check: check the results; tag: update the tag file')
-        self.validators.add(TestValid)
+        self.valids.add(TestValid)
         self.suppress([parserutils.Workflow.FLAG_SCREEN])
 
 

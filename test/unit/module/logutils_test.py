@@ -8,6 +8,7 @@ from unittest import mock
 import pytest
 
 from nemd import envutils
+from nemd import jobutils
 from nemd import logutils
 from nemd import symbols
 
@@ -58,16 +59,15 @@ class TestLogger:
     @pytest.mark.parametrize('debug', ['', '1'])
     def testSetUp(self, name, debug, tmp_dir):
         logger = logutils.Logger(name, delay=True)
-        with mock.patch('nemd.logutils.DEBUG') as mocked:
-            mocked.__bool__.return_value = bool(debug)
+        with mock.patch('nemd.logutils.DEBUG', bool(debug)):
             logger.setUp()
         assert (logging.DEBUG if debug else logging.INFO) == logger.level
         has_hdlr = not (name.endswith('.py') and not debug)
         assert has_hdlr == bool(logger.handlers)
-        assert has_hdlr == os.path.isfile(symbols.FN_DOCUMENT)
+        assert has_hdlr == os.path.isfile(jobutils.FN_DOCUMENT)
         if not has_hdlr:
             return
-        with open(symbols.FN_DOCUMENT) as fh:
+        with open(jobutils.FN_DOCUMENT) as fh:
             data = json.load(fh)
         filename = f"myname.{'debug' if name.endswith('.py')  else 'log'}"
         assert [filename] in data['outfiles'].values()
@@ -128,13 +128,13 @@ class TestScript:
                              [('MEM_INTVL', '', False, True),
                               ('MEM_INTVL', '0.001', True, False)])
     def testEnter(self, evalue, env, log, file, tmp_dir):
-        options = types.SimpleNamespace(hi='la', jobname='jobname')
+        options = types.SimpleNamespace(hi='la', JOBNAME='jobname')
         logging.Logger.manager.loggerDict.pop(options.JOBNAME, None)
         with mock.patch('nemd.logutils.psutils.Memory') as mocked:
             with mock.patch('nemd.logutils.Script.__exit__') as mocked:
                 with logutils.Script(options, log=log, file=file):
                     assert bool(evalue) == mocked.called
-        with open(symbols.FN_DOCUMENT) as fh:
+        with open(jobutils.FN_DOCUMENT) as fh:
             data = json.load(fh)
         assert file == ('outfile' in data)
         assert log == ('logfile' in data)
@@ -149,7 +149,7 @@ class TestScript:
                               (True, ValueError, "ValueError: ('hi',)"),
                               (True, SystemExit, "E_R_R_O_R\nAborting...")])
     def testExit(self, evalue, raise_type, check_raise, msg, env, tmp_dir):
-        options = types.SimpleNamespace(jobname='jobname')
+        options = types.SimpleNamespace(JOBNAME='jobname')
         logging.Logger.manager.loggerDict.pop(options.JOBNAME, None)
         with check_raise():
             with logutils.Script(options) as logger:
@@ -189,7 +189,7 @@ class TestReader:
                                             (MB_LMP_LOG, 'False')])
     def testSetOptions(self, debug, raw):
         raw.setOptions()
-        assert debug == raw.options.DEBUG
+        assert debug == raw.options.debug
         assert 2 == len(raw.options.JobStart)
 
     @pytest.mark.parametrize('data,onum,num', [(AMORP_LOG, 28, 6),

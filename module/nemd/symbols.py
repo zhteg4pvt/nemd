@@ -25,7 +25,6 @@ COMMA = ','
 COMMA_SEP = f'{COMMA} '
 PERIOD = '.'
 AND = '&'
-ON = "on"
 OFF = "off"
 PLUS_MIN = '\u00B1'
 ELEMENT_OF = '\u2208'
