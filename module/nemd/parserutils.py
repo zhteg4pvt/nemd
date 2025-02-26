@@ -462,7 +462,6 @@ class LmpValid(Valid):
         matched = re.search(lammpsfix.READ_DATA_RE, contents)
         if not matched:
             return
-
         data_file = matched.group(1)
         if not os.path.isfile(data_file):
             # Data file not found relative to the current directory
@@ -912,7 +911,6 @@ class Lammps(Driver):
     Parser with lammps arguments.
     """
     FLAG_INSCRIPT = 'inscript'
-    FLAG_LOG = '-log'
     FLAG_DATA_FILE = '-data_file'
 
     @classmethod
@@ -930,20 +928,13 @@ class Lammps(Driver):
                             metavar=cls.FLAG_DATA_FILE[1:].upper(),
                             type=type_file,
                             help='Data file to get force field information')
-        parser.add_argument(jobutils.FLAG_LOG,
-                            metavar=jobutils.FLAG_LOG[1:].upper(),
-                            help='Print logging information into this file.')
-        parser.add_argument(jobutils.FLAG_SCREEN,
-                            default=symbols.NONE,
-                            help='Where to send screen output.')
         parser.valids.add(LmpValid)
 
 
-class Log(Driver):
+class Log(Lammps):
     """
     Parser with lammps-log arguments.
     """
-    FLAG_DATA_FILE = '-data_file'
     FLAG_LAST_PCT = '-last_pct'
     FLAG_SLICE = '-slice'
     TASKS = [*analyzer.THERMO.keys(), symbols.ALL]
@@ -1021,7 +1012,6 @@ class Workflow(Driver):
     FLAG_STATE_NUM = '-state_num'
     FLAG_CLEAN = '-clean'
     FLAG_JTYPE = '-jtype'
-    FLAG_PRJ_PATH = '-prj_path'
     FLAG_SCREEN = jobutils.FLAG_SCREEN
     WFLAGS = [FLAG_STATE_NUM, FLAG_CLEAN, FLAG_JTYPE, FLAG_SCREEN]
     SCREENS = [jobutils.PROGRESS, jobutils.JOB, symbols.OFF]
@@ -1060,7 +1050,7 @@ class Workflow(Driver):
                 help=f'{symbols.TASK}: run tasks and register files; '
                 f'{symbols.AGGREGATOR}: collect results.')
             self.add_argument(
-                self.FLAG_PRJ_PATH,
+                '-prj_path',
                 type=type_dir,
                 help='The aggregator jobs collect jobs from this directory.')
         if self.FLAG_CLEAN in self.WFLAGS:

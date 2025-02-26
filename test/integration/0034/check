@@ -1,2 +1,2 @@
 cmp('crystal_builder.dump', 'crystal_builder.dump')
-exist(myscreen.log, mylog.log)
+exist(lammps_lmp.log)

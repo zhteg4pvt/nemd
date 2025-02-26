@@ -36,11 +36,9 @@ class Lammps(logutils.Base):
         self.options = options
         self.args = None
         self.contents = None
-        self.path = os.path.dirname(self.options.inscript)
-        self.outfile = self.options.log
         self.env = None
-        if self.outfile is None:
-            self.outfile = f"{self.options.JOBNAME}_{symbols.LMP_LOG}"
+        self.path = os.path.dirname(self.options.inscript)
+        self.outfile = f"{self.options.JOBNAME}_{symbols.LMP_LOG}"
         jobutils.add_outfile(self.outfile, file=True)
 
     def run(self):
@@ -106,8 +104,7 @@ class Lammps(logutils.Base):
         Set the arguments for the lammps executable.
         """
         self.args = [jobutils.FLAG_IN, os.path.basename(self.options.inscript)]
-        self.args += [parserutils.Lammps.FLAG_LOG, self.outfile]
-        self.args += [jobutils.FLAG_SCREEN, self.options.screen]
+        self.args += ['-log', self.outfile]
 
     def setGpu(self):
         """

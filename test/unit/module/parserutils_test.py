@@ -9,7 +9,10 @@ from nemd import parserutils
 
 AR_DIR = envutils.test_data('ar')
 IN_FILE = os.path.join(AR_DIR, 'ar100.in')
+EMPTY_IN = os.path.join(AR_DIR, 'empty.in')
 MISS_DATA_IN = os.path.join(AR_DIR, 'single.in')
+DATA_FILE = os.path.join(AR_DIR, 'ar100.data')
+LOG_FILE = os.path.join(AR_DIR, 'lammps.log')
 TRAJ_FILE = os.path.join(AR_DIR, 'ar100.custom.gz')
 
 
@@ -265,7 +268,7 @@ class TestValidator:
         'values,err', [((IN_FILE, None), False), ((MISS_DATA_IN, None), True),
                        ((MISS_DATA_IN, 'my.data'), False),
                        ((os.path.join(AR_DIR, 'mydata.in'), None), False),
-                       ((os.path.join(AR_DIR, 'empty.in'), None), False)])
+                       ((EMPTY_IN, None), False)])
     def testLmp(self, values, parser, err, args, tmp_dir):
         with open('my.data', 'w') as fh:
             fh.write('This is a data file')
@@ -297,7 +300,7 @@ class TestDriver:
     def testAdd(self):
         with mock.patch('nemd.parserutils.Driver.add') as mocked:
             parser = parserutils.Driver()
-        mocked.assert_called_with(parser, append=False)
+        mocked.assert_called_with(parser, positional=True)
 
     @pytest.mark.parametrize('ekey', ['DEBUG'])
     @pytest.mark.parametrize('evalue', [None, '1'])
@@ -345,3 +348,136 @@ class TestDriver:
             options = parser.parse_args(['-JOBNAME', 'hi'])
         assert 'hi' == options.JOBNAME
         assert mocked.called
+
+
+class TestAdd:
+
+    @pytest.fixture
+    def parser(self):
+        return parserutils.Driver()
+
+    def testBldr(self, parser):
+        parserutils.Bldr.addBldr(parser)
+        options = parser.parse_args(['-substruct', 'C', '-force_field', 'SW'])
+        assert ('C', None) == options.substruct
+        assert ('SW', ) == options.force_field
+
+    def testMolBase(self, parser):
+        parserutils.MolBase.add(parser)
+        options = parser.parse_args(
+            ['*C*', '-cru_num', '2', '-mol_num', '3', '-buffer', '4'])
+        assert ['*C[*:1]'] == options.cru
+        assert [2] == options.cru_num
+        assert [3] == options.mol_num
+        assert 4.0 == options.buffer
+
+    @pytest.mark.parametrize(
+        'args,expected',
+        [([], [1, 10, 300, 1, 1000, 1, 1, 'NVE', False, None, None]),
+         ([
+             '-timestep', '1.2', '-stemp', '3.1', '-temp', '275', '-press',
+             '3.6', '-pdamp', '777', '-relax_time', '4', '-prod_time', '5',
+             '-prod_ens', 'NVT', '-no_minimize', '-rigid_bond', '4', '6',
+             '-rigid_angle', '3', '5'
+         ], [1.2, 3.1, 275, 3.6, 777, 4, 5, 'NVT', True, [4, 6], [3, 5]])])
+    def testMd(self, args, expected, parser):
+        parserutils.Md.add(parser)
+        options = parser.parse_args(args)
+        assert expected == [
+            options.timestep, options.stemp, options.temp, options.press,
+            options.pdamp, options.relax_time, options.prod_time,
+            options.prod_ens, options.no_minimize, options.rigid_bond,
+            options.rigid_angle
+        ]
+
+    def testMolBldr(self, parser):
+        parserutils.MolBldr.add(parser)
+        options = parser.parse_args(['CCC'])
+        assert [44.0, [1], 0, 1, 1, 0, 0, 'NVE'] == [
+            options.buffer, options.mol_num, options.temp, options.timestep,
+            options.press, options.relax_time, options.prod_time,
+            options.prod_ens
+        ]
+
+    @pytest.mark.parametrize(
+        'args,expected',
+        [(['CCC'], [0.5, 'grow']),
+         (['CCC', '-density', '1.2', '-method', 'pack'], [1.2, 'pack'])])
+    def testAmorpBldr(self, args, expected, parser):
+        parserutils.AmorpBldr.add(parser)
+        options = parser.parse_args(args)
+        assert expected == [options.density, options.method]
+
+    @pytest.mark.parametrize(
+        'args,expected',
+        [([], ['Si', (1, 1, 1), (1, 1, 1), ['SW']]),
+         (['-dimension', '2', '-scale_factor', '0.95', '0.98', '1.02'
+           ], ['Si', (2, 2, 2), (0.95, 0.98, 1.02), ['SW']])])
+    def testXtalBldr(self, args, expected, parser):
+        parserutils.XtalBldr.add(parser)
+        options = parser.parse_args(args)
+        assert expected == [
+            options.name, options.dimension, options.scale_factor,
+            options.force_field
+        ]
+
+    @pytest.mark.parametrize(
+        'args,expected',
+        [([EMPTY_IN], [EMPTY_IN, None]),
+         ([MISS_DATA_IN, '-data_file', DATA_FILE], [MISS_DATA_IN, DATA_FILE])])
+    def testLammps(self, args, expected, parser):
+        parserutils.Lammps.add(parser)
+        options = parser.parse_args(args)
+        assert expected == [options.inscript, options.data_file]
+
+    @pytest.mark.parametrize(
+        'args,positional,expected',
+        [([], False, [['toteng'], None,
+                      parserutils.LastPct(0.2), None]),
+         ([
+             LOG_FILE, '-task', 'temp', 'e_mol', '-data_file', DATA_FILE,
+             '-last_pct', '0.66', '-slice', '1', '8', '3'
+         ], True, [['temp', 'e_mol'], DATA_FILE, 0.66, (1, 8, 3)])])
+    def testLog(self, args, expected, positional, parser):
+        parserutils.Log.add(parser, positional=positional)
+        options = parser.parse_args(args)
+        assert positional == hasattr(options, 'log')
+        assert expected == [
+            options.task, options.data_file, options.last_pct, options.slice
+        ]
+
+    @pytest.mark.parametrize(
+        'args,positional,expected',
+        [([], False, [['density'], None,
+                      parserutils.LastPct(0.2), None]),
+         ([
+             TRAJ_FILE, '-task', 'rdf', 'msd', '-data_file', DATA_FILE,
+             '-last_pct', '0.66', '-slice', '1', '8', '3'
+         ], True, [['rdf', 'msd'], DATA_FILE, 0.66, (1, 8, 3)])])
+    def testTraj(self, args, expected, positional, parser):
+        parserutils.Traj.add(parser, positional=positional)
+        options = parser.parse_args(args)
+        assert positional == hasattr(options, 'traj')
+        assert expected == [
+            options.task, options.data_file, options.last_pct, options.slice
+        ]
+
+
+class TestWorkflow:
+
+    @pytest.mark.parametrize('ekey', ['TQDM_DISABLE'])
+    @pytest.mark.parametrize('evalue', [None, '1'])
+    @pytest.mark.parametrize(
+        'args,expected',
+        [([], [1, ['task', 'aggregator'], None, False, None]),
+         ([
+             '-state_num', '3', '-jtype', 'task', '-prj_path', os.curdir,
+             '-clean', '-screen', 'progress', 'job'
+         ], [3, ['task'], os.curdir, True, ['progress', 'job']])])
+    def testAddWorkflow(self, args, expected, env):
+        parser = parserutils.Workflow()
+        options = parser.parse_args(args)
+        assert expected == [
+            options.state_num, options.jtype, options.prj_path, options.clean,
+            options.screen
+        ]

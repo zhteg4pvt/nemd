@@ -56,34 +56,6 @@ class LammpsJob(taskbase.Job):
     ParserClass = parserutils.Lammps
     ARGS_TMPL = [None]
 
-    def rmUnknown(self, args):
-        """
-        In addition to the default behavior, remove the screen flag if the
-        values are not in the choices.
-
-        :param args list: the command line arguments before removing unknowns
-        """
-        try:
-            index = len(args) - 1 - args[::-1].index(jobutils.FLAG_SCREEN)
-        except ValueError:
-            super().rmUnknown(args)
-            return
-
-        start, end = index + 1, len(args)
-        try:
-            end = next(x for x in range(start, end) if args[x].startswith('-'))
-        except StopIteration:
-            pass
-        to_rm = [
-            x for x in range(start, end)
-            if x not in parserutils.Workflow.SCREENS
-        ]
-        for idx in reversed(to_rm):
-            args.pop(idx)
-        if len(to_rm) == end - start:
-            args.pop(index)
-        super().rmUnknown(args)
-
 
 class LogJob(taskbase.Job):
     """
