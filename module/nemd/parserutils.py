@@ -510,7 +510,6 @@ class Driver(argparse.ArgumentParser):
                  descr=None,
                  valids=None,
                  delay=False,
-                 conflict_handler='resolve',
                  **kwargs):
         """
         :param file str: script filename which defines the default jobname.
@@ -519,14 +518,10 @@ class Driver(argparse.ArgumentParser):
         :param descr str: the script description displayed as the help message.
         :param valids set: across-argument valids after parse_args()
         :param delay bool: delay the setup.
-        :param conflict_handler str: the action when two actions with the same
-            option string
         """
         if descr is not None:
             kwargs.update(description=descr)
-        super().__init__(formatter_class=formatter_class,
-                         conflict_handler=conflict_handler,
-                         **kwargs)
+        super().__init__(formatter_class=formatter_class, **kwargs)
         self.file = file
         self.delay = delay
         self.valids = set() if valids is None else valids
@@ -534,7 +529,7 @@ class Driver(argparse.ArgumentParser):
             return
         self.name = jobutils.get_name(self.file)
         self.setUp()
-        self.add(self, append=False)
+        self.add(self, positional=True)
         self.addJob()
 
     @classmethod
@@ -618,12 +613,14 @@ class Driver(argparse.ArgumentParser):
             values to be used.
         :type to_suppress list, tuple, or set
         """
-        flags = set() if to_suppress is None else set(to_suppress)
-        self.set_defaults(**{x: y for x, y in kwargs.items()})
+        self.set_defaults(**{x.lstrip('-'): y for x, y in kwargs.items()})
+        flags = set(kwargs.keys())
+        if to_suppress:
+            flags.update(to_suppress)
         for axn in self._actions:
-            if axn.dest in kwargs or flags.intersection(axn.option_strings):
-                axn.help = argparse.SUPPRESS
+            if not flags.intersection(axn.option_strings):
                 continue
+            axn.help = argparse.SUPPRESS
 
     def parse_args(self, args=None, **kwargs):
         """
@@ -656,7 +653,6 @@ class Bldr(Driver):
 
         :param parser `argparse.ArgumentParser`: the parser instance to set up
         """
-        cls.addSeed(parser)
         parser.add_argument(cls.FLAG_SUBSTRUCT,
                             metavar='SMILES (VALUE)',
                             nargs='+',
@@ -712,7 +708,6 @@ class MolBase(Bldr):
                             help=argparse.SUPPRESS)
         parser.valids.add(MolValid)
         cls.addBldr(parser, **kwargs)
-        super().add(parser, **kwargs)
         Md.add(parser)
 
 
@@ -739,7 +734,7 @@ class Md(Driver):
         Set up the molecular dynamics arguments.
 
         :param parser `argparse.ArgumentParser`: the parser instance to set up
-        :param append `bool`: whether this appends to a previous parser.
+        :param positional `bool`: whether add positional arguments.
         """
         parser.add_argument(cls.FLAG_TIMESTEP,
                             metavar='fs',
@@ -758,13 +753,12 @@ class Md(Driver):
                             default=300,
                             help=f'The equilibrium temperature target. A zero '
                             f'for single point energy.')
-        parser.add_argument(
-            cls.FLAG_TDAMP,
-            metavar=cls.FLAG_TDAMP[1:].upper(),
-            type=type_positive_float,
-            default=100,
-            # Temperature damping parameter (x timestep to get the param)
-            help=argparse.SUPPRESS)
+        # Temperature damping parameter (x timestep to get the param)
+        parser.add_argument(cls.FLAG_TDAMP,
+                            metavar=cls.FLAG_TDAMP[1:].upper(),
+                            type=type_positive_float,
+                            default=100,
+                            help=argparse.SUPPRESS)
         parser.add_argument(cls.FLAG_PRESS,
                             metavar=cls.FLAG_PRESS[1:].upper(),
                             type=float,
@@ -820,7 +814,6 @@ class MolBldr(MolBase):
         Set up the single-molecule arguments.
 
         :param parser `argparse.ArgumentParser`: the parser instance to set up
-        :param seed `bool`: whether this is a seeding job in the workflow
         """
         super().add(parser, **kwargs)
         parser.suppress(buffer=f"{symbols.DEFAULT_CUT * 4}",
@@ -850,7 +843,6 @@ class AmorpBldr(MolBase):
         Set up the amorphous-cell arguments.
 
         :param parser `argparse.ArgumentParser`: the parser instance to set up
-        :param seed `bool`: whether this is a seeding job in the workflow
         """
         parser.add_argument(
             cls.FLAG_DENSITY,
@@ -959,15 +951,15 @@ class Log(Driver):
     LAST_FRM = analyzer.THERMO.keys()
 
     @classmethod
-    def add(cls, parser, append=True, task=symbols.TOTENG):
+    def add(cls, parser, positional=False, task=symbols.TOTENG):
         """
         Add job specific arguments to the parser.
 
         :param parser argparse.ArgumentParser: the parse to add arguments
-        :param append `bool`: whether this appends to a previous parser.
+        :param positional `bool`: whether add positional arguments.
         :param task str: the default task
         """
-        if not append:
+        if positional:
             parser.add_argument(cls.__name__.lower(),
                                 metavar=cls.__name__.upper(),
                                 type=type_file,
@@ -1008,17 +1000,17 @@ class Traj(Log):
     LAST_FRM = [x.NAME for x in [analyzer.MSD, analyzer.RDF]]
 
     @classmethod
-    def add(cls, parser, append=True, task=analyzer.Density.NAME):
+    def add(cls, parser, positional=False, task=analyzer.Density.NAME):
         """
         Add job specific arguments to the parser.
 
         :param parser argparse.ArgumentParser: the parse to add arguments
-        :param append `bool`: whether this appends to a previous parser.
+        :param positional `bool`: whether add positional arguments.
         :param task str: the default task
         """
-        super().add(parser, append=append, task=task)
+        super().add(parser, positional=positional, task=task)
         parser.add_argument('-sel', help=f'The element of the selected atoms.')
-        if not append:
+        if positional:
             parser.valids.add(TrajValid)
 
 
@@ -1034,11 +1026,14 @@ class Workflow(Driver):
     WFLAGS = [FLAG_STATE_NUM, FLAG_CLEAN, FLAG_JTYPE, FLAG_SCREEN]
     SCREENS = [jobutils.PROGRESS, jobutils.JOB, symbols.OFF]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, conflict_handler='resolve', **kwargs):
         """
         Set up the parser.
+
+        :param conflict_handler str: the action when two actions with the same
+            option string
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, conflict_handler=conflict_handler, **kwargs)
         if self.delay:
             return
         self.addWorkflow()

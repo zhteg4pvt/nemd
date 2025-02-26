@@ -328,9 +328,20 @@ class TestDriver:
         options = parser.parse_args(['-seed', '12'])
         assert 12 == options.seed
 
+    @pytest.mark.parametrize('to_suppress,kwargs', [(['-JOBNAME'], {
+        '-NAME': 'hi'
+    })])
+    def testSuppress(self, to_suppress, kwargs, parser):
+        parser.suppress(to_suppress=to_suppress, **kwargs)
+        name = next(x for x in parser._actions if x.dest == 'NAME')
+        assert '==SUPPRESS==' == name.help
+        assert 'hi' == name.default
+        jobname = next(x for x in parser._actions if x.dest == 'JOBNAME')
+        assert '==SUPPRESS==' == jobname.help
+
     def testParseArgs(self):
         parser = parserutils.Driver(valids=[parserutils.Valid])
         with mock.patch('nemd.parserutils.Valid.run') as mocked:
             options = parser.parse_args(['-JOBNAME', 'hi'])
-        assert mocked.called
         assert 'hi' == options.JOBNAME
+        assert mocked.called
