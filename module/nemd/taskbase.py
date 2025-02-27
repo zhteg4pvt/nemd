@@ -26,7 +26,6 @@ class Base(logutils.Base):
     to run in the shell or not. In terms of the workflow, the subclassed jobs
     can be used as normal task jobs or aggregate jobs.
     """
-
     ARGS = symbols.ARGS
     FLAG_JOBNAME = jobutils.FLAG_JOBNAME
     MESSAGE = 'message'
@@ -60,6 +59,11 @@ class Base(logutils.Base):
     @property
     @functools.cache
     def args(self):
+        """
+        The job arguments.
+
+        :return list: the job arguments.
+        """
         return list(map(str, self.doc.get(self.ARGS, [])))
 
     def post(self):

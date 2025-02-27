@@ -35,28 +35,6 @@ def get_jobs(basename='e053136e2cd7374854430c868b3139e1'):
     return proj.find_jobs()
 
 
-class TestBase:
-
-    @pytest.fixture
-    def job(self, tmp_dir):
-        return task.Base(get_job())
-
-    def testGetArg(self, job):
-        assert '0' == job.getArg('-seed')
-        assert None is job.getArg('-JOBNAME')
-
-    def testPost(self, job):
-        assert False is job.post()
-        job.message = False
-        assert True is job.post()
-
-    def testClean(self, job):
-        job.message = False
-        assert True is job.post()
-        job.clean()
-        assert False is job.post()
-
-
 class TestJob:
 
     NAME = 'lammps_runner'

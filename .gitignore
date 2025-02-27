@@ -15,7 +15,5 @@ _deps
 [Bb][Uu][Ii][Ll][Dd]/
 *.egg-info/
 *workspace/
-*.signac/
-signac_*
 venv/
 ~*.pptx

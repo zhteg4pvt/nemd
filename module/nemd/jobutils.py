@@ -49,7 +49,8 @@ def get_arg(args, flag, default=None, first=True):
 
     :param args list: the arg list
     :param flag str: set the value after this flag
-    :param default str: the default if the flag doesn't exist or not followed by value(s)
+    :param default str: the default if the flag doesn't exist or not followed by
+        value(s)
     :param first bool: only return the first value after the flag
     :return str or list: the value(s) after the flag
     """
@@ -127,7 +128,7 @@ def get_name(file):
     if file is None:
         return
     basename = os.path.basename(file)
-    match = re.match('(\w+)_(driver|workflow).py', basename)
+    match = re.match(r'(\w+)_(driver|workflow).py', basename)
     return match.group(1) if match else os.path.splitext(basename)[0]
 
 

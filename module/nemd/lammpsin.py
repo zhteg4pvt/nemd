@@ -332,7 +332,7 @@ class FixWriter:
 
         https://docs.lammps.org/velocity.html
         """
-        if not self.options.temp:
+        if self.single_point:
             return
         seed = np.random.randint(1, high=symbols.MAX_INT32)
         temp = self.options.stemp if self.relax_step else self.options.temp

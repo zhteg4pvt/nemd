@@ -10,7 +10,6 @@ import pytest
 from nemd import envutils
 from nemd import jobutils
 from nemd import logutils
-from nemd import symbols
 
 
 class TestFunc:

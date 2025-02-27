@@ -4,18 +4,19 @@ bond_style harmonic
 angle_style harmonic
 dihedral_style opls
 improper_style cvff
+special_bonds lj/coul 0 0 0.5
 pair_style lj/cut 11.0
 pair_modify mix geometric
-special_bonds lj/coul 0 0 0.5
 read_data amorphous_builder.data
 
-dump 1 all custom 1000 dump.custom.gz id xu yu zu
+dump 1 all custom 1000 amorphous_builder.custom.gz id xu yu zu
 dump_modify 1 sort id
 min_style fire
 minimize 1.0e-6 1.0e-8 1000000 10000000
 
-timestep 1
+timestep 1.0
 thermo_modify flush yes
 thermo 1000
 run 0
+velocity all create 10 301492858
 quit 0

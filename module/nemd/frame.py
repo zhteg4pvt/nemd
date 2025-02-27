@@ -131,7 +131,7 @@ class Frame(Base):
             with warnings.catch_warnings(record=True):
                 np.loadtxt(fh, skiprows=atom_num, max_rows=0)
                 return types.SimpleNamespace(step=step)
-        data = np.loadtxt(fh, max_rows=atom_num)
+        data = np.loadtxt(fh, max_rows=atom_num, ndmin=2)
         if data.shape[0] != atom_num:
             raise EOFError('Incomplete Atom Coordinates')
         data = data[data[:, 0].argsort()]  # Sort the xyz by atom ids
