@@ -17,3 +17,5 @@ _deps
 *workspace/
 venv/
 ~*.pptx
+*.signac/
+signac_*

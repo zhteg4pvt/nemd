@@ -1,0 +1,2 @@
+# Workflow: amorphous build, MD simulation, and trajectory analysis (single atom)
+nemd_run ab_lmp_traj_workflow.py "[Ar]" -mol_num 1 -task density -state_num 2

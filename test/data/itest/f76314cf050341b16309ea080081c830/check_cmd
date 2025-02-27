@@ -1,0 +1,1 @@
+nemd_check cmp /Users/zhteg4/git/nemd/test/integration/0050/ab_lmp_traj_density.csv ab_lmp_traj_density.csv
