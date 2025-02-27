@@ -40,6 +40,7 @@ class Base(logutils.Base):
         self.name = name
         self.logger = logger
         self.doc = self.job.doc
+        self.original = list(map(str, self.doc.get(self.ARGS, [])))
         self.jobname = name if name else self.default_name
 
     @classmethod
@@ -51,16 +52,6 @@ class Base(logutils.Base):
         :return str: the default jobname
         """
         return jobutils.get_name(cls.FILE)
-
-    @property
-    @functools.cache
-    def args(self):
-        """
-        The project arguments.
-
-        :return list: the project arguments.
-        """
-        return list(map(str, self.doc.get(self.ARGS, [])))
 
     def post(self):
         """
@@ -107,10 +98,13 @@ class Job(Base):
     ParserClass = parserutils.Driver
     PRE_RUN = jobutils.NEMD_RUN
     SEP = symbols.SPACE
-    SPECIAL_CHAR_RE = re.compile("[@!#%^&*()<>?|}{:]")
-    QUOTED_RE = re.compile('^".*"$|^\'.*\'$')
     PREREQ = 'prereq'
+    ARGS_TMPL = None
     OUTFILE = jobutils.OUTFILE
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.args = self.original[:]
 
     def getCmd(self, prefix=PRE_RUN, write=True):
         """
@@ -120,50 +114,46 @@ class Job(Base):
         :param write bool: whether to write the command to a file
         :return str: the command as str
         """
-        cmd = self.getArgs()
+        self.setArgs()
         if self.FILE is not None:
-            cmd.insert(0, self.FILE)
+            self.args.insert(0, self.FILE)
         if prefix:
-            cmd.insert(0, prefix)
-        cmd = self.SEP.join(cmd)
+            self.args.insert(0, prefix)
+        cmd = self.SEP.join(self.args)
         if write:
             with open(f"{self.jobname}_cmd", 'w') as fh:
                 fh.write(cmd)
         return cmd
 
-    def getArgs(self):
+    def setArgs(self):
         """
         Get the job arguments to construct the command.
 
         :return list: the command line arguments
         """
-        args = self.addfiles()
-        self.rmUnknown(args)
-        self.setName(args)
-        return [self.quote(x) for x in args]
+        self.addfiles()
+        self.rmUnknown()
+        self.setName()
+        return [self.quote(x) for x in self.args]
 
     def addfiles(self):
         """
         Add the outfiles from previous jobs to the input arguments of this job.
-
-        :return list: the updated arguments list
         """
+        if self.ARGS_TMPL is None:
+            return
         try:
             pre_jobs = self.doc[self.PREREQ][self.jobname]
         except KeyError:
-            return self.args
-        try:
-            args = self.ARGS_TMPL[:]
-        except AttributeError:
-            return self.args
+            return
+        self.args = self.ARGS_TMPL + self.args
         # Pass the outfiles of the prerequisite jobs to the current via cmd args
         # Please rearrange or modify the prerequisite jobs' input by subclassing
         for pre_job in pre_jobs:
-            index = args.index(None)
-            args[index] = self.doc[self.OUTFILE][pre_job]
-        return args + self.args
+            index = self.args.index(None)
+            self.args[index] = self.doc[self.OUTFILE][pre_job]
 
-    def rmUnknown(self, args):
+    def rmUnknown(self):
         """
         Remove unknown arguments instead of keeping known so that the same flag
         across different tasks can be used multiple times.
@@ -171,14 +161,14 @@ class Job(Base):
         :param args list: the command line arguments before removing unknowns
         """
         parser = self.ParserClass(self.FILE)
-        _, unknown = parser.parse_known_args(args)
+        _, unknown = parser.parse_known_args(self.args)
         try:
             first = next(i for i, x in enumerate(unknown) if x.startswith('-'))
         except StopIteration:
             # All unknowns are positional arguments
             first = len(unknown)
         for arg in unknown[:first]:
-            args.remove(arg)
+            self.args.remove(arg)
         unknown = unknown[first:]
         for idx, val in enumerate(unknown, 1):
             if not val.startswith('-'):
@@ -189,27 +179,32 @@ class Job(Base):
                 lidx = next(i for i, x in enumerate(left) if x.startswith('-'))
             except StopIteration:
                 lidx = len(left)
-            flag_index = args.index(val)
+            flag_index = self.args.index(val)
             for index in reversed(range(flag_index, flag_index + lidx + 1)):
-                args.pop(index)
+                self.args.pop(index)
 
-    def setName(self, args):
+    def setName(self):
         """
         Set the jobname flag in the arguments. (self.jobname is usually defined on
         creating the workflow)
 
         :param args list: the command line arguments before setting the jobname
         """
-        return jobutils.set_arg(args, jobutils.FLAG_JOBNAME, self.jobname)
+        return jobutils.set_arg(self.args, jobutils.FLAG_JOBNAME, self.jobname)
 
     @classmethod
-    def quote(cls, arg):
+    def quote(cls,
+              arg,
+              special=re.compile("[@!#%^&*()<>?|}{:\[\]]"),
+              quoted=re.compile('^".*"$|^\'.*\'$')):
         """
         Quote the unquoted argument that contains special characters.
 
         :param arg str: the argument to quote
+        :param special 're.Pattern': the re to search special characters
+        :param quoted 're.Pattern': the re to match quoted text
         """
-        if cls.SPECIAL_CHAR_RE.search(arg) and not cls.QUOTED_RE.match(arg):
+        if special.search(arg) and not quoted.match(arg):
             return f'"{arg}"'
         return arg
 

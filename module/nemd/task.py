@@ -66,27 +66,27 @@ class LogJob(taskbase.Job):
     ARGS_TMPL = [None]
     ParserClass = parserutils.Log
 
-    def addfiles(self):
+    def addfiles(self, match_re=re.compile(lammpsfix.READ_DATA_RE)):
         """
         Set arguments to analyze the log file.
-        """
-        args = super().addfiles()
-        log_file = args.pop(0)
-        return [
-            log_file, parserutils.Log.FLAG_DATA_FILE,
-            self.getDataFile(log_file)
-        ] + args
 
-    def getDataFile(self, log_file):
+        :param match_re 're.Pattern': the re to search data file
         """
-        Set the args with the data file from the log file.
+        super().addfiles()
+        # Set the args with the data file from the log file
+        data_file = self.getMatch(match_re=match_re).group(1)
+        self.args += [parserutils.Log.FLAG_DATA_FILE, data_file]
+
+    def getMatch(self, match_re=lammpsfix.READ_DATA_RE):
         """
-        with open(log_file, 'r') as fh:
-            for line in fh:
-                match = re.match(lammpsfix.READ_DATA_RE, line)
-                if not match:
-                    continue
-                return match.group(1)
+        Get the regular expression match.
+
+        :param match_re 're.Pattern': the re to search pattern
+        :return 're.Match': the found match
+        """
+        with open(self.args[0], 'r') as fh:
+            matches = (match_re.match(line) for line in fh)
+            return next(x for x in matches if x)
 
 
 class TrajJob(LogJob):
@@ -96,24 +96,15 @@ class TrajJob(LogJob):
     FILE = 'lmp_traj_driver.py'
     ParserClass = parserutils.Traj
 
-    def addfiles(self):
+    def addfiles(self, match_re=re.compile(lammpsfix.DUMP_RE)):
         """
         Set arguments to analyze the custom dump file.
-        """
-        args = super().addfiles()
-        log_file = args.pop(0)
-        return [self.getTrajFile(log_file)] + args
 
-    def getTrajFile(self, log_file):
+        :param match_re 're.Pattern': the re to search trajectory file
         """
-        Set the args with the trajectory file from the log file.
-        """
-        with open(log_file, 'r') as fh:
-            for line in fh:
-                match = re.match(lammpsfix.DUMP_RE, line)
-                if not match:
-                    continue
-                return match.group(2)
+        super().addfiles()
+        # Set the args with the trajectory file from the log file
+        self.args[0] = self.getMatch(match_re=match_re).group(2)
 
 
 class CmdJob(taskbase.Job):
@@ -121,7 +112,6 @@ class CmdJob(taskbase.Job):
     The class to set up a job cmd so that the test can run normal nemd jobs from
     the cmd line.
     """
-
     NAME = 'cmd'
     CPU_RE = re.compile(f"{jobutils.FLAG_CPU} +\d*")
     SEP = f"{symbols.RETURN}"
@@ -129,7 +119,7 @@ class CmdJob(taskbase.Job):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cmd = test.Cmd(job=self.job)
-        self.jargs = self.job.doc[self.ARGS]
+        self.args = self.param.getCmds()
 
     def getCmd(self, write=True, **kwargs):
         """
@@ -143,18 +133,15 @@ class CmdJob(taskbase.Job):
             msg = f"{msg}: {self.cmd.comment}"
         return super().getCmd(prefix=f"echo \'# {msg}\'", write=write)
 
-    def getArgs(self):
+    def setArgs(self):
         """
         Get arguments that form command lines.
-
-        :return list of str: each str is a command
         """
         self.setQuot()
         self.numCpu()
         self.setName()
         self.setDebug()
         self.setScreen()
-        return self.args
 
     def setQuot(self):
         """
@@ -167,16 +154,6 @@ class CmdJob(taskbase.Job):
         for idx, cmd in enumerate(self.args):
             quoted = map(super().quote, shlex.split(cmd, posix=False))
             self.args[idx] = symbols.SPACE.join(quoted)
-
-    @property
-    @functools.cache
-    def args(self):
-        """
-        Return the arguments out of the cmd file.
-
-        :return list of str: each str is a command
-        """
-        return self.param.getCmds()
 
     @property
     @functools.cache
@@ -195,11 +172,11 @@ class CmdJob(taskbase.Job):
         # No CPU specified for the workflow: 1 cpu per subjob for efficiency
         default = f"{jobutils.FLAG_CPU} 1"
         try:
-            index = self.jargs.index(jobutils.FLAG_CPU)
+            index = self.original.index(jobutils.FLAG_CPU)
         except ValueError:
             cpu_num = None
         else:
-            cpu_num = f"{jobutils.FLAG_CPU} {self.jargs[index + 1]}"
+            cpu_num = f"{jobutils.FLAG_CPU} {self.original[index + 1]}"
 
         for idx, cmd in enumerate(self.args):
             if not jobutils.FLAG_CPU in cmd:
@@ -227,7 +204,7 @@ class CmdJob(taskbase.Job):
         """
         Set the screen output.
         """
-        value = jobutils.get_arg(self.jargs, jobutils.FLAG_DEBUG)
+        value = jobutils.get_arg(self.original, jobutils.FLAG_DEBUG)
         if value is None:
             return
         is_debug = parserutils.type_bool(value or 'on')
@@ -241,7 +218,7 @@ class CmdJob(taskbase.Job):
         """
         Set the screen output.
         """
-        scn = jobutils.get_arg(self.jargs, jobutils.FLAG_SCREEN)
+        scn = jobutils.get_arg(self.original, jobutils.FLAG_SCREEN)
         if not scn and DEBUG:
             return
         if scn and jobutils.JOB in scn:
@@ -303,8 +280,8 @@ class CheckJob(TagJob):
         """
         err = test.Check(job=self.job).run()
         self.message = err if err else False
-        if DEBUG:
-            raise ValueError(err)
+        if DEBUG and self.message:
+            raise ValueError(self.message)
 
     def post(self):
         """
