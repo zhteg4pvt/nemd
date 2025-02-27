@@ -81,7 +81,7 @@ class AnalyzerAgg(analyzer.Agg):
         job = self.groups[0][1][0]
         for logfile in job.doc[jobutils.LOGFILE].values():
             reader = Reader(job.fn(logfile))
-            if reader.options.NAME != task.MolBldrJob.name:
+            if reader.options.NAME != task.MolBldrJob.default_name:
                 continue
             self.result.substruct = reader.getSubstruct(smiles)
             return smiles

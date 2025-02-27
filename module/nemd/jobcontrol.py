@@ -192,7 +192,7 @@ class Runner(logutils.Base):
             if name.endswith(self.AGG_NAME_EXT):
                 continue
             for job in self.jobs:
-                JobClass(job, jobname=name).clean()
+                JobClass(job, name=name).clean()
 
     def runJobs(self, **kwargs):
         """
@@ -329,10 +329,10 @@ class Runner(logutils.Base):
             filter=filter)
         if not jobs:
             return
-        for jobname, JobClass in self.classes.items():
-            if not jobname.endswith(self.AGG_NAME_EXT):
+        for name, JobClass in self.classes.items():
+            if not name.endswith(self.AGG_NAME_EXT):
                 continue
-            JobClass(*jobs, jobname=jobname).clean()
+            JobClass(*jobs, name=name).clean()
 
     def runAggJobs(self):
         """

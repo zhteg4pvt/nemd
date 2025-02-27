@@ -214,13 +214,13 @@ class CmdJob(taskbase.Job):
         obtained from the python filename)
         """
         for idx, cmd in enumerate(self.args):
-            if self.FLAG_JOBNAME in cmd:
+            if jobutils.FLAG_JOBNAME in cmd:
                 continue
             match = test.FILE_RE.match(cmd)
             if not match:
                 continue
             name = match.group(1)
-            cmd += f" {self.FLAG_JOBNAME} {name}"
+            cmd += f" {jobutils.FLAG_JOBNAME} {name}"
             self.args[idx] = cmd
 
     def setDebug(self):
@@ -276,7 +276,20 @@ class CmdJob(taskbase.Job):
             shutil.rmtree(workspace)
 
 
-class CheckJob(taskbase.Base):
+class TagJob(taskbase.Base):
+    """
+    This job class generates a new tag file (or updates the existing one).
+    """
+
+    def run(self):
+        """
+        Main method to run.
+        """
+        test.Tag(job=self.job).run()
+        self.message = False
+
+
+class CheckJob(TagJob):
     """
     The job class to parse the check file, run the operators, and set the job
     message.
@@ -300,19 +313,6 @@ class CheckJob(taskbase.Base):
         :return: True if the post-conditions are met.
         """
         return self.jobname in self.doc.get(self.MESSAGE, {})
-
-
-class TagJob(CheckJob):
-    """
-    This job class generates a new tag file (or updates the existing one).
-    """
-
-    def run(self):
-        """
-        Main method to run.
-        """
-        test.Tag(job=self.job).run()
-        self.message = False
 
 
 class LogAgg(taskbase.AggJob):

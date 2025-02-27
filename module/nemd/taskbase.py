@@ -1,9 +1,9 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
-This task base module defines the Base class to execute non-cmd jobs, the Job
-class to generate the cmd, the AggJob class to execute a non-cmd aggregator, and
-the Task class to hold and prepare a regular cmd job and an aggregator job.
+This module defines the Base class to execute non-cmd jobs, the Job class to
+generate the cmd, the AggJob class to execute a non-cmd aggregator, and
+the Task class to hold and prepare a cmd job and a non-cmd aggregator.
 """
 import functools
 import re
@@ -22,18 +22,13 @@ from nemd import timeutils
 class Base(logutils.Base):
     """
     The base class for all jobs in the workflow. This class can be subclassed
-    to create cmd and non-cmd jobs depending on whether the job returns a cmd
-    to run in the shell or not. In terms of the workflow, the subclassed jobs
-    can be used as normal task jobs or aggregate jobs.
+    to create cmd and non-cmd jobs used as normal task jobs and aggregate jobs.
     """
-    ARGS = symbols.ARGS
-    FLAG_JOBNAME = jobutils.FLAG_JOBNAME
-    MESSAGE = 'message'
-    DATA_EXT = '.csv'
-    PRE_RUN = None
     FILE = None
+    ARGS = symbols.ARGS
+    MESSAGE = 'message'
 
-    def __init__(self, job, jobname=None, logger=None, **kwargs):
+    def __init__(self, job, name=None, logger=None, **kwargs):
         """
         :param job 'signac.contrib.job.Job': the signac job instance
         :param name str: the subjob jobname, different from the workflow jobname
@@ -42,27 +37,28 @@ class Base(logutils.Base):
         """
         super().__init__(logger=logger)
         self.job = job
-        self.jobname = jobname if jobname else self.name
+        self.name = name
         self.logger = logger
         self.doc = self.job.doc
+        self.jobname = name if name else self.default_name
 
     @classmethod
     @property
-    def name(cls):
+    def default_name(cls):
         """
         The default jobname.
 
         :return str: the default jobname
         """
-        return jobutils.get_name(cls.FILE) if cls.FILE else symbols.NAME
+        return jobutils.get_name(cls.FILE)
 
     @property
     @functools.cache
     def args(self):
         """
-        The job arguments.
+        The project arguments.
 
-        :return list: the job arguments.
+        :return list: the project arguments.
         """
         return list(map(str, self.doc.get(self.ARGS, [])))
 
@@ -108,15 +104,13 @@ class Job(Base):
 
     NOTE: this is a cmd job.
     """
-
     ParserClass = parserutils.Driver
-    SPECIAL_CHAR_RE = re.compile("[@!#%^&*()<>?|}{:]")
-    QUOTED_RE = re.compile('^".*"$|^\'.*\'$')
     PRE_RUN = jobutils.NEMD_RUN
     SEP = symbols.SPACE
+    SPECIAL_CHAR_RE = re.compile("[@!#%^&*()<>?|}{:]")
+    QUOTED_RE = re.compile('^".*"$|^\'.*\'$')
     PREREQ = 'prereq'
     OUTFILE = jobutils.OUTFILE
-    FILE = None
 
     def getCmd(self, prefix=PRE_RUN, write=True):
         """
@@ -206,7 +200,7 @@ class Job(Base):
 
         :param args list: the command line arguments before setting the jobname
         """
-        return jobutils.set_arg(args, self.FLAG_JOBNAME, self.jobname)
+        return jobutils.set_arg(args, jobutils.FLAG_JOBNAME, self.jobname)
 
     @classmethod
     def quote(cls, arg):
@@ -432,7 +426,7 @@ class Task:
     def getOpr(cls,
                cmd=None,
                with_job=True,
-               jobname=None,
+               name=None,
                attr='operator',
                pre=False,
                post=None,
@@ -451,7 +445,7 @@ class Task:
         :type cmd: bool
         :param with_job: perform the execution in job dir with context management
         :type with_job: bool
-        :param jobname str: the taskname
+        :param name str: the taskname
         :param attr: the attribute name of a staticmethod method or callable function
         :type attr: str or types.FunctionType
         :param pre: add pre-condition for the aggregator if True
@@ -466,8 +460,8 @@ class Task:
         :rtype: 'function'
         :raise ValueError: the function cannot be found
         """
-        if jobname is None:
-            jobname = cls.name
+        if name is None:
+            name = cls.name
         if cmd is None:
             cmd = hasattr(cls.JobClass, 'getCmd')
         if post is None:
@@ -482,23 +476,23 @@ class Task:
             raise ValueError(f"{attr} is not a callable function or str.")
 
         # Pass jobname, taskname, and logging function
-        kwargs.update({'jobname': jobname})
+        kwargs.update({'name': name})
         if logger:
             kwargs['logger'] = logger
         func = functools.update_wrapper(functools.partial(opr, **kwargs), opr)
-        func.__name__ = jobname
+        func.__name__ = name
         func = flow.FlowProject.operation(cmd=cmd,
                                           func=func,
                                           with_job=with_job,
-                                          name=jobname,
+                                          name=name,
                                           aggregator=aggregator)
         # Add FlowProject decorators (pre / post conditions)
         if post:
-            fp_post = functools.partial(post, jobname=jobname)
+            fp_post = functools.partial(post, name=name)
             fp_post = functools.update_wrapper(fp_post, post)
             func = flow.FlowProject.post(lambda *x: fp_post(*x))(func)
         if pre:
-            fp_pre = functools.partial(pre, jobname=jobname)
+            fp_pre = functools.partial(pre, name=name)
             fp_pre = functools.update_wrapper(fp_pre, pre)
             func = flow.FlowProject.pre(lambda *x: fp_pre(*x))(func)
         return func
@@ -507,7 +501,7 @@ class Task:
     def getAgg(cls,
                cmd=False,
                with_job=False,
-               jobname=None,
+               name=None,
                attr='aggregator',
                post=None,
                **kwargs):
@@ -518,7 +512,7 @@ class Task:
         :type cmd: bool
         :param with_job: Whether chdir to the job dir
         :type with_job: bool
-        :param jobname str: the name of this aggregator job task.
+        :param name str: the name of this aggregator job task.
         :param attr: the attribute name of a staticmethod method or callable function
         :type attr: str or types.FunctionType
         :param post: add post-condition for the aggregator if True
@@ -526,14 +520,14 @@ class Task:
         :return: the operation to execute
         :rtype: 'function'
         """
-        if jobname is None:
-            jobname = cls.agg_name
+        if name is None:
+            name = cls.agg_name
         if post is None:
             post = cls.aggPost
         return cls.getOpr(aggregator=flow.aggregator(),
                           cmd=cmd,
                           with_job=with_job,
-                          jobname=jobname,
+                          name=name,
                           attr=attr,
                           post=post,
                           **kwargs)
