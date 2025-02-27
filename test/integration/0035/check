@@ -1,2 +1,2 @@
 cmp(lmp_log_toteng.csv, lmp_log_toteng.csv, rtol=1e-6)
-( grep 'cpu 2' cmd_cmd ) && in('2 OpenMP thread', lammps_lmp.log)
+( grep 'CPU 2' cmd_cmd ) && in('2 OpenMP thread', lammps_lmp.log)

@@ -313,13 +313,13 @@ class TestDriver:
         with mock.patch('nemd.parserutils.DEBUG', bool(evalue)):
             parser = parserutils.Driver(valids=[parserutils.Valid])
         args = [
-            '-JOBNAME', 'hi', '-cpu', '3', '1', '-PYTHON', '-1', '-NAME', 'wa'
+            '-JOBNAME', 'hi', '-CPU', '3', '1', '-PYTHON', '-1', '-NAME', 'wa'
         ]
         if DEBUG is not None:
             args += ['-DEBUG'] if DEBUG == 'NO_VALUE' else ['-DEBUG', DEBUG]
         options = parser.parse_args(args)
         assert 'hi' == options.JOBNAME
-        assert [3, 1] == options.cpu
+        assert [3, 1] == options.CPU
         assert '-1' == options.PYTHON
         assert 'wa' == options.NAME
         assert expected == options.DEBUG

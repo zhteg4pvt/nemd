@@ -122,9 +122,9 @@ class Lammps(logutils.Base):
         """
         Set the omp environment variables.
         """
-        if self.options.cpu is None:
+        if self.options.CPU is None:
             return
-        self.env = {'OMP_NUM_THREADS': str(self.options.cpu[0]), **os.environ}
+        self.env = {'OMP_NUM_THREADS': str(self.options.CPU[0]), **os.environ}
 
     def execute(self):
         """

@@ -139,7 +139,7 @@ class Runner(logutils.Base):
         """
         Set cpu numbers for the project.
         """
-        if self.options.cpu is None:
+        if self.options.CPU is None:
             # No cpu specified
             # Debug mode: 1 cpu as total to avoid parallelism
             # Production mode: 75% of cpu count as total to avoid overloading
@@ -148,12 +148,12 @@ class Runner(logutils.Base):
             self.cpu = [max([total, 1]), 1]
             return
         try:
-            per_subjob = self.options.cpu[1]
+            per_subjob = self.options.CPU[1]
         except IndexError:
             # Only total cpu specified: evenly distribute among subjobs
             subjob_num = np.prod([len(x) for x in self.state.values()])
-            per_subjob = max([math.floor(self.options.cpu[0] / subjob_num), 1])
-        self.cpu = [math.floor(self.options.cpu[0] / per_subjob), per_subjob]
+            per_subjob = max([math.floor(self.options.CPU[0] / subjob_num), 1])
+        self.cpu = [math.floor(self.options.CPU[0] / per_subjob), per_subjob]
 
     def addJobs(self):
         """
