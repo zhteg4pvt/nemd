@@ -14,8 +14,8 @@ CTestTestfile.cmake
 _deps
 [Bb][Uu][Ii][Ll][Dd]/
 *.egg-info/
-*workspace/
 venv/
 ~*.pptx
+*workspace/
 *.signac/
 signac_*

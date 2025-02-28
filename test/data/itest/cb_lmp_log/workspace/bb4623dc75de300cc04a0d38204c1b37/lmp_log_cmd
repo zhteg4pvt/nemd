@@ -1,0 +1,1 @@
+nemd_run lmp_log_driver.py lammps_runner_lmp.log -task TotEng -data_file crystal_builder.data -JOBNAME lmp_log

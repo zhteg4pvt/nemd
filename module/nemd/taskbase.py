@@ -273,10 +273,6 @@ class AggJob(Base):
                             axis=1)
             data[key[:8]] = val
         data = pd.DataFrame(data)
-        if data.empty:
-            self.log('No job founds.')
-            self.message = False
-            return
         total_time = timeutils.delta2str(info.time.sum())
         self.log(logutils.Reader.TOTAL_TIME + total_time)
         self.log(data.fillna('').to_markdown(index=False))
@@ -296,7 +292,7 @@ class AggJob(Base):
         """
         Set message of the agg job.
 
-        :value str: the message of the job.
+        :param value str: the message of the job.
         """
         self.project.doc.setdefault(self.MESSAGE, {})
         self.project.doc[self.MESSAGE][self.jobname] = value

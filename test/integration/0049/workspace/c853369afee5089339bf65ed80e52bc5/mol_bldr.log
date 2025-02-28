@@ -1,0 +1,34 @@
+..........Command Options..........
+cru: *C[*:1]
+cru_num: 3
+mol_num: 1
+buffer: 44.0
+no_minimize: False
+rigid_bond: None
+rigid_angle: None
+substruct: ('CCC', None)
+force_field: OPLSUA TIP3P
+seed: 12
+timestep: 1
+stemp: 10
+temp: 0
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 0
+prod_time: 0
+prod_ens: NVE
+NAME: mol_bldr
+jobname: mol_bldr
+interactive: False
+python: 2
+cpu: 1
+debug: False
+JobStart: 19:18:42 02/10/2025
+...................................
+Polymer SMILES: [C][C][C]
+CCC angle: 112.40 degree
+Data file written into mol_bldr.data
+In script written into mol_bldr.in
+Finished.
+19:18:43 02/10/2025

@@ -1,0 +1,30 @@
+..........Options..........
+name: Si
+dimension: (1, 1, 1)
+scale_factor: (0.95, 0.95, 0.95)
+timestep: 1
+stemp: 10
+temp: 0.0
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 1
+prod_time: 1
+prod_ens: NVE
+seed: 802809018
+no_minimize: False
+rigid_bond: None
+rigid_angle: None
+NAME: xtal_bldr
+JOBNAME: crystal_builder
+INTERAC: False
+PYTHON: 2
+CPU: None
+DEBUG: None
+force_field: SW
+JobStart: 20:21:33 02/27/2025
+...........................
+LAMMPS data file written as crystal_builder.data
+LAMMPS input script written as crystal_builder.in
+Finished.
+20:21:35 02/27/2025

@@ -1,0 +1,22 @@
+..........Options..........
+log: lammps_runner_lmp.log
+task: toteng
+data_file: crystal_builder.data
+last_pct: 0.2
+slice: None
+NAME: lmp_log
+JOBNAME: lmp_log
+INTERAC: False
+PYTHON: 2
+CPU: None
+DEBUG: None
+JobStart: 20:21:37 02/27/2025
+...........................
+3 steps of thermo data found.
+Averages results from 0.043 ps to 0.043 ps
+WARNING:  tasks cannot be found out of step, temp, e_pair, e_mol, toteng, press.
+Toteng data written into lmp_log_toteng.csv
+TotEng: -34.69 ± nan eV ∈ [0.0430, 0.0430] ps
+Toteng figure saved as lmp_log_toteng.png
+Finished.
+20:21:38 02/27/2025

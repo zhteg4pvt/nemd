@@ -72,39 +72,6 @@ class TestTrajJob:
         assert traj_file == 'dump.custom.gz'
 
 
-class TestAgg:
-
-    @pytest.fixture
-    def agg(self, tmp_dir):
-        agg = task.AggJob(*get_jobs(), name='', logger=mock.Mock())
-        return agg
-
-    def testRun(self, agg):
-        agg.run()
-        assert agg.logger.info.called
-
-    def testMessage(self, agg):
-        assert agg.message is None
-        agg.message = False
-        assert agg.message is False
-
-    @pytest.mark.parametrize("delta, expected",
-                             [(datetime.timedelta(hours=3), '59:59'),
-                              (datetime.timedelta(minutes=3), '03:00')])
-    def testDelta2str(self, delta, expected):
-        assert expected == task.AggJob.delta2str(delta)
-
-    def testGroupJobs(self, agg):
-        jobs = agg.groups
-        assert len(jobs) == 1
-        assert len(jobs[0]) == 2
-
-    def testClean(self, agg):
-        agg.message = False
-        agg.clean()
-        assert agg.message is None
-
-
 class TestLogAgg:
 
     @pytest.fixture

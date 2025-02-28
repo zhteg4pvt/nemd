@@ -1,0 +1,2 @@
+echo '# 0005: Amorphous builder on Ethanoic acid via pack'
+nemd_run amorp_bldr_driver.py 'CC(=O)O' -mol_num 1 -force_field OPLSUA TIP3P -method pack -seed 4321 -DEBUG -cpu 1 -JOBNAME amorp_bldr > /dev/null
