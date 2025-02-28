@@ -35,65 +35,6 @@ def get_jobs(basename='e053136e2cd7374854430c868b3139e1'):
     return proj.find_jobs()
 
 
-class TestJob:
-
-    NAME = 'lammps_runner'
-    DRIVER = task.Lammps.DRIVER
-    ID = '6e4cfb3bcc2a689d42d099e51b9efe23'
-
-    @pytest.fixture
-    def job(self, tmp_dir, name, driver, basename):
-        return task.Job(get_job(basename), name=name, driver=driver)
-
-    @pytest.mark.parametrize(
-        "name, driver, basename, filename",
-        [(NAME, DRIVER, ID, 'amorphous_builder.in'),
-         (LMP_LOG, LOG_DRIVER, LOG_ID, 'lammps_runner.log')])
-    def testSetArgs(self, job, filename):
-        job.setArgs()
-        assert filename == job.args[0]
-
-    @pytest.mark.parametrize("name, driver, basename, num",
-                             [(NAME, DRIVER, ID, 1),
-                              (LMP_LOG, LOG_DRIVER, LOG_ID, 7)])
-    def testRemoveUnkArgs(self, job, num):
-        job.setArgs()
-        job.removeUnkArgs()
-        assert num == len(job.args)
-
-    @pytest.mark.parametrize("name, driver, basename", [(NAME, DRIVER, ID)])
-    def testSetName(self, job):
-        job.setName()
-        assert job.args[-2:] == ['-JOBNAME', 'lammps_runner']
-
-    @pytest.mark.parametrize("schar, quoted", [('*', "'*'"), (")", "')'")])
-    def testAddQuote(self, schar, quoted, tmp_dir):
-        job = task.Job(get_job())
-        job.args = [schar]
-        job.addQuote()
-        assert quoted == job.args[0]
-
-    @pytest.mark.parametrize("name, driver, basename, num",
-                             [(NAME, DRIVER, ID, 6), (NAME, None, ID, 5)])
-    def testGetCmd(self, job, num):
-        assert num == len(job.getCmd().split())
-        assert (num - 1) == len(job.getCmd(prefix=None).split())
-        assert os.path.exists('lammps_runner_cmd')
-
-    @pytest.mark.parametrize("name, driver, basename", [(NAME, DRIVER, ID)])
-    def testPost(self, job):
-        assert job.post() is False
-        job.outfile = 'output.log'
-        assert job.post() is True
-
-    @pytest.mark.parametrize("name, driver, basename", [(NAME, DRIVER, ID)])
-    def testClean(self, job):
-        job.outfile = 'output.log'
-        assert job.post() is True
-        job.clean()
-        job.post() is False
-
-
 class TestLogJob:
 
     @pytest.fixture

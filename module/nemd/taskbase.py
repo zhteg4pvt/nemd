@@ -53,6 +53,12 @@ class Base(logutils.Base):
         """
         return jobutils.get_name(cls.FILE)
 
+    def run(self):
+        """
+        Main method to run.
+        """
+        self.message = False
+
     def post(self):
         """
         The job is considered finished when the post-conditions return True.
@@ -91,9 +97,7 @@ class Base(logutils.Base):
 
 class Job(Base):
     """
-    The class to set up a run_nemd driver job in a workflow.
-
-    NOTE: this is a cmd job.
+    The class to set up a cmd job.
     """
     ParserClass = parserutils.Driver
     PRE_RUN = jobutils.NEMD_RUN
@@ -106,35 +110,13 @@ class Job(Base):
         super().__init__(*args, **kwargs)
         self.args = self.original[:]
 
-    def getCmd(self, prefix=PRE_RUN, write=True):
-        """
-        Get command line str.
-
-        :param prefix str: the prefix command to run before the args
-        :param write bool: whether to write the command to a file
-        :return str: the command as str
-        """
-        self.setArgs()
-        if self.FILE is not None:
-            self.args.insert(0, self.FILE)
-        if prefix:
-            self.args.insert(0, prefix)
-        cmd = self.SEP.join(self.args)
-        if write:
-            with open(f"{self.jobname}_cmd", 'w') as fh:
-                fh.write(cmd)
-        return cmd
-
-    def setArgs(self):
+    def run(self):
         """
         Get the job arguments to construct the command.
-
-        :return list: the command line arguments
         """
         self.addfiles()
         self.rmUnknown()
         self.setName()
-        return [self.quote(x) for x in self.args]
 
     def addfiles(self):
         """
@@ -157,8 +139,6 @@ class Job(Base):
         """
         Remove unknown arguments instead of keeping known so that the same flag
         across different tasks can be used multiple times.
-
-        :param args list: the command line arguments before removing unknowns
         """
         parser = self.ParserClass(self.FILE)
         _, unknown = parser.parse_known_args(self.args)
@@ -185,28 +165,28 @@ class Job(Base):
 
     def setName(self):
         """
-        Set the jobname flag in the arguments. (self.jobname is usually defined on
-        creating the workflow)
-
-        :param args list: the command line arguments before setting the jobname
+        Set the jobname flag in the arguments. (self.jobname is usually defined
+        on creating the workflow)
         """
         return jobutils.set_arg(self.args, jobutils.FLAG_JOBNAME, self.jobname)
 
-    @classmethod
-    def quote(cls,
-              arg,
-              special=re.compile("[@!#%^&*()<>?|}{:\[\]]"),
-              quoted=re.compile('^".*"$|^\'.*\'$')):
+    def getCmd(self, prefix=PRE_RUN, write=True):
         """
-        Quote the unquoted argument that contains special characters.
+        Get command line str.
 
-        :param arg str: the argument to quote
-        :param special 're.Pattern': the re to search special characters
-        :param quoted 're.Pattern': the re to match quoted text
+        :param prefix str: the prefix command to run before the args
+        :param write bool: whether to write the command to a file
+        :return str: the command as str
         """
-        if special.search(arg) and not quoted.match(arg):
-            return f'"{arg}"'
-        return arg
+        if self.FILE is not None:
+            self.args.insert(0, self.FILE)
+        if prefix:
+            self.args.insert(0, prefix)
+        cmd = self.SEP.join(self.args)
+        if write:
+            with open(f"{self.jobname}_cmd", 'w') as fh:
+                fh.write(cmd)
+        return cmd
 
     def post(self):
         """
@@ -249,7 +229,6 @@ class AggJob(Base):
     """
     The class to run a non-cmd aggregator job in a workflow.
     """
-
     MS_FMT = '%M:%S'
     MS_LMT = '59:59'
     DELTA_LMT = timeutils.str2delta(MS_LMT, fmt=MS_FMT)
@@ -382,9 +361,8 @@ class Task:
         """
         kwargs.setdefault(symbols.NAME, cls.name)
         obj = cls.JobClass(*args, **kwargs)
-        if hasattr(obj, 'getCmd'):
-            return obj.getCmd(write=write)
         obj.run()
+        return obj.getCmd(write=write) if isinstance(obj, Job) else None
 
     @classmethod
     def post(cls, *args, **kwargs):

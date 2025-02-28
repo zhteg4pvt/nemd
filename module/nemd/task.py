@@ -121,38 +121,38 @@ class CmdJob(taskbase.Job):
         self.cmd = test.Cmd(job=self.job)
         self.args = self.param.getCmds()
 
-    def getCmd(self, write=True, **kwargs):
+    def getCmd(self, **kwargs):
         """
         Get command line str.
 
-        :param write bool: the msg to be printed
         :return str: the command as str
         """
-        msg = os.path.basename(self.job.statepoint[jobutils.FLAG_DIR])
+        msg = f"# {os.path.basename(self.job.statepoint[jobutils.FLAG_DIR])}"
         if self.cmd.comment:
-            msg = f"{msg}: {self.cmd.comment}"
-        return super().getCmd(prefix=f"echo \'# {msg}\'", write=write)
+            msg += f": {self.cmd.comment}"
+        return super().getCmd(prefix=f'echo "{msg}"', **kwargs)
 
-    def setArgs(self):
+    def run(self):
         """
         Get arguments that form command lines.
         """
-        self.setQuot()
+        self.quote()
         self.numCpu()
         self.setName()
         self.setDebug()
         self.setScreen()
 
-    def setQuot(self):
+    def quote(self, rex=re.compile("[^'\"][@!#%^&*()<>?|}{:\[\]][^'\"]")):
         """
         Add quotes for str with special characters.
 
-        Note: shlex.split("echo 'h(i)';echo wa", posix=False) splits by ;
-
+        :param rex 're.Pattern': search unquoted text with special characters
         :return str: the quoted command
         """
         for idx, cmd in enumerate(self.args):
-            quoted = map(super().quote, shlex.split(cmd, posix=False))
+            # shlex.split("echo 'h(i)';echo wa", posix=False) splits by ;
+            splitted = shlex.split(cmd, posix=False)
+            quoted = [f'"{x}"' if rex.match(x) else x for x in splitted]
             self.args[idx] = symbols.SPACE.join(quoted)
 
     @property
