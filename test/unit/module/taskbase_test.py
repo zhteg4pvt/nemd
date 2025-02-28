@@ -67,7 +67,7 @@ class TestBase:
         assert base.message is None
 
 
-class TestJob:
+class TestAggJob:
 
     @pytest.fixture
     def job(self, file, parser, args_tmpl, tmp_dir):

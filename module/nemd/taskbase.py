@@ -6,6 +6,7 @@ generate the cmd, the AggJob class to execute a non-cmd aggregator, and
 the Task class to hold and prepare a cmd job and a non-cmd aggregator.
 """
 import functools
+import os
 import re
 import types
 
@@ -252,29 +253,24 @@ class AggJob(Base):
         """
         if not self.job:
             return
-        info = []
-        for job in self.jobs:
-            for filename in job.doc.get(jobutils.LOGFILE, {}).values():
-                try:
-                    log = logutils.Reader(job.fn(filename))
-                except FileNotFoundError:
-                    continue
-                info.append([log.options.NAME, log.task_time, job.id])
+        files = [(x.doc.get(jobutils.LOGFILE, {}), x) for x in self.jobs]
+        files = [(y.fn(z), y) for x, y in files for z in x.values()]
+        rdrs = [(logutils.Reader(x), y) for x, y in files if os.path.isfile(x)]
+        info = [[x.options.NAME[:8], x.task_time, y.id[:3]] for x, y in rdrs]
         info = pd.DataFrame(info, columns=[self.NAME, self.TIME, self.ID])
-        # Group the jobs by the labels
-        data, grouped = {}, info.groupby(self.NAME)
-        for key, dat in sorted(grouped, key=lambda x: x[1].size, reverse=True):
-            val = dat.drop(columns=self.NAME)
-            val.sort_values(self.TIME, ascending=False, inplace=True)
-            ave = val.time.mean()
-            ave = pd.DataFrame([[ave, 'ave']], columns=[self.TIME, self.ID])
-            val = pd.concat([ave, val]).reset_index(drop=True)
-            val = val.apply(lambda x: f'{self.delta2str(x.time)} {x.id[:3]}',
-                            axis=1)
-            data[key[:8]] = val
-        data = pd.DataFrame(data)
         total_time = timeutils.delta2str(info.time.sum())
         self.log(logutils.Reader.TOTAL_TIME + total_time)
+        # Group the jobs by the labels
+        grouped = info.groupby(self.NAME)
+        data = {
+            x: y.apply(lambda x: f'{self.delta2str(x.time)} {x.id}', axis=1)
+            for x, y in grouped[[self.TIME, self.ID]]
+        }
+        data = {x: sorted(y, reverse=True) for x, y in data.items()}
+        sorted_keys = sorted(data, key=lambda x: len(data[x]), reverse=True)
+        ave = grouped.time.mean().apply(lambda x: f"{self.delta2str(x)} (ave)")
+        data = {x: [ave.loc[x]] + data[x] for x in sorted_keys}
+        data = pd.DataFrame.from_dict(data, orient='index').transpose()
         self.log(data.fillna('').to_markdown(index=False))
         self.message = False
 
