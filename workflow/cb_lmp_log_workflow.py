@@ -55,7 +55,7 @@ class Parser(parserutils.Workflow):
             help='The range of scale factors on the crystal lattice parameters.'
         )
         parserutils.XtalBldr.add(parser, append=False)
-        parserutils.Log.add(parser)
+        parserutils.LmpLog.add(parser)
 
 
 def main(argv):

@@ -66,7 +66,7 @@ class LmpLogJob(taskbase.Job):
 
     FILE = 'lmp_log_driver.py'
     ARGS_TMPL = [None]
-    ParserClass = parserutils.Log
+    ParserClass = parserutils.LmpLog
 
     def addfiles(self, match_re=re.compile(lammpsfix.READ_DATA_RE)):
         """
@@ -77,7 +77,7 @@ class LmpLogJob(taskbase.Job):
         super().addfiles()
         # Set the args with the data file from the log file
         data_file = self.getMatch(match_re=match_re).group(1)
-        self.args += [parserutils.Log.FLAG_DATA_FILE, data_file]
+        self.args += [parserutils.LmpLog.FLAG_DATA_FILE, data_file]
 
     def getMatch(self, match_re=lammpsfix.READ_DATA_RE):
         """
@@ -96,7 +96,7 @@ class TrajJob(LmpLogJob):
     Class to run lammps traj driver.
     """
     FILE = 'lmp_traj_driver.py'
-    ParserClass = parserutils.Traj
+    ParserClass = parserutils.LmpTraj
 
     def addfiles(self, match_re=re.compile(lammpsfix.DUMP_RE)):
         """
@@ -116,6 +116,7 @@ class CmdJob(taskbase.Job):
     """
     NAME = 'cmd'
     CPU_RE = re.compile(f"{jobutils.FLAG_CPU} +\d*")
+    DEBUG_RE = re.compile(f"{jobutils.FLAG_DEBUG}( +(True|False))?")
     SEP = f"{symbols.RETURN}"
 
     def __init__(self, *args, **kwargs):
@@ -171,21 +172,14 @@ class CmdJob(taskbase.Job):
         """
         Set the cpu number.
         """
-        # No CPU specified for the workflow: 1 cpu per subjob for efficiency
-        default = f"{jobutils.FLAG_CPU} 1"
-        try:
-            index = self.original.index(jobutils.FLAG_CPU)
-        except ValueError:
-            cpu_num = None
-        else:
-            cpu_num = f"{jobutils.FLAG_CPU} {self.original[index + 1]}"
-
         for idx, cmd in enumerate(self.args):
             if not jobutils.FLAG_CPU in cmd:
-                self.args[idx] = f"{cmd} {cpu_num if cpu_num else default}"
-                continue
-            if cpu_num:
-                self.args[idx] = self.CPU_RE.sub(cpu_num, cmd)
+                # CPU not defined for the sub-job: 1 cpu for efficiency
+                self.args[idx] = f"{cmd} {jobutils.FLAG_CPU} 1"
+            elif self.options.CPU is not None and len(self.options.CPU) == 2:
+                # CPU defined for the sub-job, but users forced a different
+                flag_num = f"{jobutils.FLAG_CPU} {self.options.CPU[1]}"
+                self.args[idx] = self.CPU_RE.sub(flag_num, cmd)
 
     def setName(self):
         """
@@ -206,24 +200,22 @@ class CmdJob(taskbase.Job):
         """
         Set the screen output.
         """
-        value = jobutils.get_arg(self.original, jobutils.FLAG_DEBUG)
-        if value is None:
+        if self.options.DEBUG is None:
             return
-        is_debug = parserutils.type_bool(value or 'on')
+        debug_bool = f"{jobutils.FLAG_DEBUG} {self.options.DEBUG}"
         for idx, cmd in enumerate(self.args):
-            if is_debug and jobutils.FLAG_DEBUG not in cmd:
-                self.args[idx] = f"{cmd} {jobutils.FLAG_DEBUG}"
-            elif not is_debug and jobutils.FLAG_DEBUG in cmd:
-                self.args[idx] = cmd.replace(jobutils.FLAG_DEBUG, "")
+            if jobutils.FLAG_DEBUG in cmd:
+                self.args[idx] = self.DEBUG_RE.sub(debug_bool, cmd)
+            else:
+                self.args[idx] = f"{cmd} {debug_bool}"
 
     def setScreen(self):
         """
         Set the screen output.
         """
-        scn = jobutils.get_arg(self.original, jobutils.FLAG_SCREEN)
-        if not scn and DEBUG:
+        if self.options.screen is None and self.options.DEBUG:
             return
-        if scn and jobutils.JOB in scn:
+        if self.options.screen and jobutils.JOB in self.options.screen:
             return
         for idx, cmd in enumerate(self.args):
             self.args[idx] = f"{cmd} > /dev/null"
@@ -308,7 +300,8 @@ class LmpLogAgg(taskbase.Agg):
             JOBNAME=self.options.JOBNAME,
             INTERAC=self.options.INTERAC,
             name=self.jobname.split(symbols.POUND_SEP)[0],
-            dir=os.path.relpath(self.project.workspace, self.project.path))
+            dir=os.path.relpath(self.job.project.workspace,
+                                self.job.project.path))
         self.log(f"{len(self.jobs)} jobs found for aggregation.")
         for task in self.options.task:
             anlz = self.AnalyzerAgg(task=task,

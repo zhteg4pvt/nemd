@@ -27,7 +27,7 @@ FLAG_INTERAC="-INTERAC"
 # Debug Mode (# -DEBUG -> on)
 a=''; for val in "$@" ""; do [ "$a" = "-DEBUG" ] && export DEBUG='1' && break || a=$val; done
 # -DEGUG n | no | f | false | off | 0 -> off
-[ -z $DEBUG ] && case $(echo $val | tr [A-Z] [a-z]) in n|no|f|false|off|0) export DEBUG='' ;; esac
+[ ! -z $DEBUG ] && case $(echo $val | tr [A-Z] [a-z]) in n|no|f|false|off|0) export DEBUG='' ;; esac
 
 . nemd_func
 

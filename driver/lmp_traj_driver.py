@@ -80,7 +80,7 @@ class Traj(logutils.Base):
                 f"frame results {symbols.ELEMENT_OF} [{self.traj.time[0]:.3f}, "
                 f"{self.traj.time[-1]:.3f}] ps")
         lf_tasks = [
-            x for x in self.options.task if x in parserutils.Traj.LAST_FRM
+            x for x in self.options.task if x in parserutils.LmpTraj.LAST_FRM
         ]
         if lf_tasks:
             label, unit, _ = analyzer.Base.parse(self.traj.time.name)
@@ -104,7 +104,7 @@ class Traj(logutils.Base):
 
 
 def main(argv):
-    parser = parserutils.Traj(__file__, descr=__doc__)
+    parser = parserutils.LmpTraj(__file__, descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options, file=True) as logger:
         cdump = Traj(options, logger=logger)

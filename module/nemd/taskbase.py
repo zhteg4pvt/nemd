@@ -1,12 +1,12 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
-This module defines the Base class to execute non-cmd jobs, the Job class to
-generate the cmd, the AggJob class to execute a non-cmd aggregator, and
-the Task class to hold and prepare a cmd job and a non-cmd aggregator.
+Under jobcontrol:
+ 1) Base executes non-cmd operation
+ 2) Agg operates a non-cmd aggregation
+ 3) Job generates the cmd
 """
 import functools
-import re
 
 import flow
 
@@ -24,20 +24,22 @@ class Base(logutils.Base):
     FILE = None
     ARGS = symbols.ARGS
     MESSAGE = 'message'
+    SUFFIX = 'Job'
 
-    def __init__(self, job, name=None, logger=None, **kwargs):
+    def __init__(self, job, name=None, options=None, logger=None, **kwargs):
         """
         :param job 'signac.contrib.job.Job': the signac job instance
         :param name str: the subjob jobname, different from the workflow jobname
+        :param options 'argparse.Namespace': commandline options
         :param driver 'module': imported driver module
         :param logger 'logging.Logger':  print to this logger
         """
         super().__init__(logger=logger)
         self.job = job
         self.name = name
+        self.options = options
         self.logger = logger
         self.doc = self.job.doc
-        self.original = list(map(str, self.doc.get(self.ARGS, [])))
         self.jobname = name if name else self.default_name
 
     @classmethod
@@ -48,25 +50,14 @@ class Base(logutils.Base):
 
         :return str: the default jobname
         """
-        if cls.FILE:
-            return jobutils.get_name(cls.FILE)
-        words = cls.__name__.removesuffix('Job').removesuffix('Agg')
-        words = re.findall('[A-Z][^A-Z]*', words)
-        return '_'.join([x.lower() for x in words])
+        name = cls.__name__.removesuffix(cls.SUFFIX)
+        return jobutils.get_name(cls.FILE, name=name)
 
     def run(self):
         """
         Main method to run.
         """
         self.message = False
-
-    def post(self):
-        """
-        The job is considered finished when the post-conditions return True.
-
-        :return: True if the post-conditions are met.
-        """
-        return self.message is False
 
     @property
     def message(self):
@@ -86,6 +77,14 @@ class Base(logutils.Base):
         """
         self.doc.setdefault(self.MESSAGE, {})
         self.doc[self.MESSAGE].update({self.jobname: value})
+
+    def post(self):
+        """
+        The job is considered finished when the post-conditions return True.
+
+        :return: True if the post-conditions are met.
+        """
+        return self.message is False
 
     def clean(self):
         """
@@ -151,9 +150,43 @@ class Base(logutils.Base):
         return cls(*args, **kwargs).post()
 
 
+class Agg(Base):
+    """
+    Non-cmd aggregator job.
+    """
+    SUFFIX = __qualname__
+
+    def __init__(self, *jobs, **kwargs):
+        """
+        :param jobs list' of 'signac.contrib.job.Job': signac jobs to aggregate
+        """
+        super().__init__(jobs[0], **kwargs)
+        self.jobs = jobs
+        self.doc = self.job.project.doc
+
+    @classmethod
+    def getOpr(cls,
+               *args,
+               name=None,
+               with_job=False,
+               aggregator=flow.aggregator(),
+               **kwargs):
+        """
+        Get the aggregator operator. (see parent for details)
+        """
+        if name is None:
+            name = cls.default_name
+        name = f"{name}{symbols.POUND_SEP}agg"
+        return super().getOpr(*args,
+                              name=name,
+                              with_job=with_job,
+                              aggregator=aggregator,
+                              **kwargs)
+
+
 class Job(Base):
     """
-    The class to set up a cmd job.
+    Cmd job.
     """
     ParserClass = parserutils.Driver
     PRE_RUN = jobutils.NEMD_RUN
@@ -164,7 +197,7 @@ class Job(Base):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.args = self.original[:]
+        self.args = list(map(str, self.doc.get(self.ARGS, [])))
 
     def run(self):
         """
@@ -286,77 +319,3 @@ class Job(Base):
         Get the cmd operator. (see parent for details)
         """
         return super().getOpr(*args, cmd=cmd, **kwargs)
-
-
-class Agg(Base):
-    """
-    The base class to run a non-cmd aggregator job in a workflow.
-    """
-
-    def __init__(self, *jobs, options=None, **kwargs):
-        """
-        :param jobs list' of 'signac.contrib.job.Job': signac jobs to aggregate
-        :param options 'argparse.Namespace': commandline options
-        """
-        super().__init__(jobs[0], **kwargs)
-        self.jobs = jobs
-        self.options = options
-        self.project = self.job.project
-
-    @property
-    def message(self):
-        """
-        The message of the agg job.
-
-        :return str: the message of the job.
-        """
-        return self.project.doc.get(self.MESSAGE, {}).get(self.jobname)
-
-    @message.setter
-    def message(self, value):
-        """
-        Set message of the agg job.
-
-        :param value str: the message of the job.
-        """
-        self.project.doc.setdefault(self.MESSAGE, {})
-        self.project.doc[self.MESSAGE][self.jobname] = value
-
-    def clean(self):
-        """
-        Clean the previous job including the post criteria.
-        """
-        if self.MESSAGE not in self.project.doc:
-            return
-        self.project.doc[self.MESSAGE].pop(self.jobname, None)
-
-    @classmethod
-    def getOpr(cls,
-               *args,
-               name=None,
-               with_job=False,
-               aggregator=flow.aggregator(),
-               **kwargs):
-        """
-        Get the aggregator operator. (see parent for details)
-        """
-        if name is None:
-            name = cls.default_name
-        name = f"{name}{symbols.POUND_SEP}agg"
-        return super().getOpr(*args,
-                              name=name,
-                              with_job=with_job,
-                              aggregator=aggregator,
-                              **kwargs)
-
-    @classmethod
-    @property
-    def default_name(cls):
-        """
-        The default jobname.
-
-        :return str: the default jobname
-        """
-        words = cls.__name__.removesuffix('Agg')
-        words = re.findall('[A-Z][^A-Z]*', words)
-        return '_'.join([x.lower() for x in words])

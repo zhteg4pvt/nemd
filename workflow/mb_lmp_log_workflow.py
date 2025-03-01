@@ -174,9 +174,9 @@ class Parser(parserutils.Workflow):
                             action=StructRgAction,
                             help='The range of the degree to scan in degrees.')
         parserutils.MolBldr.add(parser, append=False)
-        parserutils.Log.add(parser)
+        parserutils.LmpLog.add(parser)
         parser.suppress([
-            parserutils.Log.FLAG_LAST_PCT, parserutils.Log.FLAG_SLICE,
+            parserutils.LmpLog.FLAG_LAST_PCT, parserutils.LmpLog.FLAG_SLICE,
             FLAG_SUBSTRUCT
         ])
         return parser

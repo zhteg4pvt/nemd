@@ -526,7 +526,8 @@ class Driver(argparse.ArgumentParser):
         self.valids = set() if valids is None else valids
         if self.delay:
             return
-        self.name = jobutils.get_name(self.file)
+        name = self.__class__.__name__.removesuffix('Parser')
+        self.name = jobutils.get_name(self.file, name=name)
         self.setUp()
         self.add(self, positional=True)
         self.addJob()
@@ -931,10 +932,11 @@ class Lammps(Driver):
         parser.valids.add(LmpValid)
 
 
-class Log(Lammps):
+class LmpLog(Lammps):
     """
     Parser with lammps-log arguments.
     """
+    FLAG = 'log'
     FLAG_LAST_PCT = '-last_pct'
     FLAG_SLICE = '-slice'
     TASKS = [*analyzer.THERMO.keys(), symbols.ALL]
@@ -951,10 +953,10 @@ class Log(Lammps):
         :param task str: the default task
         """
         if positional:
-            parser.add_argument(cls.__name__.lower(),
-                                metavar=cls.__name__.upper(),
+            parser.add_argument(cls.FLAG,
+                                metavar=cls.FLAG.upper(),
                                 type=type_file,
-                                help=f'The {cls.__name__} file to analyze.')
+                                help=f'The {cls.FLAG} file to analyze.')
         parser.add_argument(jobutils.FLAG_TASK,
                             type=str.lower,
                             default=[task],
@@ -981,10 +983,11 @@ class Log(Lammps):
             "END, START END, or START END STEP.")
 
 
-class Traj(Log):
+class LmpTraj(LmpLog):
     """
     Parser with lammps-trajectory arguments.
     """
+    FLAG = 'traj'
     TASKS = analyzer.TRAJ.keys()
     TASK_HELP = ', '.join(x.__doc__.strip().lower()
                           for x in analyzer.TRAJ.values())

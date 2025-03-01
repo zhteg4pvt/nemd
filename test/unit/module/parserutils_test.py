@@ -275,7 +275,7 @@ class TestValidator:
         parser.parse_args(args)
         assert err == parser.error.called
 
-    @pytest.mark.parametrize('valid', [parserutils.TrajValid])
+    @pytest.mark.parametrize('valid', [parserutils.LmpTrajValid])
     @pytest.mark.parametrize('flags', [(['-task', '-data_file'])])
     @pytest.mark.parametrize('kwargss', [([{'nargs': '+'}, None])])
     @pytest.mark.parametrize('values,err', [((['density'], None), True),
@@ -439,7 +439,7 @@ class TestAdd:
              '-last_pct', '0.66', '-slice', '1', '8', '3'
          ], True, [['temp', 'e_mol'], DATA_FILE, 0.66, (1, 8, 3)])])
     def testLog(self, args, expected, positional, parser):
-        parserutils.Log.add(parser, positional=positional)
+        parserutils.LmpLog.add(parser, positional=positional)
         options = parser.parse_args(args)
         assert positional == hasattr(options, 'log')
         assert expected == [
@@ -455,7 +455,7 @@ class TestAdd:
              '-last_pct', '0.66', '-slice', '1', '8', '3'
          ], True, [['rdf', 'msd'], DATA_FILE, 0.66, (1, 8, 3)])])
     def testTraj(self, args, expected, positional, parser):
-        parserutils.Traj.add(parser, positional=positional)
+        parserutils.LmpTraj.add(parser, positional=positional)
         options = parser.parse_args(args)
         assert positional == hasattr(options, 'traj')
         assert expected == [

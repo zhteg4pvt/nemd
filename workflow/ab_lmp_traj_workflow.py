@@ -38,7 +38,7 @@ class Parser(parserutils.Workflow):
     @classmethod
     def add(cls, parser, **kwargs):
         parserutils.AmorpBldr.add(parser, append=False)
-        parserutils.Traj.add(parser)
+        parserutils.LmpTraj.add(parser)
 
 
 def main(argv):

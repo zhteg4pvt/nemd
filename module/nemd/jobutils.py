@@ -118,15 +118,17 @@ def set_arg(args, flag, val):
     return args
 
 
-def get_name(file):
+def get_name(file, name='Name'):
     """
     Get the jobname from the filename.
 
     :param file str: the filename of a driver or workflow.
+    :param name str: class name
     :return str: the jobname extracted from the filename.
     """
     if file is None:
-        return
+        words = re.findall('[A-Z][^A-Z]*', name)
+        return '_'.join([x.lower() for x in words])
     basename = os.path.basename(file)
     match = re.match(r'(\w+)_(driver|workflow).py', basename)
     return match.group(1) if match else os.path.splitext(basename)[0]
