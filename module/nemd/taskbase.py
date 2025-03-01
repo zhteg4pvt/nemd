@@ -6,18 +6,14 @@ generate the cmd, the AggJob class to execute a non-cmd aggregator, and
 the Task class to hold and prepare a cmd job and a non-cmd aggregator.
 """
 import functools
-import os
 import re
-import types
 
 import flow
-import pandas as pd
 
 from nemd import jobutils
 from nemd import logutils
 from nemd import parserutils
 from nemd import symbols
-from nemd import timeutils
 
 
 class Base(logutils.Base):
@@ -52,7 +48,11 @@ class Base(logutils.Base):
 
         :return str: the default jobname
         """
-        return jobutils.get_name(cls.FILE)
+        if cls.FILE:
+            return jobutils.get_name(cls.FILE)
+        words = cls.__name__.removesuffix('Job').removesuffix('Agg')
+        words = re.findall('[A-Z][^A-Z]*', words)
+        return '_'.join([x.lower() for x in words])
 
     def run(self):
         """
@@ -82,7 +82,7 @@ class Base(logutils.Base):
         """
         Set message of the job.
 
-        :value str: the message of the job.
+        :param value str: the message of the job.
         """
         self.doc.setdefault(self.MESSAGE, {})
         self.doc[self.MESSAGE].update({self.jobname: value})
@@ -94,6 +94,61 @@ class Base(logutils.Base):
         if self.MESSAGE not in self.doc:
             return
         self.doc[self.MESSAGE].pop(self.jobname, None)
+
+    @classmethod
+    def getOpr(cls,
+               name=None,
+               cmd=False,
+               with_job=True,
+               aggregator=None,
+               **kwargs):
+        """
+        Duplicate and return the operator with jobname and decorators.
+
+        :param name str: the job name
+        :param cmd bool: whether the function returns a command to run
+        :param with_job bool: whether execute in job dir with context management
+        :param aggregator 'flow.aggregates.aggregator': job collection criteria
+        :return 'function': the operation to execute
+        """
+        if name is None:
+            name = cls.default_name
+
+        # Operator
+        kwargs.update({'name': name})
+        func = functools.partial(cls.runOpr, **kwargs)
+        func.__name__ = name
+        func = flow.FlowProject.operation(name=name,
+                                          func=func,
+                                          cmd=cmd,
+                                          with_job=with_job,
+                                          aggregator=aggregator)
+        # Post conditions
+        post = functools.partial(cls.postOpr, **kwargs)
+        func = flow.FlowProject.post(lambda *x: post(*x))(func)
+        return func
+
+    @classmethod
+    def runOpr(cls, *args, **kwargs):
+        """
+        The main opterator (function) for a job task executed after
+        pre-conditions are met.
+
+        :param BaseClass 'Base': the class to initiate and run
+        :return str: the command to run a task.
+        """
+        obj = cls(*args, **kwargs)
+        obj.run()
+        return obj.getCmd() if isinstance(obj, Job) else None
+
+    @classmethod
+    def postOpr(cls, *args, **kwargs):
+        """
+        The job is considered finished when the post-conditions return True.
+
+        :return bool: True if the post-conditions are met
+        """
+        return cls(*args, **kwargs).post()
 
 
 class Job(Base):
@@ -211,7 +266,7 @@ class Job(Base):
         """
         Set outfile of the job.
 
-        :value str: the message of the job.
+        :param value str: the message of the job.
         """
         self.doc.setdefault(self.OUTFILE, {})
         self.doc[self.OUTFILE][self.jobname] = value
@@ -225,17 +280,18 @@ class Job(Base):
                 continue
             self.doc[key].pop(self.jobname, None)
 
+    @classmethod
+    def getOpr(cls, *args, cmd=True, **kwargs):
+        """
+        Get the cmd operator. (see parent for details)
+        """
+        return super().getOpr(*args, cmd=cmd, **kwargs)
 
-class AggJob(Base):
+
+class Agg(Base):
     """
-    The class to run a non-cmd aggregator job in a workflow.
+    The base class to run a non-cmd aggregator job in a workflow.
     """
-    MS_FMT = '%M:%S'
-    MS_LMT = '59:59'
-    DELTA_LMT = timeutils.str2delta(MS_LMT, fmt=MS_FMT)
-    TIME = symbols.TIME.lower()
-    ID = symbols.ID
-    NAME = symbols.NAME
 
     def __init__(self, *jobs, options=None, **kwargs):
         """
@@ -246,33 +302,6 @@ class AggJob(Base):
         self.jobs = jobs
         self.options = options
         self.project = self.job.project
-
-    def run(self):
-        """
-        Report the total task timing and timing details grouped by name.
-        """
-        if not self.job:
-            return
-        files = [(x.doc.get(jobutils.LOGFILE, {}), x) for x in self.jobs]
-        files = [(y.fn(z), y) for x, y in files for z in x.values()]
-        rdrs = [(logutils.Reader(x), y) for x, y in files if os.path.isfile(x)]
-        info = [[x.options.NAME[:8], x.task_time, y.id[:3]] for x, y in rdrs]
-        info = pd.DataFrame(info, columns=[self.NAME, self.TIME, self.ID])
-        total_time = timeutils.delta2str(info.time.sum())
-        self.log(logutils.Reader.TOTAL_TIME + total_time)
-        # Group the jobs by the labels
-        grouped = info.groupby(self.NAME)
-        data = {
-            x: y.apply(lambda x: f'{self.delta2str(x.time)} {x.id}', axis=1)
-            for x, y in grouped[[self.TIME, self.ID]]
-        }
-        data = {x: sorted(y, reverse=True) for x, y in data.items()}
-        sorted_keys = sorted(data, key=lambda x: len(data[x]), reverse=True)
-        ave = grouped.time.mean().apply(lambda x: f"{self.delta2str(x)} (ave)")
-        data = {x: [ave.loc[x]] + data[x] for x in sorted_keys}
-        data = pd.DataFrame.from_dict(data, orient='index').transpose()
-        self.log(data.fillna('').to_markdown(index=False))
-        self.message = False
 
     @property
     def message(self):
@@ -293,21 +322,6 @@ class AggJob(Base):
         self.project.doc.setdefault(self.MESSAGE, {})
         self.project.doc[self.MESSAGE][self.jobname] = value
 
-    @classmethod
-    def delta2str(cls, delta):
-        """
-        Delta time to string with upper limit.
-
-        :param delta: the time delta object
-        :type delta: 'datetime.timedelta'
-        :return str: the string representation of the time delta with upper limit
-        """
-        if pd.isnull(delta):
-            return str(delta)
-        if delta > cls.DELTA_LMT:
-            return cls.MS_LMT
-        return timeutils.delta2str(delta, fmt=cls.MS_FMT)
-
     def clean(self):
         """
         Clean the previous job including the post criteria.
@@ -316,205 +330,33 @@ class AggJob(Base):
             return
         self.project.doc[self.MESSAGE].pop(self.jobname, None)
 
-
-class Task:
-    """
-    The class holding a task job and an aggregator job.
-
-    The post method is used to check if the job is finished, and a True return
-    tasks the job out of the queue without executing it.
-    The pre method is used to check if the job is eligible for submission. The
-    current job is submitted only when its pre method returns the True and the
-    post methods of all its prerequisite jobs return True as well.
-    The operator method is used to execute the job, and is called on execution.
-    The aggregator method is used to aggregate the results of the task jobs.
-    """
-
-    JobClass = Job
-    AggClass = AggJob
-
-    @classmethod
-    def pre(cls, *args, **kwargs):
-        """
-        Set and check pre-conditions before starting the job.
-
-        :return bool: True if the pre-conditions are met
-        """
-        return True
-
-    @classmethod
-    def operator(cls, *args, write=True, **kwargs):
-        """
-        The main opterator (function) for a job task executed after
-        pre-conditions are met.
-
-        :param write bool: whether to write the command to a file
-        :return str: the command to run a task.
-        """
-        kwargs.setdefault(symbols.NAME, cls.name)
-        obj = cls.JobClass(*args, **kwargs)
-        obj.run()
-        return obj.getCmd(write=write) if isinstance(obj, Job) else None
-
-    @classmethod
-    def post(cls, *args, **kwargs):
-        """
-        The job is considered finished when the post-conditions return True.
-
-        :return bool: True if the post-conditions are met
-        """
-        kwargs.setdefault(symbols.NAME, cls.name)
-        obj = cls.JobClass(*args, **kwargs)
-        return obj.post()
-
-    @classmethod
-    def aggregator(cls, *args, **kwargs):
-        """
-        The aggregator job task.
-        """
-        kwargs.setdefault(symbols.NAME, cls.name)
-        obj = cls.AggClass(*args, **kwargs)
-        obj.run()
-
-    @classmethod
-    def aggPost(cls, *args, **kwargs):
-        """
-        Post-condition for aggregator task.
-
-        :return bool: True if the post-conditions are met
-        """
-        kwargs.setdefault(symbols.NAME, cls.agg_name)
-        obj = cls.AggClass(*args, **kwargs)
-        return obj.post()
-
     @classmethod
     def getOpr(cls,
-               cmd=None,
-               with_job=True,
+               *args,
                name=None,
-               attr='operator',
-               pre=False,
-               post=None,
-               aggregator=None,
-               logger=None,
-               **kwargs):
-        """
-        Duplicate and return the operator with jobname and decorators.
-
-        NOTE: post-condition must be provided so that the current job can check
-        submission eligibility using post-condition of its prerequisite job.
-        On the other hand, the absence of pre-condition means the current is
-        eligible for submission as long as its prerequisite jobs are completed.
-
-        :param cmd: Whether the aggregator function returns a command to run
-        :type cmd: bool
-        :param with_job: perform the execution in job dir with context management
-        :type with_job: bool
-        :param name str: the taskname
-        :param attr: the attribute name of a staticmethod method or callable function
-        :type attr: str or types.FunctionType
-        :param pre: add pre-condition for the aggregator if True
-        :type pre: bool
-        :param post: add post-condition for the aggregator if True
-        :type post: bool
-        :param aggregator: the criteria to collect jobs
-        :type aggregator: 'flow.aggregates.aggregator'
-        :param logger:  print to this logger
-        :type logger: 'logging.Logger'
-        :return: the operation to execute
-        :rtype: 'function'
-        :raise ValueError: the function cannot be found
-        """
-        if name is None:
-            name = cls.name
-        if cmd is None:
-            cmd = hasattr(cls.JobClass, 'getCmd')
-        if post is None:
-            post = cls.post
-        if pre is None:
-            pre = cls.pre
-        if isinstance(attr, str):
-            opr = getattr(cls, attr)
-        elif isinstance(attr, types.FunctionType):
-            opr = attr
-        else:
-            raise ValueError(f"{attr} is not a callable function or str.")
-
-        # Pass jobname, taskname, and logging function
-        kwargs.update({'name': name})
-        if logger:
-            kwargs['logger'] = logger
-        func = functools.update_wrapper(functools.partial(opr, **kwargs), opr)
-        func.__name__ = name
-        func = flow.FlowProject.operation(cmd=cmd,
-                                          func=func,
-                                          with_job=with_job,
-                                          name=name,
-                                          aggregator=aggregator)
-        # Add FlowProject decorators (pre / post conditions)
-        if post:
-            fp_post = functools.partial(post, name=name)
-            fp_post = functools.update_wrapper(fp_post, post)
-            func = flow.FlowProject.post(lambda *x: fp_post(*x))(func)
-        if pre:
-            fp_pre = functools.partial(pre, name=name)
-            fp_pre = functools.update_wrapper(fp_pre, pre)
-            func = flow.FlowProject.pre(lambda *x: fp_pre(*x))(func)
-        return func
-
-    @classmethod
-    def getAgg(cls,
-               cmd=False,
                with_job=False,
-               name=None,
-               attr='aggregator',
-               post=None,
+               aggregator=flow.aggregator(),
                **kwargs):
         """
-        Get and register an aggregator job task that collects task outputs.
-
-        :param cmd: Whether the aggregator function returns a command to run
-        :type cmd: bool
-        :param with_job: Whether chdir to the job dir
-        :type with_job: bool
-        :param name str: the name of this aggregator job task.
-        :param attr: the attribute name of a staticmethod method or callable function
-        :type attr: str or types.FunctionType
-        :param post: add post-condition for the aggregator if True
-        :type post: bool
-        :return: the operation to execute
-        :rtype: 'function'
+        Get the aggregator operator. (see parent for details)
         """
         if name is None:
-            name = cls.agg_name
-        if post is None:
-            post = cls.aggPost
-        return cls.getOpr(aggregator=flow.aggregator(),
-                          cmd=cmd,
-                          with_job=with_job,
-                          name=name,
-                          attr=attr,
-                          post=post,
-                          **kwargs)
+            name = cls.default_name
+        name = f"{name}{symbols.POUND_SEP}agg"
+        return super().getOpr(*args,
+                              name=name,
+                              with_job=with_job,
+                              aggregator=aggregator,
+                              **kwargs)
 
     @classmethod
     @property
-    def name(cls):
+    def default_name(cls):
         """
-        Return the default name of the task.
+        The default jobname.
 
-        :param name: the name of the operation.
-        :return str: the default name of the operation.
+        :return str: the default jobname
         """
-        words = re.findall('[A-Z][^A-Z]*', cls.__name__)
+        words = cls.__name__.removesuffix('Agg')
+        words = re.findall('[A-Z][^A-Z]*', words)
         return '_'.join([x.lower() for x in words])
-
-    @classmethod
-    @property
-    def agg_name(cls):
-        """
-        Return the default agg name of the operation.
-
-        :return str: the default name of the agg operation.
-        """
-        return f"{cls.name}{symbols.POUND_SEP}agg"

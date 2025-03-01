@@ -2,7 +2,7 @@
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
 This task module provides Job subclasses to generate the cmd (*-driver.py) and
-AggJob subclasses to execute a non-cmd aggregator.
+Agg subclasses to execute a non-cmd aggregator.
 """
 import collections
 import functools
@@ -18,10 +18,12 @@ from nemd import DEBUG
 from nemd import analyzer
 from nemd import jobutils
 from nemd import lammpsfix
+from nemd import logutils
 from nemd import parserutils
 from nemd import symbols
 from nemd import taskbase
 from nemd import test
+from nemd import timeutils
 
 
 class MolBldrJob(taskbase.Job):
@@ -57,7 +59,7 @@ class LammpsJob(taskbase.Job):
     ARGS_TMPL = [None]
 
 
-class LogJob(taskbase.Job):
+class LmpLogJob(taskbase.Job):
     """
     Class to run lammps log driver.
     """
@@ -89,7 +91,7 @@ class LogJob(taskbase.Job):
             return next(x for x in matches if x)
 
 
-class TrajJob(LogJob):
+class TrajJob(LmpLogJob):
     """
     Class to run lammps traj driver.
     """
@@ -292,7 +294,7 @@ class CheckJob(TagJob):
         return self.jobname in self.doc.get(self.MESSAGE, {})
 
 
-class LogAgg(taskbase.AggJob):
+class LmpLogAgg(taskbase.Agg):
     """
     The aggregator job for analyzers.
     """
@@ -348,7 +350,58 @@ class LogAgg(taskbase.AggJob):
         return [tuple([series[x], jobs[x]]) for x in keys]
 
 
-class TestAgg(taskbase.AggJob):
+class TimeAgg(taskbase.Agg):
+    """
+    The class to run a non-cmd aggregator job in a workflow.
+    """
+    MS_FMT = '%M:%S'
+    MS_LMT = '59:59'
+    DELTA_LMT = timeutils.str2delta(MS_LMT, fmt=MS_FMT)
+    TIME = symbols.TIME.lower()
+
+    def run(self):
+        """
+        Report the total task timing and timing details grouped by name.
+        """
+        if not self.job:
+            return
+        files = [(x.doc.get(jobutils.LOGFILE, {}), x) for x in self.jobs]
+        files = [(y.fn(z), y) for x, y in files for z in x.values()]
+        rdrs = [(logutils.Reader(x), y) for x, y in files if os.path.isfile(x)]
+        info = [[x.options.NAME[:8], x.task_time, y.id[:3]] for x, y in rdrs]
+        info = pd.DataFrame(info,
+                            columns=[symbols.NAME, self.TIME, symbols.ID])
+        total_time = timeutils.delta2str(info.time.sum())
+        self.log(logutils.Reader.TOTAL_TIME + total_time)
+        grouped = info.groupby(symbols.NAME)
+        data = {
+            x: y.apply(lambda x: f'{self.delta2str(x.time)} {x.id}', axis=1)
+            for x, y in grouped[[self.TIME, symbols.ID]]
+        }
+        data = {x: sorted(y, reverse=True) for x, y in data.items()}
+        sorted_keys = sorted(data, key=lambda x: len(data[x]), reverse=True)
+        ave = grouped.time.mean().apply(lambda x: f"{self.delta2str(x)} (ave)")
+        data = {x: [ave.loc[x], *data[x]] for x in sorted_keys}
+        data = pd.DataFrame.from_dict(data, orient='index').transpose()
+        self.log(data.fillna('').to_markdown(index=False))
+        self.message = False
+
+    @classmethod
+    def delta2str(cls, delta):
+        """
+        Delta time to string with upper limit.
+
+        :param delta 'datetime.timedelta': the time delta object
+        :return str: the string representation of the delta time (< 1 hour)
+        """
+        if pd.isnull(delta):
+            return str(delta)
+        if delta > cls.DELTA_LMT:
+            return cls.MS_LMT
+        return timeutils.delta2str(delta, fmt=cls.MS_FMT)
+
+
+class TestAgg(TimeAgg):
     """
     The class to run a non-cmd aggregator over jobs filtered by the specified
     ids and labels.
@@ -380,83 +433,3 @@ class TestAgg(taskbase.AggJob):
             return
         tags = [test.Tag(job=x, options=self.options) for x in self.jobs]
         self.jobs = [y for x, y in zip(tags, self.jobs) if x.selected()]
-
-
-class MolBldr(taskbase.Task):
-    """
-    Class for the molecule builder.
-    """
-
-    JobClass = MolBldrJob
-
-
-class AmorpBldr(taskbase.Task):
-    """
-    Class for the amorphous builder.
-    """
-
-    JobClass = AmorpBldrJob
-
-
-class XtalBldr(taskbase.Task):
-    """
-    Class for the crystal builder.
-    """
-
-    JobClass = XtalBldrJob
-
-
-class Lammps(taskbase.Task):
-    """
-    Class for the lammps driver.
-    """
-
-    JobClass = LammpsJob
-
-
-class LmpLog(taskbase.Task):
-    """
-    Class for the lammps log analyzer.
-    """
-
-    JobClass = LogJob
-    AggClass = LogAgg
-
-
-class LmpTraj(LmpLog):
-    """
-    Class for the lammps trajectory analyzer.
-    """
-
-    JobClass = TrajJob
-
-
-class Cmd(taskbase.Task):
-    """
-    The class to run commands in a cmd file.
-    """
-
-    JobClass = CmdJob
-
-
-class Check(taskbase.Task):
-    """
-    Class to check the results by executing the operators in the check file.
-    """
-
-    JobClass = CheckJob
-
-
-class Tag(taskbase.Task):
-    """
-    Class to generate a new tag file (or updates the existing one).
-    """
-
-    JobClass = TagJob
-
-
-class Test(taskbase.Task):
-    """
-    The task class to hold the aggregator over filtered jobs.
-    """
-    AggClass = TestAgg

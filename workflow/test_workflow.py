@@ -42,11 +42,11 @@ class Test(jobcontrol.Runner, logutils.Base):
         """
         pre_after = []
         if test.CMD in self.options.task:
-            pre_after.append(self.setOpr(task.Cmd))
+            pre_after.append(self.setOpr(task.CmdJob))
         if test.CHECK in self.options.task:
-            pre_after.append(self.setOpr(task.Check))
+            pre_after.append(self.setOpr(task.CheckJob))
         if test.TAG in self.options.task:
-            pre_after.append(self.setOpr(task.Tag))
+            pre_after.append(self.setOpr(task.TagJob))
         for pre, after in zip(pre_after[:-1], pre_after[1:]):
             self.setPreAfter(pre, after)
 
@@ -86,7 +86,7 @@ class Test(jobcontrol.Runner, logutils.Base):
         """
         Register the aggregator to collect the time of the select jobs.
         """
-        super().setAggJobs(TaskClass=task.Test)
+        super().setAggJobs(TaskClass=task.TestAgg)
 
     def cleanAggJobs(self):
         """

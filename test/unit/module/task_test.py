@@ -35,12 +35,12 @@ def get_jobs(basename='e053136e2cd7374854430c868b3139e1'):
     return proj.find_jobs()
 
 
-class TestLogJob:
+class TestLmpLogJob:
 
     @pytest.fixture
     def job(self, tmp_dir):
         job = get_job(basename=LOG_ID)
-        return task.LogJob(job, name='lmp_log', driver=task.LmpLog.DRIVER)
+        return task.LmpLogJob(job, name='lmp_log', driver=task.LmpLog.DRIVER)
 
     def testSetArgs(self, job):
         job.setArgs()
@@ -72,7 +72,7 @@ class TestTrajJob:
         assert traj_file == 'dump.custom.gz'
 
 
-class TestLogAgg:
+class TestLmpLogAgg:
 
     @pytest.fixture
     def agg(self, tmp_dir):
@@ -80,11 +80,11 @@ class TestLogAgg:
         options = types.SimpleNamespace(jobname='cb_lmp_log',
                                         task=['toteng'],
                                         interactive=False)
-        return task.LogAgg(*jobs,
-                           logger=mock.Mock(),
-                           name='lmp_log_#_agg',
-                           driver=task.LmpLog.DRIVER,
-                           options=options)
+        return task.LmpLogAgg(*jobs,
+                              logger=mock.Mock(),
+                              name='lmp_log_#_agg',
+                              driver=task.LmpLog.DRIVER,
+                              options=options)
 
     def testRun(self, agg):
         assert agg.post() is False

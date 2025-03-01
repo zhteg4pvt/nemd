@@ -19,9 +19,9 @@ class Runner(jobcontrol.Runner):
         """
         Set polymer builder, lammps builder, and custom dump tasks.
         """
-        amorp_bldr = self.setOpr(task.AmorpBldr, jobname='amorp_bldr')
-        lammps_runner = self.setOpr(task.Lammps, jobname='lammps')
-        lmp_traj = self.setOpr(task.LmpTraj, jobname='lmp_traj')
+        amorp_bldr = self.setOpr(task.AmorpBldrJob, name='amorp_bldr')
+        lammps_runner = self.setOpr(task.LammpsJob, name='lammps')
+        lmp_traj = self.setOpr(task.TrajJob, name='lmp_traj')
         self.setPreAfter(amorp_bldr, lammps_runner)
         self.setPreAfter(lammps_runner, lmp_traj)
 
@@ -29,7 +29,7 @@ class Runner(jobcontrol.Runner):
         """
         Aggregate post analysis jobs.
         """
-        self.setAgg(task.LmpTraj)
+        self.setOpr(task.LmpLogAgg, name='lmp_traj')
         super().setAggJobs()
 
 

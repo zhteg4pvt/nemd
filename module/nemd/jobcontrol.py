@@ -24,6 +24,7 @@ import pandas as pd
 from nemd import jobutils
 from nemd import logutils
 from nemd import symbols
+from nemd import task
 from nemd import taskbase
 
 
@@ -97,18 +98,19 @@ class Runner(logutils.Base):
         """
         raise NotImplementedError('This method adds operators as job tasks.')
 
-    def setOpr(self, TaskCLass, agg=False, **kwargs):
+    def setOpr(self, TaskCLass, **kwargs):
         """
         Set one operation for the job.
 
         :param TaskCLass 'task.Task' (sub)-class: the task class
-        :param agg str: whether this is aggregator operation or not
         :return: the name of the operation
         """
-        opr = TaskCLass.getAgg(**kwargs) if agg else TaskCLass.getOpr(**kwargs)
+        opr = TaskCLass.getOpr(**kwargs,
+                               logger=self.logger,
+                               options=self.options)
         name = opr.__name__
         self.oprs[name] = opr
-        self.classes[name] = TaskCLass.AggClass if agg else TaskCLass.JobClass
+        self.classes[name] = TaskCLass
         return name
 
     def setProject(self):
@@ -283,28 +285,16 @@ class Runner(logutils.Base):
         info = pd.DataFrame(data, index=ids)
         self.log(info.to_markdown())
 
-    def setAggJobs(self, TaskClass=taskbase.Task):
+    def setAggJobs(self, TaskClass=task.TimeAgg):
         """
         Register aggregators with prerequisites.
 
-        :param 'taskbase.Task': the agg job of this task is registered.
+        :param 'taskbase.Base': the agg job of this task is registered.
         """
         pnames = [x for x in self.oprs.keys() if x.endswith(self.AGG_NAME_EXT)]
-        # taskbase.AggJob reports the task timing
-        name = self.setAgg(TaskClass)
+        name = self.setOpr(TaskClass)
         for pre_name in pnames:
             self.setPreAfter(pre_name, name)
-
-    def setAgg(self, *args, **kwargs):
-        """
-        Set one aggregator that analyzes jobs for statics, chemical space, and
-        states.
-        """
-        return self.setOpr(*args,
-                           **kwargs,
-                           agg=True,
-                           logger=self.logger,
-                           options=self.options)
 
     def setAggProject(self):
         """

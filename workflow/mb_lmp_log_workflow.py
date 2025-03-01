@@ -88,20 +88,12 @@ class AnalyzerAgg(analyzer.Agg):
         raise ValueError("Cannot extract the smiles from the log file.")
 
 
-class LogAgg(task.LogAgg):
+class LmpLogAgg(task.LmpLogAgg):
     """
     See the parent class for details.
     """
 
     AnalyzerAgg = AnalyzerAgg
-
-
-class LmpLog(task.LmpLog):
-    """
-    See the parent class for details.
-    """
-
-    AggClass = LogAgg
 
 
 class Runner(jobcontrol.Runner):
@@ -113,10 +105,10 @@ class Runner(jobcontrol.Runner):
         """
         Set molecule builder, lammps runner, and log analyzer tasks.
         """
-        mol_bldr = self.setOpr(task.MolBldr)
-        lmp_runner = self.setOpr(task.Lammps)
+        mol_bldr = self.setOpr(task.MolBldrJob)
+        lmp_runner = self.setOpr(task.LammpsJob)
         self.setPreAfter(mol_bldr, lmp_runner)
-        lmp_log = self.setOpr(LmpLog)
+        lmp_log = self.setOpr(task.LmpLogJob)
         self.setPreAfter(lmp_runner, lmp_log)
 
     def setState(self):
@@ -137,7 +129,7 @@ class Runner(jobcontrol.Runner):
         """
         Aggregate the log analysis jobs.
         """
-        self.setAgg(LmpLog)
+        self.setOpr(LmpLogAgg)
         super().setAggJobs()
 
 
