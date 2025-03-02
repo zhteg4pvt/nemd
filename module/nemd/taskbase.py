@@ -7,6 +7,7 @@ Under jobcontrol:
  3) Job generates the cmd
 """
 import functools
+import re
 
 import flow
 
@@ -21,25 +22,24 @@ class Base(logutils.Base):
     The base class for all jobs in the workflow. This class can be subclassed
     to create cmd and non-cmd jobs used as normal task jobs and aggregate jobs.
     """
-    FILE = None
-    ARGS = symbols.ARGS
+    JTYPE = 'Job'
     MESSAGE = 'message'
-    SUFFIX = 'Job'
 
-    def __init__(self, job, name=None, options=None, logger=None, **kwargs):
+    def __init__(self, *jobs, name=None, options=None, logger=None, **kwargs):
         """
-        :param job 'signac.contrib.job.Job': the signac job instance
+        :param jobs list' of 'signac.contrib.job.Job': signac jobs
         :param name str: the subjob jobname, different from the workflow jobname
         :param options 'argparse.Namespace': commandline options
         :param driver 'module': imported driver module
         :param logger 'logging.Logger':  print to this logger
         """
         super().__init__(logger=logger)
-        self.job = job
+        self.jobs = jobs
         self.name = name
         self.options = options
         self.logger = logger
-        self.doc = self.job.doc
+        self.job = self.jobs[0]
+        self.doc = self.job.doc if self.JTYPE == 'Job' else self.job.project.doc
         self.jobname = name if name else self.default_name
 
     @classmethod
@@ -50,8 +50,9 @@ class Base(logutils.Base):
 
         :return str: the default jobname
         """
-        name = cls.__name__.removesuffix(cls.SUFFIX)
-        return jobutils.get_name(cls.FILE, name=name)
+        words = cls.__name__.removesuffix(cls.JTYPE)
+        words = re.findall('[A-Z][^A-Z]*', words)
+        return '_'.join([x.lower() for x in words])
 
     def run(self):
         """
@@ -98,7 +99,7 @@ class Base(logutils.Base):
     def getOpr(cls,
                name=None,
                cmd=False,
-               with_job=True,
+               with_job=None,
                aggregator=None,
                **kwargs):
         """
@@ -112,6 +113,13 @@ class Base(logutils.Base):
         """
         if name is None:
             name = cls.default_name
+        is_agg = cls.JTYPE == symbols.AGG
+        if is_agg:
+            name = f"{name}{symbols.POUND_SEP}agg"
+        if with_job is None:
+            with_job = False if is_agg else True
+        if aggregator is None:
+            aggregator = flow.aggregator() if is_agg else aggregator
 
         # Operator
         kwargs.update({'name': name})
@@ -133,12 +141,11 @@ class Base(logutils.Base):
         The main opterator (function) for a job task executed after
         pre-conditions are met.
 
-        :param BaseClass 'Base': the class to initiate and run
-        :return str: the command to run a task.
+        :return 'cls': the instantiated.
         """
         obj = cls(*args, **kwargs)
         obj.run()
-        return obj.getCmd() if isinstance(obj, Job) else None
+        return obj
 
     @classmethod
     def postOpr(cls, *args, **kwargs):
@@ -154,40 +161,14 @@ class Agg(Base):
     """
     Non-cmd aggregator job.
     """
-    SUFFIX = __qualname__
-
-    def __init__(self, *jobs, **kwargs):
-        """
-        :param jobs list' of 'signac.contrib.job.Job': signac jobs to aggregate
-        """
-        super().__init__(jobs[0], **kwargs)
-        self.jobs = jobs
-        self.doc = self.job.project.doc
-
-    @classmethod
-    def getOpr(cls,
-               *args,
-               name=None,
-               with_job=False,
-               aggregator=flow.aggregator(),
-               **kwargs):
-        """
-        Get the aggregator operator. (see parent for details)
-        """
-        if name is None:
-            name = cls.default_name
-        name = f"{name}{symbols.POUND_SEP}agg"
-        return super().getOpr(*args,
-                              name=name,
-                              with_job=with_job,
-                              aggregator=aggregator,
-                              **kwargs)
+    JTYPE = symbols.AGG
 
 
 class Job(Base):
     """
     Cmd job.
     """
+    FILE = None
     ParserClass = parserutils.Driver
     PRE_RUN = jobutils.NEMD_RUN
     SEP = symbols.SPACE
@@ -197,7 +178,18 @@ class Job(Base):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.args = list(map(str, self.doc.get(self.ARGS, [])))
+        self.args = list(map(str, self.doc.get(symbols.ARGS, [])))
+
+    @classmethod
+    @property
+    def default_name(cls):
+        """
+        The default jobname.
+
+        :return str: the default jobname
+        """
+        return jobutils.get_name(
+            cls.FILE) if cls.FILE else super().default_name
 
     def run(self):
         """
@@ -319,3 +311,13 @@ class Job(Base):
         Get the cmd operator. (see parent for details)
         """
         return super().getOpr(*args, cmd=cmd, **kwargs)
+
+    @classmethod
+    def runOpr(cls, *args, **kwargs):
+        """
+        The operator to get cmd. (see parent for details)
+
+        :return str: the command to run.
+        """
+        obj = super().runOpr(*args, **kwargs)
+        return obj.getCmd()

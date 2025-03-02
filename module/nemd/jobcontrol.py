@@ -34,7 +34,6 @@ class Runner(logutils.Base):
     """
 
     WORKSPACE = symbols.WORKSPACE
-    ARGS = taskbase.Base.ARGS
     PREREQ = taskbase.Job.PREREQ
     COMPLETED = 'completed'
     OPERATIONS = 'operations'
@@ -176,7 +175,7 @@ class Runner(logutils.Base):
         for argv in itertools.product(*argvs):
             # e.g. arg = (['-seed', '0'], ['-scale_factor', '0.95'])
             job = self.project.open_job(dict(tuple(x) for x in argv))
-            job.document[self.ARGS] = input_args[:] + sum(argv, [])
+            job.document[symbols.ARGS] = input_args[:] + sum(argv, [])
             job.document.update({self.PREREQ: self.prereq})
             self.jobs.append(job)
 

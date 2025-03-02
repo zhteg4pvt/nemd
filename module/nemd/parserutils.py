@@ -526,8 +526,7 @@ class Driver(argparse.ArgumentParser):
         self.valids = set() if valids is None else valids
         if self.delay:
             return
-        name = self.__class__.__name__.removesuffix('Parser')
-        self.name = jobutils.get_name(self.file, name=name)
+        self.name = jobutils.get_name(self.file)
         self.setUp()
         self.add(self, positional=True)
         self.addJob()

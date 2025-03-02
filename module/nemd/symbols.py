@@ -69,6 +69,7 @@ DARWIN = 'darwin'
 LINUX = 'linux'
 # The job's state point filename hard-coded as signac.job.Job.FN_DOCUMENT
 TASK = 'task'
+AGG = 'Agg'
 AGGREGATOR = 'aggregator'
 WORKSPACE = 'workspace'
 TOTENG = 'toteng'
