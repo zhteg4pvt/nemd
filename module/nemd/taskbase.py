@@ -11,6 +11,7 @@ import re
 
 import flow
 
+from nemd import DEBUG
 from nemd import jobutils
 from nemd import logutils
 from nemd import parserutils
@@ -23,7 +24,7 @@ class Base(logutils.Base):
     to create cmd and non-cmd jobs used as normal task jobs and aggregate jobs.
     """
     JTYPE = 'Job'
-    MESSAGE = 'message'
+    PREREQ = 'prereq'
 
     def __init__(self, *jobs, name=None, options=None, logger=None, **kwargs):
         """
@@ -39,7 +40,8 @@ class Base(logutils.Base):
         self.options = options
         self.logger = logger
         self.job = self.jobs[0]
-        self.doc = self.job.doc if self.JTYPE == 'Job' else self.job.project.doc
+        self.proj = self.job.project
+        self.doc = self.job.doc if self.JTYPE == symbols.JOB else self.proj.doc
         self.jobname = name if name else self.default_name
 
     @classmethod
@@ -53,47 +55,6 @@ class Base(logutils.Base):
         words = cls.__name__.removesuffix(cls.JTYPE)
         words = re.findall('[A-Z][^A-Z]*', words)
         return '_'.join([x.lower() for x in words])
-
-    def run(self):
-        """
-        Main method to run.
-        """
-        self.message = False
-
-    @property
-    def message(self):
-        """
-        The message of the job.
-
-        :return str: the message of the job.
-        """
-        return self.doc.get(self.MESSAGE, {}).get(self.jobname)
-
-    @message.setter
-    def message(self, value):
-        """
-        Set message of the job.
-
-        :param value str: the message of the job.
-        """
-        self.doc.setdefault(self.MESSAGE, {})
-        self.doc[self.MESSAGE].update({self.jobname: value})
-
-    def post(self):
-        """
-        The job is considered finished when the post-conditions return True.
-
-        :return: True if the post-conditions are met.
-        """
-        return self.message is False
-
-    def clean(self):
-        """
-        Clean the previous job including the post criteria.
-        """
-        if self.MESSAGE not in self.doc:
-            return
-        self.doc[self.MESSAGE].pop(self.jobname, None)
 
     @classmethod
     def getOpr(cls,
@@ -113,13 +74,12 @@ class Base(logutils.Base):
         """
         if name is None:
             name = cls.default_name
-        is_agg = cls.JTYPE == symbols.AGG
-        if is_agg:
+        if cls.JTYPE == symbols.AGG:
             name = f"{name}{symbols.POUND_SEP}agg"
         if with_job is None:
-            with_job = False if is_agg else True
-        if aggregator is None:
-            aggregator = flow.aggregator() if is_agg else aggregator
+            with_job = cls.JTYPE != symbols.AGG
+        if aggregator is None and cls.JTYPE == symbols.AGG:
+            aggregator = flow.aggregator()
 
         # Operator
         kwargs.update({'name': name})
@@ -147,6 +107,12 @@ class Base(logutils.Base):
         obj.run()
         return obj
 
+    def run(self):
+        """
+        Main method to run.
+        """
+        pass
+
     @classmethod
     def postOpr(cls, *args, **kwargs):
         """
@@ -156,15 +122,82 @@ class Base(logutils.Base):
         """
         return cls(*args, **kwargs).post()
 
+    def post(self):
+        """
+        The job is considered finished when the post-conditions return True.
 
-class Agg(Base):
+        :return: True if the post-conditions are met.
+        """
+        return True
+
+
+class Job(Base):
+
+    def run(self):
+        """
+        Main method to run.
+
+        :raise Exception: execution error are raised in debug mode.
+        """
+        try:
+            self.execute()
+        except Exception as err:
+            if DEBUG:
+                raise err
+            self.message = str(err)
+        else:
+            self.message = False
+
+    def execute(self):
+        """
+        Main method to execute.
+        """
+        pass
+
+    @property
+    def message(self):
+        """
+        The message of the job.
+
+        :return str: the message of the job.
+        """
+        return self.doc.get(symbols.MESSAGE, {}).get(self.jobname)
+
+    @message.setter
+    def message(self, value):
+        """
+        Set message of the job.
+
+        :param value str: the message of the job.
+        """
+        self.doc.setdefault(symbols.MESSAGE, {})
+        self.doc[symbols.MESSAGE].update({self.jobname: value})
+
+    def post(self):
+        """
+        The job is considered finished when the post-conditions return True.
+
+        :return: True if the post-conditions are met.
+        """
+        return self.jobname in self.doc.get(symbols.MESSAGE, {})
+
+    def clean(self):
+        """
+        Clean the previous job including the post criteria.
+        """
+        if symbols.MESSAGE not in self.doc:
+            return
+        self.doc[symbols.MESSAGE].pop(self.jobname, None)
+
+
+class Agg(Job):
     """
     Non-cmd aggregator job.
     """
     JTYPE = symbols.AGG
 
 
-class Job(Base):
+class CmdJob(Job):
     """
     Cmd job.
     """
@@ -172,7 +205,6 @@ class Job(Base):
     ParserClass = parserutils.Driver
     PRE_RUN = jobutils.NEMD_RUN
     SEP = symbols.SPACE
-    PREREQ = 'prereq'
     ARGS_TMPL = None
     OUTFILE = jobutils.OUTFILE
 

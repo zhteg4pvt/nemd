@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import sys
+import traceback
 import types
 
 import wurlitzer
@@ -239,14 +240,10 @@ class Script:
         if self.memory:
             self.logger.log(self.MEMORY_FMT.format(value=self.memory.result))
         if exc_type:
-            while exc_tb.tb_next:
-                exc_tb = exc_tb.tb_next
             if isinstance(exc_val, SystemExit):
                 # error calls sys.exit(1)
                 return
-            self.logger.log(f"File {exc_tb.tb_frame.f_code.co_filename}, "
-                            f"line {exc_tb.tb_frame.f_lineno}\n"
-                            f"{exc_type.__name__}: {exc_val.args}")
+            self.logger.log(traceback.format_exc())
             raise exc_val
         self.logger.log(FINISHED, timestamp=True)
 

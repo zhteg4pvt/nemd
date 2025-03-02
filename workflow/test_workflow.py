@@ -28,7 +28,7 @@ from nemd import test
 FLAG_DIR = jobutils.FLAG_DIR
 
 
-class Test(jobcontrol.Runner, logutils.Base):
+class Test(jobcontrol.Runner):
     """
     The main class to run integration and performance tests.
     """

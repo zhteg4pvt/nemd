@@ -14,7 +14,6 @@ import types
 
 import pandas as pd
 
-from nemd import DEBUG
 from nemd import analyzer
 from nemd import jobutils
 from nemd import lammpsfix
@@ -26,7 +25,7 @@ from nemd import test
 from nemd import timeutils
 
 
-class MolBldrJob(taskbase.Job):
+class MolBldrJob(taskbase.CmdJob):
     """
     Class to run the molecule builder.
     """
@@ -34,7 +33,7 @@ class MolBldrJob(taskbase.Job):
     ParserClass = parserutils.MolBldr
 
 
-class AmorpBldrJob(taskbase.Job):
+class AmorpBldrJob(taskbase.CmdJob):
     """
     Class to run the amorphous builder.
     """
@@ -42,7 +41,7 @@ class AmorpBldrJob(taskbase.Job):
     ParserClass = parserutils.AmorpBldr
 
 
-class XtalBldrJob(taskbase.Job):
+class XtalBldrJob(taskbase.CmdJob):
     """
     Class to run the crystal builder.
     """
@@ -50,7 +49,7 @@ class XtalBldrJob(taskbase.Job):
     ParserClass = parserutils.XtalBldr
 
 
-class LammpsJob(taskbase.Job):
+class LammpsJob(taskbase.CmdJob):
     """
     Class to run the lammps simulation.
     """
@@ -59,7 +58,7 @@ class LammpsJob(taskbase.Job):
     ARGS_TMPL = [None]
 
 
-class LmpLogJob(taskbase.Job):
+class LmpLogJob(taskbase.CmdJob):
     """
     Class to run lammps log driver.
     """
@@ -109,7 +108,7 @@ class TrajJob(LmpLogJob):
         self.args[0] = self.getMatch(match_re=match_re).group(2)
 
 
-class CmdJob(taskbase.Job):
+class CmdJob(taskbase.CmdJob):
     """
     The class to set up a job cmd so that the test can run normal nemd jobs from
     the cmd line.
@@ -247,17 +246,17 @@ class CmdJob(taskbase.Job):
             shutil.rmtree(workspace)
 
 
-class TagJob(taskbase.Base):
+class TagJob(taskbase.Job):
     """
     This job class generates a new tag file (or updates the existing one).
     """
+    ExecuteClass = test.Tag
 
-    def run(self):
+    def execute(self):
         """
-        Main method to run.
+        Main method to execute.
         """
         test.Tag(job=self.job).run()
-        self.message = False
 
 
 class CheckJob(TagJob):
@@ -265,25 +264,7 @@ class CheckJob(TagJob):
     The job class to parse the check file, run the operators, and set the job
     message.
     """
-
-    def run(self):
-        """
-        Main method to run.
-
-        :raise ValueError: errors in debug mode are raised.
-        """
-        err = test.Check(job=self.job).run()
-        self.message = err if err else False
-        if DEBUG and self.message:
-            raise ValueError(self.message)
-
-    def post(self):
-        """
-        The job is considered finished when the post-conditions return True.
-
-        :return: True if the post-conditions are met.
-        """
-        return self.jobname in self.doc.get(self.MESSAGE, {})
+    ExecuteClass = test.Check
 
 
 class LmpLogAgg(taskbase.Agg):
@@ -292,7 +273,7 @@ class LmpLogAgg(taskbase.Agg):
     """
     AnalyzerAgg = analyzer.Agg
 
-    def run(self):
+    def execute(self):
         """
         Main method to run the aggregator job.
         """
@@ -309,7 +290,6 @@ class LmpLogAgg(taskbase.Agg):
                                     options=options,
                                     logger=self.logger)
             anlz.run()
-        self.message = False
 
     @property
     @functools.cache
@@ -352,7 +332,7 @@ class TimeAgg(taskbase.Agg):
     DELTA_LMT = timeutils.str2delta(MS_LMT, fmt=MS_FMT)
     TIME = symbols.TIME.lower()
 
-    def run(self):
+    def execute(self):
         """
         Report the total task timing and timing details grouped by name.
         """
@@ -377,7 +357,6 @@ class TimeAgg(taskbase.Agg):
         data = {x: [ave.loc[x], *data[x]] for x in sorted_keys}
         data = pd.DataFrame.from_dict(data, orient='index').transpose()
         self.log(data.fillna('').to_markdown(index=False))
-        self.message = False
 
     @classmethod
     def delta2str(cls, delta):

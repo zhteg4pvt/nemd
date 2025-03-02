@@ -34,12 +34,12 @@ class Runner(logutils.Base):
     """
 
     WORKSPACE = symbols.WORKSPACE
-    PREREQ = taskbase.Job.PREREQ
+    PREREQ = taskbase.Base.PREREQ
     COMPLETED = 'completed'
     OPERATIONS = 'operations'
     JOB_ID = 'job_id'
     FLAG_SEED = jobutils.FLAG_SEED
-    MESSAGE = taskbase.Base.MESSAGE
+    MESSAGE = symbols.MESSAGE
     AGG_NAME_EXT = f"{symbols.POUND_SEP}agg"
 
     def __init__(self, options, argv, logger=None):

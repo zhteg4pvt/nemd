@@ -474,6 +474,8 @@ class Check(Cmd):
     def run(self):
         """
         Check the results by execute all operators. Raise errors if any failed.
+
+        :raise ValueError: the process has non-zero returncode
         """
         jobname = os.path.basename(self.dir)
         print(f"{jobname}: {'; '.join(self.args)}")
@@ -482,7 +484,7 @@ class Check(Cmd):
         if not completed.returncode:
             return
         with open(proc.logfile) as fh:
-            return fh.read()
+            raise ValueError(fh.read())
 
     @property
     def tokens(self):
