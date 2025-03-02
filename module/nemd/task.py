@@ -256,7 +256,7 @@ class TagJob(taskbase.Job):
         """
         Main method to execute.
         """
-        test.Tag(job=self.job).run()
+        self.ExecuteClass(job=self.job).run()
 
 
 class CheckJob(TagJob):

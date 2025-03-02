@@ -16,15 +16,13 @@ FLAG_SCALED_RANGE = '-scaled_range'
 
 class Runner(jobcontrol.Runner):
 
-    def setJob(self):
+    def setJobs(self):
         """
         Set crystal builder, lammps runner, and log analyzer tasks.
         """
-        crystal_builder = self.setOpr(task.XtalBldrJob, name='crystal_builder')
-        lammps_runner = self.setOpr(task.LammpsJob, name='lammps_runner')
-        self.setPreAfter(crystal_builder, lammps_runner)
-        lmp_log = self.setOpr(task.LmpLogJob)
-        self.setPreAfter(lammps_runner, lmp_log)
+        self.add(task.XtalBldrJob, name='crystal_builder')
+        self.add(task.LammpsJob, name='lammps_runner')
+        self.add(task.LmpLogJob)
 
     def setState(self):
         """
@@ -34,12 +32,12 @@ class Runner(jobcontrol.Runner):
         scaled_range = list(map(str, np.arange(*self.options.scaled_range)))
         self.state[parserutils.XtalBldr.FLAG_SCALED_FACTOR] = scaled_range
 
-    def setAggJobs(self, **kwargs):
+    def setAggs(self):
         """
-        Aggregate post analysis jobs.
+        Set aggregators over all parameter sets.
         """
-        self.setOpr(task.LmpLogAgg)
-        super().setAggJobs(**kwargs)
+        self.add(task.LmpLogAgg)
+        super().setAggs()
 
 
 class Parser(parserutils.Workflow):

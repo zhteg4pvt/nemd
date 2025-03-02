@@ -101,15 +101,13 @@ class Runner(jobcontrol.Runner):
     Set up the workflow with parameterized regular jobs and aggregator jobs.
     """
 
-    def setJob(self):
+    def setJobs(self):
         """
         Set molecule builder, lammps runner, and log analyzer tasks.
         """
-        mol_bldr = self.setOpr(task.MolBldrJob)
-        lmp_runner = self.setOpr(task.LammpsJob)
-        self.setPreAfter(mol_bldr, lmp_runner)
-        lmp_log = self.setOpr(task.LmpLogJob)
-        self.setPreAfter(lmp_runner, lmp_log)
+        self.add(task.MolBldrJob)
+        self.add(task.LammpsJob)
+        self.add(task.LmpLogJob)
 
     def setState(self):
         """
@@ -125,12 +123,12 @@ class Runner(jobcontrol.Runner):
         structs = [f"{self.options.struct_rg[0]} {x}" for x in range_values]
         self.state[FLAG_SUBSTRUCT] = structs
 
-    def setAggJobs(self):
+    def setAggs(self):
         """
         Aggregate the log analysis jobs.
         """
-        self.setOpr(LmpLogAgg)
-        super().setAggJobs()
+        self.add(LmpLogAgg)
+        super().setAggs()
 
 
 class StructRgAction(parserutils.StructAction):

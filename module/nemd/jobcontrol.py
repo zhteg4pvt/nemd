@@ -23,6 +23,7 @@ import pandas as pd
 
 from nemd import jobutils
 from nemd import logutils
+from nemd import plotutils
 from nemd import symbols
 from nemd import task
 from nemd import taskbase
@@ -41,25 +42,24 @@ class Runner(logutils.Base):
     FLAG_SEED = jobutils.FLAG_SEED
     MESSAGE = symbols.MESSAGE
     AGG_NAME_EXT = f"{symbols.POUND_SEP}agg"
+    AggClass = task.TimeAgg
 
-    def __init__(self, options, argv, logger=None):
+    def __init__(self, options, original, logger=None):
         """
-        :param options: parsed commandline options
-        :type options: 'argparse.Namespace'
-        :param argv: list of commandline arguments
-        :type argv: list
-        :param logger: print to this logger if exists
-        :type logger: 'logging.Logger'
+        :param options 'argparse.Namespace': parsed commandline options
+        :param original list: list of commandline arguments
+        :param logger 'logging.Logger': print to this logger if exists
         """
         super().__init__(logger=logger)
         self.options = options
-        self.argv = argv
+        self.original = original
+        self.args = self.original[:]
         self.state = {}
         self.jobs = []
         self.classes = {}
         self.cpu = None
-        self.project = None
-        self.agg_project = None
+        self.proj = None
+        self.agg_proj = None
         self.prereq = collections.defaultdict(list)
         # flow/project.py gets logger from logging.getLogger(__name__)
         logutils.Logger.get('flow.project')
@@ -74,50 +74,82 @@ class Runner(logutils.Base):
         3) run a project with aggregator jobs
         """
         if symbols.TASK in self.options.jtype:
-            self.setJob()
-            self.setProject()
+            self.setJobs()
+            self.setProj()
+            self.plotJobs()
             self.setState()
             self.setCpu()
-            self.addJobs()
-            self.cleanJobs()
-            self.plot()
-            self.runJobs()
+            self.openJobs()
+            self.clean()
+            self.runProj()
             self.logStatus()
             self.logMessage()
         if symbols.AGGREGATOR in self.options.jtype:
-            self.setAggJobs()
-            self.setAggProject()
-            self.cleanAggJobs()
-            self.runAggJobs()
+            self.setAggs()
+            self.setAggProj()
+            self.clean(is_agg=True)
+            self.runProj(is_agg=True)
 
-    def setJob(self):
+    def setJobs(self):
         """
-        Set the tasks for the job.
+        Set the job operators for one parameter set.
         """
-        raise NotImplementedError('This method adds operators as job tasks.')
+        pass
 
-    def setOpr(self, TaskCLass, **kwargs):
+    def add(self, TaskClass, pre=None, **kwargs):
         """
-        Set one operation for the job.
+        Add one operator to the project.
 
-        :param TaskCLass 'task.Task' (sub)-class: the task class
-        :return: the name of the operation
+        :param TaskClass 'task.Task' (sub)-class: the class to get the operator
+        :param pre 'function': the prerequisite operator
+        :return 'function': the added operator
         """
-        opr = TaskCLass.getOpr(**kwargs,
+        opr = TaskClass.getOpr(**kwargs,
                                logger=self.logger,
                                options=self.options)
-        self.classes[opr] = TaskCLass
+        self.classes[opr] = TaskClass
+        if pre is None:
+            is_agg = opr.__name__.endswith(self.AGG_NAME_EXT)
+            pres = [
+                x for x in self.classes.keys() if x != opr
+                and x.__name__.endswith(self.AGG_NAME_EXT) == is_agg
+            ]
+            if pres:
+                pre = pres[-1]
+        if pre:
+            self.setPreAfter(pre, opr)
         return opr
 
-    def setProject(self):
+    def setProj(self):
         """
         Initiate the project.
         """
-        self.project = flow.project.FlowProject.init_project()
+        self.proj = flow.project.FlowProject.init_project()
+
+    def plotJobs(self):
+        """
+        Plot the job-dependency graph.
+        """
+        if not self.options.DEBUG:
+            return
+        with plotutils.get_pyplot(inav=self.options.INTERAC,
+                                  name='workflow') as plt:
+            fig = plt.figure()
+            ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+            opr_graph = self.proj.detect_operation_graph()
+            graph = nx.DiGraph(np.asarray(opr_graph))
+            pos = nx.spring_layout(graph)
+            names = [x for x in self.proj.operations.keys()]
+            labels = {
+                key: name
+                for (key, name) in zip(range(len(names)), names)
+            }
+            nx.draw_networkx(graph, pos, ax=ax, labels=labels)
+        fig.savefig(self.options.JOBNAME + '_nx.png')
 
     def setState(self):
         """
-        Set the state flags and values.
+        Set the parameter flags and values.
         """
         try:
             seed_incre = np.arange(self.options.state_num)
@@ -128,7 +160,7 @@ class Runner(logutils.Base):
         # for randomSeed in [0, 1]:
         #     AllChem.EmbedMolecule(mol, randomSeed=randomSeed)
         #     print(mol.GetConformer().GetPositions())
-        jobutils.pop_arg(self.argv, self.FLAG_SEED)
+        jobutils.pop_arg(self.args, self.FLAG_SEED)
         seed = getattr(self.options, self.FLAG_SEED[1:], 1)
         seeds = (seed_incre + seed) % symbols.MAX_INT32
         self.state = {self.FLAG_SEED: list(map(str, seeds))}
@@ -153,93 +185,69 @@ class Runner(logutils.Base):
             per_subjob = max([math.floor(self.options.CPU[0] / subjob_num), 1])
         self.cpu = [math.floor(self.options.CPU[0] / per_subjob), per_subjob]
 
-    def addJobs(self):
-        """
-        Add jobs to the project.
-
-        NOTE: _StatePointDict warns NumpyConversionWarning if statepoint dict
-        contains numerical data types.
-        """
-        input_args = self.argv[:]
         try:
-            index = self.argv.index(jobutils.FLAG_CPU)
+            index = self.args.index(jobutils.FLAG_CPU)
         except ValueError:
             pass
         else:
-            input_args[index + 1] = str(self.cpu[1])
+            # _StatePointDict warns NumpyConversionWarning if statepoint dict
+            # contains numerical data types.
+            self.args[index + 1] = str(self.cpu[1])
 
-        argvs = [[[x, z] for z in y] for x, y in self.state.items()]
-        for argv in itertools.product(*argvs):
+    def openJobs(self):
+        """
+        Open one job for each parameter set.
+        """
+        expanded = [[[x, z] for z in y] for x, y in self.state.items()]
+        for argv in itertools.product(*expanded):
             # e.g. arg = (['-seed', '0'], ['-scale_factor', '0.95'])
-            job = self.project.open_job(dict(tuple(x) for x in argv))
-            job.document[symbols.ARGS] = input_args[:] + sum(argv, [])
+            job = self.proj.open_job(dict(tuple(x) for x in argv))
+            job.document[symbols.ARGS] = self.args + sum(argv, [])
             job.document.update({self.PREREQ: self.prereq})
             self.jobs.append(job)
-
         if not self.jobs:
             self.error('No jobs to run.')
 
-    def cleanJobs(self):
+    def clean(self, is_agg=False):
         """
-        The post functions of the pre-job return False after the clean so that
-        the job can run again on request.
+        Clean the previous jobs or aggregators so than they can operate again
+        (the post functions return False after the clean).
+
+        :param is_agg bool: clean aggregators instead of jobs if True
         """
         if not self.options.clean:
             return
         for opr, JobClass in self.classes.items():
-            if opr.__name__.endswith(self.AGG_NAME_EXT):
+            if opr.__name__.endswith(self.AGG_NAME_EXT) == is_agg:
                 continue
             for job in self.jobs:
                 JobClass(job, name=opr.__name__).clean()
 
-    def runJobs(self, **kwargs):
+    def runProj(self, is_agg=False, **kwargs):
         """
-        Run all jobs registered in the project.
-        """
-        prog = self.options.screen and jobutils.PROGRESS in self.options.screen
-        self.project.run(np=self.cpu[0],
-                         progress=prog,
-                         jobs=self.jobs,
-                         **kwargs)
+        Run all jobs or aggregators registered in the project.
 
-    def plot(self):
+        :param is_agg bool: run aggregators instead of jobs.
         """
-        Plot the task workflow graph.
-        """
-        if not self.options.DEBUG:
-            return
-        import matplotlib
-        obackend = matplotlib.get_backend()
-        backend = obackend if self.options.INTERAC else 'Agg'
-        matplotlib.use(backend)
-        import matplotlib.pyplot as plt
-        depn = np.asarray(self.project.detect_operation_graph())
-        graph = nx.DiGraph(depn)
-        pos = nx.spring_layout(graph)
-        names = [x for x in self.project.operations.keys()]
-        labels = {key: name for (key, name) in zip(range(len(names)), names)}
-        fig = plt.figure()
-        ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
-        nx.draw_networkx(graph, pos, ax=ax, labels=labels)
-        if self.options.INTERAC:
-            print("Showing task workflow graph. Click X to close the figure "
-                  "and continue..")
-            plt.show(block=True)
-        fig.savefig(self.options.JOBNAME + '_nx.png')
+        # FIXME: no parallelism as multiple aggregation touch the same file
+        cpu = 1 if is_agg else self.cpu[0]
+        prog = self.options.screen and jobutils.PROGRESS in self.options.screen
+        jobs = None if is_agg else self.jobs
+        self.proj.run(np=cpu, progress=prog, jobs=jobs, **kwargs)
 
     def logStatus(self):
         """
-        Look into each job and report the status.
+        Look into each parameter set and report the status.
         """
         status_file = f"{self.options.JOBNAME}_status{symbols.LOG_EXT}"
         with open(status_file, 'w') as fh:
             # Fetching status and Fetching labels are printed to err handler
-            self.project.print_status(detailed=True,
-                                      jobs=self.jobs,
-                                      file=fh,
-                                      err=fh)
+            self.proj.print_status(detailed=True,
+                                   jobs=self.jobs,
+                                   file=fh,
+                                   err=fh)
         # Log job status
-        status = [self.project.get_job_status(x) for x in self.jobs]
+        status = [self.proj.get_job_status(x) for x in self.jobs]
         ops = [x[self.OPERATIONS] for x in status]
         completed = [all([y[self.COMPLETED] for y in x.values()]) for x in ops]
         failed_num = len([x for x in completed if not x])
@@ -260,11 +268,9 @@ class Runner(logutils.Base):
 
     def logMessage(self):
         """
-        Log the messages of the jobs.
+        Log the messages of the parameter sets.
         """
-        ops = [
-            self.project.get_job_status(x)[self.OPERATIONS] for x in self.jobs
-        ]
+        ops = [self.proj.get_job_status(x)[self.OPERATIONS] for x in self.jobs]
         completed = [all(y[self.COMPLETED] for y in x.values()) for x in ops]
         if not any(completed):
             return
@@ -281,57 +287,6 @@ class Runner(logutils.Base):
         info = pd.DataFrame(data, index=ids)
         self.log(info.to_markdown())
 
-    def setAggJobs(self, TaskClass=task.TimeAgg):
-        """
-        Register aggregators with prerequisites.
-
-        :param 'taskbase.Base': the agg job of this task is registered.
-        """
-        pre_oprs = [x for x in self.classes.keys() if x.__name__.endswith(self.AGG_NAME_EXT)]
-        opr = self.setOpr(TaskClass)
-        for pre_opr in pre_oprs:
-            self.setPreAfter(pre_opr, opr)
-
-    def setAggProject(self):
-        """
-        Initiate the aggregation project.
-        """
-        prj = self.project.path if self.project else self.options.prj_path
-        try:
-            self.agg_project = flow.project.FlowProject.get_project(prj)
-        except LookupError as err:
-            self.error(str(err))
-
-    def cleanAggJobs(self, filter=None):
-        """
-        Run aggregation project.
-
-        :param dict: the filter to select jobs.
-        """
-        if not self.options.clean:
-            return
-
-        jobs = self.jobs if self.jobs else self.agg_project.find_jobs(
-            filter=filter)
-        if not jobs:
-            return
-        for opr, JobClass in self.classes.items():
-            if not opr.__name__.endswith(self.AGG_NAME_EXT):
-                continue
-            JobClass(*jobs, name=opr.__name__).clean()
-
-    def runAggJobs(self):
-        """
-        Run aggregation project.
-        """
-        prog = self.options.screen and jobutils.PROGRESS in self.options.screen
-        # FIXME: no parallelism as multiple aggregation touch the same file
-        try:
-            self.agg_project.run(np=1, progress=prog)
-        except IndexError:
-            # workspace dir removed
-            self.error(f"no jobs to aggregate.")
-
     def setPreAfter(self, pre, cur):
         """
         Set the prerequisite of a job.
@@ -343,3 +298,25 @@ class Runner(logutils.Base):
             return
         flow.project.FlowProject.pre.after(pre)(cur)
         self.prereq[cur.__name__].append(pre.__name__)
+
+    def setAggs(self):
+        """
+        Set the aggregator operators.
+        """
+        self.add(self.AggClass)
+
+    def setAggProj(self, filter=None):
+        """
+        Initiate the aggregation project.
+
+        :param filter dict: the parameter filter.
+        """
+        prj = self.proj.path if self.proj else self.options.prj_path
+        try:
+            self.proj = flow.project.FlowProject.get_project(prj)
+        except LookupError as err:
+            self.error(str(err))
+        if not self.jobs:
+            self.jobs = self.agg_proj.find_jobs(filter=filter)
+        if not self.jobs:
+            self.error(f"No jobs to aggregate.")

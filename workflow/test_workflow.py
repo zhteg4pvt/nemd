@@ -32,23 +32,21 @@ class Test(jobcontrol.Runner):
     """
     The main class to run integration and performance tests.
     """
+    TaskClass = task.TestAgg
 
-    def setJob(self):
+    def setJobs(self):
         """
         Set operators to run cmds, check results, and tag tests.
 
         FIXME: tag and check cannot be paralleled due to the same job json file
           being touched by multiple operators.
         """
-        cmd, check, tag = None, None, None
         if test.CMD in self.options.task:
-            cmd = self.setOpr(task.CmdJob)
+            self.add(task.CmdJob)
         if test.CHECK in self.options.task:
-            check = self.setOpr(task.CheckJob)
-        self.setPreAfter(cmd, check)
+            self.add(task.CheckJob)
         if test.TAG in self.options.task:
-            tag = self.setOpr(task.TagJob)
-        self.setPreAfter(check, tag)
+            self.add(task.TagJob)
 
     def setState(self):
         """
@@ -82,18 +80,12 @@ class Test(jobcontrol.Runner):
             self.error('All tests are skipped according to the tag file.')
         return dirs
 
-    def setAggJobs(self):
-        """
-        Register the aggregator to collect the time of the select jobs.
-        """
-        super().setAggJobs(TaskClass=task.TestAgg)
-
-    def cleanAggJobs(self):
+    def setAggProj(self):
         """
         Report the task timing after filtering.
         """
         flag_dirs = [{FLAG_DIR: x} for x in self.getDirs()]
-        super().cleanAggJobs(filter={"$or": flag_dirs})
+        super().setAggProj(filter={"$or": flag_dirs})
 
 
 class TestValid(parserutils.Valid):
