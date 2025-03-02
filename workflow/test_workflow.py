@@ -40,15 +40,15 @@ class Test(jobcontrol.Runner):
         FIXME: tag and check cannot be paralleled due to the same job json file
           being touched by multiple operators.
         """
-        pre_after = []
+        cmd, check, tag = None, None, None
         if test.CMD in self.options.task:
-            pre_after.append(self.setOpr(task.CmdJob))
+            cmd = self.setOpr(task.CmdJob)
         if test.CHECK in self.options.task:
-            pre_after.append(self.setOpr(task.CheckJob))
+            check = self.setOpr(task.CheckJob)
+        self.setPreAfter(cmd, check)
         if test.TAG in self.options.task:
-            pre_after.append(self.setOpr(task.TagJob))
-        for pre, after in zip(pre_after[:-1], pre_after[1:]):
-            self.setPreAfter(pre, after)
+            tag = self.setOpr(task.TagJob)
+        self.setPreAfter(check, tag)
 
     def setState(self):
         """

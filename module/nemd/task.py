@@ -379,13 +379,13 @@ class TestAgg(TimeAgg):
     ids and labels.
     """
 
-    def run(self):
+    def execute(self):
         """
         Main method to run.
         """
         self.filterIds()
         self.filterLabels()
-        super().run()
+        super().execute()
 
     def filterIds(self):
         """

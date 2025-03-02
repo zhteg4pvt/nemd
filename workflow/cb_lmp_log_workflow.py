@@ -34,15 +34,17 @@ class Runner(jobcontrol.Runner):
         scaled_range = list(map(str, np.arange(*self.options.scaled_range)))
         self.state[parserutils.XtalBldr.FLAG_SCALED_FACTOR] = scaled_range
 
-    def setAggJobs(self):
+    def setAggJobs(self, **kwargs):
         """
         Aggregate post analysis jobs.
         """
         self.setOpr(task.LmpLogAgg)
-        super().setAggJobs()
+        super().setAggJobs(**kwargs)
 
 
 class Parser(parserutils.Workflow):
+
+    WFLAGS = parserutils.Workflow.WFLAGS[1:]
 
     @classmethod
     def add(cls, parser, **kwargs):

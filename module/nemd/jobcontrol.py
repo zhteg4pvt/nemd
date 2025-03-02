@@ -56,7 +56,6 @@ class Runner(logutils.Base):
         self.argv = argv
         self.state = {}
         self.jobs = []
-        self.oprs = {}
         self.classes = {}
         self.cpu = None
         self.project = None
@@ -107,10 +106,8 @@ class Runner(logutils.Base):
         opr = TaskCLass.getOpr(**kwargs,
                                logger=self.logger,
                                options=self.options)
-        name = opr.__name__
-        self.oprs[name] = opr
-        self.classes[name] = TaskCLass
-        return name
+        self.classes[opr] = TaskCLass
+        return opr
 
     def setProject(self):
         """
@@ -189,11 +186,11 @@ class Runner(logutils.Base):
         """
         if not self.options.clean:
             return
-        for name, JobClass in self.classes.items():
-            if name.endswith(self.AGG_NAME_EXT):
+        for opr, JobClass in self.classes.items():
+            if opr.__name__.endswith(self.AGG_NAME_EXT):
                 continue
             for job in self.jobs:
-                JobClass(job, name=name).clean()
+                JobClass(job, name=opr.__name__).clean()
 
     def runJobs(self, **kwargs):
         """
@@ -290,10 +287,10 @@ class Runner(logutils.Base):
 
         :param 'taskbase.Base': the agg job of this task is registered.
         """
-        pnames = [x for x in self.oprs.keys() if x.endswith(self.AGG_NAME_EXT)]
-        name = self.setOpr(TaskClass)
-        for pre_name in pnames:
-            self.setPreAfter(pre_name, name)
+        pre_oprs = [x for x in self.classes.keys() if x.__name__.endswith(self.AGG_NAME_EXT)]
+        opr = self.setOpr(TaskClass)
+        for pre_opr in pre_oprs:
+            self.setPreAfter(pre_opr, opr)
 
     def setAggProject(self):
         """
@@ -318,10 +315,10 @@ class Runner(logutils.Base):
             filter=filter)
         if not jobs:
             return
-        for name, JobClass in self.classes.items():
-            if not name.endswith(self.AGG_NAME_EXT):
+        for opr, JobClass in self.classes.items():
+            if not opr.__name__.endswith(self.AGG_NAME_EXT):
                 continue
-            JobClass(*jobs, name=name).clean()
+            JobClass(*jobs, name=opr.__name__).clean()
 
     def runAggJobs(self):
         """
@@ -344,5 +341,5 @@ class Runner(logutils.Base):
         """
         if pre is None or cur is None:
             return
-        flow.project.FlowProject.pre.after(self.oprs[pre])(self.oprs[cur])
-        self.prereq[cur].append(pre)
+        flow.project.FlowProject.pre.after(pre)(cur)
+        self.prereq[cur.__name__].append(pre.__name__)

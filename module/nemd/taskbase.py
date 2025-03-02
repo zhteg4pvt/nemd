@@ -20,8 +20,7 @@ from nemd import symbols
 
 class Base(logutils.Base):
     """
-    The base class for all jobs in the workflow. This class can be subclassed
-    to create cmd and non-cmd jobs used as normal task jobs and aggregate jobs.
+    The base to create cmd and non-cmd jobs as normal jobs and aggregators.
     """
     JTYPE = 'Job'
     PREREQ = 'prereq'
@@ -132,6 +131,9 @@ class Base(logutils.Base):
 
 
 class Job(Base):
+    """
+    The non-cmd normal jobs.
+    """
 
     def run(self):
         """
@@ -199,7 +201,7 @@ class Agg(Job):
 
 class CmdJob(Job):
     """
-    Cmd job.
+    Cmd normal job.
     """
     FILE = None
     ParserClass = parserutils.Driver
