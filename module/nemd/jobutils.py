@@ -41,6 +41,7 @@ SIGNAC = 'signac'
 JSON_EXT = '.json'
 FN_DOCUMENT = f'{SIGNAC}_job_document{JSON_EXT}'
 FN_STATE_POINT = f'{SIGNAC}_statepoint{JSON_EXT}'
+WORKSPACE = 'workspace'
 
 
 def get_arg(args, flag, default=None, first=True):
@@ -182,7 +183,7 @@ class Job:
         self.doc = self.load(FN_DOCUMENT)
         self.document = self.doc
         self.project = types.SimpleNamespace(doc={},
-                                             workspace='workspace',
+                                             workspace=WORKSPACE,
                                              path=os.curdir)
 
     def load(self, basename):

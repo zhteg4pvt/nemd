@@ -8,6 +8,7 @@ Under jobcontrol:
 """
 import functools
 import re
+import types
 
 import flow
 
@@ -22,7 +23,7 @@ class Base(logutils.Base):
     """
     The base to create cmd and non-cmd jobs as normal jobs and aggregators.
     """
-    JTYPE = 'Job'
+    AGG = False
     PREREQ = 'prereq'
 
     def __init__(self, *jobs, name=None, options=None, logger=None, **kwargs):
@@ -40,7 +41,7 @@ class Base(logutils.Base):
         self.logger = logger
         self.job = self.jobs[0]
         self.proj = self.job.project
-        self.doc = self.job.doc if self.JTYPE == symbols.JOB else self.proj.doc
+        self.doc = self.proj.doc if self.AGG else self.job.doc
         self.jobname = name if name else self.default_name
 
     @classmethod
@@ -51,8 +52,7 @@ class Base(logutils.Base):
 
         :return str: the default jobname
         """
-        words = cls.__name__.removesuffix(cls.JTYPE)
-        words = re.findall('[A-Z][^A-Z]*', words)
+        words = re.findall('[A-Z][^A-Z]*', cls.__name__)
         return '_'.join([x.lower() for x in words])
 
     @classmethod
@@ -69,30 +69,26 @@ class Base(logutils.Base):
         :param cmd bool: whether the function returns a command to run
         :param with_job bool: whether execute in job dir with context management
         :param aggregator 'flow.aggregates.aggregator': job collection criteria
-        :return 'function': the operation to execute
+        :return 'types.SimpleNamespace': the name, operation, and class
         """
         if name is None:
             name = cls.default_name
-        if cls.JTYPE == symbols.AGG:
-            name = f"{name}{symbols.POUND_SEP}agg"
         if with_job is None:
-            with_job = cls.JTYPE != symbols.AGG
-        if aggregator is None and cls.JTYPE == symbols.AGG:
+            with_job = not cls.AGG
+        if aggregator is None and cls.AGG:
             aggregator = flow.aggregator()
 
         # Operator
-        kwargs.update({'name': name})
-        func = functools.partial(cls.runOpr, **kwargs)
-        func.__name__ = name
-        func = flow.FlowProject.operation(name=name,
-                                          func=func,
-                                          cmd=cmd,
-                                          with_job=with_job,
-                                          aggregator=aggregator)
+        func = functools.partial(cls.runOpr, name=name, **kwargs)
+        opr = flow.FlowProject.operation(name=name,
+                                         func=func,
+                                         cmd=cmd,
+                                         with_job=with_job,
+                                         aggregator=aggregator)
         # Post conditions
-        post = functools.partial(cls.postOpr, **kwargs)
-        func = flow.FlowProject.post(lambda *x: post(*x))(func)
-        return func
+        post = functools.partial(cls.postOpr, name=name, **kwargs)
+        opr = flow.FlowProject.post(lambda *x: post(*x))(opr)
+        return types.SimpleNamespace(name=name, opr=opr, cls=cls)
 
     @classmethod
     def runOpr(cls, *args, **kwargs):
@@ -196,10 +192,10 @@ class Agg(Job):
     """
     Non-cmd aggregator job.
     """
-    JTYPE = symbols.AGG
+    AGG = True
 
 
-class CmdJob(Job):
+class Cmd(Job):
     """
     Cmd normal job.
     """

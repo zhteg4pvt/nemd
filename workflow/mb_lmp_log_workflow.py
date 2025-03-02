@@ -81,7 +81,7 @@ class AnalyzerAgg(analyzer.Agg):
         job = self.groups[0][1][0]
         for logfile in job.doc[jobutils.LOGFILE].values():
             reader = Reader(job.fn(logfile))
-            if reader.options.NAME != task.MolBldrJob.default_name:
+            if reader.options.NAME != task.MolBldr.default_name:
                 continue
             self.result.substruct = reader.getSubstruct(smiles)
             return smiles
@@ -105,9 +105,9 @@ class Runner(jobcontrol.Runner):
         """
         Set molecule builder, lammps runner, and log analyzer tasks.
         """
-        self.add(task.MolBldrJob)
-        self.add(task.LammpsJob)
-        self.add(task.LmpLogJob)
+        self.add(task.MolBldr)
+        self.add(task.Lammps)
+        self.add(task.LmpLog)
 
     def setState(self):
         """

@@ -34,7 +34,7 @@ class Runner(logutils.Base):
     The main class to set up a workflow.
     """
 
-    WORKSPACE = symbols.WORKSPACE
+    WORKSPACE = jobutils.WORKSPACE
     PREREQ = taskbase.Base.PREREQ
     COMPLETED = 'completed'
     OPERATIONS = 'operations'
@@ -56,7 +56,7 @@ class Runner(logutils.Base):
         self.args = self.original[:]
         self.state = {}
         self.jobs = []
-        self.classes = {}
+        self.added = []
         self.cpu = None
         self.proj = None
         self.agg_proj = None
@@ -87,8 +87,8 @@ class Runner(logutils.Base):
         if symbols.AGGREGATOR in self.options.jtype:
             self.setAggs()
             self.setAggProj()
-            self.clean(is_agg=True)
-            self.runProj(is_agg=True)
+            self.clean(agg=True)
+            self.runProj(agg=True)
 
     def setJobs(self):
         """
@@ -101,21 +101,17 @@ class Runner(logutils.Base):
         Add one operator to the project.
 
         :param TaskClass 'task.Task' (sub)-class: the class to get the operator
-        :param pre 'function': the prerequisite operator
-        :return 'function': the added operator
+        :param pre 'types.SimpleNamespace': the prerequisite operator container
+        :return 'types.SimpleNamespace': the added operator container
         """
+        if pre is None:
+            pres = [x for x in self.added if x.cls.AGG == TaskClass.AGG]
+            if pres:
+                pre = pres[-1]
         opr = TaskClass.getOpr(**kwargs,
                                logger=self.logger,
                                options=self.options)
-        self.classes[opr] = TaskClass
-        if pre is None:
-            is_agg = opr.__name__.endswith(self.AGG_NAME_EXT)
-            pres = [
-                x for x in self.classes.keys() if x != opr
-                and x.__name__.endswith(self.AGG_NAME_EXT) == is_agg
-            ]
-            if pres:
-                pre = pres[-1]
+        self.added.append(opr)
         if pre:
             self.setPreAfter(pre, opr)
         return opr
@@ -208,31 +204,31 @@ class Runner(logutils.Base):
         if not self.jobs:
             self.error('No jobs to run.')
 
-    def clean(self, is_agg=False):
+    def clean(self, agg=False):
         """
         Clean the previous jobs or aggregators so than they can operate again
         (the post functions return False after the clean).
 
-        :param is_agg bool: clean aggregators instead of jobs if True
+        :param agg bool: clean aggregators instead of jobs if True
         """
         if not self.options.clean:
             return
-        for opr, JobClass in self.classes.items():
-            if opr.__name__.endswith(self.AGG_NAME_EXT) == is_agg:
+        for opr in self.added:
+            if opr.cls.AGG ^ agg:
                 continue
             for job in self.jobs:
-                JobClass(job, name=opr.__name__).clean()
+                opr.cls(job, name=opr.name).clean()
 
-    def runProj(self, is_agg=False, **kwargs):
+    def runProj(self, agg=False, **kwargs):
         """
         Run all jobs or aggregators registered in the project.
 
-        :param is_agg bool: run aggregators instead of jobs.
+        :param agg bool: run aggregators instead of jobs.
         """
         # FIXME: no parallelism as multiple aggregation touch the same file
-        cpu = 1 if is_agg else self.cpu[0]
+        cpu = 1 if agg else self.cpu[0]
         prog = self.options.screen and jobutils.PROGRESS in self.options.screen
-        jobs = None if is_agg else self.jobs
+        jobs = None if agg else self.jobs
         self.proj.run(np=cpu, progress=prog, jobs=jobs, **kwargs)
 
     def logStatus(self):
@@ -291,13 +287,13 @@ class Runner(logutils.Base):
         """
         Set the prerequisite of a job.
 
-        :param pre str: the operation name runs first
-        :param cur str: the operation name who runs after the prerequisite job
+        :param pre 'types.SimpleNamespace': the operation runs first
+        :param cur 'types.SimpleNamespace': the operation runs after
         """
         if pre is None or cur is None:
             return
-        flow.project.FlowProject.pre.after(pre)(cur)
-        self.prereq[cur.__name__].append(pre.__name__)
+        flow.project.FlowProject.pre.after(pre.opr)(cur.opr)
+        self.prereq[cur.name].append(pre.name)
 
     def setAggs(self):
         """

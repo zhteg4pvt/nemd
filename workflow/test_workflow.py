@@ -42,11 +42,11 @@ class Test(jobcontrol.Runner):
           being touched by multiple operators.
         """
         if test.CMD in self.options.task:
-            self.add(task.CmdJob)
+            self.add(task.Cmd)
         if test.CHECK in self.options.task:
-            self.add(task.CheckJob)
+            self.add(task.Check)
         if test.TAG in self.options.task:
-            self.add(task.TagJob)
+            self.add(task.Tag)
 
     def setState(self):
         """

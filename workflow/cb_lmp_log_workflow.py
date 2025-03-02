@@ -20,9 +20,9 @@ class Runner(jobcontrol.Runner):
         """
         Set crystal builder, lammps runner, and log analyzer tasks.
         """
-        self.add(task.XtalBldrJob, name='crystal_builder')
-        self.add(task.LammpsJob, name='lammps_runner')
-        self.add(task.LmpLogJob)
+        self.add(task.XtalBldr, name='crystal_builder')
+        self.add(task.Lammps, name='lammps_runner')
+        self.add(task.LmpLog)
 
     def setState(self):
         """

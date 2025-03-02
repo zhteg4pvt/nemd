@@ -25,7 +25,7 @@ from nemd import test
 from nemd import timeutils
 
 
-class MolBldrJob(taskbase.CmdJob):
+class MolBldr(taskbase.Cmd):
     """
     Class to run the molecule builder.
     """
@@ -33,7 +33,7 @@ class MolBldrJob(taskbase.CmdJob):
     ParserClass = parserutils.MolBldr
 
 
-class AmorpBldrJob(taskbase.CmdJob):
+class AmorpBldr(taskbase.Cmd):
     """
     Class to run the amorphous builder.
     """
@@ -41,7 +41,7 @@ class AmorpBldrJob(taskbase.CmdJob):
     ParserClass = parserutils.AmorpBldr
 
 
-class XtalBldrJob(taskbase.CmdJob):
+class XtalBldr(taskbase.Cmd):
     """
     Class to run the crystal builder.
     """
@@ -49,7 +49,7 @@ class XtalBldrJob(taskbase.CmdJob):
     ParserClass = parserutils.XtalBldr
 
 
-class LammpsJob(taskbase.CmdJob):
+class Lammps(taskbase.Cmd):
     """
     Class to run the lammps simulation.
     """
@@ -58,7 +58,7 @@ class LammpsJob(taskbase.CmdJob):
     ARGS_TMPL = [None]
 
 
-class LmpLogJob(taskbase.CmdJob):
+class LmpLog(taskbase.Cmd):
     """
     Class to run lammps log driver.
     """
@@ -90,7 +90,7 @@ class LmpLogJob(taskbase.CmdJob):
             return next(x for x in matches if x)
 
 
-class TrajJob(LmpLogJob):
+class LmpTraj(LmpLog):
     """
     Class to run lammps traj driver.
     """
@@ -108,7 +108,7 @@ class TrajJob(LmpLogJob):
         self.args[0] = self.getMatch(match_re=match_re).group(2)
 
 
-class CmdJob(taskbase.CmdJob):
+class Cmd(taskbase.Cmd):
     """
     The class to set up a job cmd so that the test can run normal nemd jobs from
     the cmd line.
@@ -246,7 +246,7 @@ class CmdJob(taskbase.CmdJob):
             shutil.rmtree(workspace)
 
 
-class TagJob(taskbase.Job):
+class Tag(taskbase.Job):
     """
     This job class generates a new tag file (or updates the existing one).
     """
@@ -259,7 +259,7 @@ class TagJob(taskbase.Job):
         self.ExecuteClass(job=self.job).run()
 
 
-class CheckJob(TagJob):
+class Check(Tag):
     """
     The job class to parse the check file, run the operators, and set the job
     message.
@@ -277,12 +277,10 @@ class LmpLogAgg(taskbase.Agg):
         """
         Main method to run the aggregator job.
         """
-        options = types.SimpleNamespace(
-            JOBNAME=self.options.JOBNAME,
-            INTERAC=self.options.INTERAC,
-            name=self.jobname.split(symbols.POUND_SEP)[0],
-            dir=os.path.relpath(self.job.project.workspace,
-                                self.job.project.path))
+        options = types.SimpleNamespace(JOBNAME=self.options.JOBNAME,
+                                        INTERAC=self.options.INTERAC,
+                                        name=self.jobname.removesuffix('_agg'),
+                                        dir=jobutils.WORKSPACE)
         self.log(f"{len(self.jobs)} jobs found for aggregation.")
         for task in self.options.task:
             anlz = self.AnalyzerAgg(task=task,
