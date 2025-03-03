@@ -457,6 +457,13 @@ class CollectLog(Exist):
                 jobutils.add_outfile(out_png)
 
 
+class CheckError(Exception):
+    """
+    Raised when the results are unexpected.
+    """
+    pass
+
+
 class Check(Cmd):
     """
     The class to execute the operators in addition to the parsing a file.
@@ -475,7 +482,7 @@ class Check(Cmd):
         """
         Check the results by execute all operators. Raise errors if any failed.
 
-        :raise ValueError: the process has non-zero returncode
+        :raise CheckError: the process has non-zero returncode
         """
         jobname = os.path.basename(self.dir)
         print(f"{jobname}: {'; '.join(self.args)}")
@@ -484,7 +491,7 @@ class Check(Cmd):
         if not completed.returncode:
             return
         with open(proc.logfile) as fh:
-            raise ValueError(fh.read())
+            raise CheckError(fh.read())
 
     @property
     def tokens(self):

@@ -14,6 +14,7 @@ import types
 
 import pandas as pd
 
+from nemd import DEBUG
 from nemd import analyzer
 from nemd import jobutils
 from nemd import lammpsfix
@@ -226,7 +227,7 @@ class Cmd(taskbase.Cmd):
         :return: True if the post-conditions are met.
         """
         try:
-            outfiles = self.doc[self.OUTFILE]
+            outfiles = self.doc[self.OUT]
         except KeyError:
             return False
         if self.param.args is None:
@@ -240,31 +241,38 @@ class Cmd(taskbase.Cmd):
         Note: The jobnames of cmd tasks are determined by the cmd content.
         """
         self.doc[jobutils.OUTFILE] = {}
-        self.doc[jobutils.OUTFILES] = {}
-        workspace = self.job.fn(symbols.WORKSPACE)
-        if os.path.isdir(workspace):
-            shutil.rmtree(workspace)
+        try:
+            shutil.rmtree(self.job.fn(jobutils.WORKSPACE))
+        except FileNotFoundError:
+            pass
 
 
-class Tag(taskbase.Job):
-    """
-    This job class generates a new tag file (or updates the existing one).
-    """
-    ExecuteClass = test.Tag
-
-    def execute(self):
-        """
-        Main method to execute.
-        """
-        self.ExecuteClass(job=self.job).run()
-
-
-class Check(Tag):
+class Check(taskbase.Job):
     """
     The job class to parse the check file, run the operators, and set the job
     message.
     """
-    ExecuteClass = test.Check
+
+    def run(self):
+        """
+        Main method to execute.
+        """
+        try:
+            test.Check(job=self.job).run()
+        except test.CheckError as err:
+            self.out = str(err)
+
+
+class Tag(Check):
+    """
+    This job class generates a new tag file (or updates the existing one).
+    """
+
+    def run(self):
+        """
+        Main method to execute.
+        """
+        test.Tag(job=self.job).run()
 
 
 class LmpLogAgg(taskbase.Agg):
@@ -273,7 +281,7 @@ class LmpLogAgg(taskbase.Agg):
     """
     AnalyzerAgg = analyzer.Agg
 
-    def execute(self):
+    def run(self):
         """
         Main method to run the aggregator job.
         """
@@ -330,7 +338,7 @@ class TimeAgg(taskbase.Agg):
     DELTA_LMT = timeutils.str2delta(MS_LMT, fmt=MS_FMT)
     TIME = symbols.TIME.lower()
 
-    def execute(self):
+    def run(self):
         """
         Report the total task timing and timing details grouped by name.
         """
@@ -377,13 +385,13 @@ class TestAgg(TimeAgg):
     ids and labels.
     """
 
-    def execute(self):
+    def run(self):
         """
         Main method to run.
         """
         self.filterIds()
         self.filterLabels()
-        super().execute()
+        super().run()
 
     def filterIds(self):
         """

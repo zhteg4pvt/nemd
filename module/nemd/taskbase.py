@@ -2,9 +2,10 @@
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
 Under jobcontrol:
- 1) Base executes non-cmd operation
- 2) Agg operates a non-cmd aggregation
- 3) Job generates the cmd
+ 0) Base executes non-cmd operation
+ 1) Job executes non-cmd job
+ 2) Agg operates non-cmd aggregation
+ 3) Cmd generates the cmd job
 """
 import functools
 import re
@@ -25,11 +26,12 @@ class Base(logutils.Base):
     """
     AGG = False
     PREREQ = 'prereq'
+    OUT = symbols.MESSAGE
 
     def __init__(self, *jobs, name=None, options=None, logger=None, **kwargs):
         """
         :param jobs list' of 'signac.contrib.job.Job': signac jobs
-        :param name str: the subjob jobname, different from the workflow jobname
+        :param name str: the job name, different from the workflow name
         :param options 'argparse.Namespace': commandline options
         :param driver 'module': imported driver module
         :param logger 'logging.Logger':  print to this logger
@@ -39,14 +41,15 @@ class Base(logutils.Base):
         self.name = name
         self.options = options
         self.logger = logger
+        self.jobname = name if name else self.default
         self.job = self.jobs[0]
         self.proj = self.job.project
         self.doc = self.proj.doc if self.AGG else self.job.doc
-        self.jobname = name if name else self.default_name
+        self.doc.setdefault(self.OUT, {})
 
     @classmethod
     @property
-    def default_name(cls):
+    def default(cls):
         """
         The default jobname.
 
@@ -58,7 +61,7 @@ class Base(logutils.Base):
     @classmethod
     def getOpr(cls,
                name=None,
-               cmd=False,
+               cmd=None,
                with_job=None,
                aggregator=None,
                **kwargs):
@@ -72,7 +75,9 @@ class Base(logutils.Base):
         :return 'types.SimpleNamespace': the name, operation, and class
         """
         if name is None:
-            name = cls.default_name
+            name = cls.default
+        if cmd is None:
+            cmd = cls.OUT == jobutils.OUTFILE
         if with_job is None:
             with_job = not cls.AGG
         if aggregator is None and cls.AGG:
@@ -106,7 +111,25 @@ class Base(logutils.Base):
         """
         Main method to run.
         """
-        pass
+        self.out = False
+
+    @property
+    def out(self):
+        """
+        The message of the job.
+
+        :return str: the message of the job.
+        """
+        return self.doc[self.OUT].get(self.jobname)
+
+    @out.setter
+    def out(self, value):
+        """
+        Set message of the job.
+
+        :param value str: the message of the job.
+        """
+        self.doc[self.OUT].update({self.jobname: value})
 
     @classmethod
     def postOpr(cls, *args, **kwargs):
@@ -119,11 +142,17 @@ class Base(logutils.Base):
 
     def post(self):
         """
-        The job is considered finished when the post-conditions return True.
+        The job is considered finished when the out is set.
 
         :return: True if the post-conditions are met.
         """
-        return True
+        return self.out is not None
+
+    def clean(self):
+        """
+        Clean the previous job including the post criteria.
+        """
+        self.doc[self.OUT].pop(self.jobname, None)
 
 
 class Job(Base):
@@ -131,61 +160,14 @@ class Job(Base):
     The non-cmd normal jobs.
     """
 
-    def run(self):
+    @classmethod
+    def runOpr(cls, *args, **kwargs):
         """
-        Main method to run.
-
-        :raise Exception: execution error are raised in debug mode.
+        The operator to run. (see parent for details)
         """
-        try:
-            self.execute()
-        except Exception as err:
-            if DEBUG:
-                raise err
-            self.message = str(err)
-        else:
-            self.message = False
-
-    def execute(self):
-        """
-        Main method to execute.
-        """
-        pass
-
-    @property
-    def message(self):
-        """
-        The message of the job.
-
-        :return str: the message of the job.
-        """
-        return self.doc.get(symbols.MESSAGE, {}).get(self.jobname)
-
-    @message.setter
-    def message(self, value):
-        """
-        Set message of the job.
-
-        :param value str: the message of the job.
-        """
-        self.doc.setdefault(symbols.MESSAGE, {})
-        self.doc[symbols.MESSAGE].update({self.jobname: value})
-
-    def post(self):
-        """
-        The job is considered finished when the post-conditions return True.
-
-        :return: True if the post-conditions are met.
-        """
-        return self.jobname in self.doc.get(symbols.MESSAGE, {})
-
-    def clean(self):
-        """
-        Clean the previous job including the post criteria.
-        """
-        if symbols.MESSAGE not in self.doc:
-            return
-        self.doc[symbols.MESSAGE].pop(self.jobname, None)
+        obj = super().runOpr(*args, **kwargs)
+        if obj.out is None:
+            obj.out = False
 
 
 class Agg(Job):
@@ -195,7 +177,7 @@ class Agg(Job):
     AGG = True
 
 
-class Cmd(Job):
+class Cmd(Base):
     """
     Cmd normal job.
     """
@@ -204,7 +186,7 @@ class Cmd(Job):
     PRE_RUN = jobutils.NEMD_RUN
     SEP = symbols.SPACE
     ARGS_TMPL = None
-    OUTFILE = jobutils.OUTFILE
+    OUT = jobutils.OUTFILE
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -212,14 +194,13 @@ class Cmd(Job):
 
     @classmethod
     @property
-    def default_name(cls):
+    def default(cls):
         """
         The default jobname.
 
         :return str: the default jobname
         """
-        return jobutils.get_name(
-            cls.FILE) if cls.FILE else super().default_name
+        return jobutils.get_name(cls.FILE) if cls.FILE else super().default
 
     def run(self):
         """
@@ -244,7 +225,7 @@ class Cmd(Job):
         # Please rearrange or modify the prerequisite jobs' input by subclassing
         for pre_job in pre_jobs:
             index = self.args.index(None)
-            self.args[index] = self.doc[self.OUTFILE][pre_job]
+            self.args[index] = self.doc[self.OUT][pre_job]
 
     def rmUnknown(self):
         """
@@ -281,6 +262,16 @@ class Cmd(Job):
         """
         return jobutils.set_arg(self.args, jobutils.FLAG_JOBNAME, self.jobname)
 
+    @classmethod
+    def runOpr(cls, *args, **kwargs):
+        """
+        The operator to get cmd. (see parent for details)
+
+        :return str: the command to run.
+        """
+        obj = super().runOpr(*args, **kwargs)
+        return obj.getCmd()
+
     def getCmd(self, prefix=PRE_RUN, write=True):
         """
         Get command line str.
@@ -298,56 +289,3 @@ class Cmd(Job):
             with open(f"{self.jobname}_cmd", 'w') as fh:
                 fh.write(cmd)
         return cmd
-
-    def post(self):
-        """
-        The job is considered finished when the post-conditions return True.
-
-        :return: True if the post-conditions are met.
-        """
-        return self.outfile is not None
-
-    @property
-    def outfile(self):
-        """
-        The outfile of the job.
-
-        :return str: the message of the job.
-        """
-        return self.doc.get(self.OUTFILE, {}).get(self.jobname)
-
-    @outfile.setter
-    def outfile(self, value):
-        """
-        Set outfile of the job.
-
-        :param value str: the message of the job.
-        """
-        self.doc.setdefault(self.OUTFILE, {})
-        self.doc[self.OUTFILE][self.jobname] = value
-
-    def clean(self):
-        """
-        Clean the previous job including the post criteria.
-        """
-        for key in [self.OUTFILE, jobutils.OUTFILES]:
-            if key not in self.doc:
-                continue
-            self.doc[key].pop(self.jobname, None)
-
-    @classmethod
-    def getOpr(cls, *args, cmd=True, **kwargs):
-        """
-        Get the cmd operator. (see parent for details)
-        """
-        return super().getOpr(*args, cmd=cmd, **kwargs)
-
-    @classmethod
-    def runOpr(cls, *args, **kwargs):
-        """
-        The operator to get cmd. (see parent for details)
-
-        :return str: the command to run.
-        """
-        obj = super().runOpr(*args, **kwargs)
-        return obj.getCmd()
