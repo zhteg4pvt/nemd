@@ -1,15 +1,15 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
-This class handles both jobs and aggregators under the jobcontrol:
-    1) define the operators
-    2) initiate or load project
-    3) parametrize the operators
-    4) distribute cpu resources among the operators
-    5) register operators under the project
+This class handles jobs and aggregators:
+    1) register operators
+    2) create or load project
+    3) set parametrizes
+    4) distribute resources
+    5) initiate jobs
     6) clean previous results
-    7) execute the registered operators
-    8) log the operator status and message.
+    7) execute the operators
+    8) log the status and message.
 """
 import collections
 import itertools
@@ -33,16 +33,13 @@ class Runner(logutils.Base):
     """
     The main class to set up a workflow.
     """
-
-    WORKSPACE = jobutils.WORKSPACE
-    PREREQ = taskbase.Base.PREREQ
+    AggClass = task.TimeAgg
+    PREREQ = taskbase.Agg.PREREQ
+    FLAG_SEED = jobutils.FLAG_SEED
+    MESSAGE = taskbase.MESSAGE
     COMPLETED = 'completed'
     OPERATIONS = 'operations'
     JOB_ID = 'job_id'
-    FLAG_SEED = jobutils.FLAG_SEED
-    MESSAGE = symbols.MESSAGE
-    AGG_NAME_EXT = f"{symbols.POUND_SEP}agg"
-    AggClass = task.TimeAgg
 
     def __init__(self, options, original, logger=None):
         """
@@ -105,7 +102,7 @@ class Runner(logutils.Base):
         :return 'types.SimpleNamespace': the added operator container
         """
         if pre is None:
-            pres = [x for x in self.added if x.cls.AGG == TaskClass.AGG]
+            pres = [x for x in self.added if x.cls.agg == TaskClass.agg]
             if pres:
                 pre = pres[-1]
         opr = TaskClass.getOpr(**kwargs,
@@ -214,7 +211,7 @@ class Runner(logutils.Base):
         if not self.options.clean:
             return
         for opr in self.added:
-            if opr.cls.AGG ^ agg:
+            if opr.cls.agg ^ agg:
                 continue
             for job in self.jobs:
                 opr.cls(job, name=opr.name).clean()

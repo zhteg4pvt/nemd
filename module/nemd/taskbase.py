@@ -2,9 +2,8 @@
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
 Under jobcontrol:
- 0) Base executes non-cmd operation
- 1) Job executes non-cmd job
- 2) Agg operates non-cmd aggregation
+ 1) Agg operates non-cmd aggregation
+ 2) Job executes non-cmd job
  3) Cmd generates the cmd job
 """
 import functools
@@ -13,27 +12,26 @@ import types
 
 import flow
 
-from nemd import DEBUG
 from nemd import jobutils
 from nemd import logutils
 from nemd import parserutils
 from nemd import symbols
 
+MESSAGE = 'message'
 
-class Base(logutils.Base):
+
+class Agg(logutils.Base):
     """
-    The base to create cmd and non-cmd jobs as normal jobs and aggregators.
+    Non-cmd aggregator.
     """
-    AGG = False
     PREREQ = 'prereq'
-    OUT = symbols.MESSAGE
+    OUT = MESSAGE
 
     def __init__(self, *jobs, name=None, options=None, logger=None, **kwargs):
         """
         :param jobs list' of 'signac.contrib.job.Job': signac jobs
         :param name str: the job name, different from the workflow name
         :param options 'argparse.Namespace': commandline options
-        :param driver 'module': imported driver module
         :param logger 'logging.Logger':  print to this logger
         """
         super().__init__(logger=logger)
@@ -44,7 +42,7 @@ class Base(logutils.Base):
         self.jobname = name if name else self.default
         self.job = self.jobs[0]
         self.proj = self.job.project
-        self.doc = self.proj.doc if self.AGG else self.job.doc
+        self.doc = self.proj.doc if self.agg else self.job.doc
         self.doc.setdefault(self.OUT, {})
 
     @classmethod
@@ -57,6 +55,16 @@ class Base(logutils.Base):
         """
         words = re.findall('[A-Z][^A-Z]*', cls.__name__)
         return '_'.join([x.lower() for x in words])
+
+    @classmethod
+    @property
+    def agg(cls):
+        """
+        Whether this is an aggregator class.
+
+        :return bool: True when this is an aggregator.
+        """
+        return cls.__name__.endswith('Agg')
 
     @classmethod
     def getOpr(cls,
@@ -79,8 +87,8 @@ class Base(logutils.Base):
         if cmd is None:
             cmd = cls.OUT == jobutils.OUTFILE
         if with_job is None:
-            with_job = not cls.AGG
-        if aggregator is None and cls.AGG:
+            with_job = not cls.agg
+        if aggregator is None and cls.agg:
             aggregator = flow.aggregator()
 
         # Operator
@@ -98,10 +106,9 @@ class Base(logutils.Base):
     @classmethod
     def runOpr(cls, *args, **kwargs):
         """
-        The main opterator (function) for a job task executed after
-        pre-conditions are met.
+        The main opterator. (function to execute after pre-conditions are met)
 
-        :return 'cls': the instantiated.
+        :return 'cls': the executed.
         """
         obj = cls(*args, **kwargs)
         obj.run()
@@ -116,25 +123,25 @@ class Base(logutils.Base):
     @property
     def out(self):
         """
-        The message of the job.
+        The output.
 
-        :return str: the message of the job.
+        :return str: the output.
         """
         return self.doc[self.OUT].get(self.jobname)
 
     @out.setter
     def out(self, value):
         """
-        Set message of the job.
+        Set output.
 
-        :param value str: the message of the job.
+        :param value str: the output.
         """
         self.doc[self.OUT].update({self.jobname: value})
 
     @classmethod
     def postOpr(cls, *args, **kwargs):
         """
-        The job is considered finished when the post-conditions return True.
+        Whether the job is completed or not.
 
         :return bool: True if the post-conditions are met
         """
@@ -142,7 +149,7 @@ class Base(logutils.Base):
 
     def post(self):
         """
-        The job is considered finished when the out is set.
+        The job is considered completed when the out is set.
 
         :return: True if the post-conditions are met.
         """
@@ -150,14 +157,14 @@ class Base(logutils.Base):
 
     def clean(self):
         """
-        Clean the previous job including the post criteria.
+        Clean the output.
         """
         self.doc[self.OUT].pop(self.jobname, None)
 
 
-class Job(Base):
+class Job(Agg):
     """
-    The non-cmd normal jobs.
+    Non-cmd job.
     """
 
     @classmethod
@@ -170,14 +177,7 @@ class Job(Base):
             obj.out = False
 
 
-class Agg(Job):
-    """
-    Non-cmd aggregator job.
-    """
-    AGG = True
-
-
-class Cmd(Base):
+class Cmd(Agg):
     """
     Cmd normal job.
     """
