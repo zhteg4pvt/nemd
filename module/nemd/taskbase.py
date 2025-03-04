@@ -2,9 +2,9 @@
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
 Under jobcontrol:
- 1) Agg operates non-cmd aggregation
- 2) Job executes non-cmd job
- 3) Cmd generates the cmd job
+ 1) Job executes without cmd
+ 2) Agg aggregates without cmd
+ 3) Cmd generates the cmd for execution
 """
 import functools
 import re
@@ -20,9 +20,9 @@ from nemd import symbols
 MESSAGE = 'message'
 
 
-class Agg(logutils.Base):
+class Job(logutils.Base):
     """
-    Non-cmd aggregator.
+    Non-cmd job.
     """
     PREREQ = 'prereq'
     OUT = MESSAGE
@@ -30,7 +30,7 @@ class Agg(logutils.Base):
     def __init__(self, *jobs, name=None, options=None, logger=None, **kwargs):
         """
         :param jobs list' of 'signac.contrib.job.Job': signac jobs
-        :param name str: the job name, different from the workflow name
+        :param name str: the job name
         :param options 'argparse.Namespace': commandline options
         :param logger 'logging.Logger':  print to this logger
         """
@@ -106,13 +106,15 @@ class Agg(logutils.Base):
     @classmethod
     def runOpr(cls, *args, **kwargs):
         """
-        The main opterator. (function to execute after pre-conditions are met)
+        The main opterator. (execute this function after pre-conditions are met)
 
-        :return 'cls': the executed.
+        :return str: the cmd.
         """
         obj = cls(*args, **kwargs)
         obj.run()
-        return obj
+        if obj.OUT == MESSAGE and obj.out is None:
+            obj.out = False
+        return obj.getCmd()
 
     def run(self):
         """
@@ -138,6 +140,14 @@ class Agg(logutils.Base):
         """
         self.doc[self.OUT].update({self.jobname: value})
 
+    def getCmd(self, *arg, **kwargs):
+        """
+        Get command line str.
+
+        :return str: the command as str
+        """
+        pass
+
     @classmethod
     def postOpr(cls, *args, **kwargs):
         """
@@ -151,7 +161,7 @@ class Agg(logutils.Base):
         """
         The job is considered completed when the out is set.
 
-        :return: True if the post-conditions are met.
+        :return bool: whether the post-conditions are met.
         """
         return self.out is not None
 
@@ -162,24 +172,15 @@ class Agg(logutils.Base):
         self.doc[self.OUT].pop(self.jobname, None)
 
 
-class Job(Agg):
+class Agg(Job):
     """
-    Non-cmd job.
+    Non-cmd aggregator.
     """
 
-    @classmethod
-    def runOpr(cls, *args, **kwargs):
-        """
-        The operator to run. (see parent for details)
-        """
-        obj = super().runOpr(*args, **kwargs)
-        if obj.out is None:
-            obj.out = False
 
-
-class Cmd(Agg):
+class Cmd(Job):
     """
-    Cmd normal job.
+    Cmd job.
     """
     FILE = None
     ParserClass = parserutils.Driver
@@ -229,8 +230,7 @@ class Cmd(Agg):
 
     def rmUnknown(self):
         """
-        Remove unknown arguments instead of keeping known so that the same flag
-        across different tasks can be used multiple times.
+        Remove unknown arguments.
         """
         parser = self.ParserClass(self.FILE)
         _, unknown = parser.parse_known_args(self.args)
@@ -257,20 +257,9 @@ class Cmd(Agg):
 
     def setName(self):
         """
-        Set the jobname flag in the arguments. (self.jobname is usually defined
-        on creating the workflow)
+        Set the jobname flag in the arguments.
         """
         return jobutils.set_arg(self.args, jobutils.FLAG_JOBNAME, self.jobname)
-
-    @classmethod
-    def runOpr(cls, *args, **kwargs):
-        """
-        The operator to get cmd. (see parent for details)
-
-        :return str: the command to run.
-        """
-        obj = super().runOpr(*args, **kwargs)
-        return obj.getCmd()
 
     def getCmd(self, prefix=PRE_RUN, write=True):
         """

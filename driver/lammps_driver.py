@@ -139,9 +139,11 @@ class Lammps(logutils.Base):
                                    text=True)
         stdout, stderr = process.communicate()
         self.log(stdout)
-        self.log(stderr)
         if not process.returncode:
+            self.log(stderr)
             return
+        if stderr:
+            self.error(stderr)
         with open(self.outfile, 'r') as fh:
             matches = self.ERROR_RE.finditer(fh.read())
             self.error('\n'.join(x.group(1) for x in matches))

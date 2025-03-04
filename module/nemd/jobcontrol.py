@@ -34,12 +34,12 @@ class Runner(logutils.Base):
     The main class to set up a workflow.
     """
     AggClass = task.TimeAgg
-    PREREQ = taskbase.Agg.PREREQ
-    FLAG_SEED = jobutils.FLAG_SEED
-    MESSAGE = taskbase.MESSAGE
     COMPLETED = 'completed'
     OPERATIONS = 'operations'
     JOB_ID = 'job_id'
+    PREREQ = taskbase.Agg.PREREQ
+    FLAG_SEED = jobutils.FLAG_SEED
+    MESSAGE = taskbase.MESSAGE
 
     def __init__(self, options, original, logger=None):
         """
