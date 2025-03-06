@@ -8,13 +8,13 @@ import sys
 
 from nemd import analyzer
 from nemd import jobcontrol
-from nemd import jobutils
 from nemd import logutils
 from nemd import np
 from nemd import parserutils
 from nemd import rdkitutils
 from nemd import symbols
 from nemd import task
+from nemd import taskbase
 
 FLAG_SUBSTRUCT = parserutils.Bldr.FLAG_SUBSTRUCT
 
@@ -79,7 +79,7 @@ class AnalyzerAgg(analyzer.Agg):
         # result.substruct contains the smiles (e.g. CCCC)
         # Read the reported value from the log (e.g. dihedral angle: 73.50 deg)
         job = self.groups[0][1][0]
-        for logfile in job.doc[jobutils.LOGFILE].values():
+        for logfile in taskbase.Job(job).getFiles().keys():
             reader = Reader(job.fn(logfile))
             if reader.options.NAME != task.MolBldr.default:
                 continue

@@ -6,6 +6,7 @@
 This module shares job flags, handles command list, defines jobname, and
 registers output.
 """
+import functools
 import json
 import os
 import re
@@ -39,7 +40,7 @@ OUTFILES = 'outfiles'
 
 SIGNAC = 'signac'
 JSON_EXT = '.json'
-FN_DOCUMENT = f'{SIGNAC}_job_document{JSON_EXT}'
+FN_DOCUMENT = f'{SIGNAC}_job_document{JSON_EXT}'  # signac.job.Job.FN_DOCUMENT
 FN_STATE_POINT = f'{SIGNAC}_statepoint{JSON_EXT}'
 WORKSPACE = 'workspace'
 
@@ -131,57 +132,136 @@ def get_name(file):
     return match.group(1) if match else os.path.splitext(basename)[0]
 
 
-def add_outfile(outfile,
-                jobname=None,
-                document=FN_DOCUMENT,
-                file=False,
-                log=False):
+def add_outfile(outfile, jobname=None, file=False, log=False):
     """
-    Register the outfile to the job control.
+    Register the outfile under the job control.
 
-    :param outfile str: the outfile to be registered
-    :param jobname str: register the file under this jobname
-    :param document str: the job control information is saved into this file
+    :param outfile str: the single output file
+    :param jobname str: the jobname to determine the json file
     :param file bool: set this file as the single output file
     :param log bool: set this file as the log file
     """
     if outfile is None:
         return
-    if jobname is None:
-        jobname = envutils.get_jobname()
-    try:
-        with open(document) as fh:
-            data = json.load(fh)
-    except FileNotFoundError:
-        data = {}
-    data.setdefault(OUTFILES, {}).setdefault(jobname, [])
-    if outfile not in data[OUTFILES][jobname]:
-        data[OUTFILES][jobname].append(outfile)
+    job = Job(jobname=jobname)
+    job.add(outfile)
     if file:
-        data.setdefault(OUTFILE, {})
-        data[OUTFILE].setdefault(jobname, outfile)
+        job.set(outfile)
     if log:
-        data.setdefault(LOGFILE, {})
-        data[LOGFILE].setdefault(jobname, outfile)
-    with open(document, 'w') as fh:
-        json.dump(data, fh)
+        job.set(outfile, ftype=LOGFILE)
+    job.write()
 
 
 class Job:
     """
+    Json file centered job applications.
+    """
+
+    OUT = OUTFILE
+    JOB_DOCUMENT = f'.{{jobname}}_document{JSON_EXT}'
+
+    def __init__(self, file=None, jobname=None, job=None, delay=False):
+        """
+        :param file str: the job json file
+        :param jobname str: the jobname
+        :param job 'signac.job.Job': the signac job instance for json path
+        :param delay bool: delay the setup if True
+        """
+        self.file = file
+        self.jobname = jobname
+        self.job = job
+        if delay:
+            return
+        self.setUp()
+
+    def setUp(self, rex=re.compile(JOB_DOCUMENT.format(jobname='(\w*)'))):
+        """
+        Set up the json namepath, jobname, etc.
+
+        :param rex 're.Pattern': the regular expression to get jobname from the
+            json filename.
+        """
+        if self.file:
+            self.jobname = rex.match(os.path.basename(self.file)).group(1)
+            return
+        if self.jobname is None:
+            self.jobname = envutils.get_jobname()
+        self.file = self.JOB_DOCUMENT.format(jobname=self.jobname)
+        if not self.job:
+            return
+        self.file = self.job.fn(self.file)
+
+    @property
+    @functools.cache
+    def data(self):
+        """
+        Return the job data.
+
+        :return dict: the data in the job json.
+        """
+        try:
+            with open(self.file) as fh:
+                return json.load(fh)
+        except (FileNotFoundError, json.decoder.JSONDecodeError):
+            return {}
+
+    def add(self, file, ftype=OUTFILES):
+        """
+        Add the file to the outfiles.
+
+        :param file str: the file to be added.
+        """
+        self.data.setdefault(ftype, [])
+        if file not in self.data[ftype]:
+            self.data[ftype].append(file)
+
+    def set(self, file, ftype=OUT):
+        """
+        set the file.
+
+        :param file str: the file to be set.
+        :param ftype str: the type of the file
+        :return:
+        """
+        self.data[ftype] = file
+
+    def write(self):
+        """
+        Write the data to the json.
+        """
+        with open(self.file, 'w') as fh:
+            json.dump(self.data, fh)
+
+    def getFile(self, ftype=OUTFILE):
+        """
+        Get the file.
+
+        :param ftype str: the file type.
+        :return str: the obtained & existed file.
+        """
+        file = self.data.get(ftype)
+        if not file:
+            return
+        if self.job:
+            file = self.job.fn(file)
+        if os.path.isfile(file):
+            return file
+
+
+class Mimic:
+    """
     A class to mimic a signac.job.Job for testing purpose.
     """
 
-    def __init__(self, job_dir=os.curdir):
+    def __init__(self, dir=os.curdir):
         """
         Initialize a Job object.
 
-        :param job_dir str: the directory of the job
+        :param dir str: the directory of the job
         """
-        self.dir = job_dir
+        self.dir = dir
         self.statepoint = self.load(FN_STATE_POINT)
-        self.doc = self.load(FN_DOCUMENT)
-        self.document = self.doc
+        self.document = self.load(FN_DOCUMENT)
         self.project = types.SimpleNamespace(doc={},
                                              workspace=WORKSPACE,
                                              path=os.curdir)

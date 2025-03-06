@@ -7,6 +7,8 @@ Under jobcontrol:
  3) Cmd generates the cmd for execution
 """
 import functools
+import glob
+import os
 import re
 import types
 
@@ -20,30 +22,31 @@ from nemd import symbols
 MESSAGE = 'message'
 
 
-class Job(logutils.Base):
+class Job(jobutils.Job, logutils.Base):
     """
     Non-cmd job.
     """
     PREREQ = 'prereq'
+    JOB_DOCUMENT_PATT = jobutils.Job.JOB_DOCUMENT.format(jobname='*')
     OUT = MESSAGE
 
     def __init__(self, *jobs, name=None, options=None, logger=None, **kwargs):
         """
-        :param jobs list' of 'signac.contrib.job.Job': signac jobs
+        :param jobs list' of 'signac.job.Job': signac jobs
         :param name str: the job name
         :param options 'argparse.Namespace': commandline options
         :param logger 'logging.Logger':  print to this logger
         """
-        super().__init__(logger=logger)
+        jobutils.Job.__init__(self,
+                              jobname=name if name else self.default,
+                              job=jobs[0])
+        logutils.Base.__init__(self, logger=logger)
         self.jobs = jobs
         self.name = name
         self.options = options
         self.logger = logger
-        self.jobname = name if name else self.default
-        self.job = self.jobs[0]
         self.proj = self.job.project
         self.doc = self.proj.doc if self.agg else self.job.doc
-        self.doc.setdefault(self.OUT, {})
 
     @classmethod
     @property
@@ -129,7 +132,7 @@ class Job(logutils.Base):
 
         :return str: the output.
         """
-        return self.doc[self.OUT].get(self.jobname)
+        return self.data.get(self.OUT)
 
     @out.setter
     def out(self, value):
@@ -138,7 +141,25 @@ class Job(logutils.Base):
 
         :param value str: the output.
         """
-        self.doc[self.OUT].update({self.jobname: value})
+        self.data[self.OUT] = value
+        self.write()
+
+    def getFiles(self, ftype=jobutils.LOGFILE):
+        """
+        Get the files within current parameter set for jobs, but all files
+        across all parameter sets for aggregators.
+
+        :param ftype str: the output file type
+        :return dict: keys are files. values are the corresponding jobs.
+        """
+        jobs = [
+            jobutils.Job(file=y, job=x) for x in self.jobs
+            for y in glob.glob(x.fn(self.JOB_DOCUMENT_PATT))
+        ]
+        if not jobs:
+            return {}
+        files = {x.getFile(ftype): x for x in jobs}
+        return {x: y for x, y in files.items() if x}
 
     def getCmd(self, *arg, **kwargs):
         """
@@ -169,7 +190,7 @@ class Job(logutils.Base):
         """
         Clean the output.
         """
-        self.doc[self.OUT].pop(self.jobname, None)
+        os.remove(self.file)
 
 
 class Agg(Job):
@@ -226,7 +247,7 @@ class Cmd(Job):
         # Please rearrange or modify the prerequisite jobs' input by subclassing
         for pre_job in pre_jobs:
             index = self.args.index(None)
-            self.args[index] = self.doc[self.OUT][pre_job]
+            self.args[index] = jobutils.Job(jobname=pre_job).getFile()
 
     def rmUnknown(self):
         """

@@ -14,7 +14,6 @@ import types
 
 import pandas as pd
 
-from nemd import DEBUG
 from nemd import analyzer
 from nemd import jobutils
 from nemd import lammpsfix
@@ -226,10 +225,7 @@ class Cmd(taskbase.Cmd):
 
         :return: True if the post-conditions are met.
         """
-        try:
-            outfiles = self.doc[self.OUT]
-        except KeyError:
-            return False
+        outfiles = self.getFiles(ftype=self.OUT)
         if self.param.args is None:
             return bool(outfiles)
         return len(outfiles) >= len(self.param.args)
@@ -240,7 +236,8 @@ class Cmd(taskbase.Cmd):
 
         Note: The jobnames of cmd tasks are determined by the cmd content.
         """
-        self.doc[jobutils.OUTFILE] = {}
+        for job in self.getFiles().values():
+            os.remove(job.file)
         try:
             shutil.rmtree(self.job.fn(jobutils.WORKSPACE))
         except FileNotFoundError:
@@ -344,9 +341,8 @@ class TimeAgg(taskbase.Agg):
         """
         if not self.job:
             return
-        files = [(x.doc.get(jobutils.LOGFILE, {}), x) for x in self.jobs]
-        files = [(y.fn(z), y) for x, y in files for z in x.values()]
-        rdrs = [(logutils.Reader(x), y) for x, y in files if os.path.isfile(x)]
+        files = self.getFiles()
+        rdrs = [(logutils.Reader(x), y.job) for x, y in files.items()]
         info = [[x.options.NAME[:8], x.task_time, y.id[:3]] for x, y in rdrs]
         info = pd.DataFrame(info,
                             columns=[symbols.NAME, self.TIME, symbols.ID])

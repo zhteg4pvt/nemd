@@ -23,6 +23,7 @@ from nemd import logutils
 from nemd import plotutils
 from nemd import process
 from nemd import symbols
+from nemd import taskbase
 from nemd import timeutils
 
 CMD = 'cmd'
@@ -387,7 +388,8 @@ class CollectLog(Exist):
         tokens = [x.strip('\'\" ') for x in values.split(',')]
         if not tokens:
             tokens = [cls.TIME]
-        files = [f"{x}={y}" for x, y in job.doc[jobutils.LOGFILE].items()]
+        files = taskbase.Job(job).getFiles()
+        files = [f"{y.jobname}={x}" for x, y in files.items()]
         return tokens + [job.statepoint[jobutils.FLAG_DIR]] + files
 
     def run(self):

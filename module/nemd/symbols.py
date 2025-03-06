@@ -67,7 +67,6 @@ LOG_EXT = '.log'
 LMP_LOG = f'lmp{LOG_EXT}'
 DARWIN = 'darwin'
 LINUX = 'linux'
-# The job's state point filename hard-coded as signac.job.Job.FN_DOCUMENT
 TASK = 'task'
 AGGREGATOR = 'aggregator'
 TOTENG = 'toteng'
