@@ -37,16 +37,12 @@ class Test(jobcontrol.Runner):
     def setJobs(self):
         """
         Set operators to run cmds, check results, and tag tests.
-
-        FIXME: tag and check cannot be paralleled due to the same job json file
-          being touched by multiple operators.
         """
-        if test.CMD in self.options.task:
-            self.add(task.Cmd)
+        cmd = self.add(task.Cmd) if test.CMD in self.options.task else False
         if test.CHECK in self.options.task:
-            self.add(task.Check)
+            self.add(task.Check, pre=cmd)
         if test.TAG in self.options.task:
-            self.add(task.Tag)
+            self.add(task.Tag, pre=cmd)
 
     def setState(self):
         """
