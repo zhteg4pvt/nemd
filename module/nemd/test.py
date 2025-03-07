@@ -42,13 +42,15 @@ class Cmd:
     NAME = 'cmd'
     POUND = symbols.POUND
 
-    def __init__(self, dir=None, job=None):
+    def __init__(self, dir=None, job=None, options=None):
         """
         :param dir str: the path containing the file
         :param job 'signac.contrib.job.Job': the signac job instance
+        :param options 'argparse.ArgumentParser':  Parsed command-line options
         """
         self.dir = dir
         self.job = job
+        self.options = options
         if self.dir is None:
             self.dir = self.job.statepoint[jobutils.FLAG_DIR]
         self.pathname = os.path.join(self.dir, self.NAME)
@@ -141,10 +143,9 @@ class Param(Cmd):
         args = super().args
         if args is None:
             return
-        slow = jobutils.get_arg(self.job.doc[symbols.ARGS], jobutils.FLAG_SLOW)
-        if slow is None:
+        if self.options.slow is None:
             return args
-        params = Tag(job=self.job).slowParams(slow=float(slow))
+        params = Tag(job=self.job).slowParams(slow=self.options.slow)
         return [x for x in args if x in params]
 
     def getCmds(self):

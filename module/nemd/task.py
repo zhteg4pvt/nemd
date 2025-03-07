@@ -165,7 +165,7 @@ class Cmd(taskbase.Cmd):
 
         :return `test.Param`: the parameters.
         """
-        return test.Param(job=self.job, cmd=self.cmd)
+        return test.Param(job=self.job, cmd=self.cmd, options=self.options)
 
     def numCpu(self):
         """
@@ -236,11 +236,9 @@ class Cmd(taskbase.Cmd):
 
         Note: The jobnames of cmd tasks are determined by the cmd content.
         """
+        return
         for job in self.getJobs():
-            try:
-                os.remove(job.file)
-            except FileNotFoundError:
-                pass
+            job.clean()
         try:
             shutil.rmtree(self.job.fn(jobutils.WORKSPACE))
         except FileNotFoundError:

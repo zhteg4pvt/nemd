@@ -7,7 +7,6 @@ Under jobcontrol:
  3) Cmd generates the cmd for execution
 """
 import functools
-import os
 import re
 import types
 
@@ -167,15 +166,6 @@ class Job(jobutils.Job, logutils.Base):
         """
         return self.out is not None
 
-    def clean(self):
-        """
-        Clean the output.
-        """
-        try:
-            os.remove(self.file)
-        except FileNotFoundError:
-            pass
-
     def getJobs(self, **kwargs):
         """
         Get all json jobs.
@@ -208,7 +198,8 @@ class Cmd(Job):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.args = list(map(str, self.doc.get(symbols.ARGS, [])))
+        self.args = list(map(str, self.proj.doc.get(symbols.ARGS, [])))
+        self.args += [y for x in self.job.statepoint.items() for y in x]
 
     @classmethod
     @property
@@ -235,7 +226,7 @@ class Cmd(Job):
         if self.ARGS_TMPL is None:
             return
         try:
-            pre_jobs = self.doc[self.PREREQ][self.jobname]
+            pre_jobs = self.proj.doc[self.PREREQ][self.jobname]
         except KeyError:
             return
         self.args = self.ARGS_TMPL + self.args

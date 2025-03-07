@@ -117,6 +117,8 @@ class Runner(logutils.Base):
         Initiate the project.
         """
         self.proj = flow.project.FlowProject.init_project()
+        self.proj.document.update({self.PREREQ: self.prereq})
+        self.proj.document[symbols.ARGS] = self.args
 
     def plotJobs(self):
         """
@@ -190,12 +192,11 @@ class Runner(logutils.Base):
         """
         Open one job for each parameter set.
         """
-        expanded = [[[x, z] for z in y] for x, y in self.state.items()]
-        for argv in itertools.product(*expanded):
+        for values in itertools.product(*self.state.values()):
             # e.g. arg = (['-seed', '0'], ['-scale_factor', '0.95'])
-            job = self.proj.open_job(dict(tuple(x) for x in argv))
-            job.document[symbols.ARGS] = self.args + sum(argv, [])
-            job.document.update({self.PREREQ: self.prereq})
+            state = {x: y for x, y in zip(self.state.keys(), values)}
+            job = self.proj.open_job(state)
+            job.init()
             self.jobs.append(job)
         if not self.jobs:
             self.error('No jobs to run.')

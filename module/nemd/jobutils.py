@@ -260,6 +260,17 @@ class Job:
         jobnames = [doc_re.match(os.path.basename(x)).group(1) for x in files]
         return [Job(jobname=x, job=job) for x in jobnames]
 
+    def clean(self):
+        """
+        Clean the previous jobs including the outfiles and the workspace.
+
+        Note: The jobnames of cmd tasks are determined by the cmd content.
+        """
+        try:
+            os.remove(self.file)
+        except FileNotFoundError:
+            pass
+
 
 class Mimic:
     """
