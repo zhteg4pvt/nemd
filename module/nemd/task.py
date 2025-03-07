@@ -225,10 +225,10 @@ class Cmd(taskbase.Cmd):
 
         :return: True if the post-conditions are met.
         """
-        outfiles = self.getFiles(ftype=self.OUT)
+        jobs = self.getJobs()
         if self.param.args is None:
-            return bool(outfiles)
-        return len(outfiles) >= len(self.param.args)
+            return bool(jobs)
+        return len(jobs) >= len(self.param.args)
 
     def clean(self):
         """
@@ -236,8 +236,11 @@ class Cmd(taskbase.Cmd):
 
         Note: The jobnames of cmd tasks are determined by the cmd content.
         """
-        for job in self.getFiles().values():
-            os.remove(job.file)
+        for job in self.getJobs():
+            try:
+                os.remove(job.file)
+            except FileNotFoundError:
+                pass
         try:
             shutil.rmtree(self.job.fn(jobutils.WORKSPACE))
         except FileNotFoundError:
@@ -341,11 +344,11 @@ class TimeAgg(taskbase.Agg):
         """
         if not self.job:
             return
-        files = self.getFiles()
-        rdrs = [(logutils.Reader(x), y.job) for x, y in files.items()]
-        info = [[x.options.NAME[:8], x.task_time, y.id[:3]] for x, y in rdrs]
-        info = pd.DataFrame(info,
-                            columns=[symbols.NAME, self.TIME, symbols.ID])
+        jobs = [x for x in self.getJobs() if x.logfile]
+        rdrs = [logutils.Reader(x.logfile) for x in jobs]
+        info = [[x.options.NAME[:8], x.task_time] for x in rdrs]
+        info = pd.DataFrame(info, columns=[symbols.NAME, self.TIME])
+        info[symbols.ID] = [x.job.id[:3] for x in jobs]
         total_time = timeutils.delta2str(info.time.sum())
         self.log(logutils.Reader.TOTAL_TIME + total_time)
         grouped = info.groupby(symbols.NAME)

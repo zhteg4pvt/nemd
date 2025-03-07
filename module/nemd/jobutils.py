@@ -7,6 +7,7 @@ This module shares job flags, handles command list, defines jobname, and
 registers output.
 """
 import functools
+import glob
 import json
 import os
 import re
@@ -160,36 +161,18 @@ class Job:
     OUT = OUTFILE
     JOB_DOCUMENT = f'.{{jobname}}_document{JSON_EXT}'
 
-    def __init__(self, file=None, jobname=None, job=None, delay=False):
+    def __init__(self, jobname=None, job=None):
         """
-        :param file str: the job json file
         :param jobname str: the jobname
         :param job 'signac.job.Job': the signac job instance for json path
-        :param delay bool: delay the setup if True
         """
-        self.file = file
         self.jobname = jobname
         self.job = job
-        if delay:
-            return
-        self.setUp()
-
-    def setUp(self, rex=re.compile(JOB_DOCUMENT.format(jobname='(\w*)'))):
-        """
-        Set up the json namepath, jobname, etc.
-
-        :param rex 're.Pattern': the regular expression to get jobname from the
-            json filename.
-        """
-        if self.file:
-            self.jobname = rex.match(os.path.basename(self.file)).group(1)
-            return
         if self.jobname is None:
             self.jobname = envutils.get_jobname()
         self.file = self.JOB_DOCUMENT.format(jobname=self.jobname)
-        if not self.job:
-            return
-        self.file = self.job.fn(self.file)
+        if self.job:
+            self.file = self.job.fn(self.file)
 
     @property
     @functools.cache
@@ -246,6 +229,36 @@ class Job:
             file = self.job.fn(file)
         if os.path.isfile(file):
             return file
+
+    @property
+    @functools.cache
+    def logfile(self):
+        """
+        Return the log file.
+
+        :return str: the namepath of the log file
+        """
+        return self.getFile(ftype=LOGFILE)
+
+    def getJobs(self,
+                job=None,
+                patt=JOB_DOCUMENT.format(jobname='*'),
+                doc_re=re.compile(JOB_DOCUMENT.format(jobname='(\w*)'))):
+        """
+        Get the all the jobs in a directory.
+
+        :param job 'signac.job.Job': the signac job defines the directory
+        :param patt str: the pattern to search job json files
+        :param doc_re 're.Pattern': the regular expression to get jobname
+        :return 'Job' list: the json jobs
+        """
+        if job is None:
+            job = self.job
+        if job:
+            patt = job.fn(patt)
+        files = glob.glob(patt)
+        jobnames = [doc_re.match(os.path.basename(x)).group(1) for x in files]
+        return [Job(jobname=x, job=job) for x in jobnames]
 
 
 class Mimic:

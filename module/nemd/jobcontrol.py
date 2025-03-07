@@ -56,7 +56,6 @@ class Runner(logutils.Base):
         self.added = []
         self.cpu = None
         self.proj = None
-        self.agg_proj = None
         self.prereq = collections.defaultdict(list)
         # flow/project.py gets logger from logging.getLogger(__name__)
         logutils.Logger.get('flow.project')
@@ -310,6 +309,6 @@ class Runner(logutils.Base):
         except LookupError as err:
             self.error(str(err))
         if not self.jobs:
-            self.jobs = self.agg_proj.find_jobs(filter=filter)
+            self.jobs = self.proj.find_jobs(filter=filter)
         if not self.jobs:
             self.error(f"No jobs to aggregate.")

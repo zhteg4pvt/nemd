@@ -388,8 +388,8 @@ class CollectLog(Exist):
         tokens = [x.strip('\'\" ') for x in values.split(',')]
         if not tokens:
             tokens = [cls.TIME]
-        files = taskbase.Job(job).getFiles()
-        files = [f"{y.jobname}={x}" for x, y in files.items()]
+        jobs = jobutils.Job(job).getJobs()
+        files = [f"{x.jobname}={x.logfile}" for x in jobs]
         return tokens + [job.statepoint[jobutils.FLAG_DIR]] + files
 
     def run(self):

@@ -7,7 +7,6 @@ Under jobcontrol:
  3) Cmd generates the cmd for execution
 """
 import functools
-import glob
 import os
 import re
 import types
@@ -27,7 +26,6 @@ class Job(jobutils.Job, logutils.Base):
     Non-cmd job.
     """
     PREREQ = 'prereq'
-    JOB_DOCUMENT_PATT = jobutils.Job.JOB_DOCUMENT.format(jobname='*')
     OUT = MESSAGE
 
     def __init__(self, *jobs, name=None, options=None, logger=None, **kwargs):
@@ -144,23 +142,6 @@ class Job(jobutils.Job, logutils.Base):
         self.data[self.OUT] = value
         self.write()
 
-    def getFiles(self, ftype=jobutils.LOGFILE):
-        """
-        Get the files within current parameter set for jobs, but all files
-        across all parameter sets for aggregators.
-
-        :param ftype str: the output file type
-        :return dict: keys are files. values are the corresponding jobs.
-        """
-        jobs = [
-            jobutils.Job(file=y, job=x) for x in self.jobs
-            for y in glob.glob(x.fn(self.JOB_DOCUMENT_PATT))
-        ]
-        if not jobs:
-            return {}
-        files = {x.getFile(ftype): x for x in jobs}
-        return {x: y for x, y in files.items() if x}
-
     def getCmd(self, *arg, **kwargs):
         """
         Get command line str.
@@ -190,7 +171,22 @@ class Job(jobutils.Job, logutils.Base):
         """
         Clean the output.
         """
-        os.remove(self.file)
+        try:
+            os.remove(self.file)
+        except FileNotFoundError:
+            pass
+
+    def getJobs(self, **kwargs):
+        """
+        Get all json jobs.
+
+        :return 'Job' list: the json jobs (within one parameter set for Job;
+            across all parameter sets for Agg)
+        """
+        return [
+            y for x in self.jobs
+            for y in super(Job, self).getJobs(job=x, **kwargs)
+        ]
 
 
 class Agg(Job):
