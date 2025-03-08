@@ -144,7 +144,7 @@ def add_outfile(outfile, jobname=None, file=False, log=False):
     """
     if outfile is None:
         return
-    job = Job(jobname=jobname)
+    job = Job(name=jobname)
     job.add(outfile)
     if file:
         job.set(outfile)
@@ -161,18 +161,37 @@ class Job:
     OUT = OUTFILE
     JOB_DOCUMENT = f'.{{jobname}}_document{JSON_EXT}'
 
-    def __init__(self, jobname=None, job=None):
+    def __init__(self, name=None, job=None):
         """
         :param jobname str: the jobname
         :param job 'signac.job.Job': the signac job instance for json path
         """
-        self.jobname = jobname
-        self.job = job
-        if self.jobname is None:
-            self.jobname = envutils.get_jobname()
+        self.name = name
+        self.job = job.project if self.agg else job
+        self.jobname = self.name if self.name else self.default
         self.file = self.JOB_DOCUMENT.format(jobname=self.jobname)
         if self.job:
             self.file = self.job.fn(self.file)
+
+    @classmethod
+    @property
+    def default(cls,):
+        """
+        The default jobname.
+
+        :return str: the default jobname
+        """
+        return envutils.get_jobname()
+
+    @classmethod
+    @property
+    def agg(cls):
+        """
+        Whether this is an aggregator class.
+
+        :return bool: True when this is an aggregator.
+        """
+        return cls.__name__.endswith('Agg')
 
     @property
     @functools.cache
@@ -257,12 +276,12 @@ class Job:
         if job:
             patt = job.fn(patt)
         files = glob.glob(patt)
-        jobnames = [doc_re.match(os.path.basename(x)).group(1) for x in files]
-        return [Job(jobname=x, job=job) for x in jobnames]
+        names = [doc_re.match(os.path.basename(x)).group(1) for x in files]
+        return [Job(name=x, job=job) for x in names]
 
     def clean(self):
         """
-        Clean the previous jobs including the outfiles and the workspace.
+        Clean the json file.
 
         Note: The jobnames of cmd tasks are determined by the cmd content.
         """

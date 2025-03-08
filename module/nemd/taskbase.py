@@ -13,37 +13,29 @@ import types
 import flow
 
 from nemd import jobutils
-from nemd import logutils
 from nemd import parserutils
 from nemd import symbols
 
 MESSAGE = 'message'
 
 
-class Job(jobutils.Job, logutils.Base):
+class Job(jobutils.Job):
     """
     Non-cmd job.
     """
     PREREQ = 'prereq'
     OUT = MESSAGE
 
-    def __init__(self, *jobs, name=None, options=None, logger=None, **kwargs):
+    def __init__(self, *jobs, name=None, options=None, **kwargs):
         """
         :param jobs list' of 'signac.job.Job': signac jobs
         :param name str: the job name
         :param options 'argparse.Namespace': commandline options
-        :param logger 'logging.Logger':  print to this logger
         """
-        jobutils.Job.__init__(self,
-                              jobname=name if name else self.default,
-                              job=jobs[0])
-        logutils.Base.__init__(self, logger=logger)
+        super().__init__(name=name, job=jobs[0])
         self.jobs = jobs
-        self.name = name
         self.options = options
-        self.logger = logger
-        self.proj = self.job.project
-        self.doc = self.proj.doc if self.agg else self.job.doc
+        self.doc = self.jobs[0].project.doc
 
     @classmethod
     @property
@@ -55,16 +47,6 @@ class Job(jobutils.Job, logutils.Base):
         """
         words = re.findall('[A-Z][^A-Z]*', cls.__name__)
         return '_'.join([x.lower() for x in words])
-
-    @classmethod
-    @property
-    def agg(cls):
-        """
-        Whether this is an aggregator class.
-
-        :return bool: True when this is an aggregator.
-        """
-        return cls.__name__.endswith('Agg')
 
     @classmethod
     def getOpr(cls,
@@ -178,6 +160,13 @@ class Job(jobutils.Job, logutils.Base):
             for y in super(Job, self).getJobs(job=x, **kwargs)
         ]
 
+    def log(self, msg):
+        """
+        Save this message into the job json.
+
+        :param msg str: the msg to be saved
+        """
+        self.out = msg if self.out is None else '\n'.join([self.out, msg])
 
 class Agg(Job):
     """
@@ -198,7 +187,7 @@ class Cmd(Job):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.args = list(map(str, self.proj.doc.get(symbols.ARGS, [])))
+        self.args = list(map(str, self.doc.get(symbols.ARGS, [])))
         self.args += [y for x in self.job.statepoint.items() for y in x]
 
     @classmethod
@@ -225,8 +214,9 @@ class Cmd(Job):
         """
         if self.ARGS_TMPL is None:
             return
+
         try:
-            pre_jobs = self.proj.doc[self.PREREQ][self.jobname]
+            pre_jobs = self.doc[self.PREREQ][self.jobname]
         except KeyError:
             return
         self.args = self.ARGS_TMPL + self.args
@@ -234,7 +224,7 @@ class Cmd(Job):
         # Please rearrange or modify the prerequisite jobs' input by subclassing
         for pre_job in pre_jobs:
             index = self.args.index(None)
-            self.args[index] = jobutils.Job(jobname=pre_job).getFile()
+            self.args[index] = jobutils.Job(name=pre_job).getFile()
 
     def rmUnknown(self):
         """

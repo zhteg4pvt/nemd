@@ -233,10 +233,8 @@ class Cmd(taskbase.Cmd):
     def clean(self):
         """
         Clean the previous jobs including the outfiles and the workspace.
-
-        Note: The jobnames of cmd tasks are determined by the cmd content.
         """
-        return
+        # Remove all jobs as the cmd task jobnames are unknown.
         for job in self.getJobs():
             job.clean()
         try:
@@ -256,7 +254,7 @@ class Check(taskbase.Job):
         Main method to execute.
         """
         try:
-            test.Check(job=self.job).run()
+            test.Check(job=self.job, options=self.options).run()
         except test.CheckError as err:
             self.out = str(err)
 
@@ -270,7 +268,7 @@ class Tag(Check):
         """
         Main method to execute.
         """
-        test.Tag(job=self.job).run()
+        test.Tag(job=self.job, options=self.options).run()
 
 
 class LmpLogAgg(taskbase.Agg):
@@ -292,7 +290,7 @@ class LmpLogAgg(taskbase.Agg):
             anlz = self.AnalyzerAgg(task=task,
                                     groups=self.groups,
                                     options=options,
-                                    logger=self.logger)
+                                    logger=self)
             anlz.run()
 
     @property
@@ -340,7 +338,7 @@ class TimeAgg(taskbase.Agg):
         """
         Report the total task timing and timing details grouped by name.
         """
-        if not self.job:
+        if not self.jobs:
             return
         jobs = [x for x in self.getJobs() if x.logfile]
         rdrs = [logutils.Reader(x.logfile) for x in jobs]

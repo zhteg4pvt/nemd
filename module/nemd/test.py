@@ -23,7 +23,6 @@ from nemd import logutils
 from nemd import plotutils
 from nemd import process
 from nemd import symbols
-from nemd import taskbase
 from nemd import timeutils
 
 CMD = 'cmd'
@@ -533,12 +532,11 @@ class Tag(Cmd):
     SLOW = 'slow'
     LABEL = 'label'
 
-    def __init__(self, *args, options=None, delay=False, **kwargs):
+    def __init__(self, *args, delay=False, **kwargs):
         """
-        :param options 'argparse.Namespace': parsed command line options.
+        :param delay 'bool': delay the setup if True.
         """
         super().__init__(*args, **kwargs)
-        self.options = options
         self.delay = delay
         self.operators = []
         self.logs = []
@@ -570,11 +568,10 @@ class Tag(Cmd):
         """
         Set the log readers.
         """
-        logfiles = self.job.doc.get(jobutils.LOGFILE)
-        if logfiles is None:
-            return
-        for logfile in logfiles.values():
-            self.logs.append(logutils.Reader(self.job.fn(logfile)))
+        for job in jobutils.Job(job=self.job).getJobs():
+            if not job.logfile:
+                continue
+            self.logs.append(logutils.Reader(job.logfile))
 
     def setSlow(self):
         """
@@ -586,7 +583,7 @@ class Tag(Cmd):
             job_time = timeutils.delta2str(total)
             self.set(self.SLOW, job_time)
             return
-        roots = [os.path.splitext(x.filepath)[0] for x in self.logs]
+        roots = [os.path.splitext(x.namepath)[0] for x in self.logs]
         params = [x.split('_')[-1] for x in roots]
         param_time = []
         for parm in self.param:
@@ -607,7 +604,7 @@ class Tag(Cmd):
 
         :return list: the parameters from the parameter file.
         """
-        return Param(job=self.job).args
+        return Param(job=self.job, options=self.options).args
 
     def set(self, key, *value):
         """

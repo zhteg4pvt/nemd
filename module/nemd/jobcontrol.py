@@ -54,11 +54,18 @@ class Runner(logutils.Base):
         self.state = {}
         self.jobs = []
         self.added = []
-        self.cpu = None
         self.proj = None
+        self.max_cpu = 1
+        self.cpu = None
         self.prereq = collections.defaultdict(list)
         # flow/project.py gets logger from logging.getLogger(__name__)
         logutils.Logger.get('flow.project')
+        if self.options.CPU:
+            self.max_cpu = self.options.CPU[0]
+        elif not self.options.DEBUG:
+            # Production mode: 75% of cpu count as total to avoid overloading
+            self.max_cpu = max([round(os.cpu_count() * 0.75), 1])
+        # Debug mode: 1 cpu as total to avoid parallelism
 
     def run(self):
         """
@@ -74,8 +81,8 @@ class Runner(logutils.Base):
             self.setProj()
             self.plotJobs()
             self.setState()
-            self.setCpu()
             self.openJobs()
+            self.setCpu()
             self.clean()
             self.runProj()
             self.logStatus()
@@ -164,20 +171,17 @@ class Runner(logutils.Base):
         Set cpu numbers for the project.
         """
         if self.options.CPU is None:
-            # No cpu specified
-            # Debug mode: 1 cpu as total to avoid parallelism
-            # Production mode: 75% of cpu count as total to avoid overloading
-            total = 1 if self.options.DEBUG else round(os.cpu_count() * 0.75)
             # Single cpu per job ensures efficiency
-            self.cpu = [max([total, 1]), 1]
+            self.cpu = [self.max_cpu, 1]
             return
+
         try:
-            per_subjob = self.options.CPU[1]
+            num = self.options.CPU[1]
         except IndexError:
             # Only total cpu specified: evenly distribute among subjobs
-            subjob_num = np.prod([len(x) for x in self.state.values()])
-            per_subjob = max([math.floor(self.options.CPU[0] / subjob_num), 1])
-        self.cpu = [math.floor(self.options.CPU[0] / per_subjob), per_subjob]
+            num = math.floor(self.options.CPU[0] / len(self.jobs))
+            num = max([num, 1])
+        self.cpu = [math.floor(self.options.CPU[0] / num), num]
 
         try:
             index = self.args.index(jobutils.FLAG_CPU)
@@ -222,8 +226,7 @@ class Runner(logutils.Base):
 
         :param agg bool: run aggregators instead of jobs.
         """
-        # FIXME: no parallelism as multiple aggregation touch the same file
-        cpu = 1 if agg else self.cpu[0]
+        cpu = self.max_cpu if agg else self.cpu[0]
         prog = self.options.screen and jobutils.PROGRESS in self.options.screen
         jobs = None if agg else self.jobs
         self.proj.run(np=cpu, progress=prog, jobs=jobs, **kwargs)
@@ -270,6 +273,7 @@ class Runner(logutils.Base):
         jobs = [x for x, y in zip(self.jobs, completed) if y]
         fjobs = [x for x in jobs if any(x.doc.get(self.MESSAGE, {}).values())]
         self.log(f"{len(jobs) - len(fjobs)} / {len(jobs)} succeeded jobs.")
+
         if not fjobs:
             return
         func = lambda x: '\n'.join(f"{k}: {v}" for k, v in x.items() if v)
