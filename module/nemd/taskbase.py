@@ -26,16 +26,25 @@ class Job(jobutils.Job):
     PREREQ = 'prereq'
     OUT = MESSAGE
 
-    def __init__(self, *jobs, name=None, options=None, **kwargs):
+    def __init__(self,
+                 *jobs,
+                 name=None,
+                 options=None,
+                 status=None,
+                 logger=None):
         """
         :param jobs list' of 'signac.job.Job': signac jobs
         :param name str: the job name
         :param options 'argparse.Namespace': commandline options
+        :param status dict: the post status of all jobs
+        :param logger 'logutils.Logger': the logger to print message in the post
         """
         super().__init__(name=name, job=jobs[0])
         self.jobs = jobs
         self.options = options
         self.doc = self.jobs[0].project.doc
+        self.status = status
+        self.logger = logger
 
     @classmethod
     @property
@@ -132,20 +141,15 @@ class Job(jobutils.Job):
         pass
 
     @classmethod
-    def postOpr(cls, *args, logged=None, logger=None, **kwargs):
+    def postOpr(cls, *args, status=None, logger=None, **kwargs):
         """
         Whether the job is completed or not.
 
+        :param status dict: the post status of all jobs
         :param logger 'logutils.Logger': the logger to print message
         :return bool: True if the post-conditions are met
         """
-        job = cls(*args, **kwargs)
-        if logger and cls.OUT == MESSAGE and job.out:
-            key = job.jobname if cls.agg else (job.jobname, job.job.id)
-            if key not in logged:
-                logger.log(job.out if cls.agg else "%s in %s failed." % key)
-            logged.add(key)
-        return job.post()
+        return cls(*args, status=status, logger=logger, **kwargs).post()
 
     def post(self):
         """
@@ -153,7 +157,14 @@ class Job(jobutils.Job):
 
         :return bool: whether the post-conditions are met.
         """
-        return self.out is not None
+        key = self.jobname if self.agg else (self.jobname, self.job.id)
+        status = self.status[key]
+        if status:
+            return True
+        self.status[key] = self.out is not None
+        if self.status[key] and self.OUT == MESSAGE and self.out:
+            self.logger.log(self.out if self.agg else "%s in %s failed." % key)
+        return self.status[key]
 
     def getJobs(self, **kwargs):
         """

@@ -54,7 +54,7 @@ class Runner(logutils.Base):
         self.state = {}
         self.jobs = []
         self.added = []
-        self.logged = set()
+        self.status = collections.defaultdict(bool)
         self.proj = None
         self.max_cpu = 1
         self.cpu = None
@@ -112,7 +112,7 @@ class Runner(logutils.Base):
             if pres:
                 pre = pres[-1]
         opr = TaskClass.getOpr(**kwargs,
-                               logged=self.logged,
+                               status=self.status,
                                logger=self.logger,
                                options=self.options)
         self.added.append(opr)
@@ -219,7 +219,7 @@ class Runner(logutils.Base):
             if opr.cls.agg ^ agg:
                 continue
             for job in self.jobs:
-                opr.cls(job, name=opr.name).clean()
+                opr.cls(job, name=opr.name, options=self.options).clean()
 
     def runProj(self, agg=False, **kwargs):
         """
@@ -229,8 +229,7 @@ class Runner(logutils.Base):
         """
         cpu = self.max_cpu if agg else self.cpu[0]
         prog = self.options.screen and jobutils.PROGRESS in self.options.screen
-        jobs = None if agg else self.jobs
-        self.proj.run(np=cpu, progress=prog, jobs=jobs, **kwargs)
+        self.proj.run(np=cpu, progress=prog, jobs=self.jobs, **kwargs)
 
     def logStatus(self):
         """
