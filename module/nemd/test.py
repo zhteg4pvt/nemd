@@ -185,11 +185,13 @@ class Exist:
     def run(self):
         """
         The main method to check the existence of files.
+
+        :raise CheckError: if file doesn't exist
         """
         for target in self.args:
             if os.path.isfile(target):
                 continue
-            raise FileNotFoundError(f"{target} not found")
+            raise CheckError(f"{target} not found")
 
     @classmethod
     def getTokens(cls, values, **kwargs):
@@ -217,6 +219,8 @@ class Glob(Exist):
     def run(self):
         """
         The main method to check the existence of files.
+
+        :raise CheckError: the number of found files is not the expected
         """
         for target in self.args:
             files = glob.glob(target)
@@ -224,7 +228,7 @@ class Glob(Exist):
                 continue
             if self.num and len(files) == self.num:
                 continue
-            raise ValueError(f"{files} found for {target} (num={self.num})")
+            raise CheckError(f"{files} found for {target} (num={self.num})")
 
 
 class In(Exist):
@@ -239,6 +243,8 @@ class In(Exist):
     def run(self):
         """
         The main method to check the containing file strings.
+
+        :raise CheckError: the content doesn't contain the str
         """
         super().run()
         with open(self.args[-1]) as fh:
@@ -246,7 +252,7 @@ class In(Exist):
         for content in self.strs:
             if content in file_str:
                 continue
-            raise ValueError(f"{content} not found in {self.args[-1]}")
+            raise CheckError(f"{content} not found in {self.args[-1]}")
 
 
 class Cmp(Exist):
@@ -352,9 +358,9 @@ class Cmp(Exist):
         Raise the error with proper message.
 
         :param target str: the target filename(s)
-        :raises ValueError: raise the error message as the files are different.
+        :raises CheckError: raise the error message as the files are different.
         """
-        raise ValueError(f"{self.args[0]} and {target} are different.")
+        raise CheckError(f"{self.args[0]} and {target} are different.")
 
 
 class CollectLog(Exist):

@@ -175,7 +175,7 @@ class Job:
 
     @classmethod
     @property
-    def default(cls,):
+    def default(cls, ):
         """
         The default jobname.
 

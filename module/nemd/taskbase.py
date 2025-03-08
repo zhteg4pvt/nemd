@@ -132,13 +132,20 @@ class Job(jobutils.Job):
         pass
 
     @classmethod
-    def postOpr(cls, *args, **kwargs):
+    def postOpr(cls, *args, logged=None, logger=None, **kwargs):
         """
         Whether the job is completed or not.
 
+        :param logger 'logutils.Logger': the logger to print message
         :return bool: True if the post-conditions are met
         """
-        return cls(*args, **kwargs).post()
+        job = cls(*args, **kwargs)
+        if logger and cls.OUT == MESSAGE and job.out:
+            key = job.jobname if cls.agg else (job.jobname, job.job.id)
+            if key not in logged:
+                logger.log(job.out if cls.agg else "%s in %s failed." % key)
+            logged.add(key)
+        return job.post()
 
     def post(self):
         """
@@ -167,6 +174,7 @@ class Job(jobutils.Job):
         :param msg str: the msg to be saved
         """
         self.out = msg if self.out is None else '\n'.join([self.out, msg])
+
 
 class Agg(Job):
     """

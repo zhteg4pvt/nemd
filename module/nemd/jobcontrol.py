@@ -54,6 +54,7 @@ class Runner(logutils.Base):
         self.state = {}
         self.jobs = []
         self.added = []
+        self.logged = set()
         self.proj = None
         self.max_cpu = 1
         self.cpu = None
@@ -86,7 +87,6 @@ class Runner(logutils.Base):
             self.clean()
             self.runProj()
             self.logStatus()
-            self.logMessage()
         if symbols.AGGREGATOR in self.options.jtype:
             self.setAggs()
             self.setAggProj()
@@ -112,6 +112,7 @@ class Runner(logutils.Base):
             if pres:
                 pre = pres[-1]
         opr = TaskClass.getOpr(**kwargs,
+                               logged=self.logged,
                                logger=self.logger,
                                options=self.options)
         self.added.append(opr)
@@ -250,6 +251,7 @@ class Runner(logutils.Base):
         self.log(
             f"{len(self.jobs) - failed_num} / {len(self.jobs)} completed jobs."
         )
+
         if not failed_num:
             return
         id_ops = []
@@ -261,28 +263,6 @@ class Runner(logutils.Base):
         id_ops = pd.DataFrame(id_ops, columns=[self.JOB_ID, 'operations'])
         id_ops.set_index(self.JOB_ID, inplace=True)
         self.log(id_ops.to_markdown())
-
-    def logMessage(self):
-        """
-        Log the messages of the parameter sets.
-        """
-        ops = [self.proj.get_job_status(x)[self.OPERATIONS] for x in self.jobs]
-        completed = [all(y[self.COMPLETED] for y in x.values()) for x in ops]
-        if not any(completed):
-            return
-        jobs = [x for x, y in zip(self.jobs, completed) if y]
-        fjobs = [x for x in jobs if any(x.doc.get(self.MESSAGE, {}).values())]
-        self.log(f"{len(jobs) - len(fjobs)} / {len(jobs)} succeeded jobs.")
-
-        if not fjobs:
-            return
-        func = lambda x: '\n'.join(f"{k}: {v}" for k, v in x.items() if v)
-        data = {self.MESSAGE: [func(x.doc[self.MESSAGE]) for x in fjobs]}
-        fcn = lambda x: '\n'.join(f"{k.strip('-')}: {v}" for k, v in x.items())
-        data['parameters'] = [fcn(x.statepoint) for x in fjobs]
-        ids = pd.Index([x.id for x in fjobs], name=self.JOB_ID)
-        info = pd.DataFrame(data, index=ids)
-        self.log(info.to_markdown())
 
     def setPreAfter(self, pre, cur):
         """

@@ -32,7 +32,7 @@ class Test(jobcontrol.Runner):
     """
     The main class to run integration and performance tests.
     """
-    TaskClass = task.TestAgg
+    AggClass = task.TestAgg
 
     def setJobs(self):
         """
