@@ -76,6 +76,15 @@ class Test(jobcontrol.Runner):
             self.error('All tests are skipped according to the tag file.')
         return dirs
 
+    def logStatus(self):
+        """
+        Log the number of the succeed check jobs.
+        """
+        super().logStatus()
+        msgs = [x for x in self.status.values() if x is not True]
+        total = len(self.status)
+        self.log(f"{total - len(msgs)} / {total} succeed jobs.")
+
     def setAggProj(self):
         """
         Report the task timing after filtering.

@@ -186,12 +186,12 @@ class Exist:
         """
         The main method to check the existence of files.
 
-        :raise CheckError: if file doesn't exist
+        :self.error: if file doesn't exist
         """
         for target in self.args:
             if os.path.isfile(target):
                 continue
-            raise CheckError(f"{target} not found")
+            self.error(f"{target} not found")
 
     @classmethod
     def getTokens(cls, values, **kwargs):
@@ -202,6 +202,15 @@ class Exist:
         :return list: token list
         """
         return [x.strip('\'\" ') for x in values.split(',')]
+
+    def error(self, msg):
+        """
+        Print he message and exit with 1.
+
+        :param msg str: the message to print
+        """
+        print(msg)
+        sys.exit(1)
 
 
 class Glob(Exist):
@@ -220,7 +229,7 @@ class Glob(Exist):
         """
         The main method to check the existence of files.
 
-        :raise CheckError: the number of found files is not the expected
+        :self.error: the number of found files is not the expected
         """
         for target in self.args:
             files = glob.glob(target)
@@ -228,7 +237,7 @@ class Glob(Exist):
                 continue
             if self.num and len(files) == self.num:
                 continue
-            raise CheckError(f"{files} found for {target} (num={self.num})")
+            self.error(f"{files} found for {target} (num={self.num})")
 
 
 class In(Exist):
@@ -243,8 +252,6 @@ class In(Exist):
     def run(self):
         """
         The main method to check the containing file strings.
-
-        :raise CheckError: the content doesn't contain the str
         """
         super().run()
         with open(self.args[-1]) as fh:
@@ -252,7 +259,7 @@ class In(Exist):
         for content in self.strs:
             if content in file_str:
                 continue
-            raise CheckError(f"{content} not found in {self.args[-1]}")
+            self.error(f"{content} not found in {self.args[-1]}")
 
 
 class Cmp(Exist):
@@ -360,7 +367,7 @@ class Cmp(Exist):
         :param target str: the target filename(s)
         :raises CheckError: raise the error message as the files are different.
         """
-        raise CheckError(f"{self.args[0]} and {target} are different.")
+        self.error(f"{self.args[0]} and {target} are different.")
 
 
 class CollectLog(Exist):
@@ -490,7 +497,7 @@ class Check(Cmd):
         """
         Check the results by execute all operators. Raise errors if any failed.
 
-        :raise CheckError: the process has non-zero returncode
+        :raise CheckError: if check failed.
         """
         jobname = os.path.basename(self.dir)
         print(f"{jobname}: {'; '.join(self.args)}")

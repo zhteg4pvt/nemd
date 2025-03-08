@@ -16,7 +16,7 @@ from nemd import jobutils
 from nemd import parserutils
 from nemd import symbols
 
-MESSAGE = 'message'
+STATUS = 'message'
 
 
 class Job(jobutils.Job):
@@ -24,7 +24,7 @@ class Job(jobutils.Job):
     Non-cmd job.
     """
     PREREQ = 'prereq'
-    OUT = MESSAGE
+    OUT = STATUS
 
     def __init__(self,
                  *jobs,
@@ -103,8 +103,8 @@ class Job(jobutils.Job):
         """
         obj = cls(*args, **kwargs)
         obj.run()
-        if obj.OUT == MESSAGE and obj.out is None:
-            obj.out = False
+        if obj.OUT == STATUS and obj.out is None:
+            obj.out = True
         return obj.getCmd()
 
     def run(self):
@@ -114,6 +114,7 @@ class Job(jobutils.Job):
         self.out = False
 
     @property
+    @functools.cache
     def out(self):
         """
         The output.
@@ -158,13 +159,14 @@ class Job(jobutils.Job):
         :return bool: whether the post-conditions are met.
         """
         key = self.jobname if self.agg else (self.jobname, self.job.id)
-        status = self.status[key]
+        status = self.status.get(key)
         if status:
             return True
-        self.status[key] = self.out is not None
-        if self.status[key] and self.OUT == MESSAGE and self.out:
-            self.logger.log(self.out if self.agg else "%s in %s failed." % key)
-        return self.status[key]
+        if self.OUT == STATUS and isinstance(self.out, str):
+            header = '' if self.agg else f"%s in %s: " % key
+            self.logger.log(header + self.out.strip())
+        self.status[key] = self.out
+        return bool(self.out)
 
     def getJobs(self, **kwargs):
         """

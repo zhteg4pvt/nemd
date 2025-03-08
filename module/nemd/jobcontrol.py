@@ -39,7 +39,6 @@ class Runner(logutils.Base):
     JOB_ID = 'job_id'
     PREREQ = taskbase.Agg.PREREQ
     FLAG_SEED = jobutils.FLAG_SEED
-    MESSAGE = taskbase.MESSAGE
 
     def __init__(self, options, original, logger=None):
         """
@@ -54,7 +53,7 @@ class Runner(logutils.Base):
         self.state = {}
         self.jobs = []
         self.added = []
-        self.status = collections.defaultdict(bool)
+        self.status = {}
         self.proj = None
         self.max_cpu = 1
         self.cpu = None
