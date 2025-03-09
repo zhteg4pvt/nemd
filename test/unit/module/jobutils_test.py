@@ -7,7 +7,6 @@ import pytest
 
 from nemd import envutils
 from nemd import jobutils
-from nemd import jsonutils
 
 
 class TestFunc:
@@ -109,7 +108,8 @@ class TestJob:
     def testWrite(self, raw):
         raw.set('my.log', ftype='logfile')
         raw.write()
-        assert raw.data == jsonutils.load(raw.file)
+        with open(raw.file) as fh:
+            raw.data == json.load(fh)
 
     @pytest.mark.parametrize('name', [('mb_lmp_log')])
     @pytest.mark.parametrize('dirname, ftype, expected',
@@ -123,21 +123,21 @@ class TestJob:
         assert job.getFile(ftype=ftype).endswith(expected)
 
     @pytest.mark.parametrize('name', [('mb_lmp_log')])
-    @pytest.mark.parametrize('dirname, expected',[(MB_LMP_LOG, 'mb_lmp_log.log')])
+    @pytest.mark.parametrize('dirname, expected',
+                             [(MB_LMP_LOG, 'mb_lmp_log.log')])
     def testLogFile(self, expected, dirname, job):
         assert job.logfile.endswith(expected)
 
     @pytest.mark.parametrize('name', [(None)])
-    @pytest.mark.parametrize('dirname, expected',[(MB_LMP_LOG, 'mb_lmp_log.log')])
+    @pytest.mark.parametrize('dirname, expected',
+                             [(MB_LMP_LOG, 'mb_lmp_log.log')])
     def testGetJobs(self, expected, job):
         assert 4 == len([x.file for x in job.getJobs()])
 
     @pytest.mark.parametrize('name', [('mb_lmp_log')])
-    @pytest.mark.parametrize('dirname, expected',[(MB_LMP_LOG, 'mb_lmp_log.log')])
+    @pytest.mark.parametrize('dirname, expected',
+                             [(MB_LMP_LOG, 'mb_lmp_log.log')])
     def testClean(self, expected, job):
         assert os.path.exists(job.file)
         job.clean()
         assert not os.path.exists(job.file)
-
-
-

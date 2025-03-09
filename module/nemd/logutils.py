@@ -93,18 +93,16 @@ class Logger(logging.Logger):
             return
         self.setUp()
 
-    def setUp(self, ext=symbols.LOG_EXT):
+    def setUp(self):
         """
         Set up the logger. (e.g., level, handler)
-
-        :param ext str: the filename extension of the FileHandler
         """
         self.setLevel(logging.DEBUG if DEBUG else logging.INFO)
         basename, name_ext = os.path.splitext(self.name)
-        if name_ext.startswith('.py'):
-            if not DEBUG:
-                return
-            ext = '.debug'
+        if name_ext.startswith('.py') and not DEBUG:
+            # Module debugger outside the debug mode
+            return
+        ext = '.debug' if name_ext.startswith('.py') else symbols.LOG_EXT
         # File handler for driver/workflow in any mode and module in debug mode
         filename = f"{basename}{ext}"
         jobutils.add_outfile(filename)

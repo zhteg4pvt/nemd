@@ -504,7 +504,7 @@ class Driver(argparse.ArgumentParser):
     JFLAGS = [FLAG_INTERAC, FLAG_JOBNAME, FLAG_PYTHON, FLAG_CPU, FLAG_DEBUG]
 
     def __init__(self,
-                 file='name_driver.py',
+                 file,
                  formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                  descr=None,
                  valids=None,
@@ -526,7 +526,6 @@ class Driver(argparse.ArgumentParser):
         self.valids = set() if valids is None else valids
         if self.delay:
             return
-        self.name = jobutils.get_name(self.file)
         self.setUp()
         self.add(self, positional=True)
         self.addJob()
@@ -550,13 +549,13 @@ class Driver(argparse.ArgumentParser):
         Add job control related flags.
         """
         if self.FLAG_JOBNAME in self.JFLAGS:
+            name = jobutils.get_name(self.file)
             self.add_argument(jobutils.FLAG_NAME,
-                              default=self.name,
+                              default=name,
                               help=argparse.SUPPRESS)
-            envutils.set_jobname_default(self.name)
             self.add_argument(self.FLAG_JOBNAME,
                               dest=self.FLAG_JOBNAME[1:],
-                              default=self.name,
+                              default=name,
                               help='Name output files.')
         if self.FLAG_INTERAC in self.JFLAGS:
             self.add_argument(self.FLAG_INTERAC,

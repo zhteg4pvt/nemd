@@ -13,7 +13,6 @@ import os
 import re
 
 from nemd import envutils
-from nemd import jsonutils
 
 NEMD_RUN = 'nemd_run'
 NEMD_MODULE = 'nemd_module'

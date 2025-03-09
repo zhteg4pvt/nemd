@@ -52,4 +52,7 @@ val=''; for nxt in "$@" ''; do
   val=$nxt
 done
 
+# Set JOBNAME
+[ -z $BASENAME ] || for SUFFIX in _driver.py _workflow.py ".*"; do [ $JOBNAME != $BASENAME ] && break; export JOBNAME=${BASENAME%%$SUFFIX}; done
+
 debug "$@"; python "$@"

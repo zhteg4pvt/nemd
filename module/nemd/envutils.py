@@ -74,15 +74,6 @@ def get_jit_kwargs(**kwargs):
     }
 
 
-def set_jobname_default(name):
-    """
-    Set the default jobname of the current execution.
-
-    :param name str: The default jobname.
-    """
-    os.environ.setdefault(JOBNAME, name)
-
-
 def get_jobname(name=None):
     """
     The jobname of the current execution.

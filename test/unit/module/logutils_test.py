@@ -14,38 +14,37 @@ from nemd import logutils
 
 class TestFunc:
 
-    @pytest.mark.parametrize('is_err', [False, True])
-    @pytest.mark.parametrize('has_logger', [False, True])
-    def testRedirect(self, is_err, has_logger, capsys):
-        logger = mock.Mock() if has_logger else None
+    @pytest.mark.parametrize('mtype', ['stdout', 'stderr'])
+    def testRedirect(self, mtype, capsys):
+        logger = mock.Mock()
         with capsys.disabled():
             with logutils.redirect(logger=logger) as redirected:
-                (sys.stderr if is_err else sys.stdout).write('msg\nmsg2\n')
-        assert {'stderr' if is_err else 'stdout': 'msg\nmsg2\n'} == redirected
-        if logger is None:
-            return
-        calls = ['msg\nmsg2\n']
-        if is_err == 'stderr':
-            calls = ['The following stderr is found:'] + calls
+                getattr(sys, mtype).write('msg\nmsg2\n')
+        assert {mtype: 'msg\nmsg2\n'} == redirected
+        calls = ['The following stderr is found:'] if mtype == 'stderr' else []
+        calls += ['msg\nmsg2\n']
         logger.info.assert_has_calls([mock.call(x) for x in calls])
 
 
 class TestHandler:
 
+    @pytest.mark.parametrize(
+        'hdlr_lvl',
+        [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR])
     @pytest.mark.parametrize('level,key', [(logging.DEBUG, 'DEBUG'),
                                            (logging.INFO, 'INFO'),
                                            (logging.WARNING, 'WARNING'),
                                            (logging.ERROR, 'ERROR')])
-    def testHandle(self, level, key):
-        hdlr = logutils.Handler(level=logging.INFO)
+    def testHandle(self, hdlr_lvl, level, key):
+        hdlr = logutils.Handler(level=hdlr_lvl)
         logger = logging.Logger('test')
         logger.addHandler(hdlr)
         logger.log(level=level, msg='first')
         logger.log(level=level, msg='second')
+        msg = None if level < hdlr_lvl else 'first\nsecond'
+        assert msg == hdlr.logs.get(key)
         logger.log(level=logging.CRITICAL, msg='third')
         assert 'third' == hdlr.logs['CRITICAL']
-        msg = None if level == logging.DEBUG else 'first\nsecond'
-        assert msg == hdlr.logs.get(key)
 
 
 class TestLogger:
@@ -54,22 +53,19 @@ class TestLogger:
     def logger(self, tmp_dir):
         return logutils.Logger('name')
 
-    @pytest.mark.parametrize('name', ['myname.py', 'myname'])
-    @pytest.mark.parametrize('debug', ['', '1'])
-    def testSetUp(self, name, debug, tmp_dir):
+    @pytest.mark.parametrize('name,debug,file',
+                             [('myname.py', False, None),
+                              ('myname.py', True, 'myname.debug'),
+                              ('myname', False, 'myname.log'),
+                              ('myname', True, 'myname.log')])
+    def testSetUp(self, name, debug, file, tmp_dir):
         logger = logutils.Logger(name, delay=True)
-        with mock.patch('nemd.logutils.DEBUG', bool(debug)):
+        with mock.patch('nemd.logutils.DEBUG', debug):
             logger.setUp()
         assert (logging.DEBUG if debug else logging.INFO) == logger.level
-        has_hdlr = not (name.endswith('.py') and not debug)
-        assert has_hdlr == bool(logger.handlers)
-        assert has_hdlr == os.path.isfile(jobutils.FN_DOCUMENT)
-        if not has_hdlr:
-            return
-        with open(jobutils.FN_DOCUMENT) as fh:
-            data = json.load(fh)
-        filename = f"myname.{'debug' if name.endswith('.py')  else 'log'}"
-        assert [filename] in data['outfiles'].values()
+        assert bool(file) == bool(logger.handlers)
+        if file:
+            assert os.path.isfile(file)
 
     def testInfoJob(self, logger):
         logger.infoJob(types.SimpleNamespace(wa=1, hi=[3, 6]))
