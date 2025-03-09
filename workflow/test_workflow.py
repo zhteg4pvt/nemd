@@ -12,10 +12,11 @@ Each performance test may contain a param file to parameterize the command.
 Supported check commands are: cmp, exist, not_exist, in ...
 Supported tag commands are: slow, label
 """
-import functools
 import glob
 import os
 import sys
+
+import flow
 
 from nemd import envutils
 from nemd import jobcontrol
@@ -32,7 +33,36 @@ class Test(jobcontrol.Runner):
     """
     The main class to run integration and performance tests.
     """
-    AggClass = task.TestAgg
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dirs = None
+
+    def run(self):
+        self.setDirs()
+        super().run()
+
+    def setDirs(self):
+        """
+        Set the dirs of the tests.
+        """
+        if self.options.id:
+            ids = [f"{x:0>4}" for x in self.options.id]
+            self.dirs = [os.path.join(self.options.dir, x) for x in ids]
+            self.dirs = [x for x in self.dirs if os.path.isdir(x)]
+        else:
+            self.dirs = glob.glob(os.path.join(self.options.dir, '[0-9]' * 4))
+
+        if not self.dirs:
+            self.error(f'No valid tests found in {self.options.dir}.')
+
+        if any([self.options.slow, self.options.label]):
+            self.dirs = [
+                x for x in self.dirs
+                if test.Tag(x, options=self.options).selected()
+            ]
+        if not self.dirs:
+            self.error('All tests are skipped according to the tag file.')
 
     def setJobs(self):
         """
@@ -48,33 +78,7 @@ class Test(jobcontrol.Runner):
         """
         Set state with test dirs.
         """
-        self.state = {FLAG_DIR: self.getDirs()}
-
-    @functools.cache
-    def getDirs(self):
-        """
-        Get the dirs of the tests.
-
-        :return list: each dir contains one test.
-        """
-        if self.options.id:
-            ids = [f"{x:0>4}" for x in self.options.id]
-            dirs = [os.path.join(self.options.dir, x) for x in ids]
-            dirs = [x for x in dirs if os.path.isdir(x)]
-        else:
-            dirs = glob.glob(os.path.join(self.options.dir, '[0-9]' * 4))
-
-        if not dirs:
-            self.error(f'No valid tests found in {self.options.dir}.')
-
-        if any([self.options.slow, self.options.label]):
-            dirs = [
-                x for x in dirs
-                if test.Tag(x, options=self.options).selected()
-            ]
-        if not dirs:
-            self.error('All tests are skipped according to the tag file.')
-        return dirs
+        self.state = {FLAG_DIR: self.dirs}
 
     def logStatus(self):
         """
@@ -85,11 +89,25 @@ class Test(jobcontrol.Runner):
         total = len(self.status)
         self.log(f"{total - len(msgs)} / {total} succeed jobs.")
 
+    def setAggs(self, aggregator=None):
+        """
+        Set the aggregator operators.
+
+        :param aggregator 'flow.aggregates.aggregator': job collection criteria
+        """
+        if aggregator is None and self.options.id:
+
+            def select(x, dirs=self.dirs):
+                return x.sp[FLAG_DIR] in dirs
+
+            aggregator = flow.aggregator(select=select)
+        self.add(task.TestAgg, aggregator=aggregator)
+
     def setAggProj(self):
         """
         Report the task timing after filtering.
         """
-        flag_dirs = [{FLAG_DIR: x} for x in self.getDirs()]
+        flag_dirs = [{FLAG_DIR: x} for x in self.dirs]
         super().setAggProj(filter={"$or": flag_dirs})
 
 

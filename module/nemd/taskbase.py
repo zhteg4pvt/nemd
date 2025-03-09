@@ -16,7 +16,7 @@ from nemd import jobutils
 from nemd import parserutils
 from nemd import symbols
 
-STATUS = 'message'
+STATUS = 'status'
 
 
 class Job(jobutils.Job):
@@ -114,7 +114,6 @@ class Job(jobutils.Job):
         self.out = False
 
     @property
-    @functools.cache
     def out(self):
         """
         The output.
@@ -162,11 +161,11 @@ class Job(jobutils.Job):
         status = self.status.get(key)
         if status:
             return True
-        if self.OUT == STATUS and isinstance(self.out, str):
+        out = self.status[key] = self.out
+        if self.OUT == STATUS and isinstance(out, str):
             header = '' if self.agg else f"%s in %s: " % key
-            self.logger.log(header + self.out.strip())
-        self.status[key] = self.out
-        return bool(self.out)
+            self.logger.log(header + out.strip())
+        return bool(out)
 
     def getJobs(self, **kwargs):
         """

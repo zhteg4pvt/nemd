@@ -33,7 +33,6 @@ class Runner(logutils.Base):
     """
     The main class to set up a workflow.
     """
-    AggClass = task.TimeAgg
     COMPLETED = 'completed'
     OPERATIONS = 'operations'
     JOB_ID = 'job_id'
@@ -228,7 +227,8 @@ class Runner(logutils.Base):
         """
         cpu = self.max_cpu if agg else self.cpu[0]
         prog = self.options.screen and jobutils.PROGRESS in self.options.screen
-        self.proj.run(np=cpu, progress=prog, jobs=self.jobs, **kwargs)
+        jobs = None if agg else self.jobs
+        self.proj.run(np=cpu, progress=prog, jobs=jobs, **kwargs)
 
     def logStatus(self):
         """
@@ -278,7 +278,7 @@ class Runner(logutils.Base):
         """
         Set the aggregator operators.
         """
-        self.add(self.AggClass)
+        self.add(task.TimeAgg)
 
     def setAggProj(self, filter=None):
         """
@@ -286,9 +286,9 @@ class Runner(logutils.Base):
 
         :param filter dict: the parameter filter.
         """
-        prj = self.proj.path if self.proj else self.options.prj_path
+        prj_path = self.proj.path if self.proj else self.options.prj_path
         try:
-            self.proj = flow.project.FlowProject.get_project(prj)
+            self.proj = flow.project.FlowProject.get_project(prj_path)
         except LookupError as err:
             self.error(str(err))
         if not self.jobs:
