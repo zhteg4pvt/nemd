@@ -24,10 +24,10 @@ INTERAC: False
 PYTHON: 2
 CPU: 1
 DEBUG: None
-JobStart: 20:23:31 02/27/2025
+JobStart: 13:14:32 03/09/2025
 ...........................
 CCCC dihedral: 171.99 degree
 Data file written into mol_bldr.data
 In script written into mol_bldr.in
 Finished.
-20:23:32 02/27/2025
+13:14:33 03/09/2025

@@ -33,10 +33,9 @@ jtype: task aggregator
 prj_path: None
 clean: False
 screen: None
-JobStart: 20:23:30 02/27/2025
+JobStart: 13:14:31 03/09/2025
 ...........................
 1 / 1 completed jobs.
-1 / 1 succeeded jobs.
 1 jobs found for aggregation.
 Aggregation Task: toteng
 Aggregation Parameters (num=1): substruct=CCCC 
@@ -45,10 +44,10 @@ TotEng: 0.002557 ± nan kcal/mol ∈ [0.1020, 0.1020] ps
 Toteng figure saved as workspace/mb_lmp_log_toteng_0.png
 Toteng of all parameters saved to mb_lmp_log_toteng.csv
 TOTENG figure saved as mb_lmp_log_toteng.png
-Task Total Timing: 00:00:02
-| lammps    | lmp_log   | mol_bldr   |
-|:----------|:----------|:-----------|
-| 00:00 ave | 00:01 ave | 00:01 ave  |
-| 00:00 cc6 | 00:01 cc6 | 00:01 cc6  |
+Task Total Timing: 00:00:04
+| lammps      | lmp_log     | mol_bldr    |
+|:------------|:------------|:------------|
+| 00:01 (ave) | 00:02 (ave) | 00:01 (ave) |
+| 00:01 cc6   | 00:02 cc6   | 00:01 cc6   |
 Finished.
-20:23:35 02/27/2025
+13:14:37 03/09/2025

@@ -13,16 +13,16 @@ CPU: None
 DEBUG: None
 jtype: task aggregator
 prj_path: None
-clean: False
+clean: True
 screen: None
-JobStart: 20:23:28 02/27/2025
+JobStart: 13:14:29 03/09/2025
 ...........................
 1 / 1 completed jobs.
-1 / 1 succeeded jobs.
-Task Total Timing: 00:00:02
-| mb_lmp_l   |
-|:-----------|
-| 00:02 ave  |
-| 00:02 803  |
+1 / 1 succeed jobs.
+Task Total Timing: 00:00:04
+| mb_lmp_l    |
+|:------------|
+| 00:04 (ave) |
+| 00:04 803   |
 Finished.
-20:23:36 02/27/2025
+13:14:39 03/09/2025

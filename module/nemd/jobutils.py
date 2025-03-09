@@ -11,9 +11,9 @@ import glob
 import json
 import os
 import re
-import types
 
 from nemd import envutils
+from nemd import jsonutils
 
 NEMD_RUN = 'nemd_run'
 NEMD_MODULE = 'nemd_module'
@@ -181,7 +181,7 @@ class Job:
 
         :return str: the default jobname
         """
-        return envutils.get_jobname()
+        return envutils.get_jobname() or cls.__name__.lower()
 
     @classmethod
     @property
@@ -262,7 +262,7 @@ class Job:
     def getJobs(self,
                 job=None,
                 patt=JOB_DOCUMENT.format(jobname='*'),
-                doc_re=re.compile(JOB_DOCUMENT.format(jobname='(\w*)'))):
+                doc_re=re.compile(JOB_DOCUMENT.format(jobname=r'(\w*)'))):
         """
         Get the all the jobs in a directory.
 
@@ -289,44 +289,3 @@ class Job:
             os.remove(self.file)
         except FileNotFoundError:
             pass
-
-
-class Mimic:
-    """
-    A class to mimic a signac.job.Job for testing purpose.
-    """
-
-    def __init__(self, dir=os.curdir):
-        """
-        Initialize a Job object.
-
-        :param dir str: the directory of the job
-        """
-        self.dir = dir
-        self.statepoint = self.load(FN_STATE_POINT)
-        self.document = self.load(FN_DOCUMENT)
-        self.project = types.SimpleNamespace(doc={},
-                                             workspace=WORKSPACE,
-                                             path=os.curdir)
-
-    def load(self, basename):
-        """
-        Load the json file.
-
-        :param basename str: the file name to be loaded.
-        :return dict: the loaded json dictionary.
-        """
-        pathname = os.path.join(self.dir, basename)
-        if not os.path.isfile(pathname):
-            return {}
-        with open(pathname, 'r') as fh:
-            return json.load(fh)
-
-    def fn(self, filename):
-        """
-        Return the full path of the file in the job directory.
-
-        :param filename str: the file name
-        :return str: the full path of the file
-        """
-        return os.path.join(self.dir, filename) if self.dir else filename

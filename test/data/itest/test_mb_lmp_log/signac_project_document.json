@@ -1,1 +1,1 @@
-{"_status": {}, "message": {"test_#_agg": false}}
+{"_status": {}, "message": {"test_#_agg": false}, "prereq": {"check": ["cmd"]}, "args": ["47", "-clean"]}

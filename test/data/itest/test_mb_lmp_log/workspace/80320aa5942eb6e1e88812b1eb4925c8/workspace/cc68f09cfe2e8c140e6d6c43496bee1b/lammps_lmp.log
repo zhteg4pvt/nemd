@@ -37,7 +37,7 @@ Finding 1-2 1-3 1-4 neighbors ...
      2 = max # of 1-4 neighbors
      3 = max # of special neighbors
   special bonds CPU = 0.000 seconds
-  read_data CPU = 0.002 seconds
+  read_data CPU = 0.003 seconds
 
 dump 1 all custom 1000 mol_bldr.custom.gz id xu yu zu
 dump_modify 1 sort id
@@ -63,9 +63,9 @@ Per MPI rank memory allocation (min/avg/max) = 6.818 | 6.818 | 6.818 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0              0.0067185228   0.17336108     0.1800796      0.52714509   
        102   2.0217758e-07  0.0012128206   0.0013440279   0.0025568503  -1.3921048e-06
-Loop time of 0.000145729 on 1 procs for 102 steps with 4 atoms
+Loop time of 0.000655723 on 1 procs for 102 steps with 4 atoms
 
-97.4% CPU use with 1 MPI tasks x 1 OpenMP threads
+38.3% CPU use with 1 MPI tasks x 1 OpenMP threads
 
 Minimization stats:
   Stopping criterion = energy tolerance
@@ -79,13 +79,13 @@ Minimization stats:
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 1.1636e-05 | 1.1636e-05 | 1.1636e-05 |   0.0 |  7.98
-Bond    | 4.1103e-05 | 4.1103e-05 | 4.1103e-05 |   0.0 | 28.21
+Pair    | 2.0197e-05 | 2.0197e-05 | 2.0197e-05 |   0.0 |  3.08
+Bond    | 7.7433e-05 | 7.7433e-05 | 7.7433e-05 |   0.0 | 11.81
 Neigh   | 0          | 0          | 0          |   0.0 |  0.00
-Comm    | 2.8014e-05 | 2.8014e-05 | 2.8014e-05 |   0.0 | 19.22
+Comm    | 4.3984e-05 | 4.3984e-05 | 4.3984e-05 |   0.0 |  6.71
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 6.498e-05  |            |       | 44.59
+Other   |            | 0.0005141  |            |       | 78.40
 
 Nlocal:              4 ave           4 max           4 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -105,9 +105,9 @@ Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
 Per MPI rank memory allocation (min/avg/max) = 8.068 | 8.068 | 8.068 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
        102   2.0217758e-07  0.0012128206   0.0013440279   0.0025568503  -1.3921048e-06
-Loop time of 9.13e-07 on 1 procs for 0 steps with 4 atoms
+Loop time of 1.326e-06 on 1 procs for 0 steps with 4 atoms
 
-109.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+75.4% CPU use with 1 MPI tasks x 1 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -118,7 +118,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 9.13e-07   |            |       |100.00
+Other   |            | 1.326e-06  |            |       |100.00
 
 Nlocal:              4 ave           4 max           4 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
