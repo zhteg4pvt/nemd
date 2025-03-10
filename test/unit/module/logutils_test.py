@@ -1,3 +1,4 @@
+import functools
 import json
 import logging
 import os
@@ -47,11 +48,20 @@ class TestHandler:
         assert 'third' == hdlr.logs['CRITICAL']
 
 
+class Logger(logutils.Logger):
+
+    @property
+    @functools.cache
+    def data(self):
+        with open(self.handlers[0].baseFilename) as fh:
+            return fh.read()
+
+
 class TestLogger:
 
     @pytest.fixture
     def logger(self, tmp_dir):
-        return logutils.Logger('name')
+        return Logger('name')
 
     @pytest.mark.parametrize('name,debug,file',
                              [('myname.py', False, None),
@@ -69,94 +79,83 @@ class TestLogger:
 
     def testInfoJob(self, logger):
         logger.infoJob(types.SimpleNamespace(wa=1, hi=[3, 6]))
-        with open(logger.handlers[0].baseFilename) as fh:
-            data = fh.read()
-        assert '...Options...' in data
-        assert 'wa: 1\n' in data
-        assert 'hi: 3 6\n' in data
-        assert 'JobStart:' in data
+        assert '...Options...' in logger.data
+        assert 'wa: 1\n' in logger.data
+        assert 'hi: 3 6\n' in logger.data
+        assert 'JobStart:' in logger.data
 
     @pytest.mark.parametrize('timestamp', [False, True])
     def testLog(self, timestamp, logger):
         logger.log('hi', timestamp=timestamp)
-        with open(logger.handlers[0].baseFilename) as fh:
-            data = fh.read()
-        assert (timestamp == False) == data.endswith('hi\n')
+        assert (timestamp == False) == logger.data.endswith('hi\n')
 
     @pytest.mark.parametrize('timestamp', [False, True])
     def testError(self, timestamp, logger):
         with mock.patch('nemd.logutils.sys') as mocked:
             logger.error('hi', timestamp=timestamp)
             assert mocked.exit.called
-        with open(logger.handlers[0].baseFilename) as fh:
-            lines = fh.readlines()
-        assert 'hi\n' in lines[0]
-        assert 'Aborting...\n' in lines[1]
-        assert (3 if timestamp else 2) == len(lines)
+        lines = logger.data.split('\n')
+        assert 'hi' == lines[0]
+        assert 'Aborting...' == lines[1]
+        assert timestamp == bool(lines[2])
 
     def testGet(self, tmp_dir):
         logging.Logger.manager.loggerDict.pop('jobname', None)
         created = logutils.Logger.get('jobname')
         assert isinstance(created, logutils.Logger)
         previous = logutils.Logger.get('jobname')
-        assert created == previous
+        assert created is previous
 
-    @pytest.mark.parametrize('logger_lvl, line_lvl',
+    @pytest.mark.parametrize('logger_lvl, lvl',
                              [(logging.WARNING, logging.WARNING),
                               (logging.DEBUG, logging.INFO),
                               (logging.CRITICAL, logging.INFO)])
-    def testOneLine(self, logger_lvl, line_lvl, logger):
+    def testOneLine(self, logger_lvl, lvl, logger):
         logger.setLevel(logger_lvl)
-        with logger.oneLine(line_lvl) as log:
+        with logger.oneLine(lvl) as log:
             log('hi')
             log('wa')
             log('last')
-        with open(logger.handlers[0].baseFilename) as fh:
-            data = fh.read()
-        expected = 'hi wa last \n' if line_lvl >= logger_lvl else ''
-        assert expected == data
+        assert ('' if lvl < logger_lvl else 'hi wa last \n') == logger.data
 
 
+@mock.patch('nemd.logutils.Logger', Logger)
+@pytest.mark.parametrize('options', [types.SimpleNamespace(hi='la', JOBNAME='hi')])
 class TestScript:
 
-    @pytest.mark.parametrize('ekey,evalue,log,file',
-                             [('MEM_INTVL', '', False, True),
-                              ('MEM_INTVL', '0.001', True, False)])
-    def testEnter(self, evalue, env, log, file, tmp_dir):
-        options = types.SimpleNamespace(hi='la', JOBNAME='jobname')
+    @pytest.mark.parametrize('ekey', ['MEM_INTVL'])
+    @pytest.mark.parametrize('evalue', ['', '0.001'])
+    @pytest.mark.parametrize('log,file', [(False, True), (True, False)])
+    def testEnter(self, evalue, options, log, file, env, tmp_dir):
         logging.Logger.manager.loggerDict.pop(options.JOBNAME, None)
         with mock.patch('nemd.logutils.psutils.Memory') as mocked:
-            with mock.patch('nemd.logutils.Script.__exit__') as mocked:
-                with logutils.Script(options, log=log, file=file):
+            with mock.patch('nemd.logutils.Script.__exit__'):
+                with logutils.Script(options, log=log, file=file) as logger:
                     assert bool(evalue) == mocked.called
-        with open(jobutils.FN_DOCUMENT) as fh:
-            data = json.load(fh)
-        assert file == ('outfile' in data)
-        assert log == ('logfile' in data)
-        with open('jobname.log') as fh:
-            data = fh.read()
-        assert '..........Options..........\n' in data
-        assert 'hi: la\n' in data
+        assert '..........Options..........\n' in logger.data
+        assert 'hi: la\n' in logger.data
+        job = jobutils.Job()
+        assert ['hi.log'] == job.data['outfiles']
+        assert file == ('hi.log' == job.data.get('outfile'))
 
-    @pytest.mark.parametrize('ekey,evalue', [('MEM_INTVL', '0.001')])
+    @pytest.mark.parametrize('ekey', ['MEM_INTVL'])
+    @pytest.mark.parametrize('evalue', ['', '0.001'])
     @pytest.mark.parametrize('is_raise,raise_type,msg',
                              [(False, None, 'Finished.'),
-                              (True, ValueError, "ValueError: ('hi',)"),
-                              (True, SystemExit, "E_R_R_O_R\nAborting...")])
-    def testExit(self, evalue, raise_type, check_raise, msg, env, tmp_dir):
-        options = types.SimpleNamespace(JOBNAME='jobname')
+                              (True, ValueError, "ValueError: hi"),
+                              (True, SystemExit, "msg\nAborting...")])
+    def testExit(self, evalue, options, msg, raise_type, check_raise, env, tmp_dir):
         logging.Logger.manager.loggerDict.pop(options.JOBNAME, None)
         with check_raise():
             with logutils.Script(options) as logger:
-                if raise_type:
-                    if raise_type == SystemExit:
-                        logger.error('E_R_R_O_R')
-                    else:
-                        raise raise_type('hi')
-        with open('jobname.log') as fh:
-            data = fh.read()
-        assert bool(evalue) == ('Peak memory usage:' in data)
-        assert msg in data
+                if raise_type is None:
+                    logger.log('')
+                elif raise_type is ValueError:
+                    raise raise_type('hi')
+                elif raise_type is SystemExit:
+                    logger.error('msg')
+        assert bool(evalue) == ('Peak memory usage:' in logger.data)
+        assert msg in logger.data
 
 
 class TestReader:

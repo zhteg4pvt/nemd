@@ -74,7 +74,6 @@ class Handler(logging.Handler):
         previous = self.logs.get(key)
         current = self.format(record)
         self.logs[key] = f"{previous}\n{current}" if previous else current
-        return False
 
 
 class Logger(logging.Logger):
@@ -172,12 +171,12 @@ class Logger(logging.Logger):
             by a seperator within a line.
         """
         assert level != logging.ERROR
+        terminators = {}
         try:
-            terminators = {
-                x: x.terminator
-                for x in self.handlers if isinstance(x, logging.StreamHandler)
-            }
-            for handler in terminators.keys():
+            for handler in self.handlers:
+                if not isinstance(handler, logging.StreamHandler):
+                    continue
+                terminators[handler] = handler.terminator
                 handler.terminator = separator
             match level:
                 case logging.DEBUG:

@@ -14,7 +14,7 @@ case $(uname) in
     brew install --cask iterm2 microsoft-powerpoint microsoft-word pycharm-ce
     # Mark directory as Source Root to avoid 'python cannot find declaration to go to'
     # Editor > Code Stype > Hard wrap at: 80 for yapf consistency    zsh -c "setopt prompt_subst"
-    grep prompt ~/.zshrc || echo 'prompt="%F{240}%n%F{yellow}@%F{green}%m %F{blue}%1~ %F{red}$(git branch --show-current 2>/dev/null)%F{reset}: "' >> ~/.zshrc
+    grep prompt ~/.zshrc || echo "prompt='%F{240}%n%F{yellow}@%F{green}%m %F{blue}%1~ %F{red}$(git branch --show-current 2>/dev/null)%F{reset}: '" >> ~/.zshrc
     grep 'alias ls' ~/.zshrc || echo 'alias ls="ls --color"' >> ~/.zshrc
     grep 'alias cdg' ~/.zshrc || echo 'alias cdg="cd ~/git/nemd"' >> ~/.zshrc
     source ~/.zshrc
