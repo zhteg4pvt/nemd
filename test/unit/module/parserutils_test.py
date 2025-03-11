@@ -1,9 +1,5 @@
 import argparse
-import contextlib
-import functools
-import inspect
 import os
-import unittest
 from unittest import mock
 
 import pytest
@@ -21,39 +17,35 @@ LOG_FILE = os.path.join(AR_DIR, 'lammps.log')
 TRAJ_FILE = os.path.join(AR_DIR, 'ar100.custom.gz')
 
 
+@pytestutils.Raises.raises
 class TestType:
 
     RAISED = argparse.ArgumentTypeError
 
     @pytest.mark.parametrize('arg,expected', [('not_existing', RAISED),
                                               (TRAJ_FILE, TRAJ_FILE)])
-    @pytestutils.raises
     def testFile(self, arg, expected):
         assert expected == parserutils.type_file(arg)
 
     @pytest.mark.parametrize('arg,expected', [(AR_DIR, None),
                                               ('not_existing', RAISED),
                                               (TRAJ_FILE, RAISED)])
-    @pytestutils.raises
     def testDir(self, arg, expected):
         parserutils.type_dir(arg)
 
     @pytest.mark.parametrize('arg,expected', [('y', True), ('n', False),
                                               ('wa', RAISED)])
-    @pytestutils.raises
     def testBool(self, arg, expected):
         assert expected == parserutils.type_bool(arg)
 
     @pytest.mark.parametrize('arg,expected', [('123', 123), ('5.6', 5.6),
                                               ('wa', RAISED),
                                               ('None', RAISED)])
-    @pytestutils.raises
     def testFloat(self, arg, expected):
         assert expected == parserutils.type_float(arg)
 
     @pytest.mark.parametrize('arg,expected', [('0', 0), ('1.12', RAISED),
                                               ('-1', -1)])
-    @pytestutils.raises
     def testInt(self, arg, expected):
         assert expected == parserutils.type_int(arg)
 
@@ -63,7 +55,6 @@ class TestType:
                               (100, False, True, RAISED),
                               (200, False, True, 200),
                               (200, False, False, RAISED)])
-    @pytestutils.raises
     def testRanged(self, value, bottom, top, included_bottom, include_top,
                    expected):
         assert expected == parserutils.type_ranged(
@@ -79,7 +70,6 @@ class TestType:
                               ('1.12', False, True, RAISED),
                               ('3.45', False, True, 3.45),
                               ('3.45', False, False, RAISED)])
-    @pytestutils.raises
     def testRangedFloat(self, arg, bottom, top, included_bottom, include_top,
                         expected):
         assert expected == parserutils.type_ranged_float(
@@ -91,25 +81,21 @@ class TestType:
 
     @pytest.mark.parametrize('arg,expected', [('0', 0), ('1.12', 1.12),
                                               ('-1.12', RAISED)])
-    @pytestutils.raises
     def testNonnegativeFloat(self, arg, expected):
         assert expected == parserutils.type_nonnegative_float(arg)
 
     @pytest.mark.parametrize('arg,expected', [('0', RAISED), ('1.12', 1.12),
                                               ('-1.12', RAISED)])
-    @pytestutils.raises
     def testPositiveFloat(self, arg, expected):
         parserutils.type_positive_float(arg)
 
     @pytest.mark.parametrize('arg,expected', [('1', 1), ('0', RAISED),
                                               ('-1', RAISED)])
-    @pytestutils.raises
     def testPositiveInt(self, arg, expected):
         assert expected == parserutils.type_positive_int(arg)
 
     @pytest.mark.parametrize('arg,expected', [('1', 1), ('0', 0),
                                               ('-1', RAISED)])
-    @pytestutils.raises
     def testNonnegativeInt(self, arg, expected):
         assert expected == parserutils.type_nonnegative_int(arg)
 
@@ -124,12 +110,10 @@ class TestType:
 
     @pytest.mark.parametrize('arg,expected', [('0', 0), ('1234', 1234),
                                               ('-1', RAISED), (2**31, RAISED)])
-    @pytestutils.raises
     def testRandomSeed(self, arg, expected):
         assert expected == parserutils.type_random_seed(arg)
 
     @pytest.mark.parametrize('arg,expected', [('C', 1), ('not_valid', RAISED)])
-    @pytestutils.raises
     def testTypeSmiles(self, arg, expected):
         assert expected == parserutils.type_smiles(arg).GetNumAtoms()
 
@@ -137,14 +121,12 @@ class TestType:
                              [('C', True, 'C'), ('C', False, RAISED),
                               ('*C*', False, '*C[*:1]'),
                               ('*C*.C', False, RAISED), ('C*', True, RAISED)])
-    @pytestutils.raises
     def testCruSmiles(self, arg, allow_reg, expected):
         assert expected == parserutils.type_cru_smiles(arg,
                                                        allow_reg=allow_reg)
 
     @pytest.mark.parametrize('arg,expected', [('0.2', 0.2), ('0', RAISED),
                                               ('0.99', 0.99), ('1', RAISED)])
-    @pytestutils.raises
     def testLastPctType(self, arg, expected):
         assert expected == parserutils.LastPct.type(arg)
 

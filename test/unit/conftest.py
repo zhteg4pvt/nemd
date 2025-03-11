@@ -41,7 +41,7 @@ def env(ekey, evalue):
 @pytest.fixture
 def raises(request, expected):
     """
-    Return function to open context management to assert the exception.
+    Return function to open context management for the exception assertion.
 
     :param request '_pytest.fixtures.SubRequest': The requested information.
     :param expected 'type' or any: The raised exception class (e.g. ValueError),
@@ -51,4 +51,4 @@ def raises(request, expected):
     # FIXME: leaks exceptions when fixture catches error via contextmanager
     # with pytest.raises(expected):
     #     yield
-    return pytestutils.get_raises(expected)
+    return pytestutils.Raises.ctxmgr(expected)
