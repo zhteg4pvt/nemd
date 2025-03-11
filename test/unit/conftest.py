@@ -3,14 +3,12 @@
 """
 Test configuration, such as global testing fixtures...
 """
-import contextlib
-import functools
-import inspect
 from unittest import mock
 
 import pytest
 
 from nemd import osutils
+from nemd import pytestutils
 
 
 @pytest.fixture
@@ -53,6 +51,4 @@ def raises(request, expected):
     # FIXME: leaks exceptions when fixture catches error via contextmanager
     # with pytest.raises(expected):
     #     yield
-    if inspect.isclass(expected) and issubclass(expected, BaseException):
-        return pytest.raises(expected)
-    return contextlib.nullcontext()
+    return pytestutils.get_raises(expected)
