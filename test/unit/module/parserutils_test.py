@@ -16,136 +16,132 @@ LOG_FILE = os.path.join(AR_DIR, 'lammps.log')
 TRAJ_FILE = os.path.join(AR_DIR, 'ar100.custom.gz')
 
 
-@pytest.mark.parametrize('raise_type', [argparse.ArgumentTypeError])
 class TestType:
 
-    @pytest.mark.parametrize('file,is_raise', [('not_existing', True),
-                                               (
-                                                   TRAJ_FILE,
-                                                   False,
-                                               )])
-    def testFile(self, file, check_raise):
-        with check_raise():
-            parserutils.type_file(file)
+    RAISED = argparse.ArgumentTypeError
 
-    @pytest.mark.parametrize('file,is_raise', [(AR_DIR, False),
-                                               ('not_existing', True),
-                                               (TRAJ_FILE, True)])
-    def testDir(self, file, check_raise):
-        with check_raise():
-            parserutils.type_dir(file)
+    @pytest.mark.parametrize('arg,expected', [('not_existing', RAISED),
+                                              (TRAJ_FILE, None)])
+    def testFile(self, arg, raises):
+        with raises:
+            parserutils.type_file(arg)
 
-    @pytest.mark.parametrize('arg,val,is_raise', [('y', True, False),
-                                                  ('n', False, False),
-                                                  ('wa', None, True)])
-    def testBool(self, arg, val, check_raise):
-        with check_raise():
-            assert val == parserutils.type_bool(arg)
+    @pytest.mark.parametrize('arg,expected', [(AR_DIR, None),
+                                              ('not_existing', RAISED),
+                                              (TRAJ_FILE, RAISED)])
+    def testDir(self, arg, raises):
+        with raises:
+            parserutils.type_dir(arg)
 
-    @pytest.mark.parametrize('arg,val,is_raise', [('123', 123, False),
-                                                  ('5.6', 5.6, False),
-                                                  ('wa', None, True),
-                                                  ('None', None, True)])
-    def testFloat(self, arg, val, check_raise):
-        with check_raise():
-            assert val == parserutils.type_float(arg)
+    @pytest.mark.parametrize('arg,expected', [('y', True), ('n', False),
+                                              ('wa', RAISED)])
+    def testBool(self, arg, expected, raises):
+        with raises:
+            assert expected == parserutils.type_bool(arg)
 
-    @pytest.mark.parametrize('arg,is_raise', [('0', False), ('1.12', True),
-                                              ('-1', False)])
-    def testInt(self, arg, check_raise):
-        with check_raise():
+    @pytest.mark.parametrize('arg,expected', [('123', 123), ('5.6', 5.6),
+                                              ('wa', RAISED),
+                                              ('None', RAISED)])
+    def testFloat(self, arg, expected, raises):
+        with raises:
+            assert expected == parserutils.type_float(arg)
+
+    @pytest.mark.parametrize('arg,expected', [('0', None), ('1.12', RAISED),
+                                              ('-1', None)])
+    def testInt(self, arg, raises):
+        with raises:
             parserutils.type_int(arg)
 
     @pytest.mark.parametrize('bottom,top', [(100, 200)])
-    @pytest.mark.parametrize('value,included_bottom,include_top,is_raise',
-                             [(123, True, True, False),
-                              (100, True, True, False),
-                              (100, False, True, True),
-                              (200, False, True, False),
-                              (200, False, False, True)])
+    @pytest.mark.parametrize('value,included_bottom,include_top,expected',
+                             [(123, True, True, 123), (100, True, True, 100),
+                              (100, False, True, RAISED),
+                              (200, False, True, 200),
+                              (200, False, False, RAISED)])
     def testRanged(self, value, bottom, top, included_bottom, include_top,
-                   check_raise):
-        with check_raise():
-            parserutils.type_ranged(value,
-                                    bottom=bottom,
-                                    top=top,
-                                    included_bottom=included_bottom,
-                                    include_top=include_top)
+                   expected, raises):
+        with raises:
+            assert expected == parserutils.type_ranged(
+                value,
+                bottom=bottom,
+                top=top,
+                included_bottom=included_bottom,
+                include_top=include_top)
 
     @pytest.mark.parametrize('bottom,top', [(1.12, 3.45)])
-    @pytest.mark.parametrize('arg,included_bottom,include_top,is_raise',
-                             [('2', True, True, False),
-                              ('1.12', True, True, False),
-                              ('1.12', False, True, True),
-                              ('3.45', False, True, False),
-                              ('3.45', False, False, True)])
+    @pytest.mark.parametrize('arg,included_bottom,include_top,expected',
+                             [('2', True, True, 2), ('1.12', True, True, 1.12),
+                              ('1.12', False, True, RAISED),
+                              ('3.45', False, True, 3.45),
+                              ('3.45', False, False, RAISED)])
     def testRangedFloat(self, arg, bottom, top, included_bottom, include_top,
-                        check_raise):
-        with check_raise():
-            parserutils.type_ranged_float(arg,
-                                          bottom=bottom,
-                                          top=top,
-                                          included_bottom=included_bottom,
-                                          include_top=include_top)
+                        expected, raises):
+        with raises:
+            assert expected == parserutils.type_ranged_float(
+                arg,
+                bottom=bottom,
+                top=top,
+                included_bottom=included_bottom,
+                include_top=include_top)
 
-    @pytest.mark.parametrize('arg,is_raise', [('0', False), ('1.12', False),
-                                              ('-1.12', True)])
-    def testNonnegativeFloat(self, arg, check_raise):
-        with check_raise():
-            parserutils.type_nonnegative_float(arg)
+    @pytest.mark.parametrize('arg,expected', [('0', 0), ('1.12', 1.12),
+                                              ('-1.12', RAISED)])
+    def testNonnegativeFloat(self, arg, expected, raises):
+        with raises:
+            assert expected == parserutils.type_nonnegative_float(arg)
 
-    @pytest.mark.parametrize('arg,is_raise', [('0', True), ('1.12', False),
-                                              ('-1.12', True)])
-    def testPositiveFloat(self, arg, check_raise):
-        with check_raise():
+    @pytest.mark.parametrize('arg,expected', [('0', RAISED), ('1.12', 1.12),
+                                              ('-1.12', RAISED)])
+    def testPositiveFloat(self, arg, expected, raises):
+        with raises:
             parserutils.type_positive_float(arg)
 
-    @pytest.mark.parametrize('arg,is_raise', [('1', False), ('0', True),
-                                              ('-1', True)])
-    def testPositiveInt(self, arg, check_raise):
-        with check_raise():
-            parserutils.type_positive_int(arg)
+    @pytest.mark.parametrize('arg,expected', [('1', 1), ('0', RAISED),
+                                              ('-1', RAISED)])
+    def testPositiveInt(self, arg, expected, raises):
+        with raises:
+            assert expected == parserutils.type_positive_int(arg)
 
-    @pytest.mark.parametrize('arg,is_raise', [('1', False), ('0', False),
-                                              ('-1', True)])
-    def testNonnegativeInt(self, arg, check_raise):
-        with check_raise():
-            parserutils.type_nonnegative_int(arg)
+    @pytest.mark.parametrize('arg,expected', [('1', 1), ('0', 0),
+                                              ('-1', RAISED)])
+    def testNonnegativeInt(self, arg, expected, raises):
+        with raises:
+            assert expected == parserutils.type_nonnegative_int(arg)
 
-    @pytest.mark.parametrize('is_raise,ekey', [(False, 'TQDM_DISABLE')])
-    @pytest.mark.parametrize('evalue', ['', '1'])
-    @pytest.mark.parametrize('arg', ['wa', 'progress'])
-    def testScreen(self, arg, evalue, env, check_raise):
+    @pytest.mark.parametrize('ekey', ['TQDM_DISABLE'])
+    @pytest.mark.parametrize('evalue,arg,expected', [('', 'job', ''),
+                                                     ('', 'progress', ''),
+                                                     ('1', 'job', '1'),
+                                                     ('1', 'progress', '')])
+    def testScreen(self, arg, expected, env):
         parserutils.type_screen(arg)
-        tqdm = arg == 'progress' or not evalue
-        assert bool(tqdm) == (not os.environ.get('TQDM_DISABLE'))
+        assert expected == os.environ.get('TQDM_DISABLE')
 
-    @pytest.mark.parametrize('arg,is_raise', [('0', False), ('1234', False),
-                                              ('-1', True), (2**31, True)])
-    def testRandomSeed(self, arg, check_raise):
-        with check_raise():
-            parserutils.type_random_seed(arg)
+    @pytest.mark.parametrize('arg,expected', [('0', 0), ('1234', 1234),
+                                              ('-1', RAISED), (2**31, RAISED)])
+    def testRandomSeed(self, arg, expected, raises):
+        with raises:
+            assert expected == parserutils.type_random_seed(arg)
 
-    @pytest.mark.parametrize('arg,is_raise', [('C', False),
-                                              ('not_valid', True)])
-    def testTypeSmiles(self, arg, check_raise):
-        with check_raise():
-            parserutils.type_smiles(arg)
+    @pytest.mark.parametrize('arg,expected', [('C', 1), ('not_valid', RAISED)])
+    def testTypeSmiles(self, arg, expected, raises):
+        with raises:
+            assert expected == parserutils.type_smiles(arg).GetNumAtoms()
 
-    @pytest.mark.parametrize('arg,allow_reg,is_raise', [('C', True, False),
-                                                        ('C', False, True),
-                                                        ('*C*', False, False),
-                                                        ('*C*.C', False, True),
-                                                        ('C*', True, True)])
-    def testCruSmiles(self, arg, allow_reg, check_raise):
-        with check_raise():
-            parserutils.type_cru_smiles(arg, allow_reg=allow_reg)
+    @pytest.mark.parametrize('arg,allow_reg,expected',
+                             [('C', True, 'C'), ('C', False, RAISED),
+                              ('*C*', False, '*C[*:1]'),
+                              ('*C*.C', False, RAISED), ('C*', True, RAISED)])
+    def testCruSmiles(self, arg, allow_reg, expected, raises):
+        with raises:
+            assert expected == parserutils.type_cru_smiles(arg,
+                                                           allow_reg=allow_reg)
 
-    @pytest.mark.parametrize('arg,is_raise', [('0.2', False), ('0', True),
-                                              ('0.99', False), ('1', True)])
-    def testLastPctType(self, arg, check_raise):
-        with check_raise():
-            parserutils.LastPct.type(arg)
+    @pytest.mark.parametrize('arg,expected', [('0.2', 0.2), ('0', RAISED),
+                                              ('0.99', 0.99), ('1', RAISED)])
+    def testLastPctType(self, arg, expected, raises):
+        with raises:
+            assert expected == parserutils.LastPct.type(arg)
 
 
 class TestLastPct:

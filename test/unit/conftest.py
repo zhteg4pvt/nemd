@@ -5,6 +5,7 @@ Test configuration, such as global testing fixtures...
 """
 import contextlib
 import functools
+import inspect
 from unittest import mock
 
 import pytest
@@ -39,40 +40,19 @@ def env(ekey, evalue):
         yield environ
 
 
-@contextlib.contextmanager
-def assert_raises(is_raise, raise_type):
-    """
-    Assert that the exception is raised or not raised according to the input.
-
-    :param is_raise: when True, the exception is expected to be raised.
-    :type is_raise: bool
-    :param raise_type: The exception type.
-    :type raise_type: 'type' (e.g. ValueError, TypeError, etc.)
-    """
-    if is_raise:
-        with pytest.raises(raise_type):
-            yield
-        return
-
-    try:
-        yield
-    except raise_type as err:
-        assert False, f"{err} should not be raised."
-
-
 @pytest.fixture
-def check_raise(request, is_raise, raise_type):
+def raises(request, expected):
     """
-    Assert that the exception is raised or not raised according to the input.
+    Return function to open context management to assert the exception.
 
     :param request '_pytest.fixtures.SubRequest': The requested information.
-    :param is_raise: when True, the exception is expected to be raised.
-    :type is_raise: bool
-    :param raise_type: The exception type.
-    :type raise_type: 'type' (e.g. ValueError, TypeError, etc.)
-    :return: function to check if the expected exception is raised.
-    :rtype: 'function'
+    :param expected 'type' or any: The raised exception class (e.g. ValueError),
+        or the expected return instance
+    :return 'ContextManager': context manager to assert the raise
     """
-    if not raise_type:
-        raise_type = Exception
-    return functools.partial(assert_raises, is_raise, raise_type)
+    # FIXME: leaks exceptions when fixture catches error via contextmanager
+    # with pytest.raises(expected):
+    #     yield
+    if inspect.isclass(expected) and issubclass(expected, BaseException):
+        return pytest.raises(expected)
+    return contextlib.nullcontext()

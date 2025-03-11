@@ -1,5 +1,4 @@
 import functools
-import json
 import logging
 import os
 import sys
@@ -120,7 +119,8 @@ class TestLogger:
 
 
 @mock.patch('nemd.logutils.Logger', Logger)
-@pytest.mark.parametrize('options', [types.SimpleNamespace(hi='la', JOBNAME='hi')])
+@pytest.mark.parametrize('options',
+                         [types.SimpleNamespace(hi='la', JOBNAME='hi')])
 class TestScript:
 
     @pytest.mark.parametrize('ekey', ['MEM_INTVL'])
@@ -140,19 +140,19 @@ class TestScript:
 
     @pytest.mark.parametrize('ekey', ['MEM_INTVL'])
     @pytest.mark.parametrize('evalue', ['', '0.001'])
-    @pytest.mark.parametrize('is_raise,raise_type,msg',
-                             [(False, None, 'Finished.'),
-                              (True, ValueError, "ValueError: hi"),
-                              (True, SystemExit, "msg\nAborting...")])
-    def testExit(self, evalue, options, msg, raise_type, check_raise, env, tmp_dir):
+    @pytest.mark.parametrize('expected,msg',
+                             [(None, 'Finished.'),
+                              (ValueError, "ValueError: hi"),
+                              (SystemExit, "msg\nAborting...")])
+    def testExit(self, evalue, options, msg, expected, raises, env, tmp_dir):
         logging.Logger.manager.loggerDict.pop(options.JOBNAME, None)
-        with check_raise():
+        with raises:
             with logutils.Script(options) as logger:
-                if raise_type is None:
+                if expected is None:
                     logger.log('')
-                elif raise_type is ValueError:
-                    raise raise_type('hi')
-                elif raise_type is SystemExit:
+                elif expected is ValueError:
+                    raise expected('hi')
+                elif expected is SystemExit:
                     logger.error('msg')
         assert bool(evalue) == ('Peak memory usage:' in logger.data)
         assert msg in logger.data

@@ -83,7 +83,7 @@ def type_int(arg):
     Check and convert to an integer.
 
     :param arg str: the input argument.
-    :return `int:: the converted integer.
+    :return `int`: the converted integer.
     :raise ArgumentTypeError: argument cannot be converted to an integer.
     """
     try:
