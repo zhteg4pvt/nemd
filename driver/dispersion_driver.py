@@ -185,7 +185,7 @@ class Parser(parserutils.XtalBldr):
 
 
 def main(argv):
-    parser = Parser(__file__, descr=__doc__)
+    parser = Parser(descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options) as logger:
         dispersion = Dispersion(options, logger=logger)

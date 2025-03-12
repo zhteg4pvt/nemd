@@ -138,9 +138,9 @@ class Cmd(taskbase.Cmd):
         """
         Get arguments that form command lines.
         """
+        self.addfiles()
         self.quote()
         self.numCpu()
-        self.setName()
         self.setDebug()
         self.setScreen()
 
@@ -179,21 +179,6 @@ class Cmd(taskbase.Cmd):
                 # CPU defined for the sub-job, but users forced a different
                 flag_num = f"{jobutils.FLAG_CPU} {self.options.CPU[1]}"
                 self.args[idx] = self.CPU_RE.sub(flag_num, cmd)
-
-    def setName(self):
-        """
-        Set the cmd job names when the jobname flag is not specified. (name is
-        obtained from the python filename)
-        """
-        for idx, cmd in enumerate(self.args):
-            if jobutils.FLAG_JOBNAME in cmd:
-                continue
-            match = test.FILE_RE.match(cmd)
-            if not match:
-                continue
-            name = match.group(1)
-            cmd += f" {jobutils.FLAG_JOBNAME} {name}"
-            self.args[idx] = cmd
 
     def setDebug(self):
         """

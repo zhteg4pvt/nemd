@@ -41,7 +41,7 @@ class Crystal(logutils.Base):
 
 
 def main(argv):
-    parser = parserutils.XtalBldr(__file__, descr=__doc__)
+    parser = parserutils.XtalBldr(descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options) as logger:
         crystal = Crystal(options, logger=logger)

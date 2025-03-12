@@ -120,18 +120,6 @@ def set_arg(args, flag, val):
     return args
 
 
-def get_name(file):
-    """
-    Get the jobname from the filename.
-
-    :param file str: the filename of a driver or workflow.
-    :return str: the jobname extracted from the filename.
-    """
-    basename = os.path.basename(file)
-    match = re.match(r'(\w+)_(driver|workflow).py', basename)
-    return match.group(1) if match else os.path.splitext(basename)[0]
-
-
 def add_outfile(outfile, jobname=None, file=False, log=False):
     """
     Register the outfile under the job control.

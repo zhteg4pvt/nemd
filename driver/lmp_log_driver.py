@@ -86,7 +86,7 @@ class Log(logutils.Base):
 
 
 def main(argv):
-    parser = parserutils.LmpLog(__file__, descr=__doc__)
+    parser = parserutils.LmpLog(descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options, file=True) as logger:
         log = Log(options, logger=logger)

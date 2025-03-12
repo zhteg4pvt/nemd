@@ -210,16 +210,6 @@ class Cmd(Job):
         self.args = list(map(str, self.doc.get(symbols.ARGS, [])))
         self.args += [y for x in self.job.statepoint.items() for y in x]
 
-    @classmethod
-    @property
-    def default(cls):
-        """
-        The default jobname.
-
-        :return str: the default jobname
-        """
-        return jobutils.get_name(cls.FILE) if cls.FILE else super().default
-
     def run(self):
         """
         Get the job arguments to construct the command.
@@ -250,7 +240,7 @@ class Cmd(Job):
         """
         Remove unknown arguments.
         """
-        parser = self.ParserClass(self.FILE)
+        parser = self.ParserClass()
         _, unknown = parser.parse_known_args(self.args)
         try:
             first = next(i for i, x in enumerate(unknown) if x.startswith('-'))

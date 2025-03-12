@@ -504,14 +504,12 @@ class Driver(argparse.ArgumentParser):
     JFLAGS = [FLAG_INTERAC, FLAG_JOBNAME, FLAG_PYTHON, FLAG_CPU, FLAG_DEBUG]
 
     def __init__(self,
-                 file,
                  formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                  descr=None,
                  valids=None,
                  delay=False,
                  **kwargs):
         """
-        :param file str: script filename which defines the default jobname.
         :param formatter_class 'ArgumentDefaultsHelpFormatter': the formatter
             class to display the customized help message
         :param descr str: the script description displayed as the help message.
@@ -521,7 +519,6 @@ class Driver(argparse.ArgumentParser):
         if descr is not None:
             kwargs.update(description=descr)
         super().__init__(formatter_class=formatter_class, **kwargs)
-        self.file = file
         self.delay = delay
         self.valids = set() if valids is None else valids
         if self.delay:
@@ -549,7 +546,7 @@ class Driver(argparse.ArgumentParser):
         Add job control related flags.
         """
         if self.FLAG_JOBNAME in self.JFLAGS:
-            name = jobutils.get_name(self.file)
+            name = envutils.get_jobname()
             self.add_argument(jobutils.FLAG_NAME,
                               default=name,
                               help=argparse.SUPPRESS)

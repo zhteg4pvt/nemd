@@ -84,7 +84,7 @@ class Grid(logutils.Base):
 
 
 def main(argv):
-    parser = parserutils.MolBldr(__file__, descr=__doc__)
+    parser = parserutils.MolBldr(descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options) as logger:
         cell = Grid(options, logger=logger)

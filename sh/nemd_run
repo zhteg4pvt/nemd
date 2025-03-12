@@ -31,18 +31,30 @@ a=''; for val in "$@" ""; do [ "$a" = "-DEBUG" ] && export DEBUG='1' && break ||
 
 . nemd_func
 
-# Command-line Arguments
-val=''; for nxt in "$@" ''; do
+# Python script
+for val in "$@"; do
   case $val in
     *.py|*.py::*)
       # Python Script
       SCRIPT=${val%%::*} && debug "Python Script: $SCRIPT"
+      NAME=$(basename $SCRIPT)
+      # Set JOBNAME
+      for SUFFIX in _driver.py _workflow.py ".*"; do export JOBNAME=${NAME%%$SUFFIX} && [ $JOBNAME != $NAME ] && break; done
+      debug $JOBNAME
       # Absolute (or relative) path, Scripts, Workflow, Alamode tools, and $PATH
-      BASENAME=$(basename $SCRIPT) && SPATH="$(cd $(dirname $SCRIPT); pwd)/$BASENAME" && debug $SPATH
+      SPATH="$(cd $(dirname $SCRIPT); pwd)/$NAME" && debug $SPATH
       [ ! -f "$SPATH" ] && SPATH=$(which $SCRIPT) && debug $SPATH
-      [ ! -f "$SPATH" ] && echo "Please install $BASENAME, or source premake" && exit 2
-      args=$@; set --; for a in $args; do [ $a = $val ] && a=$SPATH${val#$SCRIPT}; set -- $@ $a; done
+      [ ! -f "$SPATH" ] && echo "Please install $NAME, or source premake" && exit 2
+      # FIXME: the concatenation eats the non-seperator space within one argument
+      args="$@"; set --; for a in $args; do [ "$a" = "$val" ] && a=$SPATH${val#$SCRIPT}; set -- "$@" "$a"; done
+      break
       ;;
+      esac
+done
+
+# Command-line Arguments
+val=''; for nxt in "$@" ''; do
+  case $val in
     -*)
       [ -z ${FLAG_PYTHON##$val*} ] && export PYTHON=$nxt
       [ -z ${FLAG_JOBNAME##$val*} ] && export JOBNAME=$nxt
@@ -51,10 +63,5 @@ val=''; for nxt in "$@" ''; do
     esac
   val=$nxt
 done
-
-# Set JOBNAME
-[ -z $BASENAME ] || [ -z $JOBNAME ] && for SUFFIX in _driver.py _workflow.py ".*"; \
-do export JOBNAME=${BASENAME%%$SUFFIX} && [ $JOBNAME != $BASENAME ] && break; done
-debug $JOBNAME
 
 debug "$@"; python "$@"

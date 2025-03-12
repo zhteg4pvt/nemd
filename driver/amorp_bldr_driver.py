@@ -132,7 +132,7 @@ class Amorphous(logutils.Base):
 
 
 def main(argv):
-    parser = parserutils.AmorpBldr(__file__, descr=__doc__)
+    parser = parserutils.AmorpBldr(descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options) as logger:
         cell = Amorphous(options, logger=logger)

@@ -150,7 +150,7 @@ class Lammps(logutils.Base):
 
 
 def main(argv):
-    parser = parserutils.Lammps(__file__, descr=__doc__)
+    parser = parserutils.Lammps(descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options) as logger:
         lmp = Lammps(options, logger=logger)

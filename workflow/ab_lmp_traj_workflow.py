@@ -40,7 +40,7 @@ class Parser(parserutils.Workflow):
 
 
 def main(argv):
-    parser = Parser(__file__, descr=__doc__)
+    parser = Parser(descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options, file=True) as logger:
         runner = Runner(options, argv, logger=logger)
