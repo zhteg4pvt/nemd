@@ -241,6 +241,17 @@ class LastPct(float):
     The last percentage class to get the start index.
     """
 
+    @classmethod
+    def type(cls, arg):
+        """
+        Check whether the argument can be converted to a percentage.
+
+        :param arg str: the input argument.
+        :return `cls`: the customized last percentage
+        """
+        value = type_positive_float(arg, include_top=False, top=1)
+        return cls(value)
+
     def getSidx(self, data, buffer=0):
         """
         Get the start index of the data.
@@ -252,17 +263,6 @@ class LastPct(float):
         num = len(data)
         sidx = min(max(num - 1, 0), round(num * (1 - self)))
         return max(0, sidx - buffer) if buffer else sidx
-
-    @classmethod
-    def type(cls, arg):
-        """
-        Check whether the argument can be converted to a percentage.
-
-        :param arg str: the input argument.
-        :return `cls`: the customized last percentage
-        """
-        value = type_positive_float(arg, include_top=False, top=1)
-        return cls(value)
 
 
 class Action(argparse.Action):
@@ -282,7 +282,7 @@ class Action(argparse.Action):
         try:
             setattr(options, self.dest, self.doTyping(*values))
         except argparse.ArgumentTypeError as err:
-            parser.error(f"{err} ({option_string})")
+            parser.error(f"{err} ({self.dest})")
 
     def doTyping(self, *args):
         """
@@ -381,7 +381,7 @@ class ThreeAction(Action):
         if len(args) == 1:
             return args * 3
         if len(args) == 2:
-            self.error(f"{self.option_strings[0]} expects three values.")
+            self.error(f"{self.dest} expects three values.")
         return args[:3]
 
 

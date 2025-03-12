@@ -11,19 +11,19 @@ class Raises:
     The class to handle raises.
     """
 
-    @staticmethod
-    def ctxmgr(expected):
+    def __new__(cls, obj):
         """
-        Return function to open context management for the exception assertion.
+        Class and method decorator.
 
-        :param request '_pytest.fixtures.SubRequest': The requested information.
-        :param expected 'type' or any: The raised exception class (e.g. ValueError),
-            or the expected return instance
-        :return 'ContextManager': context manager to assert the raise
+        :param obj `class`, `method` or `func`: the object to decorate
+        :return obj: the decorated object.
         """
-        if inspect.isclass(expected) and issubclass(expected, BaseException):
-            return pytest.raises(expected)
-        return contextlib.nullcontext()
+        if not isclass(obj):
+            return cls.decorate(obj)
+        for name, method in obj.__dict__.items():
+            if name.startswith("test") and callable(method):
+                setattr(obj, name, cls.decorate(method))
+        return obj
 
     @classmethod
     def decorate(cls, func):
@@ -47,17 +47,16 @@ class Raises:
 
         return wrapped
 
-    @classmethod
-    def raises(cls, obj):
+    @staticmethod
+    def ctxmgr(expected):
         """
-        Class and method decorator.
+        Return function to open context management for the exception assertion.
 
-        :param obj `class`, `method` or `func`: the object to decorate
-        :return obj: the decorated object.
+        :param request '_pytest.fixtures.SubRequest': The requested information.
+        :param expected 'type' or any: The raised exception class (e.g. ValueError),
+            or the expected return instance
+        :return 'ContextManager': context manager to assert the raise
         """
-        if not isclass(obj):
-            return cls.decorate(obj)
-        for name, method in obj.__dict__.items():
-            if name.startswith("test") and callable(method):
-                setattr(obj, name, cls.decorate(method))
-        return obj
+        if inspect.isclass(expected) and issubclass(expected, BaseException):
+            return pytest.raises(expected)
+        return contextlib.nullcontext()

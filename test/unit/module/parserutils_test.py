@@ -16,11 +16,11 @@ DATA_FILE = os.path.join(AR_DIR, 'ar100.data')
 LOG_FILE = os.path.join(AR_DIR, 'lammps.log')
 TRAJ_FILE = os.path.join(AR_DIR, 'ar100.custom.gz')
 
+RAISED = argparse.ArgumentTypeError
 
-@pytestutils.Raises.raises
+
+@pytestutils.Raises
 class TestType:
-
-    RAISED = argparse.ArgumentTypeError
 
     @pytest.mark.parametrize('arg,expected', [('not_existing', RAISED),
                                               (TRAJ_FILE, TRAJ_FILE)])
@@ -125,83 +125,82 @@ class TestType:
         assert expected == parserutils.type_cru_smiles(arg,
                                                        allow_reg=allow_reg)
 
-    @pytest.mark.parametrize('arg,expected', [('0.2', 0.2), ('0', RAISED),
-                                              ('0.99', 0.99), ('1', RAISED)])
-    def testLastPctType(self, arg, expected):
-        assert expected == parserutils.LastPct.type(arg)
-
 
 class TestLastPct:
 
+    @pytest.fixture
+    def last_ptc(self, arg):
+        return parserutils.LastPct.type(arg)
+
+    @pytest.mark.parametrize('arg,expected', [('0.2', 0.2), ('0', RAISED),
+                                              ('0.99', 0.99), ('1', RAISED)])
+    @pytestutils.Raises
+    def testType(self, arg, expected):
+        assert expected == parserutils.LastPct.type(arg)
+
     @pytest.mark.parametrize('data', [[0, 1, 2, 3, 4]])
-    @pytest.mark.parametrize('arg,buffer,sidx', [('0.7', 0, 2), ('0.6', 0, 2),
-                                                 ('0.6', 1, 1)])
-    def testLastPctGetSidx(self, data, arg, buffer, sidx):
-        ptc = parserutils.LastPct.type(arg)
-        assert sidx == ptc.getSidx(data, buffer=buffer)
+    @pytest.mark.parametrize('arg,buffer,expected', [('0.7', 0, 2),
+                                                     ('0.6', 0, 2),
+                                                     ('0.6', 1, 1)])
+    def testGetSidx(self, data, last_ptc, buffer, expected):
+        assert expected == last_ptc.getSidx(data, buffer=buffer)
 
 
+@pytestutils.Raises
 class TestAction:
-
-    class ArgumentParser(argparse.ArgumentParser):
-
-        def check(self, args, err=False, expected=None):
-            values = self.parse_args(args=['-flag', *args]).flag
-            assert err == self.error.called
-            if err:
-                return
-            assert (tuple(args) if expected is None else expected) == values
 
     @pytest.fixture
     def parser(self, action, dtype):
-        parser = self.ArgumentParser()
-        parser.add_argument('-flag', nargs='+', type=dtype, action=action)
-        parser.error = mock.Mock()
+        parser = argparse.ArgumentParser()
+        parser.add_argument('dest', nargs='+', type=dtype, action=action)
+
+        def error(x):
+            raise RAISED(x)
+
+        parser.error = error
         return parser
 
-    @mock.patch('nemd.parserutils.Action.doTyping')
-    @pytest.mark.parametrize('action,dtype', [(parserutils.Action, str)])
-    def testDoTyping(self, mocked, parser):
-        parser.parse_args(['-flag', '1', '2'])
-        assert mocked.called
+    @pytest.mark.parametrize('action,dtype,args,expected',
+                             [(parserutils.Action, str, ['1', '2'],
+                               ('1', '2'))])
+    def testDoTyping(self, parser, args, expected):
+        assert expected == parser.parse_args(args).dest
 
     @pytest.mark.parametrize('action,dtype',
                              [(parserutils.ForceFieldAction, str)])
-    @pytest.mark.parametrize('args,expected,err',
-                             [(['SW'], None, False),
-                              (['OPLSUA'], ('OPLSUA', 'TIP3P'), False),
-                              (['OPLSUA', 'SPCE'], None, False),
-                              (['OPLSUA', 'NOT_VALID'], None, True)])
-    def testForceField(self, args, parser, expected, err):
-        parser.check(args, err, expected)
+    @pytest.mark.parametrize('args,expected',
+                             [(['SW'], ('SW', )),
+                              (['OPLSUA'], ('OPLSUA', 'TIP3P')),
+                              (['OPLSUA', 'SPCE'], ('OPLSUA', 'SPCE')),
+                              (['OPLSUA', 'NOT_VALID'], RAISED)])
+    def testForceField(self, parser, args, expected):
+        assert expected == parser.parse_args(args).dest
 
     @pytest.mark.parametrize(
         'action,dtype',
-        [(parserutils.SliceAction, parserutils.type_positive_int)])
-    @pytest.mark.parametrize('args,expected,err',
-                             [(['9'], (0, 9, 1), False),
-                              (['9', '1'], None, True),
-                              (['1', '9', '3'], (1, 9, 3), False),
-                              (['1', '9', '0'], None, True)])
-    def testSlice(self, args, parser, expected, err):
-        parser.check(args, err, expected)
+        [(parserutils.SliceAction, parserutils.type_nonnegative_int)])
+    @pytest.mark.parametrize('args,expected', [(['9'], (0, 9, 1)),
+                                               (['9', '1'], RAISED),
+                                               (['1', '9', '3'], (1, 9, 3)),
+                                               (['1', '9', '0'], RAISED)])
+    def testSlice(self, parser, args, expected):
+        assert expected == parser.parse_args(args).dest
 
     @pytest.mark.parametrize('action,dtype', [(parserutils.StructAction, str)])
-    @pytest.mark.parametrize('args,expected,err',
-                             [(['CCC', '36'], ('CCC', 36), False),
-                              (['CC'], ('CC', None), False),
-                              (['CCC', 'non_float'], None, True),
-                              (['non_smiles'], None, True)])
-    def testStruct(self, args, parser, expected, err):
-        parser.check(args, err, expected)
+    @pytest.mark.parametrize('args,expected', [(['CCC', '36'], ('CCC', 36)),
+                                               (['CC'], ('CC', None)),
+                                               (['CCC', 'non_float'], RAISED),
+                                               (['non_smiles'], RAISED)])
+    def testStruct(self, parser, args, expected):
+        assert expected == parser.parse_args(args).dest
 
     @pytest.mark.parametrize('action,dtype', [(parserutils.ThreeAction, str)])
-    @pytest.mark.parametrize('args,expected,err',
-                             [(['1', '2', '3', '4'], ('1', '2', '3'), False),
-                              (['1'], ('1', '1', '1'), False),
-                              (['1', '2'], None, True), ([], None, True)])
-    def testThree(self, args, parser, expected, err):
-        parser.check(args, err, expected)
+    @pytest.mark.parametrize('args,expected',
+                             [(['1', '2', '3', '4'], ('1', '2', '3')),
+                              (['1'], ('1', '1', '1')), (['1', '2'], RAISED),
+                              ([], RAISED)])
+    def testThree(self, args, parser, expected):
+        assert expected == parser.parse_args(args).dest
 
 
 class TestValidator:
