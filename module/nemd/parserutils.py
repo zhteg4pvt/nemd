@@ -31,7 +31,7 @@ def type_file(arg):
     """
     if os.path.isfile(arg):
         return arg
-    raise argparse.ArgumentTypeError(f'{arg} not found.')
+    raise argparse.ArgumentTypeError(f'{arg} not found')
 
 
 def type_dir(arg):
@@ -44,7 +44,7 @@ def type_dir(arg):
     """
     if os.path.isdir(arg):
         return arg
-    raise argparse.ArgumentTypeError(f'{arg} is not an existing directory.')
+    raise argparse.ArgumentTypeError(f'{arg} is not an existing directory')
 
 
 def type_bool(arg):
@@ -61,7 +61,7 @@ def type_bool(arg):
         case 'n' | 'no' | 'f' | 'false' | 'off' | '0':
             return False
         case _:
-            raise argparse.ArgumentTypeError(f'{arg} is not a valid boolean.')
+            raise argparse.ArgumentTypeError(f'{arg} is not a valid boolean')
 
 
 def type_float(arg):
@@ -75,7 +75,7 @@ def type_float(arg):
     try:
         return float(arg)
     except ValueError:
-        raise argparse.ArgumentTypeError(f'Cannot convert {arg} to a float.')
+        raise argparse.ArgumentTypeError(f'Cannot convert {arg} to a float')
 
 
 def type_int(arg):
@@ -344,7 +344,7 @@ class SliceAction(Action):
         start = 0 if sliced.start is None else sliced.start
         step = 1 if sliced.step is None else sliced.step
         if step == 0 or start > sliced.stop:
-            self.error(f"{args} invalid for slice.")
+            self.error(f"{args} can't slice")
         return start, sliced.stop, step
 
 
@@ -381,7 +381,7 @@ class ThreeAction(Action):
         if len(args) == 1:
             return args * 3
         if len(args) == 2:
-            self.error(f"{self.dest} expects three values.")
+            self.error(f"{args} contains two values")
         return args[:3]
 
 

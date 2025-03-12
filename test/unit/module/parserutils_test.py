@@ -13,6 +13,7 @@ IN_FILE = os.path.join(AR_DIR, 'ar100.in')
 EMPTY_IN = os.path.join(AR_DIR, 'empty.in')
 MISS_DATA_IN = os.path.join(AR_DIR, 'single.in')
 DATA_FILE = os.path.join(AR_DIR, 'ar100.data')
+MY_DATA_FILE = os.path.join(AR_DIR, 'mydata.in')
 LOG_FILE = os.path.join(AR_DIR, 'lammps.log')
 TRAJ_FILE = os.path.join(AR_DIR, 'ar100.custom.gz')
 
@@ -146,6 +147,10 @@ class TestLastPct:
         assert expected == last_ptc.getSidx(data, buffer=buffer)
 
 
+def error(x):
+    raise RAISED(x)
+
+
 @pytestutils.Raises
 class TestAction:
 
@@ -153,10 +158,6 @@ class TestAction:
     def parser(self, action, dtype):
         parser = argparse.ArgumentParser()
         parser.add_argument('dest', nargs='+', type=dtype, action=action)
-
-        def error(x):
-            raise RAISED(x)
-
         parser.error = error
         return parser
 
@@ -203,24 +204,21 @@ class TestAction:
         assert expected == parser.parse_args(args).dest
 
 
+@pytestutils.Raises
 class TestValidator:
 
     @pytest.fixture
     def parser(self, valid, flags, kwargss):
-        if flags is None:
-            flags = []
         if kwargss is None:
             kwargss = [{}]
         if isinstance(kwargss, dict):
             kwargss = [kwargss]
         if len(kwargss) == 1:
             kwargss = kwargss * len(flags)
-        parser = parserutils.Driver(valids=set([valid]))
-        parser.error = mock.Mock()
+        parser = parserutils.Driver('name_driver.py', valids={valid})
         for flag, kwargs in zip(flags, kwargss):
-            if kwargs is None:
-                kwargs = {}
-            parser.add_argument(flag, **kwargs)
+            parser.add_argument(flag, **(kwargs if kwargs else {}))
+        parser.error = error
         return parser
 
     @pytest.fixture
@@ -232,40 +230,42 @@ class TestValidator:
     @pytest.mark.parametrize('valid', [parserutils.MolValid])
     @pytest.mark.parametrize('flags', [('-cru', '-cru_num', '-mol_num')])
     @pytest.mark.parametrize('kwargss', [{'nargs': '+'}])
-    @pytest.mark.parametrize('values,err',
-                             [((['C'], None, None), False),
-                              ((['C', 'O'], None, None), False),
-                              ((['C', 'O'], ['1', '2'], None), False),
-                              ((['C', 'O'], ['1', '2'], ['4', '5']), False),
-                              ((['C', 'O'], ['1'], ['4', '5']), True),
-                              ((['C', 'O'], ['1', '2'], ['5']), True)])
-    def testMol(self, parser, err, args):
-        parser.parse_args(args)
-        assert err == parser.error.called
+    @pytest.mark.parametrize('values,expected', [
+        ((['C'], None, None), ['C', 1, 1]),
+        ((['C', 'O'], None, None), ['C', 'O', 1, 1, 1, 1]),
+        ((['C', 'O'], ['1', '2'], None), ['C', 'O', '1', '2', 1, 1]),
+        ((['C', 'O'], ['1', '2'], ['4', '5']), ['C', 'O', '1', '2', '4', '5']),
+        ((['C', 'O'], ['1'], ['4', '5']), RAISED),
+        ((['C', 'O'], ['1', '2'], ['5']), RAISED)
+    ])
+    def testMol(self, parser, args, expected):
+        options = parser.parse_args(args)
+        assert expected == [*options.cru, *options.cru_num, *options.mol_num]
 
     @pytest.mark.parametrize('valid', [parserutils.LmpValid])
     @pytest.mark.parametrize('flags', [('-inscript', '-data_file')])
     @pytest.mark.parametrize('kwargss', [None])
     @pytest.mark.parametrize(
-        'values,err', [((IN_FILE, None), False), ((MISS_DATA_IN, None), True),
-                       ((MISS_DATA_IN, 'my.data'), False),
-                       ((os.path.join(AR_DIR, 'mydata.in'), None), False),
-                       ((EMPTY_IN, None), False)])
-    def testLmp(self, values, parser, err, args, tmp_dir):
-        with open('my.data', 'w') as fh:
-            fh.write('This is a data file')
-        parser.parse_args(args)
-        assert err == parser.error.called
+        'values,expected',
+        [((IN_FILE, None), [IN_FILE, DATA_FILE]),
+         ((MISS_DATA_IN, None), RAISED),
+         ((MISS_DATA_IN, 'my.data'), [MISS_DATA_IN, 'my.data']),
+         ((MY_DATA_FILE, None), [MY_DATA_FILE, None]),
+         ((EMPTY_IN, None), [EMPTY_IN, None])])
+    def testLmp(self, values, parser, expected, args, tmp_dir):
+        options = parser.parse_args(args)
+        assert expected == [options.inscript, options.data_file]
 
-    @pytest.mark.parametrize('valid', [parserutils.LmpTrajValid])
+    @pytest.mark.parametrize('valid', [parserutils.TrajValid])
     @pytest.mark.parametrize('flags', [(['-task', '-data_file'])])
     @pytest.mark.parametrize('kwargss', [([{'nargs': '+'}, None])])
-    @pytest.mark.parametrize('values,err', [((['density'], None), True),
-                                            ((['xyz'], None), False),
-                                            ((['density'], 'my.data'), False)])
-    def testTraj(self, values, parser, err, args):
-        parser.parse_args(args)
-        assert err == parser.error.called
+    @pytest.mark.parametrize(
+        'values,expected',
+        [((['xyz'], None), ['xyz', None]), ((['density'], None), RAISED),
+         ((['density'], 'my.data'), ['density', 'my.data'])])
+    def testTraj(self, parser, args, expected):
+        options = parser.parse_args(args)
+        assert expected == [*options.task, options.data_file]
 
 
 class TestDriver:
