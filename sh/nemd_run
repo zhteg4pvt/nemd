@@ -33,6 +33,7 @@ a=''; for val in "$@" ""; do [ "$a" = "-DEBUG" ] && export DEBUG='1' && break ||
 
 # Python script
 for val in "$@"; do
+  shift
   case $val in
     *.py|*.py::*)
       # Python Script
@@ -41,15 +42,14 @@ for val in "$@"; do
       # Set JOBNAME
       for SUFFIX in _driver.py _workflow.py ".*"; do export JOBNAME=${NAME%%$SUFFIX} && [ $JOBNAME != $NAME ] && break; done
       debug $JOBNAME
-      # Absolute (or relative) path, Scripts, Workflow, Alamode tools, and $PATH
+      # Absolute (or relative) path or in $PATH
       SPATH="$(cd $(dirname $SCRIPT); pwd)/$NAME" && debug $SPATH
       [ ! -f "$SPATH" ] && SPATH=$(which $SCRIPT) && debug $SPATH
       [ ! -f "$SPATH" ] && echo "Please install $NAME, or source premake" && exit 2
-      # FIXME: the concatenation eats the non-seperator space within one argument
-      args="$@"; set --; for a in $args; do [ "$a" = "$val" ] && a=$SPATH${val#$SCRIPT}; set -- "$@" "$a"; done
-      break
+      val=$SPATH${val#$SCRIPT}
       ;;
       esac
+  set -- "$@" "$val"
 done
 
 # Command-line Arguments
