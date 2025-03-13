@@ -60,15 +60,22 @@ class TestFunc:
 class TestJob:
 
     MB_LMP_LOG = 'test_mb_lmp_log'
+    NEMD_SRC = envutils.get_src()
 
     @pytest.fixture
     def raw(self, tmp_dir):
         return jobutils.Job()
 
     @pytest.fixture
-    def job(self, name, dirname, tmp_dir):
+    def job(self, name, dirname):
         if dirname is None:
             return jobutils.Job(name=name)
+        test_dir = envutils.test_data('itest', dirname)
+        jobs = flow.project.FlowProject.get_project(test_dir).find_jobs()
+        return jobutils.Job(name=name, job=list(jobs)[0])
+
+    @pytest.fixture
+    def copied(self, name, dirname, tmp_dir):
         test_dir = envutils.test_data('itest', dirname)
         shutil.copytree(test_dir, os.curdir, dirs_exist_ok=True)
         jobs = flow.project.FlowProject.get_project(os.curdir).find_jobs()
@@ -102,35 +109,37 @@ class TestJob:
         raw.set('my.log', ftype='logfile')
         raw.write()
         with open(raw.file) as fh:
-            raw.data == json.load(fh)
+            assert raw.data == json.load(fh)
 
+    @pytest.mark.skipif(NEMD_SRC is None, reason="cannot locate test dir")
     @pytest.mark.parametrize('name', [('mb_lmp_log')])
     @pytest.mark.parametrize('dirname, ftype, expected',
                              [(MB_LMP_LOG, 'outfile', 'mb_lmp_log.log'),
                               (MB_LMP_LOG, 'outfile2', None),
                               (None, 'outfile', None)])
     def testGetFile(self, ftype, expected, dirname, job):
-        if expected is None:
-            assert job.getFile(ftype=ftype) is None
-            return
-        assert job.getFile(ftype=ftype).endswith(expected)
+        file = job.getFile(ftype=ftype)
+        assert file is None if expected is None else file.endswith(expected)
 
+    @pytest.mark.skipif(NEMD_SRC is None, reason="cannot locate test dir")
     @pytest.mark.parametrize('name', [('mb_lmp_log')])
     @pytest.mark.parametrize('dirname, expected',
                              [(MB_LMP_LOG, 'mb_lmp_log.log')])
     def testLogFile(self, expected, dirname, job):
         assert job.logfile.endswith(expected)
 
+    @pytest.mark.skipif(NEMD_SRC is None, reason="cannot locate test dir")
     @pytest.mark.parametrize('name', [(None)])
     @pytest.mark.parametrize('dirname, expected',
                              [(MB_LMP_LOG, 'mb_lmp_log.log')])
     def testGetJobs(self, expected, job):
         assert 4 == len([x.file for x in job.getJobs()])
 
+    @pytest.mark.skipif(NEMD_SRC is None, reason="cannot locate test dir")
     @pytest.mark.parametrize('name', [('mb_lmp_log')])
     @pytest.mark.parametrize('dirname, expected',
                              [(MB_LMP_LOG, 'mb_lmp_log.log')])
-    def testClean(self, expected, job):
-        assert os.path.exists(job.file)
-        job.clean()
-        assert not os.path.exists(job.file)
+    def testClean(self, expected, copied):
+        assert os.path.exists(copied.file)
+        copied.clean()
+        assert not os.path.exists(copied.file)

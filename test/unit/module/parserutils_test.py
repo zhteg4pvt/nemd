@@ -8,26 +8,28 @@ from nemd import envutils
 from nemd import parserutils
 from nemd import pytestutils
 
-AR_DIR = envutils.test_data('ar')
-IN_FILE = os.path.join(AR_DIR, 'ar100.in')
-EMPTY_IN = os.path.join(AR_DIR, 'empty.in')
-MISS_DATA_IN = os.path.join(AR_DIR, 'single.in')
-DATA_FILE = os.path.join(AR_DIR, 'ar100.data')
-MY_DATA_FILE = os.path.join(AR_DIR, 'mydata.in')
-LOG_FILE = os.path.join(AR_DIR, 'lammps.log')
-TRAJ_FILE = os.path.join(AR_DIR, 'ar100.custom.gz')
-
+AR = 'ar'
+AR_DIR = envutils.test_data(AR)
+IN_FILE = envutils.test_data(AR, 'ar100.in')
+EMPTY_IN = envutils.test_data(AR, 'empty.in')
+MISS_DATA_IN = envutils.test_data(AR, 'single.in')
+DATA_FILE = envutils.test_data(AR, 'ar100.data')
+MY_DATA_FILE = envutils.test_data(AR, 'mydata.in')
+LOG_FILE = envutils.test_data(AR, 'lammps.log')
+TRAJ_FILE = envutils.test_data(AR, 'ar100.custom.gz')
 RAISED = argparse.ArgumentTypeError
 
 
 @pytestutils.Raises
 class TestType:
 
+    @pytest.mark.skipif(AR_DIR is None, reason="cannot locate test dir")
     @pytest.mark.parametrize('arg,expected', [('not_existing', RAISED),
                                               (TRAJ_FILE, TRAJ_FILE)])
     def testFile(self, arg, expected):
         assert expected == parserutils.type_file(arg)
 
+    @pytest.mark.skipif(AR_DIR is None, reason="cannot locate test dir")
     @pytest.mark.parametrize('arg,expected', [(AR_DIR, None),
                                               ('not_existing', RAISED),
                                               (TRAJ_FILE, RAISED)])
@@ -242,6 +244,7 @@ class TestValidator:
         options = parser.parse_args(args)
         assert expected == [*options.cru, *options.cru_num, *options.mol_num]
 
+    @pytest.mark.skipif(AR_DIR is None, reason="cannot locate test dir")
     @pytest.mark.parametrize('valid', [parserutils.LmpValid])
     @pytest.mark.parametrize('flags', [('-inscript', '-data_file')])
     @pytest.mark.parametrize('kwargss', [None])
@@ -441,6 +444,7 @@ class TestAdd:
             options.force_field
         ]
 
+    @pytest.mark.skipif(AR_DIR is None, reason="cannot locate test dir")
     @pytest.mark.parametrize(
         'args,expected',
         [([EMPTY_IN], [EMPTY_IN, None]),
@@ -450,6 +454,7 @@ class TestAdd:
         options = parser.parse_args(args)
         assert expected == [options.inscript, options.data_file]
 
+    @pytest.mark.skipif(AR_DIR is None, reason="cannot locate test dir")
     @pytest.mark.parametrize(
         'args,positional,expected',
         [([], False, [['toteng'], None,
@@ -466,6 +471,7 @@ class TestAdd:
             options.task, options.data_file, options.last_pct, options.slice
         ]
 
+    @pytest.mark.skipif(AR_DIR is None, reason="cannot locate test dir")
     @pytest.mark.parametrize(
         'args,positional,expected',
         [([], False, [['density'], None,
