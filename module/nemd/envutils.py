@@ -101,7 +101,7 @@ def get_mem_intvl():
         return intvl if intvl > 0 else None
 
 
-def get_nemd_src(*arg):
+def get_src(*arg):
     """
     Get the source code dir.
 
@@ -111,6 +111,22 @@ def get_nemd_src(*arg):
     return os.path.join(nemd_src, *arg) if nemd_src else None
 
 
+def test_data(*args):
+    """
+    Get the pathname of the test data.
+
+    :param args str list: the directory and file name of the test file.
+    :return str: the pathname
+    :raise FileNotFoundError: if the NEMD_SRC directory or test data not found.
+    """
+    pathname = get_src('test', 'data', *args)
+    if pathname is None:
+        raise FileNotFoundError("Error: NEMD_SRC directory cannot be found.")
+    if not os.path.exists(pathname):
+        raise FileNotFoundError("Error: test directory cannot be found.")
+    return pathname
+
+
 def get_module_dir(name=NEMD):
     """
     Get the module path.
@@ -118,24 +134,10 @@ def get_module_dir(name=NEMD):
     :param name str: the module name.
     :return str: the module path
     """
-    pathname = get_nemd_src('module', name)
+    pathname = get_src('module', name)
     if pathname:
         return pathname
     return os.path.dirname(importlib.util.find_spec(name).origin)
-
-
-def test_data(*args):
-    """
-    Get the pathname of the test data.
-
-    :param args str list: the directory and file name of the test file.
-    :return str: the pathname
-    :raise FileNotFoundError: if the source directory cannot be found.
-    """
-    pathname = get_nemd_src('test', 'data', *args)
-    if pathname is None:
-        raise FileNotFoundError("Error: test directory cannot be found.")
-    return pathname
 
 
 def get_data(*args, module=NEMD, base=None):

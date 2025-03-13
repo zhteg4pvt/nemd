@@ -8,7 +8,7 @@ from nemd import envutils
 from nemd import itest
 from nemd import jobutils
 
-BASE_DIR = envutils.get_nemd_src('test', 'data', 'itest')
+BASE_DIR = envutils.get_src('test', 'data', 'itest')
 
 TID = 1
 JOB_DIR = os.path.join(BASE_DIR, 'ea8c25e09124635e93178c1725ae8ee7')

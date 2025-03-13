@@ -123,7 +123,7 @@ class TestValid(parserutils.Valid):
         :raises ValueError: if the input directory is None.
         """
         if self.options.dir is None:
-            self.options.dir = envutils.get_nemd_src('test', self.options.name)
+            self.options.dir = envutils.get_src('test', self.options.name)
         if not self.options.dir:
             raise ValueError(f'Please define the test dir via {FLAG_DIR}')
 

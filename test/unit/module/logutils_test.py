@@ -11,6 +11,9 @@ from nemd import envutils
 from nemd import jobutils
 from nemd import logutils
 
+if envutils.get_src() is None:
+    pytest.exit("Please source premake")
+
 
 class TestFunc:
 
