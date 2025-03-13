@@ -15,8 +15,8 @@ import types
 
 import wurlitzer
 
-from nemd import DEBUG
 from nemd import envutils
+from nemd import is_debug
 from nemd import jobutils
 from nemd import psutils
 from nemd import symbols
@@ -96,9 +96,9 @@ class Logger(logging.Logger):
         """
         Set up the logger. (e.g., level, handler)
         """
-        self.setLevel(logging.DEBUG if DEBUG else logging.INFO)
+        self.setLevel(logging.DEBUG if is_debug() else logging.INFO)
         basename, name_ext = os.path.splitext(self.name)
-        if name_ext.startswith('.py') and not DEBUG:
+        if name_ext.startswith('.py') and not is_debug():
             # Module debugger outside the debug mode
             return
         ext = '.debug' if name_ext.startswith('.py') else symbols.LOG_EXT

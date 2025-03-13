@@ -480,7 +480,7 @@ class LammpsLogReader(object):
 
     def plot(self):
 
-        if not envutils.get_interactive():
+        if not envutils.is_interac():
             return
 
         names = set([y for x in self.all_data for y in x.data.dtype.names])

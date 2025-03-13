@@ -11,7 +11,7 @@ class TestFunc:
     @pytest.mark.parametrize("ekey", ['INTERAC'])
     @pytest.mark.parametrize("evalue", ['1', None])
     def testIsInteractive(self, evalue, env):
-        assert evalue == envutils.get_interactive()
+        assert evalue == envutils.is_interac()
 
     @pytest.mark.parametrize("ekey", ['PYTHON'])
     @pytest.mark.parametrize("evalue,expected", [('-1', '-1'), ('0', '0'),

@@ -443,7 +443,7 @@ class CollectLog(Exist):
                 # memory and time are plotted together when key == self.TIME
                 continue
             label = self.LABELS[key]
-            with plotutils.get_pyplot(inav=envutils.get_interactive()) as plt:
+            with plotutils.get_pyplot(inav=envutils.is_interac()) as plt:
                 fig = plt.figure(figsize=(10, 6))
                 ax1 = fig.add_subplot(1, 1, 1)
                 data = self.data.get(label)

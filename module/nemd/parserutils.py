@@ -9,10 +9,10 @@ import os
 import random
 import re
 
-from nemd import DEBUG
 from nemd import analyzer
 from nemd import cru
 from nemd import envutils
+from nemd import is_debug
 from nemd import jobutils
 from nemd import lammpsfix
 from nemd import np
@@ -58,10 +58,8 @@ def type_bool(arg):
     match arg.lower():
         case 'y' | 'yes' | 't' | 'true' | 'on' | '1':
             return True
-        case 'n' | 'no' | 'f' | 'false' | 'off' | '0':
+        case '' | 'n' | 'no' | 'f' | 'false' | 'off' | '0':
             return False
-        case '':
-            return
         case _:
             raise argparse.ArgumentTypeError(f'{arg} is not a valid boolean')
 
@@ -557,7 +555,7 @@ class Driver(argparse.ArgumentParser):
                               help='Name output files.')
         if self.FLAG_INTERAC in self.JFLAGS:
             self.addBool(self.FLAG_INTERAC,
-                         default=envutils.get_interactive(),
+                         default=envutils.is_interac(),
                          help='Pause for user input.')
         if self.FLAG_PYTHON in self.JFLAGS:
             self.add_argument(self.FLAG_PYTHON,
@@ -573,7 +571,7 @@ class Driver(argparse.ArgumentParser):
         if self.FLAG_DEBUG in self.JFLAGS:
             self.addBool(
                 self.FLAG_DEBUG,
-                default=DEBUG,
+                default=is_debug(),
                 help='True allows additional printing and output files; '
                 'False disables the mode.')
 
@@ -591,7 +589,7 @@ class Driver(argparse.ArgumentParser):
                           nargs='?',
                           const=True,
                           type=type_bool,
-                          choices=[True, False, None],
+                          choices=[True, False],
                           help=help)
 
     @classmethod

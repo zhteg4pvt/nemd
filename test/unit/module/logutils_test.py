@@ -62,16 +62,16 @@ class TestLogger:
     def logger(self, tmp_dir):
         return Logger('name')
 
-    @pytest.mark.parametrize('name,debug,file',
-                             [('myname.py', False, None),
-                              ('myname.py', True, 'myname.debug'),
-                              ('myname', False, 'myname.log'),
-                              ('myname', True, 'myname.log')])
-    def testSetUp(self, name, debug, file, tmp_dir):
+    @pytest.mark.parametrize('ekey', ['DEBUG'])
+    @pytest.mark.parametrize('evalue, name,file',
+                             [('', 'myname.py', None),
+                              ('1', 'myname.py', 'myname.debug'),
+                              ('', 'myname', 'myname.log'),
+                              ('1', 'myname', 'myname.log')])
+    def testSetUp(self, name, evalue, file, tmp_dir, env):
         logger = logutils.Logger(name, delay=True)
-        with mock.patch('nemd.logutils.DEBUG', debug):
-            logger.setUp()
-        assert (logging.DEBUG if debug else logging.INFO) == logger.level
+        logger.setUp()
+        assert (logging.DEBUG if evalue else logging.INFO) == logger.level
         assert bool(file) == bool(logger.handlers)
         if file:
             assert os.path.isfile(file)

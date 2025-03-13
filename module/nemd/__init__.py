@@ -9,9 +9,17 @@ Customization before importing the nemd module.
 """
 import os
 
-DEBUG = os.environ.get('DEBUG')
 
-if not DEBUG:
+def is_debug():
+    """
+    Whether the debug modo is on.
+
+    :return bool: whether the debug modo is on.
+    """
+    return bool(os.environ.get('DEBUG'))
+
+
+if is_debug():
     # lazy_import creates faked module objects which are expected to be
     # materialized by accessing their attributes.
     # FIXME: StreamHandler added by basicConfig() in lazy_import/__init__.py

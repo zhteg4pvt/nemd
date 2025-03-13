@@ -215,7 +215,7 @@ class TestValidator:
             kwargss = [kwargss]
         if len(kwargss) == 1:
             kwargss = kwargss * len(flags)
-        parser = parserutils.Driver('name_driver.py', valids={valid})
+        parser = parserutils.Driver(valids={valid})
         for flag, kwargs in zip(flags, kwargss):
             parser.add_argument(flag, **(kwargs if kwargs else {}))
         parser.error = error
@@ -271,22 +271,21 @@ class TestValidator:
 class TestDriver:
 
     @pytest.fixture
-    def raw(self, to_mock, mock_as):
-        with mock.patch(f'nemd.parserutils.{to_mock}', mock_as):
+    def mocked(self, to_mock):
+        with mock.patch(f'nemd.parserutils.{to_mock}', mock.Mock()):
             yield parserutils.Driver(valids={parserutils.Valid})
 
     @pytest.fixture
     def parser(self):
         return parserutils.Driver(valids={parserutils.Valid})
 
-    @pytest.mark.parametrize('to_mock,mock_as',
-                             [('Driver.setUp', mock.Mock())])
-    def testSetUp(self, raw):
-        raw.setUp.assert_called_with()
+    @pytest.mark.parametrize('to_mock', ['Driver.setUp'])
+    def testSetUp(self, mocked):
+        mocked.setUp.assert_called_with()
 
-    @pytest.mark.parametrize('to_mock,mock_as', [('Driver.add', mock.Mock())])
-    def testAdd(self, raw):
-        raw.add.assert_called_with(raw, positional=True)
+    @pytest.mark.parametrize('to_mock', ['Driver.add'])
+    def testAdd(self, mocked):
+        mocked.add.assert_called_with(mocked, positional=True)
 
     @pytest.mark.parametrize('ekey', ['JOBNAME'])
     @pytest.mark.parametrize(
@@ -304,7 +303,7 @@ class TestDriver:
 
     @pytest.mark.parametrize('ekey', ['INTERAC'])
     @pytest.mark.parametrize('evalue,args,expected',
-                             [(None, [], None), ('False', [], False),
+                             [(None, [], False), ('', [], False),
                               ('False', ['-INTERAC'], True),
                               ('True', ['-INTERAC', 'False'], False)])
     def testAddInterac(self, args, expected, env):
@@ -328,17 +327,18 @@ class TestDriver:
         options = parser.parse_args(args)
         assert expected == options.CPU
 
-    @pytest.mark.parametrize('to_mock', ['DEBUG'])
-    @pytest.mark.parametrize('mock_as,args,expected',
-                             [(None, [], None), (False, [], False),
-                              (False, ['-DEBUG'], True),
-                              (True, ['-DEBUG', 'False'], False)])
-    def testAddDebug(self, raw, args, expected):
-        options = raw.parse_args(args)
+    @pytest.mark.parametrize('ekey', ['DEBUG'])
+    @pytest.mark.parametrize('evalue,args,expected',
+                             [(None, [], False), ('', [], False),
+                              (None, ['-DEBUG'], True),
+                              ('1', ['-DEBUG', 'False'], False)])
+    def testAddDebug(self, args, expected, env):
+        parser = parserutils.Driver(valids={parserutils.Valid})
+        options = parser.parse_args(args)
         assert expected == options.DEBUG
 
     @pytest.mark.parametrize('args,expected', [([], None),
-                                               (['-bool', ''], None),
+                                               (['-bool', ''], False),
                                                (['-bool'], True),
                                                (['-bool', 'yes'], True),
                                                (['-bool', 'false'], False),
@@ -355,19 +355,19 @@ class TestDriver:
         seed = parser.parse_args(args).seed
         assert (expected == seed) if expected else isinstance(seed, int)
 
-    @pytest.mark.parametrize('args,kwargs', [(['-JOBNAME'], {'-NAME': 'hi'})])
-    def testSuppress(self, args, kwargs, parser):
-        parser.suppress(flags=args, **kwargs)
+    @pytest.mark.parametrize('flags,kwargs', [(['-JOBNAME'], {'-NAME': 'hi'})])
+    def testSuppress(self, flags, kwargs, parser):
+        parser.suppress(flags=flags, **kwargs)
         for dest in ['NAME', 'JOBNAME']:
             action = next(x for x in parser._actions if x.dest == dest)
             assert '==SUPPRESS==' == action.help
             assert not ((dest == 'NAME') ^ ('hi' == action.default))
 
-    @pytest.mark.parametrize('to_mock,mock_as', [('Valid.run', mock.Mock())])
-    def testParseArgs(self, raw):
-        options = raw.parse_args(['-JOBNAME', 'hi'])
+    @pytest.mark.parametrize('to_mock', ['Valid.run'])
+    def testParseArgs(self, mocked):
+        options = mocked.parse_args(['-JOBNAME', 'hi'])
         assert 'hi' == options.JOBNAME
-        assert next(iter(raw.valids)).run.called
+        assert next(iter(mocked.valids)).run.called
 
 
 class TestAdd:
