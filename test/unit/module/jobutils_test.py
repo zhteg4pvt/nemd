@@ -43,13 +43,6 @@ class TestFunc:
     def testSetArg(self, cmd, expected):
         assert expected == jobutils.set_arg(cmd, '-cru_num', '5')
 
-    @pytest.mark.parametrize('file,expected',
-                             [('mol_bldr_driver.py', 'mol_bldr'),
-                              ('cb_lmp_log_workflow.py', 'cb_lmp_log'),
-                              ('cb_test.py', 'cb_test')])
-    def testGetName(self, file, expected):
-        assert expected == jobutils.get_name(file)
-
     @pytest.mark.parametrize('ekey,evalue', [('JOBNAME', 'name')])
     @pytest.mark.parametrize('jobname', [None, 'jobname'])
     @pytest.mark.parametrize('file', [False, True])

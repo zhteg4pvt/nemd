@@ -24,11 +24,11 @@ PYTHON_MODES = [PYTHON_MODE, ORIGINAL_MODE, NOPYTHON_MODE, CACHE_MODE]
 NOPYTHON_MODES = [NOPYTHON_MODE, CACHE_MODE]
 
 
-def is_interactive():
+def get_interactive():
     """
-    Whether interactive mode is on.
+    Get the interactive mode.
 
-    :return bool: If interactive mode is on.
+    :return str: The interactive state.
     """
     return os.environ.get(INTERAC)
 

@@ -9,7 +9,7 @@ Customization before importing the nemd module.
 """
 import os
 
-DEBUG = bool(os.environ.get('DEBUG'))
+DEBUG = os.environ.get('DEBUG')
 
 if not DEBUG:
     # lazy_import creates faked module objects which are expected to be

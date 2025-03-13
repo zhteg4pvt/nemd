@@ -60,6 +60,8 @@ def type_bool(arg):
             return True
         case 'n' | 'no' | 'f' | 'false' | 'off' | '0':
             return False
+        case '':
+            return
         case _:
             raise argparse.ArgumentTypeError(f'{arg} is not a valid boolean')
 
@@ -546,23 +548,20 @@ class Driver(argparse.ArgumentParser):
         Add job control related flags.
         """
         if self.FLAG_JOBNAME in self.JFLAGS:
-            name = envutils.get_jobname()
+            name = envutils.get_jobname(name='job')
             self.add_argument(jobutils.FLAG_NAME,
                               default=name,
                               help=argparse.SUPPRESS)
             self.add_argument(self.FLAG_JOBNAME,
-                              dest=self.FLAG_JOBNAME[1:],
                               default=name,
                               help='Name output files.')
         if self.FLAG_INTERAC in self.JFLAGS:
-            self.add_argument(self.FLAG_INTERAC,
-                              dest=self.FLAG_INTERAC[1:],
-                              action='store_true',
-                              help='Pause for user input.')
+            self.addBool(self.FLAG_INTERAC,
+                         default=envutils.get_interactive(),
+                         help='Pause for user input.')
         if self.FLAG_PYTHON in self.JFLAGS:
             self.add_argument(self.FLAG_PYTHON,
-                              default=envutils.CACHE_MODE,
-                              dest=self.FLAG_PYTHON[1:],
+                              default=envutils.get_python_mode(),
                               choices=envutils.PYTHON_MODES,
                               help='0: native; 1: compiled; 2: cached.')
         if self.FLAG_CPU in self.JFLAGS:
@@ -570,19 +569,30 @@ class Driver(argparse.ArgumentParser):
                 self.FLAG_CPU,
                 type=type_positive_int,
                 nargs='+',
-                dest=self.FLAG_CPU[1:],
                 help='Total number of CPUs (the number for one task).')
         if self.FLAG_DEBUG in self.JFLAGS:
-            self.add_argument(
+            self.addBool(
                 self.FLAG_DEBUG,
                 default=DEBUG,
-                nargs='?',
-                const=True,
-                type=type_bool,
-                choices=[True, False],
-                dest=self.FLAG_DEBUG[1:],
                 help='True allows additional printing and output files; '
                 'False disables the mode.')
+
+    def addBool(self, flag, default=None, help=None):
+        """
+        Add bool type argument: both [-flag] and [-flag True] set True;
+        [-flag False] sets False.
+
+        :param flag str: the flag to dd
+        :param default any: the default
+        :param help str: help message
+        """
+        self.add_argument(flag,
+                          default=default,
+                          nargs='?',
+                          const=True,
+                          type=type_bool,
+                          choices=[True, False, None],
+                          help=help)
 
     @classmethod
     def addSeed(cls, parser, **kwargs):
@@ -594,24 +604,22 @@ class Driver(argparse.ArgumentParser):
         default = np.random.randint(0, symbols.MAX_INT32)
         type_random_seed(default)
         parser.add_argument(jobutils.FLAG_SEED,
-                            metavar=jobutils.FLAG_SEED[1:].upper(),
                             type=type_random_seed,
                             default=default,
                             help='Set random state.')
 
-    def suppress(self, to_suppress=None, **kwargs):
+    def suppress(self, flags=None, **kwargs):
         """
         Supress the help messages of specified arguments.
 
-        :param to_suppress: the arguments to be suppressed. For dict, the keys
-            are the arguments to be suppressed, and the values are the default
-            values to be used.
-        :type to_suppress list, tuple, or set
+        :param flags list: the arguments to be suppressed.
+        :param kwargs dict: are the arguments to be suppressed, and the values
+            are the default values to be used.
         """
+        if flags is None:
+            flags = []
         self.set_defaults(**{x.lstrip('-'): y for x, y in kwargs.items()})
-        flags = set(kwargs.keys())
-        if to_suppress:
-            flags.update(to_suppress)
+        flags = {*flags, *kwargs.keys()}
         for axn in self._actions:
             if not flags.intersection(axn.option_strings):
                 continue
@@ -655,7 +663,6 @@ class Bldr(Driver):
                             help='set or measure the substructure geometry.')
         parser.add_argument(
             cls.FlAG_FORCE_FIELD,
-            metavar=cls.FlAG_FORCE_FIELD[1:].upper(),
             action=ForceFieldAction,
             nargs='+',
             default=symbols.OPLSUA_TIP3P,
@@ -687,18 +694,15 @@ class MolBase(Bldr):
                             help='SMILES of the constitutional repeat units.')
         parser.add_argument(
             cls.FLAG_CRU_NUM,
-            metavar=cls.FLAG_CRU_NUM[1:].upper(),
             type=type_positive_int,
             nargs='+',
             help='Number of constitutional repeat unit per polymer')
         parser.add_argument(cls.FLAG_MOL_NUM,
-                            metavar=cls.FLAG_MOL_NUM[1:].upper(),
                             type=type_positive_int,
                             nargs='+',
                             help='Number of molecules in the amorphous cell')
         # The buffer distance between molecules in the grid cell
         parser.add_argument(cls.FLAG_BUFFER,
-                            metavar=cls.FLAG_BUFFER[1:].upper(),
                             type=type_positive_float,
                             help=argparse.SUPPRESS)
         parser.valids.add(MolValid)
@@ -743,25 +747,23 @@ class Md(Driver):
                             default=10,
                             help=argparse.SUPPRESS)
         parser.add_argument(cls.FLAG_TEMP,
-                            metavar=cls.FLAG_TEMP[1:].upper(),
+                            metavar='K',
                             type=type_nonnegative_float,
                             default=300,
                             help=f'The equilibrium temperature target. A zero '
                             f'for single point energy.')
         # Temperature damping parameter (x timestep to get the param)
         parser.add_argument(cls.FLAG_TDAMP,
-                            metavar=cls.FLAG_TDAMP[1:].upper(),
                             type=type_positive_float,
                             default=100,
                             help=argparse.SUPPRESS)
         parser.add_argument(cls.FLAG_PRESS,
-                            metavar=cls.FLAG_PRESS[1:].upper(),
+                            metavar='atm',
                             type=float,
                             default=1,
                             help="The equilibrium pressure target.")
         # Pressure damping parameter (x timestep to get the param)
         parser.add_argument(cls.FLAG_PDAMP,
-                            metavar=cls.FLAG_PDAMP[1:].upper(),
                             type=type_positive_float,
                             default=1000,
                             help=argparse.SUPPRESS)
@@ -786,13 +788,11 @@ class Md(Driver):
                             help=argparse.SUPPRESS)
         # The lengths of these types are fixed during the simulation
         parser.add_argument(cls.FLAG_RIGID_BOND,
-                            metavar=cls.FLAG_RIGID_BOND[1:].upper(),
                             type=type_positive_int,
                             nargs='+',
                             help=argparse.SUPPRESS)
         # The angles of these types are fixed during the simulation
         parser.add_argument(cls.FLAG_RIGID_ANGLE,
-                            metavar=cls.FLAG_RIGID_ANGLE[1:].upper(),
                             type=type_positive_int,
                             nargs='+',
                             help=argparse.SUPPRESS)
@@ -884,7 +884,6 @@ class XtalBldr(Bldr):
             cls.FlAG_DIMENSION,
             default=cls.ONES,
             nargs='+',
-            metavar=cls.FlAG_DIMENSION[1:].upper(),
             type=int,
             action=ThreeAction,
             help='Duplicate the unit cell by these factors to generate the '
@@ -893,7 +892,6 @@ class XtalBldr(Bldr):
             cls.FLAG_SCALED_FACTOR,
             default=cls.ONES,
             nargs='+',
-            metavar=cls.FLAG_SCALED_FACTOR[1:].upper(),
             type=type_positive_float,
             action=ThreeAction,
             help='Each lattice vector is scaled by the corresponding factor.')
@@ -919,11 +917,10 @@ class Lammps(Driver):
         parser.add_argument(cls.FLAG_INSCRIPT,
                             metavar=cls.FLAG_INSCRIPT.upper(),
                             type=type_file,
-                            help='Read input from this file.')
+                            help='Simulation protocol.')
         parser.add_argument(cls.FLAG_DATA_FILE,
-                            metavar=cls.FLAG_DATA_FILE[1:].upper(),
                             type=type_file,
-                            help='Data file to get force field information')
+                            help='Structure and force field.')
         parser.valids.add(LmpValid)
 
 
@@ -959,9 +956,8 @@ class LmpLog(Lammps):
                             nargs='+',
                             help=cls.TASK_HELP)
         parser.add_argument(cls.FLAG_DATA_FILE,
-                            metavar=cls.FLAG_DATA_FILE[1:].upper(),
                             type=type_file,
-                            help='The file of the structure and force field.')
+                            help='Structure and force field.')
         parser.add_argument(
             cls.FLAG_LAST_PCT,
             type=LastPct.type,
@@ -1034,7 +1030,6 @@ class Workflow(Driver):
             self.add_argument(
                 self.FLAG_STATE_NUM,
                 default=1,
-                metavar=self.FLAG_STATE_NUM[1:].upper(),
                 type=type_positive_int,
                 help='Total number of the states (e.g., dynamical system).')
         if self.FLAG_JTYPE in self.WFLAGS:
