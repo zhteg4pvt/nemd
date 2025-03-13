@@ -117,14 +117,8 @@ def test_data(*args):
 
     :param args str list: the directory and file name of the test file.
     :return str: the pathname
-    :raise FileNotFoundError: if the NEMD_SRC directory or test data not found.
     """
-    pathname = get_src('test', 'data', *args)
-    if pathname is None:
-        raise FileNotFoundError("Error: NEMD_SRC directory cannot be found.")
-    if not os.path.exists(pathname):
-        raise FileNotFoundError("Error: test directory cannot be found.")
-    return pathname
+    return get_src('test', 'data', *args)
 
 
 def get_module_dir(name=NEMD):

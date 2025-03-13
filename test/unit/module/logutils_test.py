@@ -11,9 +11,6 @@ from nemd import envutils
 from nemd import jobutils
 from nemd import logutils
 
-if envutils.get_src() is None:
-    pytest.exit("Please source premake")
-
 
 class TestFunc:
 
@@ -161,12 +158,14 @@ class TestScript:
         assert msg in logger.data
 
 
+@pytest.mark.skipif(envutils.get_src() is None,
+                    reason="cannot locate test dir")
 class TestReader:
-    ITEST_DIR = envutils.test_data('itest')
-    AMORP_LOG = os.path.join(ITEST_DIR, '5524d62a356ac00d781a9cb1e5a6f03b',
-                             'amorp_bldr.log')
-    MB_LMP_LOG = os.path.join(ITEST_DIR, '81dc7a1e5728084cb77c2b7d3c8994fc',
-                              'mb_lmp_log-driver.log')
+    AMORP_LOG = envutils.test_data('itest', '5524d62a356ac00d781a9cb1e5a6f03b',
+                                   'amorp_bldr.log')
+    MB_LMP_LOG = envutils.test_data('itest',
+                                    '81dc7a1e5728084cb77c2b7d3c8994fc',
+                                    'mb_lmp_log-driver.log')
 
     @pytest.fixture
     def raw(self, data):
