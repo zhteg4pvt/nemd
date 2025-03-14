@@ -87,10 +87,17 @@ class TestJob:
     def testDefault(self, expected, env):
         assert expected == jobutils.Job.default
 
-    @pytest.mark.parametrize("name,expected", [('Name', False),
-                                               ('NameAgg', True)])
-    def testAgg(self, name, expected):
-        assert expected == type(name, (jobutils.Job, ), {}).agg
+    @pytest.mark.parametrize('name', [('mb_lmp_log')])
+    @pytest.mark.parametrize('dirname,expected', [(MB_LMP_LOG, 4)])
+    def testData(self, job, expected):
+        assert 4 == len(job.data)
+
+    def testGetData(self, raw):
+        assert not raw.getData()
+        raw.data['outfile'] = 'mol_bldr.log'
+        assert not raw.getData()
+        raw.write()
+        assert 'mol_bldr.log' == raw.getData()['outfile']
 
     @pytest.mark.parametrize('files', [(['first', 'second'])])
     @pytest.mark.parametrize("ftype", [('outfiles'), ('myfiles')])

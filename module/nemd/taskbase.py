@@ -28,23 +28,24 @@ class Job(jobutils.Job):
 
     def __init__(self,
                  *jobs,
-                 name=None,
                  options=None,
                  status=None,
-                 logger=None):
+                 logger=None,
+                 **kwargs):
         """
         :param jobs list' of 'signac.job.Job': signac jobs
-        :param name str: the job name
         :param options 'argparse.Namespace': commandline options
         :param status dict: the post status of all jobs
         :param logger 'logutils.Logger': the logger to print message in the post
         """
-        super().__init__(name=name, job=jobs[0])
+        super().__init__(job=jobs[0] if jobs else None, **kwargs)
         self.jobs = jobs
         self.options = options
-        self.doc = self.jobs[0].project.doc
         self.status = status
         self.logger = logger
+        self.doc = self.job.project.doc if self.job else None
+        if self.job and self.agg:
+            self.job = self.job.project
 
     @classmethod
     @property
@@ -56,6 +57,16 @@ class Job(jobutils.Job):
         """
         words = re.findall('[A-Z][^A-Z]*', cls.__name__)
         return '_'.join([x.lower() for x in words])
+
+    @classmethod
+    @property
+    def agg(cls):
+        """
+        Whether this is an aggregator class.
+
+        :return bool: True when this is an aggregator.
+        """
+        return cls.__name__.endswith('Agg')
 
     @classmethod
     def getOpr(cls,
@@ -157,12 +168,16 @@ class Job(jobutils.Job):
 
         :return bool: whether the post-conditions are met.
         """
-        key = self.jobname if self.agg else (self.jobname, self.job.id)
-        status = self.status.get(key)
+        key = self.jobname
+        if not self.agg and self.job:
+            key = (key, self.job.id)
+        status = self.status.get(key) if self.status else None
         if status:
             return True
-        out = self.status[key] = self.out
-        if self.OUT == STATUS and isinstance(out, str):
+        out = self.out
+        if self.status:
+            self.status[key] = out
+        if self.logger and self.OUT == STATUS and isinstance(out, str):
             header = '' if self.agg else f"%s in %s: " % key
             self.logger.log(header + out.strip())
         return bool(out)

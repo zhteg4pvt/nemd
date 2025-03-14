@@ -603,7 +603,7 @@ class Agg(logutils.Base):
 
     DATA_EXT = '.csv'
     FIG_EXT = '.png'
-    TO_SKIP = set([XYZ.NAME, View.NAME])
+    TO_SKIP = {XYZ.NAME, View.NAME}
 
     def __init__(self, task, groups=None, options=None, logger=None):
         """

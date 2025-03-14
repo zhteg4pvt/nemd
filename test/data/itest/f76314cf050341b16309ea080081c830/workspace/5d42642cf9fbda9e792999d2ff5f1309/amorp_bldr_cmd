@@ -1,1 +1,0 @@
-nemd_run amorp_bldr_driver.py [Ar] -mol_num 1 -CPU 1 -JOBNAME amorp_bldr -seed 1858644686

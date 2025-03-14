@@ -154,11 +154,8 @@ class Job:
         :param job 'signac.job.Job': the signac job instance for json path
         """
         self.name = name
-        self.job = job.project if self.agg else job
+        self.job = job
         self.jobname = self.name if self.name else self.default
-        self.file = self.JOB_DOCUMENT.format(jobname=self.jobname)
-        if self.job:
-            self.file = self.job.fn(self.file)
 
     @classmethod
     @property
@@ -170,19 +167,17 @@ class Job:
         """
         return envutils.get_jobname() or cls.__name__.lower()
 
-    @classmethod
-    @property
-    def agg(cls):
-        """
-        Whether this is an aggregator class.
-
-        :return bool: True when this is an aggregator.
-        """
-        return cls.__name__.endswith('Agg')
-
     @property
     @functools.cache
     def data(self):
+        """
+        Return the job data.
+
+        :return dict: the data in the job json.
+        """
+        return self.getData()
+
+    def getData(self):
         """
         Return the job data.
 
@@ -193,6 +188,17 @@ class Job:
                 return json.load(fh)
         except (FileNotFoundError, json.decoder.JSONDecodeError):
             return {}
+
+    @property
+    @functools.cache
+    def file(self):
+        """
+        Get the json file pathname.
+
+        :return str: the pathname of the json file
+        """
+        file = self.JOB_DOCUMENT.format(jobname=self.jobname)
+        return self.job.fn(file) if self.job else file
 
     def add(self, file, ftype=OUTFILES):
         """
