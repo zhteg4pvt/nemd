@@ -99,6 +99,12 @@ class TestJob:
         raw.write()
         assert 'mol_bldr.log' == raw.getData()['outfile']
 
+    @pytest.mark.parametrize('dirname', [MB_LMP_LOG])
+    @pytest.mark.parametrize('name,expected', [('mb_lmp_log', True),
+                                               ('mb_lmp_log2', False)])
+    def testFile(self, job, expected):
+        assert expected == os.path.isfile(job.file)
+
     @pytest.mark.parametrize('files', [(['first', 'second'])])
     @pytest.mark.parametrize("ftype", [('outfiles'), ('myfiles')])
     def testAdd(self, raw, ftype, files):

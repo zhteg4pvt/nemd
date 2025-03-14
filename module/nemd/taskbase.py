@@ -175,7 +175,7 @@ class Job(jobutils.Job):
         if status:
             return True
         out = self.out
-        if self.status:
+        if self.status is not None:
             self.status[key] = out
         if self.logger and self.OUT == STATUS and isinstance(out, str):
             header = '' if self.agg else f"%s in %s: " % key
@@ -189,6 +189,8 @@ class Job(jobutils.Job):
         :return 'Job' list: the json jobs (within one parameter set for Job;
             across all parameter sets for Agg)
         """
+        if self.agg:
+            return super().getJobs(**kwargs)
         return [
             y for x in self.jobs
             for y in super(Job, self).getJobs(job=x, **kwargs)
