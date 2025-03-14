@@ -1,0 +1,1 @@
+{"prereq": {"lammps": ["amorp_bldr"], "lmp_traj": ["lammps"]}, "args": ["[Ar]", "-mol_num", "1", "-task", "density", "-state_num", "2", "-CPU", "1", "-JOBNAME", "ab_lmp_traj"], "_status": {}}

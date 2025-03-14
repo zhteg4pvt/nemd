@@ -1,0 +1,1 @@
+nemd_run lammps_driver.py amorp_bldr.in -CPU 1 -JOBNAME lammps
