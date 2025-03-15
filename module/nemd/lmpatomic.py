@@ -58,7 +58,7 @@ class Mass(Base):
     MASS = 'mass'
     COMMENT = 'comment'
     COLUMN_LABELS = [MASS, COMMENT]
-    CMT_RE = '^(\w+)$'
+    CMT_RE = r'^(\w+)$'
     LABEL = 'atom types'
 
     def __init__(self, *args, **kwargs):
@@ -430,7 +430,7 @@ class Reader:
     BLOCK_NAMES = [x.NAME for x in BLOCK_CLASSES]
     BLOCK_LABELS = [x.LABEL for x in BLOCK_CLASSES]
     NAME_RE = re.compile(f"^{'|'.join(BLOCK_NAMES)}$")
-    COUNT_RE = re.compile(f"^[0-9]+\s+({'|'.join(BLOCK_LABELS)})$")
+    COUNT_RE = re.compile(rf"^[0-9]+\s+({'|'.join(BLOCK_LABELS)})$")
     DESCR_RE = Struct.DESCR.replace('{style}', '(.*)$')
 
     def __init__(self, data_file=None, contents=None, delay=False):

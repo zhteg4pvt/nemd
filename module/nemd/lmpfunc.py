@@ -16,6 +16,9 @@ from nemd import symbols
 
 
 class Base:
+    """
+    Analyze file dumped by the LAMMPS.
+    """
 
     DATA = 'Data'
     PNG_EXT = '.png'
@@ -77,7 +80,7 @@ class Base:
 
 class Length(Base):
     """
-    Class to analyze xyzl (hi - lo) data dumped by the LAMMPS.
+    Analyze xyzl (hi - lo) data.
     """
 
     XL = 'xl'
@@ -128,7 +131,7 @@ class Length(Base):
 
 class Press(Base):
     """
-    Class to analyze pressure data dumped by the LAMMPS.
+    Analyze pressure data dumped by the LAMMPS.
     """
 
     PRESS = 'press'
@@ -143,7 +146,7 @@ class Press(Base):
 
 class Modulus(Press):
     """
-    Class to analyze press_vol (pressure & volume) data.
+    Analyze press_vol (pressure & volume) data.
     """
 
     MODULUS = 'modulus'
@@ -242,8 +245,7 @@ class Modulus(Press):
 
 class Vol(Press):
     """
-    Class to calculate the volume scale factor based on the target pressure and
-    volume and press_vol (pressure & volume) data dumped by the LAMMPS.
+    Calculate the volume scale factor based on the pressure and volume.
     """
 
     SCALE = 'scale'
