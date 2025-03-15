@@ -1,41 +1,29 @@
-import types
-
-import numba
 import numpy as np
 import pytest
 
-from nemd import numbautils
+from nemd import numpyutils
+from nemd import pytestutils
 
 
 class TestFunc:
 
-    @pytest.mark.parametrize('ekey', ['PYTHON'])
-    @pytest.mark.parametrize('evalue,instance',
-                             [('-1', types.FunctionType),
-                              ('1', numba.core.registry.CPUDispatcher),
-                              ('2', numba.core.registry.CPUDispatcher)])
-    def testJit(self, instance, evalue, env):
+    @pytest.fixture
+    def array(self, values, max_val):
+        return numpyutils.IntArray(values=values, max_val=max_val)
 
-        @numbautils.jit
-        def direct():
-            return 1
+    @pytest.mark.parametrize('values,max_val,expected', [([2, 5], 0, 6),
+                                                         (None, 10, 11)])
+    def testNew(self, values, max_val, array, expected):
+        assert expected == array.shape[0]
 
-        @numbautils.jit(parallel=False)
-        def bracketed():
-            return 1
+    @pytest.mark.parametrize('values,max_val,expected',
+                             [([1, 2, 5], 0, [1, 2, 5]), (None, 2, [])])
+    def testValues(self, values, array, expected):
+        np.testing.assert_array_equal(array.values, expected)
 
-        for decorated in (direct, bracketed):
-            assert isinstance(decorated, instance)
-            if evalue == '-1':
-                continue
-            is_null = isinstance(decorated._cache,
-                                 numba.core.caching.NullCache)
-            assert (evalue == '1') == is_null
-
-    @pytest.mark.parametrize(
-        "dists,span,expected",
-        [([[0.5, 2, 3], [2.5, 3.5, -0.5]], [2.5, 2.5, 2.5], [0.8660, 1.1180]),
-         ([[0.5, 2], [2.5, -0.1]], [1, 2], [0.7071, 0.5099])])
-    def testRemainder(self, dists, span, expected):
-        remained = numbautils.remainder(np.array(dists), np.array(span))
-        np.testing.assert_almost_equal(remained, expected, decimal=4)
+    @pytestutils.Raises
+    @pytest.mark.parametrize('values,max_val', [([1, 2, 5], 0)])
+    @pytest.mark.parametrize("to_index,expected", [([2, 5], [1, 2]),
+                                                   ([2, 3], KeyError)])
+    def testIndex(self, array, to_index, expected):
+        np.testing.assert_array_equal(array.index(to_index), expected)

@@ -1,24 +1,41 @@
+import types
+
+import numba
 import numpy as np
 import pytest
 
-from nemd import numpyutils
+from nemd import numbautils
 
 
 class TestFunc:
 
-    @pytest.fixture
-    def array(self):
-        return numpyutils.IntArray(10)
+    @pytest.mark.parametrize('ekey', ['PYTHON'])
+    @pytest.mark.parametrize('evalue,instance',
+                             [('-1', types.FunctionType),
+                              ('1', numba.core.registry.CPUDispatcher),
+                              ('2', numba.core.registry.CPUDispatcher)])
+    def testJit(self, instance, evalue, env):
 
-    def testValues(self, array):
-        assert not array.values.any()
-        array[[1, 4, 7]] = True
-        np.testing.assert_array_equal(array.values, [1, 4, 7])
+        @numbautils.jit
+        def direct():
+            return 1
 
-    @pytest.mark.parametrize("values,expected,raise_type,is_raise",
-                             [([2, 5], [1, 2], None, False),
-                              ([2, 3], None, KeyError, True)])
-    def testIndex(self, values, expected, array, check_raise):
-        array[[1, 2, 5]] = True
-        with check_raise():
-            np.testing.assert_array_equal(array.index(values), expected)
+        @numbautils.jit(parallel=False)
+        def bracketed():
+            return 1
+
+        for decorated in (direct, bracketed):
+            assert isinstance(decorated, instance)
+            if evalue == '-1':
+                continue
+            is_null = isinstance(decorated._cache,
+                                 numba.core.caching.NullCache)
+            assert (evalue == '1') == is_null
+
+    @pytest.mark.parametrize(
+        "dists,span,expected",
+        [([[0.5, 2, 3], [2.5, 3.5, -0.5]], [2.5, 2.5, 2.5], [0.8660, 1.1180]),
+         ([[0.5, 2], [2.5, -0.1]], [1, 2], [0.7071, 0.5099])])
+    def testRemainder(self, dists, span, expected):
+        remained = numbautils.remainder(np.array(dists), np.array(span))
+        np.testing.assert_almost_equal(remained, expected, decimal=4)

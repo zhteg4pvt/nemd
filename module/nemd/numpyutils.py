@@ -11,14 +11,17 @@ class IntArray(np.ndarray):
     Integers represented by the on values of a bool numpy.ndarray.
     """
 
-    def __new__(cls, max_val=0, dtype=bool):
+    def __new__(cls, values=None, max_val=0):
         """
-        :param max_val: The maximum value of the bit array.
-        :param dtype: The data type of the bit array.
+        :param values list: the int array values
+        :param max_val int: The maximum value of the bit array.
         """
-        array = np.zeros(max_val + 1, dtype=dtype)
-        obj = np.asarray(array).view(cls)
-        return obj
+        if values is not None:
+            max_val = max(values)
+        array = np.zeros(max_val + 1, dtype=bool)
+        if values is not None:
+            array[values] = True
+        return np.asarray(array).view(cls)
 
     @property
     def values(self):
@@ -33,6 +36,7 @@ class IntArray(np.ndarray):
 
         :param values: the values to retrieve the on indexes.
         :return np.ndarray: the on indexes.
+        :raise KeyError: if some values are not on.
         """
         value_to_index = {x: i for i, x in enumerate(self.values)}
         try:

@@ -70,7 +70,7 @@ class Job(jobutils.Job):
 
     @classmethod
     def getOpr(cls,
-               name=None,
+               jobname=None,
                cmd=None,
                with_job=None,
                aggregator=None,
@@ -78,14 +78,14 @@ class Job(jobutils.Job):
         """
         Duplicate and return the operator with jobname and decorators.
 
-        :param name str: the job name
+        :param jobname str: the job name
         :param cmd bool: whether the function returns a command to run
         :param with_job bool: whether execute in job dir with context management
         :param aggregator 'flow.aggregates.aggregator': job collection criteria
         :return 'types.SimpleNamespace': the name, operation, and class
         """
-        if name is None:
-            name = cls.default
+        if jobname is None:
+            jobname = cls.default
         if cmd is None:
             cmd = cls.OUT == jobutils.OUTFILE
         if with_job is None:
@@ -94,16 +94,16 @@ class Job(jobutils.Job):
             aggregator = flow.aggregator()
 
         # Operator
-        func = functools.partial(cls.runOpr, name=name, **kwargs)
-        opr = flow.FlowProject.operation(name=name,
+        func = functools.partial(cls.runOpr, jobname=jobname, **kwargs)
+        opr = flow.FlowProject.operation(name=jobname,
                                          func=func,
                                          cmd=cmd,
                                          with_job=with_job,
                                          aggregator=aggregator)
         # Post conditions
-        post = functools.partial(cls.postOpr, name=name, **kwargs)
+        post = functools.partial(cls.postOpr, jobname=jobname, **kwargs)
         opr = flow.FlowProject.post(lambda *x: post(*x))(opr)
-        return types.SimpleNamespace(name=name, opr=opr, cls=cls)
+        return types.SimpleNamespace(jobname=jobname, opr=opr, cls=cls)
 
     @classmethod
     def runOpr(cls, *args, **kwargs):
@@ -243,16 +243,15 @@ class Cmd(Job):
         if self.ARGS_TMPL is None:
             return
         try:
-            pre_jobs = self.doc[self.PREREQ][self.jobname]
+            jobnames = self.doc[self.PREREQ][self.jobname]
         except KeyError:
             return
         self.args = self.ARGS_TMPL + self.args
         # Pass the outfiles of the prerequisite jobs to the current via cmd args
         # Please rearrange or modify the prerequisite jobs' input by subclassing
-        for pre_job in pre_jobs:
-            index = self.args.index(None)
-            self.args[index] = jobutils.Job(name=pre_job,
-                                            job=self.job).getFile()
+        for jobname in jobnames:
+            idx = self.args.index(None)
+            self.args[idx] = jobutils.Job(jobname, job=self.job).getFile()
 
     def rmUnknown(self):
         """

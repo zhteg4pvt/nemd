@@ -1,8 +1,5 @@
 import datetime
 
-import numpy as np
-import pytest
-
 from nemd import timeutils
 
 

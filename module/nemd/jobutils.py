@@ -131,7 +131,7 @@ def add_outfile(outfile, jobname=None, file=False, log=False):
     """
     if outfile is None:
         return
-    job = Job(name=jobname)
+    job = Job(jobname)
     job.add(outfile)
     if file:
         job.set(outfile)
@@ -148,14 +148,13 @@ class Job:
     OUT = OUTFILE
     JOB_DOCUMENT = f'.{{jobname}}_document{JSON_EXT}'
 
-    def __init__(self, name=None, job=None):
+    def __init__(self, jobname=None, job=None):
         """
         :param jobname str: the jobname
         :param job 'signac.job.Job': the signac job instance for json path
         """
-        self.name = name
+        self.jobname = jobname if jobname else self.default
         self.job = job
-        self.jobname = self.name if self.name else self.default
 
     @classmethod
     @property
@@ -269,8 +268,8 @@ class Job:
         if job:
             patt = job.fn(patt)
         files = glob.glob(patt)
-        names = [doc_re.match(os.path.basename(x)).group(1) for x in files]
-        return [Job(name=x, job=job) for x in names]
+        jobnames = [doc_re.match(os.path.basename(x)).group(1) for x in files]
+        return [Job(x, job=job) for x in jobnames]
 
     def clean(self):
         """

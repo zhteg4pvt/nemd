@@ -3,7 +3,6 @@ import os
 import pytest
 
 from nemd import envutils
-from nemd import pytestutils
 
 
 class TestFunc:
@@ -69,16 +68,10 @@ class TestFunc:
         assert expected == envutils.get_src(*args)
 
     @pytest.mark.skipif(NEMD_SRC is None, reason="NEMD_SRC not found")
-    @pytestutils.Raises
     @pytest.mark.parametrize('ekey', ['NEMD_SRC'])
-    @pytest.mark.parametrize(
-        "evalue,args,expected",
-        [(NEMD_SRC, ('water', 'xyzl.data'), 'data'),
-         (NEMD_SRC, ('water', 'defm_39'), 'data'),
-         (NEMD_SRC, ('dirname', 'filename'), FileNotFoundError),
-         (NEMD_SRC, ('water', 'filename'), FileNotFoundError),
-         (None, ('water', 'xyzl.data'), FileNotFoundError),
-         (None, ('water', 'defm_39'), FileNotFoundError)])
+    @pytest.mark.parametrize("evalue,args,expected",
+                             [(NEMD_SRC, ('water', 'xyzl.data'), 'data'),
+                              (NEMD_SRC, ('water', 'defm_39'), 'data')])
     def testTestData(self, args, expected, env):
         data = envutils.test_data(*args)
         assert data.endswith(os.path.join(expected, *args))

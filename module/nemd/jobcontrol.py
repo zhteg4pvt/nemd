@@ -217,7 +217,7 @@ class Runner(logutils.Base):
             if opr.cls.agg ^ agg:
                 continue
             for job in self.jobs:
-                opr.cls(job, name=opr.name, options=self.options).clean()
+                opr.cls(job, jobname=opr.jobname, options=self.options).clean()
 
     def runProj(self, agg=False, **kwargs):
         """
@@ -272,7 +272,7 @@ class Runner(logutils.Base):
         if pre is None or cur is None:
             return
         flow.project.FlowProject.pre.after(pre.opr)(cur.opr)
-        self.prereq[cur.name].append(pre.name)
+        self.prereq[cur.jobname].append(pre.jobname)
 
     def setAggs(self):
         """
