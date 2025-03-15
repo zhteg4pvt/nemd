@@ -189,8 +189,6 @@ class Job(jobutils.Job):
         :return 'Job' list: the json jobs (within one parameter set for Job;
             across all parameter sets for Agg)
         """
-        if self.agg:
-            return super().getJobs(**kwargs)
         return [
             y for x in self.jobs
             for y in super(Job, self).getJobs(job=x, **kwargs)
@@ -224,7 +222,10 @@ class Cmd(Job):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.args = list(map(str, self.doc.get(symbols.ARGS, [])))
+        self.args = []
+        if not self.job:
+            return
+        self.args += list(map(str, self.doc.get(symbols.ARGS, [])))
         self.args += [y for x in self.job.statepoint.items() for y in x]
 
     def run(self):
@@ -241,7 +242,6 @@ class Cmd(Job):
         """
         if self.ARGS_TMPL is None:
             return
-
         try:
             pre_jobs = self.doc[self.PREREQ][self.jobname]
         except KeyError:
@@ -251,7 +251,8 @@ class Cmd(Job):
         # Please rearrange or modify the prerequisite jobs' input by subclassing
         for pre_job in pre_jobs:
             index = self.args.index(None)
-            self.args[index] = jobutils.Job(name=pre_job).getFile()
+            self.args[index] = jobutils.Job(name=pre_job,
+                                            job=self.job).getFile()
 
     def rmUnknown(self):
         """

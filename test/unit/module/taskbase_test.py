@@ -43,42 +43,49 @@ def flow_opr():
 class TestJob:
 
     @pytest.fixture
-    def job(self, name, tmp_dir):
-        return taskbase.Job(name=name)
+    def raw(self, name, tmp_dir):
+        return type(name, (taskbase.Job, ), {})
+
+    @pytest.fixture
+    def job(self, jobs, status, name, tmp_dir):
+        return taskbase.Job(*jobs,
+                            name=name,
+                            status=status,
+                            logger=mock.Mock())
 
     @pytest.mark.parametrize('name,expected', [('Job', 'job'),
-                                               ('MolBldr', 'mol_bldr')])
-    def testDefault(self, name, expected):
-        job = type(name, (taskbase.Job, ), {})
-        assert expected == job.default
+                                               ('Check', 'check')])
+    def testDefault(self, raw, expected):
+        assert expected == raw.default
 
-    @pytest.mark.parametrize("name", [('Job'), ('MolBldr')])
-    def testAgg(self, name):
-        assert False == type(name, (taskbase.Job, ), {}).agg
+    @pytest.mark.parametrize("name", [('Job'), ('Check')])
+    def testAgg(self, raw):
+        assert False == raw.agg
 
-    @pytest.mark.parametrize('cname,name,expected',
+    @pytest.mark.parametrize('name,jobname,expected',
                              [('Check', None, 'check'),
                               ('Check', 'myname', 'myname')])
-    def testGetOpr(self, cname, name, expected, flow_opr):
-        opr = type(cname, (taskbase.Job, ), {}).getOpr(name=name)
-        assert issubclass(opr.cls, taskbase.Job)
+    def testGetOpr(self, raw, jobname, expected, flow_opr):
+        opr = raw.getOpr(name=jobname)
         assert expected == opr.name
         assert False == opr.opr._flow_cmd
         assert True == opr.opr._flow_with_job
         assert True == opr.opr._flow_aggregate._is_default_aggregator
+        assert issubclass(opr.cls, taskbase.Job)
 
-    def testRunOpr(self, tmp_dir):
+    @pytest.mark.parametrize("name", [('Job')])
+    def testRunOpr(self, raw):
         with mock.patch('nemd.taskbase.Job.run') as mocked:
-            assert taskbase.Job.runOpr() is None
+            assert raw.runOpr() is None
         assert mocked.called
         assert os.path.isfile('.job_document.json')
 
-    @pytest.mark.parametrize('name', ['mol_bldr'])
+    @pytest.mark.parametrize('jobs,status,name', [([], None, None)])
     def testRun(self, job):
         job.run()
         assert job.out is False
 
-    @pytest.mark.parametrize('name', ['mol_bldr'])
+    @pytest.mark.parametrize('jobs,status,name', [([], None, 'check')])
     def testOut(self, name, job):
         assert job.out is None
         job.out = False
@@ -87,15 +94,15 @@ class TestJob:
             data = json.load(fh)
         assert {'status': False} == data
 
-    @pytest.mark.parametrize('name', ['mol_bldr'])
+    @pytest.mark.parametrize('jobs,status,name', [([], None, 'check')])
     def testGetCmd(self, job):
         assert job.getCmd() is None
 
-    @pytest.mark.parametrize('dirname,name,expected',
-                             [(TEST_0001, 'check', True),
-                              (TEST_0001, 'tag', False)])
-    def testPostOpr(self, name, jobs, expected):
-        assert expected == taskbase.Job.postOpr(name=name, *jobs)
+    @pytest.mark.parametrize('dirname,status,name,expected',
+                             [(TEST_0001, {}, 'check', True),
+                              (TEST_0001, {}, 'tag', False)])
+    def testPostOpr(self, name, jobs, job, expected):
+        assert expected == job.postOpr(name=name, *jobs)
 
     @pytest.mark.parametrize('dirname,name,status,expected,logged',
                              [(None, None, None, False, False),
@@ -103,21 +110,21 @@ class TestJob:
                               (None, None, dict(job=False), False, False),
                               (TEST_0001, 'check', None, True, False),
                               (FAIL_0001, 'check', {}, True, True)])
-    def testPost(self, jobs, name, status, expected, logged):
-        logger = mock.Mock()
-        job = taskbase.Job(name=name, *jobs, status=status, logger=logger)
+    def testPost(self, name, job, status, expected, logged):
         assert expected == job.post()
-        assert logged == logger.log.called
+        assert logged == job.logger.log.called
         if not logged:
             return
-        logger.log.call_args_list[0][0][0].startswith(name)
+        job.logger.log.call_args_list[0][0][0].startswith(name)
         assert (name, '06b39c3b9b6541a2dc6e15baa6734cb2') in status
 
-    @pytest.mark.parametrize('dirname,expected', [(TEST_0001, 2), (None, 0)])
-    def testGetJobs(self, jobs, expected):
-        assert expected == len(taskbase.Job(*jobs).getJobs())
+    @pytest.mark.parametrize('dirname,name,status,expected',
+                             [(TEST_0001, None, None, 2),
+                              (None, None, None, 0)])
+    def testGetJobs(self, job, expected):
+        assert expected == len(job.getJobs())
 
-    @pytest.mark.parametrize('name', ['mol_bldr'])
+    @pytest.mark.parametrize('jobs,status,name', [([], None, 'check')])
     def testLog(self, job):
         job.log('msg')
         assert 'msg' == job.out == job.getData()['status']
@@ -127,27 +134,30 @@ class TestJob:
 
 class TestAgg:
 
-    CB_LMP_LOG = 'cb_lmp_log'
-    TEST_MB_LMP_LOG = 'test_mb_lmp_log'
+    @pytest.fixture
+    def raw(self, name, tmp_dir):
+        return type(name, (taskbase.Agg, ), {})
 
     @pytest.fixture
-    def agg(self, name, tmp_dir):
-        return taskbase.Agg(name=name)
+    def agg(self, jobs, name, status):
+        return taskbase.Agg(*jobs,
+                            name=name,
+                            status=status,
+                            logger=mock.Mock())
 
     @pytest.mark.parametrize('name,expected', [('Agg', 'agg'),
                                                ('TimeAgg', 'time_agg')])
-    def testDefault(self, name, expected):
-        job = type(name, (taskbase.Job, ), {})
-        assert expected == job.default
+    def testDefault(self, raw, expected):
+        assert expected == raw.default
 
     @pytest.mark.parametrize("name", [('Agg'), ('TimeAgg')])
-    def testAgg(self, name):
-        assert True == type(name, (taskbase.Job, ), {}).agg
+    def testAgg(self, raw):
+        assert True == raw.agg
 
-    @pytest.mark.parametrize('cname,expected', [('TimeAgg', 'time_agg')])
-    def testGetOpr(self, cname, expected, flow_opr):
-        opr = type(cname, (taskbase.Job, ), {}).getOpr()
-        assert expected == opr.opr.keywords['name']
+    @pytest.mark.parametrize('name,jobname', [('TimeAgg', 'time_agg')])
+    def testGetOpr(self, jobname, raw, flow_opr):
+        opr = raw.getOpr(name=jobname)
+        assert jobname == opr.opr.keywords['name']
         assert False == opr.opr._flow_aggregate._is_default_aggregator
 
     @pytest.mark.parametrize(
@@ -156,88 +166,102 @@ class TestAgg:
          (AB_LMP_TRAJ, 'time_agg', dict(time_agg=True), True, False),
          (AB_LMP_TRAJ, 'time_agg2', {}, False, False),
          (AB_LMP_TRAJ, 'time_agg2', dict(time_agg2=True), True, False)])
-    def testPost(self, jobs, name, status, expected, logged):
-        logger = mock.Mock()
-        job = taskbase.Agg(name=name, *jobs, status=status, logger=logger)
-        assert expected == job.post()
-        assert logged == logger.log.called
+    def testPost(self, agg, name, status, expected, logged):
+        assert expected == agg.post()
+        assert logged == agg.logger.log.called
         if not logged:
             return
-        assert not logger.log.call_args_list[0][0][0].startswith(name)
+        assert not agg.logger.log.call_args_list[0][0][0].startswith(name)
         assert name in status
 
-    @pytest.mark.parametrize('dirname,expected', [(AB_LMP_TRAJ, 3)])
-    def testGetJobs(self, jobs, expected):
-        assert expected == len(taskbase.Agg(*jobs).getJobs())
 
-
-class TestJob:
+class TestCmd:
 
     @pytest.fixture
-    def job(self, file, parser, args_tmpl, tmp_dir):
-        jdir = envutils.test_data('itest', '0923fc12bdc6d40132eb65ed96588f52')
-        shutil.copytree(jdir, os.curdir, dirs_exist_ok=True)
-        with mock.patch('nemd.taskbase.Job.FILE', file):
-            job = taskbase.Job(jobutils.Job(job_dir=os.curdir))
-        job.FILE = file
-        job.ParserClass = parser
-        job.ARGS_TMPL = args_tmpl
-        return job
+    def raw(self, name, tmp_dir):
+        return type(name, (taskbase.Cmd, ), {})
 
+    @pytest.fixture
+    def cmd(self, name, file, parser, args_tmpl, jobs, tmp_dir):
+        attrs = dict(FILE=file, ParserClass=parser, ARGS_TMPL=args_tmpl)
+        Name = type(name, (taskbase.Cmd, ), attrs)
+        return Name(*jobs, status={}, logger=mock.Mock())
+
+    @pytest.mark.parametrize('name,expected', [('MolBldr', 'mol_bldr')])
+    def testDefault(self, raw, expected):
+        assert expected == raw.default
+
+    @pytest.mark.parametrize("name", [('MolBldr')])
+    def testAgg(self, raw):
+        assert False == raw.agg
+
+    @pytest.mark.parametrize('name,jobname,expected',
+                             [('MolBldr', None, 'mol_bldr'),
+                              ('TrajLmp', 'myname', 'myname')])
+    def testGetOpr(self, raw, jobname, expected, flow_opr):
+        opr = raw.getOpr(name=jobname)
+        assert expected == opr.name
+        assert True == opr.opr._flow_cmd
+        assert True == opr.opr._flow_with_job
+        assert True == opr.opr._flow_aggregate._is_default_aggregator
+        assert issubclass(opr.cls, taskbase.Cmd)
+
+    @pytest.mark.parametrize("name", [('Job')])
+    def testRunOpr(self, raw):
+        with mock.patch('nemd.taskbase.Cmd.run') as mocked:
+            assert 'nemd_run' == raw.runOpr()
+        assert mocked.called
+        assert not os.path.isfile('.job_document.json')
+
+    @pytest.mark.parametrize('dirname', [AB_LMP_TRAJ])
+    @pytest.mark.parametrize('name,,jobname,expected',
+                             [('AmorpBldr', 'amorp_bldr', True),
+                              ('LmpTraj', 'lmp_traj', False)])
+    def testPostOpr(self, jobs, name, jobname, raw, expected):
+        assert expected == raw.postOpr(*jobs, name=jobname)
+
+    @pytest.mark.parametrize('dirname', [AB_LMP_TRAJ])
     @pytest.mark.parametrize(
-        'file,parser,args_tmpl,expected',
-        [('amorp_bldr_driver.py', parserutils.AmorpBldr, None, '[Ar]'),
-         ('lammps_driver.py', parserutils.Lammps, [None], 'amorp_bldr.in')])
-    def testAddfiles(self, job, expected):
-        job.addfiles()
-        assert expected == job.args[0]
+        'name,file,parser,args_tmpl,expected,status',
+        [('AmorpBldr', None, None, None, True, 'amorp_bldr.in'),
+         ('LmpTraj', None, None, None, False, None)])
+    def testPost(self, cmd, expected, status):
+        assert expected == cmd.post()
+        assert status == next(iter(cmd.status.values()))
+        assert not cmd.logger.log.called
 
+    @pytest.mark.parametrize('dirname', [AB_LMP_TRAJ])
+    @pytest.mark.parametrize('name,file,parser,args_tmpl,expected',
+                             [('AmorpBldr', 'amorp_bldr_driver.py',
+                               parserutils.AmorpBldr, None, '[Ar]'),
+                              ('Lammps', 'lammps_driver.py',
+                               parserutils.Lammps, [None], 'amorp_bldr.in')])
+    def testAddfiles(self, cmd, expected):
+        cmd.addfiles()
+        assert cmd.args[0].endswith(expected)
+
+    @pytest.mark.parametrize('dirname', [AB_LMP_TRAJ])
     @pytest.mark.parametrize(
-        'file,parser,args_tmpl,expected',
-        [('amorp_bldr_driver.py', parserutils.AmorpBldr, None, 9),
-         ('lammps_driver.py', parserutils.Lammps, [None], 5)])
-    def testRmUnknown(self, job, expected):
-        job.addfiles()
-        job.rmUnknown()
-        assert expected == len(job.args)
+        'name,file,parser,args_tmpl,expected',
+        [('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, None, 9),
+         ('Lammps', 'lammps_driver.py', parserutils.Lammps, [None], 5)])
+    def testRmUnknown(self, cmd, expected):
+        cmd.addfiles()
+        cmd.rmUnknown()
+        assert expected == len(cmd.args)
 
-    @pytest.mark.parametrize(
-        'file,parser,args_tmpl,expected',
-        [('amorp_bldr_driver.py', parserutils.AmorpBldr, None, 'amorp_bldr'),
-         ('lammps_driver.py', parserutils.Lammps, [None], 'lammps')])
-    def testSetName(self, job, expected):
-        job.args = []
-        job.setName()
-        assert ['-JOBNAME', expected] == job.args
+    @pytest.mark.parametrize('name,expected', [('MolBldr', 'mol_bldr')])
+    def testSetName(self, raw, expected):
+        mol_bldr = raw()
+        mol_bldr.args = []
+        mol_bldr.setName()
+        assert ['-JOBNAME', expected] == mol_bldr.args
 
-    @pytest.mark.parametrize(
-        'file,parser,args_tmpl,expected',
-        [('amorp_bldr_driver.py', parserutils.AmorpBldr, None, 89),
-         ('lammps_driver.py', parserutils.Lammps, [None], 62)])
-    def testGetCmd(self, job, expected):
-        job.run()
-        assert expected == len(job.getCmd())
-
-    @pytest.mark.parametrize(
-        'file,parser,args_tmpl,expected',
-        [('amorp_bldr_driver.py', parserutils.AmorpBldr, None, True),
-         ('wrong_name_driver.py', parserutils.Lammps, [None], False)])
-    def testPost(self, job, expected):
-        assert expected == job.post()
-
-    @pytest.mark.parametrize('file,parser,args_tmpl,expected', [
-        ('amorp_bldr_driver.py', parserutils.AmorpBldr, None, 'amorp_bldr.in'),
-        ('wrong_name_driver.py', parserutils.Lammps, [None], None)
+    @pytest.mark.parametrize('dirname', [AB_LMP_TRAJ])
+    @pytest.mark.parametrize('name,file,parser,args_tmpl,expected', [
+        ('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, None, 11),
+        ('Lammps', 'lammps_driver.py', parserutils.Lammps, [None], 7)
     ])
-    def testOutfile(self, job, expected):
-        assert expected == job.outfile
-        job.outfile = 'file'
-        assert 'file' == job.outfile
-
-    @pytest.mark.parametrize(
-        'file,parser,args_tmpl',
-        [('amorp_bldr_driver.py', parserutils.AmorpBldr, None)])
-    def testClean(self, job):
-        assert job.post() is True
-        job.clean()
-        assert job.post() is False
+    def testGetCmd(self, cmd, expected):
+        cmd.run()
+        assert expected == len(cmd.getCmd().split())
