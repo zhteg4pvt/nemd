@@ -4,11 +4,14 @@
 Test configuration, such as global testing fixtures...
 """
 import collections
+import os
+import shutil
 from unittest import mock
 
 import flow
 import pytest
 
+from nemd import envutils
 from nemd import osutils
 from nemd import pytestutils
 
@@ -66,3 +69,13 @@ def flow_opr():
     yield
     project._OPERATION_FUNCTIONS = functions
     project._OPERATION_POSTCONDITIONS = postconditions
+
+
+@pytest.fixture
+def jobs(dirname, tmp_dir):
+    if dirname is None:
+        return [None]
+    test_dir = envutils.test_data('itest', dirname)
+    shutil.copytree(test_dir, os.curdir, dirs_exist_ok=True)
+    jobs = flow.project.FlowProject.get_project(os.curdir).find_jobs()
+    return list(jobs)

@@ -214,7 +214,7 @@ class Cmd(Job):
     Cmd job.
     """
     FILE = None
-    ParserClass = parserutils.Driver
+    ParserClass = None
     PRE_RUN = jobutils.NEMD_RUN
     SEP = symbols.SPACE
     ARGS_TMPL = None
@@ -257,6 +257,8 @@ class Cmd(Job):
         """
         Remove unknown arguments.
         """
+        if not self.ParserClass:
+            return
         parser = self.ParserClass()
         _, unknown = parser.parse_known_args(self.args)
         try:
@@ -284,7 +286,7 @@ class Cmd(Job):
         """
         Set the jobname flag in the arguments.
         """
-        return jobutils.set_arg(self.args, jobutils.FLAG_JOBNAME, self.jobname)
+        jobutils.set_arg(self.args, jobutils.FLAG_JOBNAME, self.jobname)
 
     def getCmd(self, prefix=PRE_RUN, write=True):
         """
@@ -299,6 +301,7 @@ class Cmd(Job):
         if prefix:
             self.args.insert(0, prefix)
         cmd = self.SEP.join(self.args)
+
         if write:
             with open(f"{self.jobname}_cmd", 'w') as fh:
                 fh.write(cmd)

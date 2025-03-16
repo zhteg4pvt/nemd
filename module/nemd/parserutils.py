@@ -182,7 +182,7 @@ def type_screen(arg):
     :return `str: the input argument.
     """
     if arg == jobutils.PROGRESS:
-        os.environ['TQDM_DISABLE'] = ''
+        os.environ.pop('TQDM_DISABLE', None)
     return arg
 
 

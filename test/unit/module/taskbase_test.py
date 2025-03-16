@@ -1,11 +1,8 @@
-import collections
 import glob
 import json
 import os
-import shutil
 from unittest import mock
 
-import flow
 import pytest
 
 from nemd import envutils
@@ -15,16 +12,6 @@ from nemd import taskbase
 TEST_0001 = envutils.test_data('itest', '0001_test')
 FAIL_0001 = envutils.test_data('itest', '0001_fail')
 AB_LMP_TRAJ = envutils.test_data('itest', 'ab_lmp_traj')
-
-
-@pytest.fixture
-def jobs(dirname, tmp_dir):
-    if dirname is None:
-        return [None]
-    test_dir = envutils.test_data('itest', dirname)
-    shutil.copytree(test_dir, os.curdir, dirs_exist_ok=True)
-    jobs = flow.project.FlowProject.get_project(os.curdir).find_jobs()
-    return list(jobs)
 
 
 class TestJob:

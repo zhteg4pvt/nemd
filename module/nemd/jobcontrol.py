@@ -20,7 +20,6 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-from nemd import is_debug
 from nemd import jobutils
 from nemd import logutils
 from nemd import plotutils
@@ -54,17 +53,11 @@ class Runner(logutils.Base):
         self.added = []
         self.status = {}
         self.proj = None
-        self.max_cpu = 1
+        self.max_cpu = None
         self.cpu = None
         self.prereq = {}
         # flow/project.py gets logger from logging.getLogger(__name__)
         logutils.Logger.get('flow.project')
-        if self.options.CPU:
-            self.max_cpu = self.options.CPU[0]
-        elif not is_debug():
-            # Production mode: 75% of cpu count as total to avoid overloading
-            self.max_cpu = max([round(os.cpu_count() * 0.75), 1])
-        # Debug mode: 1 cpu as total to avoid parallelism
 
     def run(self):
         """
@@ -75,6 +68,7 @@ class Runner(logutils.Base):
         2) run a project with task jobs
         3) run a project with aggregator jobs
         """
+        self.setMaxCpu()
         if symbols.TASK in self.options.jtype:
             self.setJobs()
             self.setProj()
@@ -91,6 +85,19 @@ class Runner(logutils.Base):
             self.clean(agg=True)
             self.runProj(agg=True)
 
+    def setMaxCpu(self):
+        """
+        Set the maximum cpu number.
+        """
+        if self.options.CPU:
+            self.max_cpu = self.options.CPU[0]
+        elif self.options.DEBUG:
+            # Debug mode: 1 cpu as total to avoid parallelism
+            self.max_cpu = 1
+        else:
+            # Production mode: 75% of cpu count as total to avoid overloading
+            self.max_cpu = max([round(os.cpu_count() * 0.75), 1])
+
     def setJobs(self):
         """
         Set the job operators for one parameter set.
@@ -106,9 +113,8 @@ class Runner(logutils.Base):
         :return 'types.SimpleNamespace': the added operator container
         """
         if pre is None and not TaskClass.agg:
-            pres = [x for x in self.added if not x.cls.agg]
-            if pres:
-                pre = pres[-1]
+            added = (x for x in reversed(self.added) if not x.cls.agg)
+            pre = next(added, None)
         opr = TaskClass.getOpr(**kwargs,
                                status=self.status,
                                logger=self.logger,
@@ -146,7 +152,7 @@ class Runner(logutils.Base):
                 for (key, name) in zip(range(len(names)), names)
             }
             nx.draw_networkx(graph, pos, ax=ax, labels=labels)
-        fig.savefig(self.options.JOBNAME + '_nx.png')
+            fig.savefig(f"{self.options.JOBNAME}_nx.png")
 
     def setState(self):
         """
@@ -166,32 +172,6 @@ class Runner(logutils.Base):
         seeds = (seed_incre + seed) % symbols.MAX_INT32
         self.state = {self.FLAG_SEED: list(map(str, seeds))}
 
-    def setCpu(self):
-        """
-        Set cpu numbers for the project.
-        """
-        if self.options.CPU is None:
-            # Single cpu per job ensures efficiency
-            self.cpu = [self.max_cpu, 1]
-            return
-
-        try:
-            num = self.options.CPU[1]
-        except IndexError:
-            # Only total cpu specified: evenly distribute among subjobs
-            num = math.floor(self.options.CPU[0] / len(self.jobs))
-            num = max([num, 1])
-        self.cpu = [math.floor(self.options.CPU[0] / num), num]
-
-        try:
-            index = self.args.index(jobutils.FLAG_CPU)
-        except ValueError:
-            pass
-        else:
-            # _StatePointDict warns NumpyConversionWarning if statepoint dict
-            # contains numerical data types.
-            self.args[index + 1] = str(self.cpu[1])
-
     def openJobs(self):
         """
         Open one job for each parameter set.
@@ -204,6 +184,25 @@ class Runner(logutils.Base):
             self.jobs.append(job)
         if not self.jobs:
             self.error('No jobs to run.')
+
+    def setCpu(self):
+        """
+        Set cpu numbers for the project.
+        """
+        if self.options.CPU is None:
+            # Single cpu per job ensures efficiency
+            self.cpu = [self.max_cpu, 1]
+            return
+
+        # Evenly distribute among subjobs if only total cpu specified
+        num = self.options.CPU[1] if len(self.options.CPU) > 1 else \
+            max([math.floor(self.options.CPU[0] / len(self.jobs)), 1])
+        self.cpu = [math.floor(self.options.CPU[0] / num), num]
+
+        if jobutils.FLAG_CPU not in self.args:
+            return
+        jobutils.pop_arg(self.args, jobutils.FLAG_CPU)
+        self.args.extend([jobutils.FLAG_CPU, str(self.cpu[1])])
 
     def clean(self, agg=False):
         """
