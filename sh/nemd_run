@@ -20,6 +20,7 @@ Supported additional flags:
 FLAG_PYTHON="-PYTHON"
 FLAG_JOBNAME="-JOBNAME"
 FLAG_INTERAC="-INTERAC"
+FLAG_SCREEN="-screen"
 
 # Help
 [ "$1" = "-h" ] && echo "Example: nemd_run mol_bldr_driver.py [Ar]" && exit 0
@@ -28,6 +29,8 @@ FLAG_INTERAC="-INTERAC"
 a=''; for val in "$@" ""; do [ "$a" = "-DEBUG" ] && export DEBUG='1' && break || a=$val; done
 # -DEGUG n | no | f | false | off | 0 -> off
 [ ! -z $DEBUG ] && case $(echo $val | tr [A-Z] [a-z]) in n|no|f|false|off|0) export DEBUG='' ;; esac
+# TQDM off by default
+export TQDM_DISABLE='1'
 
 . nemd_func
 
@@ -59,6 +62,7 @@ val=''; for nxt in "$@" ''; do
       [ -z ${FLAG_PYTHON##$val*} ] && export PYTHON=$nxt
       [ -z ${FLAG_JOBNAME##$val*} ] && export JOBNAME=$nxt
       [ -z ${FLAG_INTERAC##$val*} ] && export INTERAC='1'
+      [ -z ${FLAG_SCREEN##$val*} ] && [ $nxt != "off" ] && export TQDM_DISABLE=''
       ;;
     esac
   val=$nxt

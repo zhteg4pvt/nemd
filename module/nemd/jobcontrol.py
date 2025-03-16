@@ -226,7 +226,7 @@ class Runner(logutils.Base):
         :param agg bool: run aggregators instead of jobs.
         """
         cpu = self.max_cpu if agg else self.cpu[0]
-        prog = self.options.screen and jobutils.PROGRESS in self.options.screen
+        prog = self.options.screen in [jobutils.PARALLEL, jobutils.Job]
         jobs = None if agg else self.jobs
         self.proj.run(np=cpu, progress=prog, jobs=jobs, **kwargs)
 

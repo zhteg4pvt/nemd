@@ -174,18 +174,6 @@ def type_nonnegative_int(arg):
     return value
 
 
-def type_screen(arg):
-    """
-    Set TQDM_DISABLE environmental variable.
-
-    :param arg str: the input argument.
-    :return `str: the input argument.
-    """
-    if arg == jobutils.PROGRESS:
-        os.environ.pop('TQDM_DISABLE', None)
-    return arg
-
-
 def type_random_seed(arg):
     """
     Check, convert, and set a random seed.
@@ -616,7 +604,8 @@ class Driver(argparse.ArgumentParser):
         """
         if flags is None:
             flags = []
-        self.set_defaults(**{x.lstrip('-'): y for x, y in kwargs.items()})
+        defaults = {x.lstrip('-'): y for x, y in kwargs.items()}
+        self.set_defaults(**defaults)
         flags = {*flags, *kwargs.keys()}
         for axn in self._actions:
             if not flags.intersection(axn.option_strings):
@@ -1006,7 +995,7 @@ class Workflow(Driver):
     FLAG_JTYPE = '-jtype'
     FLAG_SCREEN = jobutils.FLAG_SCREEN
     WFLAGS = [FLAG_STATE_NUM, FLAG_CLEAN, FLAG_JTYPE, FLAG_SCREEN]
-    SCREENS = [jobutils.PROGRESS, jobutils.JOB, symbols.OFF]
+    SCREENS = [symbols.OFF, jobutils.SERIAL, jobutils.PARALLEL, jobutils.JOB]
 
     def __init__(self, *args, conflict_handler='resolve', **kwargs):
         """
@@ -1049,12 +1038,9 @@ class Workflow(Driver):
                               action='store_true',
                               help='Clean previous workflow results.')
         if self.FLAG_SCREEN in self.WFLAGS:
-            os.environ['TQDM_DISABLE'] = '1'
             self.add_argument(
                 self.FLAG_SCREEN,
-                nargs='+',
                 choices=self.SCREENS,
-                type=type_screen,
-                help=f'{jobutils.PROGRESS}: serialization and parallelization; '
-                f'{jobutils.JOB}: cmd process details.; {symbols.OFF}: no '
-                f'printing')
+                default=symbols.OFF,
+                help=f'Screen status: {symbols.OFF}, {jobutils.SERIAL}, '
+                f'{jobutils.PARALLEL}, and {jobutils.JOB} details')

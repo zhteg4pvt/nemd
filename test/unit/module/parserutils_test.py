@@ -102,15 +102,6 @@ class TestType:
     def testNonnegativeInt(self, arg, expected):
         assert expected == parserutils.type_nonnegative_int(arg)
 
-    @pytest.mark.parametrize('ekey', ['TQDM_DISABLE'])
-    @pytest.mark.parametrize('evalue,arg,expected', [('', 'job', ''),
-                                                     ('', 'progress', ''),
-                                                     ('1', 'job', '1'),
-                                                     ('1', 'progress', '')])
-    def testScreen(self, arg, expected, env):
-        parserutils.type_screen(arg)
-        assert expected == os.environ.get('TQDM_DISABLE')
-
     @pytest.mark.parametrize('arg,expected', [('0', 0), ('1234', 1234),
                                               ('-1', RAISED), (2**31, RAISED)])
     def testRandomSeed(self, arg, expected):
@@ -491,16 +482,14 @@ class TestAdd:
 
 class TestWorkflow:
 
-    @pytest.mark.parametrize('ekey', ['TQDM_DISABLE'])
-    @pytest.mark.parametrize('evalue', [None, '1'])
     @pytest.mark.parametrize(
         'args,expected',
-        [([], [1, ['task', 'aggregator'], None, False, None]),
+        [([], [1, ['task', 'aggregator'], None, False, 'off']),
          ([
              '-state_num', '3', '-jtype', 'task', '-prj_path', os.curdir,
-             '-clean', '-screen', 'progress', 'job'
-         ], [3, ['task'], os.curdir, True, ['progress', 'job']])])
-    def testAddWorkflow(self, args, expected, env):
+             '-clean', '-screen', 'job'
+         ], [3, ['task'], os.curdir, True, 'job'])])
+    def testAddWorkflow(self, args, expected):
         parser = parserutils.Workflow()
         options = parser.parse_args(args)
         assert expected == [

@@ -181,11 +181,18 @@ class Parser(parserutils.Workflow):
                           help='cmd: run the commands in cmd file; '
                           'check: check the results; tag: update the tag file')
         self.valids.add(TestValid)
-        self.suppress([parserutils.Workflow.FLAG_SCREEN])
+
+    def addWorkflow(self):
+        """
+        Customize workflow options.
+        """
+        super().addWorkflow()
+        self.suppress(**{parserutils.Workflow.FLAG_SCREEN: jobutils.SERIAL})
 
 
 def main(argv):
     parser = Parser(descr=__doc__)
+
     options = parser.parse_args(argv)
     with logutils.Script(options, file=True) as logger:
         obj = Test(options, argv, logger=logger)
