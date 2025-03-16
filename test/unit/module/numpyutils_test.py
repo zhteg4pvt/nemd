@@ -8,21 +8,21 @@ from nemd import pytestutils
 class TestFunc:
 
     @pytest.fixture
-    def array(self, values, max_val):
-        return numpyutils.IntArray(values=values, max_val=max_val)
+    def array(self, values, mval):
+        return numpyutils.IntArray(values=values, mval=mval)
 
-    @pytest.mark.parametrize('values,max_val,expected', [([2, 5], 0, 6),
-                                                         (None, 10, 11)])
-    def testNew(self, values, max_val, array, expected):
+    @pytest.mark.parametrize('values,mval,expected', [([2, 5], 0, 6),
+                                                      (None, 10, 11)])
+    def testNew(self, values, mval, array, expected):
         assert expected == array.shape[0]
 
-    @pytest.mark.parametrize('values,max_val,expected',
+    @pytest.mark.parametrize('values,mval,expected',
                              [([1, 2, 5], 0, [1, 2, 5]), (None, 2, [])])
     def testValues(self, values, array, expected):
         np.testing.assert_array_equal(array.values, expected)
 
     @pytestutils.Raises
-    @pytest.mark.parametrize('values,max_val', [([1, 2, 5], 0)])
+    @pytest.mark.parametrize('values,mval', [([1, 2, 5], 0)])
     @pytest.mark.parametrize("to_index,expected", [([2, 5], [1, 2]),
                                                    ([2, 3], KeyError)])
     def testIndex(self, array, to_index, expected):

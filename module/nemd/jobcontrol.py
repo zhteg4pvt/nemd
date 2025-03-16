@@ -11,7 +11,6 @@ This class handles jobs and aggregators:
     7) execute the operators
     8) log the status and message.
 """
-import collections
 import itertools
 import math
 import os
@@ -21,6 +20,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
+from nemd import is_debug
 from nemd import jobutils
 from nemd import logutils
 from nemd import plotutils
@@ -56,12 +56,12 @@ class Runner(logutils.Base):
         self.proj = None
         self.max_cpu = 1
         self.cpu = None
-        self.prereq = collections.defaultdict(list)
+        self.prereq = {}
         # flow/project.py gets logger from logging.getLogger(__name__)
         logutils.Logger.get('flow.project')
         if self.options.CPU:
             self.max_cpu = self.options.CPU[0]
-        elif not self.options.DEBUG:
+        elif not is_debug():
             # Production mode: 75% of cpu count as total to avoid overloading
             self.max_cpu = max([round(os.cpu_count() * 0.75), 1])
         # Debug mode: 1 cpu as total to avoid parallelism
@@ -105,8 +105,8 @@ class Runner(logutils.Base):
         :param pre 'types.SimpleNamespace': the prerequisite operator container
         :return 'types.SimpleNamespace': the added operator container
         """
-        if pre is None:
-            pres = [x for x in self.added if x.cls.agg == TaskClass.agg]
+        if pre is None and not TaskClass.agg:
+            pres = [x for x in self.added if not x.cls.agg]
             if pres:
                 pre = pres[-1]
         opr = TaskClass.getOpr(**kwargs,
@@ -115,7 +115,8 @@ class Runner(logutils.Base):
                                options=self.options)
         self.added.append(opr)
         if pre:
-            self.setPreAfter(pre, opr)
+            flow.project.FlowProject.pre.after(pre.opr)(opr.opr)
+            self.prereq.setdefault(opr.jobname, []).append(pre.jobname)
         return opr
 
     def setProj(self):
@@ -123,8 +124,8 @@ class Runner(logutils.Base):
         Initiate the project.
         """
         self.proj = flow.project.FlowProject.init_project()
-        self.proj.document.update({self.PREREQ: self.prereq})
         self.proj.document[symbols.ARGS] = self.args
+        self.proj.document[self.PREREQ] = self.prereq
 
     def plotJobs(self):
         """
@@ -261,18 +262,6 @@ class Runner(logutils.Base):
         id_ops = pd.DataFrame(id_ops, columns=[self.JOB_ID, 'operations'])
         id_ops.set_index(self.JOB_ID, inplace=True)
         self.log(id_ops.to_markdown())
-
-    def setPreAfter(self, pre, cur):
-        """
-        Set the prerequisite of a job.
-
-        :param pre 'types.SimpleNamespace': the operation runs first
-        :param cur 'types.SimpleNamespace': the operation runs after
-        """
-        if pre is None or cur is None:
-            return
-        flow.project.FlowProject.pre.after(pre.opr)(cur.opr)
-        self.prereq[cur.jobname].append(pre.jobname)
 
     def setAggs(self):
         """

@@ -299,7 +299,7 @@ class Struct(structure.Struct):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Atomic number of Og element
-        self.atm_types = numpyutils.IntArray(max_val=118)
+        self.atm_types = numpyutils.IntArray(mval=118)
 
     def addMol(self, mol):
         """

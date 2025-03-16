@@ -3,8 +3,10 @@
 """
 Test configuration, such as global testing fixtures...
 """
+import collections
 from unittest import mock
 
+import flow
 import pytest
 
 from nemd import osutils
@@ -52,3 +54,15 @@ def raises(request, expected):
     # with pytest.raises(expected):
     #     yield
     return pytestutils.Raises.ctxmgr(expected)
+
+
+@pytest.fixture
+def flow_opr():
+    project = flow.FlowProject
+    functions = project._OPERATION_FUNCTIONS
+    postconditions = project._OPERATION_POSTCONDITIONS
+    project._OPERATION_FUNCTIONS = []
+    project._OPERATION_POSTCONDITIONS = collections.defaultdict(list)
+    yield
+    project._OPERATION_FUNCTIONS = functions
+    project._OPERATION_POSTCONDITIONS = postconditions

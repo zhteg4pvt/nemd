@@ -11,14 +11,14 @@ class IntArray(np.ndarray):
     Integers represented by the on values of a bool numpy.ndarray.
     """
 
-    def __new__(cls, values=None, max_val=0):
+    def __new__(cls, values=None, mval=0):
         """
         :param values list: the int array values
-        :param max_val int: The maximum value of the bit array.
+        :param mval int: The maximum value of the bit array.
         """
         if values is not None:
-            max_val = max(values)
-        array = np.zeros(max_val + 1, dtype=bool)
+            mval = max(values)
+        array = np.zeros(mval + 1, dtype=bool)
         if values is not None:
             array[values] = True
         return np.asarray(array).view(cls)

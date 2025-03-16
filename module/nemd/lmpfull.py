@@ -899,11 +899,11 @@ class Struct(lmpatomic.Struct, In):
         """
         Initiate type map.
         """
-        self.atm_types = numpyutils.IntArray(self.ff.atoms.iloc[-1].name)
-        self.bnd_types = numpyutils.IntArray(self.ff.bonds.iloc[-1].name)
-        self.ang_types = numpyutils.IntArray(self.ff.angles.iloc[-1].name)
-        self.dihe_types = numpyutils.IntArray(self.ff.dihedrals.iloc[-1].name)
-        self.impr_types = numpyutils.IntArray(self.ff.impropers.iloc[-1].name)
+        self.atm_types = numpyutils.IntArray(mval=self.ff.atoms.index[-1])
+        self.bnd_types = numpyutils.IntArray(mval=self.ff.bonds.index[-1])
+        self.ang_types = numpyutils.IntArray(mval=self.ff.angles.index[-1])
+        self.dihe_types = numpyutils.IntArray(mval=self.ff.dihedrals.index[-1])
+        self.impr_types = numpyutils.IntArray(mval=self.ff.impropers.index[-1])
 
     def setTypeMap(self, mol):
         """

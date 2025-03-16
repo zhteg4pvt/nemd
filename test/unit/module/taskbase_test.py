@@ -27,18 +27,6 @@ def jobs(dirname, tmp_dir):
     return list(jobs)
 
 
-@pytest.fixture
-def flow_opr():
-    project = flow.FlowProject
-    functions = project._OPERATION_FUNCTIONS
-    postconditions = project._OPERATION_POSTCONDITIONS
-    project._OPERATION_FUNCTIONS = []
-    project._OPERATION_POSTCONDITIONS = collections.defaultdict(list)
-    yield
-    project._OPERATION_FUNCTIONS = functions
-    project._OPERATION_POSTCONDITIONS = postconditions
-
-
 class TestJob:
 
     @pytest.fixture
