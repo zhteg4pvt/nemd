@@ -1,3 +1,4 @@
+import glob
 import os
 import types
 from unittest import mock
@@ -87,16 +88,16 @@ class TestRunner:
         assert expected == runner.cpu
 
     @pytest.mark.parametrize('ekey', ['DEBUG'])
-    @pytest.mark.parametrize('original,evalue', [([], '1'),
-                                                 (['-screen', 'off'], '')])
+    @pytest.mark.parametrize('original,evalue', [(['-DEBUG'], '')])
     def testRunProj(self, runner, env, flow_opr):
-        cmd = "'from nemd import jobutils; jobutils.add_outfile(1)'"
+        cmd = "'from nemd import jobutils; jobutils.add_outfile(1, file=True)'"
         runner.args = ['-c', cmd]
         runner.setMaxCpu()
         runner.add(taskbase.Cmd)
         runner.add(taskbase.Job)
         runner.setProj()
-        runner.plotJobs()
         runner.openJobs()
         runner.setCpu()
         runner.runProj()
+        assert 1 == len(glob.glob('workspace/*/.cmd_document.json'))
+        assert 1 == len(glob.glob('workspace/*/.job_document.json'))

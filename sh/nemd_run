@@ -59,12 +59,17 @@ done
 val=''; for nxt in "$@" ''; do
   case $val in
     -*)
-      [ -z ${FLAG_PYTHON##$val*} ] && export PYTHON=$nxt
-      [ -z ${FLAG_JOBNAME##$val*} ] && export JOBNAME=$nxt
-      [ -z ${FLAG_INTERAC##$val*} ] && export INTERAC='1'
-      [ -z ${FLAG_SCREEN##$val*} ] && [ $nxt != "off" ] && export TQDM_DISABLE=''
+      if [ -z ${FLAG_PYTHON##$val*} ]; then
+        export PYTHON=$nxt
+      elif [ -z ${FLAG_JOBNAME##$val*} ]; then
+        export JOBNAME=$nxt
+      elif [ -z ${FLAG_INTERAC##$val*} ]; then
+        export INTERAC='1'
+      elif [ -z ${FLAG_SCREEN##$val*} ] && [ "$nxt" != "off" ]; then
+        export TQDM_DISABLE=''
+      fi
       ;;
-    esac
+  esac
   val=$nxt
 done
 
