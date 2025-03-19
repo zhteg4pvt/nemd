@@ -1,4 +1,5 @@
 import os
+import shutil
 import types
 from unittest import mock
 
@@ -117,12 +118,13 @@ class TestRunner:
         stat = jobutils.Job('job', job=ran.jobs[0]).data.get('status')
         assert (status if pre is False or file else None) == stat
 
-    @pytest.mark.parametrize('original', [(['-DEBUG'])])
+    @pytest.mark.parametrize('original', [(['-JOBNAME', 'name', '-DEBUG'])])
     @pytest.mark.parametrize('file', [True, False])
     @pytest.mark.parametrize('status', [True, False])
     @pytest.mark.parametrize('pre', [False])
     def testLogStatus(self, file, status, ran):
         ran.logStatus()
+        assert os.path.isfile('name_status.log')
         num = int(file and status)
         calls = ran.logger.log.call_args_list
         assert mock.call(f'{num} / 1 completed jobs.') == calls[0]
@@ -132,6 +134,23 @@ class TestRunner:
         oprs = calls[1][0][0].split('|')[-2]
         assert not file == ('cmd' in oprs)
         assert not status == ('job' in oprs)
+
+    @pytest.mark.parametrize('original', [[]])
+    def testSetAgg(self, runner, flow_opr):
+        runner.setAggs()
+        assert 'time_agg' == flow_opr._OPERATION_FUNCTIONS[0][0]
+
+    @pytest.mark.parametrize('original,file,status,pre',
+                             [(['-DEBUG'], True, True, None)])
+    def testSetAggProj(self, ran):
+        ran.setAggProj()
+        assert 1 == len(ran.jobs)
+        ran.jobs = []
+        ran.setAggProj()
+        assert 1 == len(ran.jobs)
+        shutil.rmtree(ran.proj.workspace)
+        with pytest.raises(SystemExit):
+            ran.setAggProj()
 
     @pytest.mark.parametrize('original,file,status,pre',
                              [(['-clean', '-DEBUG'], True, True, None)])
