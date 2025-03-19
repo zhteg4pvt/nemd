@@ -26,9 +26,11 @@ FLAG_SCREEN="-screen"
 [ "$1" = "-h" ] && echo "Example: nemd_run mol_bldr_driver.py [Ar]" && exit 0
 
 # Debug Mode (# -DEBUG -> on)
-a=''; for val in "$@" ""; do [ "$a" = "-DEBUG" ] && export DEBUG='1' && break || a=$val; done
+a=''; for val in "$@" ""; do \
+  [ "$a" = "-DEBUG" ] && export DEBUG='1' && break || a=$val; done
 # -DEGUG n | no | f | false | off | 0 -> off
-[ ! -z $DEBUG ] && case $(echo $val | tr [A-Z] [a-z]) in n|no|f|false|off|0) export DEBUG='' ;; esac
+[ ! -z $DEBUG ] && case $(echo $val | tr [A-Z] [a-z]) \
+  in n|no|f|false|off|0) export DEBUG='' ;; esac
 # TQDM off by default
 export TQDM_DISABLE='1'
 
@@ -43,12 +45,13 @@ for val in "$@"; do
       SCRIPT=${val%%::*} && debug "Python Script: $SCRIPT"
       NAME=$(basename $SCRIPT)
       # Set JOBNAME
-      for SUFFIX in _driver.py _workflow.py ".*"; do export JOBNAME=${NAME%%$SUFFIX} && [ $JOBNAME != $NAME ] && break; done
+      for SUFFIX in _driver.py _workflow.py ".*"; do \
+        export JOBNAME=${NAME%%$SUFFIX} && [ $JOBNAME != $NAME ] && break; done
       debug $JOBNAME
       # Absolute (or relative) path or in $PATH
       SPATH="$(cd $(dirname $SCRIPT); pwd)/$NAME" && debug $SPATH
       [ ! -f "$SPATH" ] && SPATH=$(which $SCRIPT) && debug $SPATH
-      [ ! -f "$SPATH" ] && echo "Please install $NAME, or source premake" && exit 2
+      [ ! -f "$SPATH" ] && echo "Please install $NAME, or premake" && exit 2
       val=$SPATH${val#$SCRIPT}
       ;;
       esac

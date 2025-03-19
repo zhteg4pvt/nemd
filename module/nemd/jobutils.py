@@ -239,8 +239,7 @@ class Job:
             return
         if self.job:
             file = self.job.fn(file)
-        if os.path.isfile(file):
-            return file
+        return file
 
     @property
     @functools.cache

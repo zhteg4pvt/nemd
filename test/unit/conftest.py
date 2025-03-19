@@ -63,11 +63,14 @@ def raises(request, expected):
 def flow_opr():
     project = flow.FlowProject
     functions = project._OPERATION_FUNCTIONS
+    preconditions = project._OPERATION_PRECONDITIONS
     postconditions = project._OPERATION_POSTCONDITIONS
     project._OPERATION_FUNCTIONS = []
+    project._OPERATION_PRECONDITIONS = collections.defaultdict(list)
     project._OPERATION_POSTCONDITIONS = collections.defaultdict(list)
-    yield
+    yield project
     project._OPERATION_FUNCTIONS = functions
+    project._OPERATION_PRECONDITIONS = preconditions
     project._OPERATION_POSTCONDITIONS = postconditions
 
 

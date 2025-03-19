@@ -13,7 +13,6 @@ import types
 import flow
 
 from nemd import jobutils
-from nemd import parserutils
 from nemd import symbols
 
 STATUS = 'status'
@@ -122,7 +121,7 @@ class Job(jobutils.Job):
         """
         Main method to run.
         """
-        self.out = False
+        self.out = True
 
     @property
     def out(self):
@@ -171,12 +170,11 @@ class Job(jobutils.Job):
         key = self.jobname
         if not self.agg and self.job:
             key = (key, self.job.id)
-        status = self.status.get(key) if self.status else None
-        if status:
+        if self.status and self.status.get(key):
             return True
-        out = self.out
-        if self.status is not None:
-            self.status[key] = out
+        if self.status is None:
+            return bool(self.out)
+        self.status[key] = out = self.out
         if self.logger and self.OUT == STATUS and isinstance(out, str):
             header = '' if self.agg else f"%s in %s: " % key
             self.logger.log(header + out.strip())

@@ -1,4 +1,3 @@
-import glob
 import os
 import types
 from unittest import mock
@@ -6,6 +5,7 @@ from unittest import mock
 import pytest
 
 from nemd import jobcontrol
+from nemd import jobutils
 from nemd import parserutils
 from nemd import taskbase
 
@@ -19,6 +19,33 @@ class TestRunner:
                                  original=original,
                                  logger=mock.Mock())
 
+    @pytest.fixture
+    def ran(self, runner, file, status, flow_opr):
+
+        class Cmd(taskbase.Cmd):
+            FILE = file
+
+            def getCmd(self, *args, **kwargs):
+                return (
+                    "nemd_run -c 'from nemd import jobutils; "
+                    f"jobutils.add_outfile(jobutils.OUTFILE, file={self.FILE})'"
+                    " -JOBNAME cmd")
+
+        class Job(taskbase.Job):
+            STATUS = status
+
+            def run(self, *args, **kwargs):
+                self.out = self.STATUS
+
+        runner.setMaxCpu()
+        runner.add(Cmd)
+        runner.add(Job)
+        runner.setProj()
+        runner.openJobs()
+        runner.setCpu()
+        runner.runProj()
+        return runner
+
     @pytest.mark.parametrize('cpu_count', [8])
     @pytest.mark.parametrize('original,expected',
                              [(['-DEBUG', 'off'], 6), (['-DEBUG', 'on'], 1),
@@ -30,10 +57,10 @@ class TestRunner:
         assert expected == runner.max_cpu
 
     @pytest.mark.parametrize('original', [[]])
-    @pytest.mark.parametrize('agg,pre,expected', [(False, None, ['job']),
-                                                  (False, False, None),
-                                                  (True, None, None)])
-    def testAdd(self, agg, pre, runner, expected, flow_opr):
+    @pytest.mark.parametrize('agg,pre,expected,num',
+                             [(False, None, ['job'], 1),
+                              (False, False, None, 0), (True, None, None, 0)])
+    def testAdd(self, agg, pre, runner, expected, num, flow_opr):
         job = taskbase.Agg if agg else taskbase.Job
         runner.add(job)
         assert 1 == len(runner.added)
@@ -41,6 +68,7 @@ class TestRunner:
         runner.add(job, jobname='job2', pre=pre)
         assert 2 == len(runner.added)
         assert expected == runner.prereq.get('job2')
+        assert num == len(flow_opr._OPERATION_PRECONDITIONS)
 
     @pytest.mark.parametrize('original', [[]])
     def testSetProj(self, original, runner):
@@ -87,17 +115,14 @@ class TestRunner:
         runner.setCpu()
         assert expected == runner.cpu
 
-    @pytest.mark.parametrize('ekey', ['DEBUG'])
-    @pytest.mark.parametrize('original,evalue', [(['-DEBUG'], '')])
-    def testRunProj(self, runner, env, flow_opr):
-        cmd = "'from nemd import jobutils; jobutils.add_outfile(1, file=True)'"
-        runner.args = ['-c', cmd]
-        runner.setMaxCpu()
-        runner.add(taskbase.Cmd)
-        runner.add(taskbase.Job)
-        runner.setProj()
-        runner.openJobs()
-        runner.setCpu()
-        runner.runProj()
-        assert 1 == len(glob.glob('workspace/*/.cmd_document.json'))
-        assert 1 == len(glob.glob('workspace/*/.job_document.json'))
+    @pytest.mark.parametrize('original', [(['-DEBUG'])])
+    @pytest.mark.parametrize('file', [True, False])
+    @pytest.mark.parametrize('status', [True, False])
+    def testRunProj(self, ran, file, status):
+        outfile = jobutils.Job('cmd', job=ran.jobs[0]).getFile()
+        assert file == (outfile.endswith('outfile') if outfile else False)
+        job = jobutils.Job('job', job=ran.jobs[0])
+        if not file:
+            assert not os.path.isfile(job.file)
+            return
+        assert status == job.data['status']
