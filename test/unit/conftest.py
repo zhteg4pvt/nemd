@@ -14,6 +14,7 @@ import pytest
 from nemd import envutils
 from nemd import osutils
 from nemd import pytestutils
+from nemd import taskbase
 
 
 @pytest.fixture
@@ -82,3 +83,24 @@ def jobs(dirname, tmp_dir):
     shutil.copytree(test_dir, os.curdir, dirs_exist_ok=True)
     jobs = flow.project.FlowProject.get_project(os.curdir).find_jobs()
     return list(jobs)
+
+
+@pytest.fixture
+def Cmd(file):
+
+    class Cmd(taskbase.Cmd):
+        FILE = (f"-c 'from nemd import jobutils;"
+                f"jobutils.add_outfile(jobutils.OUTFILE, file={file})'")
+
+    return Cmd
+
+
+@pytest.fixture
+def Job(status):
+
+    class Job(taskbase.Job):
+
+        def run(self, *args, **kwargs):
+            self.out = status
+
+    return Job

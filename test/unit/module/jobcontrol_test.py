@@ -13,33 +13,17 @@ from nemd import taskbase
 class TestRunner:
 
     @pytest.fixture
-    def runner(self, original, tmp_dir):
+    def runner(self, original, flow_opr, tmp_dir):
         options = parserutils.Workflow().parse_args(original)
         return jobcontrol.Runner(options=options,
                                  original=original,
                                  logger=mock.Mock())
 
     @pytest.fixture
-    def ran(self, runner, file, status, flow_opr):
-
-        class Cmd(taskbase.Cmd):
-            FILE = file
-
-            def getCmd(self, *args, **kwargs):
-                return (
-                    "nemd_run -c 'from nemd import jobutils; "
-                    f"jobutils.add_outfile(jobutils.OUTFILE, file={self.FILE})'"
-                    " -JOBNAME cmd")
-
-        class Job(taskbase.Job):
-            STATUS = status
-
-            def run(self, *args, **kwargs):
-                self.out = self.STATUS
-
+    def ran(self, runner, Cmd, Job, pre):
         runner.setMaxCpu()
         runner.add(Cmd)
-        runner.add(Job)
+        runner.add(Job, pre=pre)
         runner.setProj()
         runner.openJobs()
         runner.setCpu()
@@ -80,7 +64,7 @@ class TestRunner:
     @pytest.mark.parametrize('original,expected',
                              [(['-JOBNAME', 'myname', '-DEBUG', 'off'], False),
                               (['-JOBNAME', 'myname', '-DEBUG', 'on'], True)])
-    def testPlotJobs(self, runner, expected, flow_opr):
+    def testPlotJobs(self, runner, expected):
         runner.add(taskbase.Job)
         runner.add(taskbase.Job, jobname='job2')
         runner.setProj()
@@ -98,7 +82,7 @@ class TestRunner:
     @pytest.mark.parametrize('original', [[]])
     @pytest.mark.parametrize(
         'state', [dict(seed=['1', '2'], scale_factor=['0.95', '1'])])
-    def testOpenJobs(self, state, runner, tmp_dir):
+    def testOpenJobs(self, state, runner):
         runner.state = state
         runner.setProj()
         runner.openJobs()
@@ -118,11 +102,9 @@ class TestRunner:
     @pytest.mark.parametrize('original', [(['-DEBUG'])])
     @pytest.mark.parametrize('file', [True, False])
     @pytest.mark.parametrize('status', [True, False])
-    def testRunProj(self, ran, file, status):
+    @pytest.mark.parametrize('pre', [(None), (False)])
+    def testRunProj(self, pre, file, status, ran):
         outfile = jobutils.Job('cmd', job=ran.jobs[0]).getFile()
-        assert file == (outfile.endswith('outfile') if outfile else False)
-        job = jobutils.Job('job', job=ran.jobs[0])
-        if not file:
-            assert not os.path.isfile(job.file)
-            return
-        assert status == job.data['status']
+        assert outfile.endswith('outfile') if outfile else (outfile is None)
+        stat = jobutils.Job('job', job=ran.jobs[0]).data.get('status')
+        assert (status if pre is False or file else None) == stat
