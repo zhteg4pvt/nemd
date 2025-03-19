@@ -108,3 +108,12 @@ class TestRunner:
         assert outfile.endswith('outfile') if outfile else (outfile is None)
         stat = jobutils.Job('job', job=ran.jobs[0]).data.get('status')
         assert (status if pre is False or file else None) == stat
+
+    @pytest.mark.parametrize('original,file,status,pre',
+                             [(['-DEBUG'], True, True, None)])
+    def testRunProjAgg(self, ran):
+        ran.add(taskbase.Agg)
+        ran.setAggProj()
+        ran.runProj(agg=True)
+        job = jobutils.Job('agg', job=ran.jobs[0].project)
+        assert job.data['status']
