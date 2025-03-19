@@ -110,6 +110,14 @@ class TestRunner:
         assert (status if pre is False or file else None) == stat
 
     @pytest.mark.parametrize('original,file,status,pre',
+                             [(['-clean', '-DEBUG'], True, True, None)])
+    def testClean(self, ran):
+        files = [jobutils.Job(x, job=ran.jobs[0]).file for x in ['cmd', 'job']]
+        assert all([os.path.exists(x) for x in files])
+        ran.clean()
+        assert not any([os.path.exists(x) for x in files])
+
+    @pytest.mark.parametrize('original,file,status,pre',
                              [(['-DEBUG'], True, True, None)])
     def testRunProjAgg(self, ran):
         ran.add(taskbase.Agg)
@@ -117,3 +125,14 @@ class TestRunner:
         ran.runProj(agg=True)
         job = jobutils.Job('agg', job=ran.jobs[0].project)
         assert job.data['status']
+
+    @pytest.mark.parametrize('original,file,status,pre',
+                             [(['-clean', '-DEBUG'], True, True, None)])
+    def testCleanAgg(self, ran):
+        ran.add(taskbase.Agg)
+        ran.setAggProj()
+        ran.runProj(agg=True)
+        file = jobutils.Job('agg', job=ran.jobs[0].project).file
+        assert os.path.exists(file)
+        ran.clean(agg=True)
+        assert not os.path.exists(file)
