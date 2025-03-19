@@ -99,6 +99,14 @@ class TestRunner:
         runner.setCpu()
         assert expected == runner.cpu
 
+    @pytest.mark.parametrize('original,file,status,pre',
+                             [(['-clean', '-DEBUG'], True, True, None)])
+    def testClean(self, ran):
+        files = [jobutils.Job(x, job=ran.jobs[0]).file for x in ['cmd', 'job']]
+        assert all([os.path.exists(x) for x in files])
+        ran.clean()
+        assert not any([os.path.exists(x) for x in files])
+
     @pytest.mark.parametrize('original', [(['-DEBUG'])])
     @pytest.mark.parametrize('file', [True, False])
     @pytest.mark.parametrize('status', [True, False])
@@ -109,22 +117,21 @@ class TestRunner:
         stat = jobutils.Job('job', job=ran.jobs[0]).data.get('status')
         assert (status if pre is False or file else None) == stat
 
-    @pytest.mark.parametrize('original,file,status,pre',
-                             [(['-clean', '-DEBUG'], True, True, None)])
-    def testClean(self, ran):
-        files = [jobutils.Job(x, job=ran.jobs[0]).file for x in ['cmd', 'job']]
-        assert all([os.path.exists(x) for x in files])
-        ran.clean()
-        assert not any([os.path.exists(x) for x in files])
-
-    @pytest.mark.parametrize('original,file,status,pre',
-                             [(['-DEBUG'], True, True, None)])
-    def testRunProjAgg(self, ran):
-        ran.add(taskbase.Agg)
-        ran.setAggProj()
-        ran.runProj(agg=True)
-        job = jobutils.Job('agg', job=ran.jobs[0].project)
-        assert job.data['status']
+    @pytest.mark.parametrize('original', [(['-DEBUG'])])
+    @pytest.mark.parametrize('file', [True, False])
+    @pytest.mark.parametrize('status', [True, False])
+    @pytest.mark.parametrize('pre', [False])
+    def testLogStatus(self, file, status, ran):
+        ran.logStatus()
+        num = int(file and status)
+        calls = ran.logger.log.call_args_list
+        assert mock.call(f'{num} / 1 completed jobs.') == calls[0]
+        if num:
+            assert 1 == len(calls)
+            return
+        oprs = calls[1][0][0].split('|')[-2]
+        assert not file == ('cmd' in oprs)
+        assert not status == ('job' in oprs)
 
     @pytest.mark.parametrize('original,file,status,pre',
                              [(['-clean', '-DEBUG'], True, True, None)])
@@ -136,3 +143,12 @@ class TestRunner:
         assert os.path.exists(file)
         ran.clean(agg=True)
         assert not os.path.exists(file)
+
+    @pytest.mark.parametrize('original,file,status,pre',
+                             [(['-DEBUG'], True, True, None)])
+    def testRunProjAgg(self, ran):
+        ran.add(taskbase.Agg)
+        ran.setAggProj()
+        ran.runProj(agg=True)
+        job = jobutils.Job('agg', job=ran.jobs[0].project)
+        assert job.data['status']

@@ -234,24 +234,22 @@ class Runner(logutils.Base):
         """
         Look into each parameter set and report the status.
         """
-        status_file = f"{self.options.JOBNAME}_status{symbols.LOG_EXT}"
-        with open(status_file, 'w') as fh:
-            # Fetching status and Fetching labels are printed to err handler
+        # Status and labels
+        file = f"{self.options.JOBNAME}_status{symbols.LOG_EXT}"
+        with open(file, 'w') as fh:
             self.proj.print_status(detailed=True,
                                    jobs=self.jobs,
                                    file=fh,
                                    err=fh)
-        # Log job status
+        # Completeness
         status = [self.proj.get_job_status(x) for x in self.jobs]
         ops = [x[self.OPERATIONS] for x in status]
         completed = [all([y[self.COMPLETED] for y in x.values()]) for x in ops]
-        failed_num = len([x for x in completed if not x])
-        self.log(
-            f"{len(self.jobs) - failed_num} / {len(self.jobs)} completed jobs."
-        )
-
-        if not failed_num:
+        total, failed = len(self.jobs), len([x for x in completed if not x])
+        self.log(f"{total - failed} / {total} completed jobs.")
+        if not failed:
             return
+        # Incomplete jobs
         id_ops = []
         for completed, op, stat, in zip(completed, ops, status):
             if completed:
