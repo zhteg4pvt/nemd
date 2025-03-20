@@ -63,7 +63,7 @@ class AngleCoeff(lmpatomic.Base):
     The angle coefficients between bonded atoms in the system.
     """
     NAME = 'Angle Coeffs'
-    COLUMN_LABELS = [lmpatomic.ENE, 'deg']
+    COLUMNS = [lmpatomic.ENE, 'deg']
     LABEL = 'angle types'
 
 
@@ -72,7 +72,7 @@ class DihedralCoeff(AngleCoeff):
     The dihedral coefficients between bonded atoms in the system.
     """
     NAME = 'Dihedral Coeffs'
-    COLUMN_LABELS = ['k1', 'k2', 'k3', 'k4']
+    COLUMNS = ['k1', 'k2', 'k3', 'k4']
     LABEL = 'dihedral types'
 
 
@@ -81,7 +81,7 @@ class ImproperCoeff(AngleCoeff):
     The improper coefficients between bonded atoms in the system.
     """
     NAME = 'Improper Coeffs'
-    COLUMN_LABELS = ['k', 'd', 'n']
+    COLUMNS = ['k', 'd', 'n']
     LABEL = 'improper types'
 
 
@@ -91,7 +91,7 @@ class Charge(lmpatomic.XYZ):
     """
 
     NAME = 'Charge'
-    COLUMN_LABELS = ['charge']
+    COLUMNS = ['charge']
 
 
 class Atom(lmpatomic.Atom):
@@ -100,7 +100,7 @@ class Atom(lmpatomic.Atom):
     """
 
     MOL_ID = 'mol_id'
-    COLUMN_LABELS = [ATOM1, MOL_ID, TYPE_ID]
+    COLUMNS = [ATOM1, MOL_ID, TYPE_ID]
 
 
 class AtomBlock(lmpatomic.AtomBlock):
@@ -109,7 +109,7 @@ class AtomBlock(lmpatomic.AtomBlock):
     """
     ID_COLS = [Atom.MOL_ID]
     TYPE_COL = [TYPE_ID]
-    COLUMN_LABELS = Atom.COLUMN_LABELS + Charge.COLUMN_LABELS + lmpatomic.XYZ.COLUMN_LABELS
+    COLUMNS = Atom.COLUMNS + Charge.COLUMNS + lmpatomic.XYZ.COLUMNS
     FMT = '%i %i %i %.4f %.4f %.4f %.4f'
 
 
@@ -120,7 +120,7 @@ class Bond(Atom):
 
     NAME = 'Bonds'
     ID_COLS = [ATOM1, ATOM2]
-    COLUMN_LABELS = [TYPE_ID] + ID_COLS
+    COLUMNS = [TYPE_ID] + ID_COLS
     DEFAULT_DTYPE = np.uint32
     LABEL = 'bonds'
     FMT = '%i'
@@ -144,7 +144,7 @@ class Bond(Atom):
         if data is None and type_ids is not None and aids is not None:
             data = [[x] + y for x, y in zip(type_ids, aids)]
         if data is None:
-            data = {x: pd.Series(dtype=dtype) for x in self.COLUMN_LABELS}
+            data = {x: pd.Series(dtype=dtype) for x in self.COLUMNS}
         super().__init__(data=data, **kwargs)
 
     def getPairs(self, step=1):
@@ -177,7 +177,7 @@ class Angle(Bond):
 
     NAME = 'Angles'
     ID_COLS = [ATOM1, ATOM2, ATOM3]
-    COLUMN_LABELS = [TYPE_ID] + ID_COLS
+    COLUMNS = [TYPE_ID] + ID_COLS
     LABEL = 'angles'
     # https://pandas.pydata.org/docs/development/extending.html
     _internal_names = pd.DataFrame._internal_names + ['id_map']
@@ -223,7 +223,7 @@ class Dihedral(Bond):
 
     NAME = 'Dihedrals'
     ID_COLS = [ATOM1, ATOM2, ATOM3, ATOM4]
-    COLUMN_LABELS = [TYPE_ID] + ID_COLS
+    COLUMNS = [TYPE_ID] + ID_COLS
     LABEL = 'dihedrals'
 
     def getPairs(self, step=3):
@@ -1180,7 +1180,7 @@ class Reader(lmpatomic.Reader):
 
         :return `Charge`: the atomic charges.
         """
-        return self.atom_blk[Charge.COLUMN_LABELS]
+        return self.atom_blk[Charge.COLUMNS]
 
     @property
     @functools.cache

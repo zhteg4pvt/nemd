@@ -49,7 +49,6 @@ TYPE_ID = 'type_id'
 RES_NUM = 'res_num'
 IMPLICIT_H = 'implicit_h'
 SPACE = ' '
-SPACE_PATTERN = r'\s+'
 TIME = 'Time'
 TIME_LB = f'{TIME} (ps)'
 ID = 'id'
@@ -72,6 +71,7 @@ AGGREGATOR = 'aggregator'
 TOTENG = 'toteng'
 ARGS = 'args'
 ALL = 'all'
+FLOAT_FMT = '%.4f'
 # Hardcoded Numerical Constants
 # A 32-bit integer limit allows for 4,294,967,296 ( 2**32 ) pieces of data.
 # For signed integers, this would range from -2,147,483,648 to 2,147,483,647.

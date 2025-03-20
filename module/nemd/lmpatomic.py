@@ -57,7 +57,7 @@ class Mass(Base):
     NAME = 'Masses'
     MASS = 'mass'
     COMMENT = 'comment'
-    COLUMN_LABELS = [MASS, COMMENT]
+    COLUMNS = [MASS, COMMENT]
     CMT_RE = r'^(\w+)$'
     LABEL = 'atom types'
 
@@ -115,7 +115,7 @@ class PairCoeff(Base):
     """
 
     NAME = 'Pair Coeffs'
-    COLUMN_LABELS = [ENE, 'dist']
+    COLUMNS = [ENE, 'dist']
     LABEL = 'atom types'
 
     @classmethod
@@ -135,7 +135,7 @@ class XYZ(PairCoeff):
     """
 
     NAME = 'XYZ'
-    COLUMN_LABELS = symbols.XYZU
+    COLUMNS = symbols.XYZU
     # https://pandas.pydata.org/docs/development/extending.html
     _internal_names = pd.DataFrame._internal_names + ['_cached']
     _internal_names_set = set(_internal_names)
@@ -180,7 +180,7 @@ class XYZ(PairCoeff):
         array = np.concatenate(arrays)
         if type_map is None:
             return cls(array)
-        index = cls.COLUMN_LABELS.index(TYPE_ID)
+        index = cls.COLUMNS.index(TYPE_ID)
         array[:, index] = type_map.index(array[:, index])
         return cls(array)
 
@@ -192,7 +192,7 @@ class Atom(XYZ):
 
     NAME = 'Atoms'
     TYPE_COL = [TYPE_ID]
-    COLUMN_LABELS = [ATOM1, TYPE_ID]
+    COLUMNS = [ATOM1, TYPE_ID]
     LABEL = 'atoms'
 
     @classmethod
@@ -215,7 +215,7 @@ class AtomBlock(Atom):
     The total atomic information of all data types.
     """
 
-    COLUMN_LABELS = Atom.COLUMN_LABELS + XYZ.COLUMN_LABELS
+    COLUMNS = Atom.COLUMNS + XYZ.COLUMNS
     FMT = '%i %i %.4f %.4f %.4f'
 
     def write(self, *args, index_column=ATOM1, **kwargs):
@@ -524,13 +524,13 @@ class Reader:
         :return `Atom`: the atom information such as atom id, molecule id,
             type id, charge, position, etc.
         """
-        return self.atom_blk[self.Atom.COLUMN_LABELS]
+        return self.atom_blk[self.Atom.COLUMNS]
 
     @property
     @functools.cache
     def atom_blk(self):
         """
-        The atom block..
+        The atom block.
 
         :return `AtomBlock`: the atom information such as atom id, molecule id,
             type id, charge, position, etc.
@@ -545,7 +545,7 @@ class Reader:
 
         :return `XYZ`: the atom coordinates.
         """
-        return self.atom_blk[XYZ.COLUMN_LABELS]
+        return self.atom_blk[XYZ.COLUMNS]
 
     @property
     @functools.cache

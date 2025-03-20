@@ -232,6 +232,7 @@ class Cmd(Job):
         """
         self.addfiles()
         self.rmUnknown()
+        self.addQuot()
         self.setName()
 
     def addfiles(self):
@@ -280,6 +281,29 @@ class Cmd(Job):
             for index in reversed(range(flag_index, flag_index + lidx + 1)):
                 self.args.pop(index)
 
+    def addQuot(self):
+        """
+        Add quotations to words containing special characters.
+        """
+        self.args = [self.quote(x) for x in self.args]
+
+    @staticmethod
+    def quote(arg,
+              single=re.compile("^'.*'$"),
+              double=re.compile('^".*"$'),
+              spec=re.compile(r"[@!#%^&*()<>?|}{:\[\]]")):
+        """
+        Quote if the unquoted argument containing special characters.
+
+        :param arg str: the argument to quote
+        :param single 're.Pattern': match single-quoted text
+        :param double 're.Pattern': match double-quoted text
+        :param spec 're.Pattern': search text with special characters
+        :return str: the quoted word
+        """
+        return f'"{arg}"' if not single.match(arg) and not double.match(
+            arg) and spec.search(arg) else arg
+
     def setName(self):
         """
         Set the jobname flag in the arguments.
@@ -299,7 +323,6 @@ class Cmd(Job):
         if prefix:
             self.args.insert(0, prefix)
         cmd = self.SEP.join(self.args)
-
         if write:
             with open(f"{self.jobname}_cmd", 'w') as fh:
                 fh.write(cmd)

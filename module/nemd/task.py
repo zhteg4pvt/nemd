@@ -139,33 +139,20 @@ class Cmd(taskbase.Cmd):
         Get arguments that form command lines.
         """
         self.addfiles()
-        self.quote()
+        self.addQuot()
         self.numCpu()
         self.setDebug()
         self.setScreen()
 
-    def quote(self, rex=re.compile("[^'\"][@!#%^&*()<>?|}{:\[\]][^'\"]")):
+    def addQuot(self):
         """
-        Add quotes for str with special characters.
-
-        :param rex 're.Pattern': search unquoted text with special characters
-        :return str: the quoted command
+        Add quotations to words containing special characters.
         """
         for idx, cmd in enumerate(self.args):
             # shlex.split("echo 'h(i)';echo wa", posix=False) splits by ;
-            splitted = shlex.split(cmd, posix=False)
-            quoted = [f'"{x}"' if rex.match(x) else x for x in splitted]
+            words = shlex.split(cmd, posix=False)
+            quoted = [self.quote(x) for x in words]
             self.args[idx] = symbols.SPACE.join(quoted)
-
-    @property
-    @functools.cache
-    def param(self):
-        """
-        Return the parameter object.
-
-        :return `test.Param`: the parameters.
-        """
-        return test.Param(job=self.job, cmd=self.cmd, options=self.options)
 
     def numCpu(self):
         """
@@ -214,6 +201,16 @@ class Cmd(taskbase.Cmd):
         if self.param.args is None:
             return bool(jobs)
         return len(jobs) >= len(self.param.args)
+
+    @property
+    @functools.cache
+    def param(self):
+        """
+        Return the parameter object.
+
+        :return `test.Param`: the parameters.
+        """
+        return test.Param(job=self.job, cmd=self.cmd, options=self.options)
 
     def clean(self):
         """

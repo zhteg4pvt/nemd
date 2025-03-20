@@ -57,7 +57,7 @@ class TestJob:
     @pytest.mark.parametrize('jobs,status,jobname', [([], None, None)])
     def testRun(self, job):
         job.run()
-        assert job.out is False
+        assert job.out is True
 
     @pytest.mark.parametrize('jobs,status,jobname', [([], None, 'check')])
     def testOut(self, jobname, job):
@@ -224,6 +224,24 @@ class TestCmd:
         cmd.addfiles()
         cmd.rmUnknown()
         assert expected == len(cmd.args)
+
+    @pytest.mark.parametrize('name', ['MolBldr'])
+    @pytest.mark.parametrize('word,expected', [('Ar', ['Ar']),
+                                               ('[Ar]', ['"[Ar]"']),
+                                               ('"[Ar]"', ['"[Ar]"']),
+                                               ("'[Ar]'", ["'[Ar]'"])])
+    def testAddQuot(self, raw, word, expected):
+        cmd = raw()
+        cmd.args = [word]
+        cmd.addQuot()
+        assert expected == cmd.args
+
+    @pytest.mark.parametrize('word,expected', [('Ar', 'Ar'), ('@', '"@"'),
+                                               ('[Ar]', '"[Ar]"'),
+                                               ('"[Ar]"', '"[Ar]"'),
+                                               ("'[Ar]'", "'[Ar]'")])
+    def testQuote(self, word, expected):
+        assert expected == taskbase.Cmd.quote(word)
 
     @pytest.mark.parametrize('name,jobname,expected',
                              [('MolBldr', None, 'mol_bldr'),

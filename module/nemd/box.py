@@ -19,28 +19,23 @@ class Base(pd.DataFrame):
     """
     Base class to handle a datafile block.
     """
-
-    NAME = 'Block'
-    COLUMN_LABELS = ['column_labels']
-    ID_COLS = None  # atom (or molecule) id columns
-    TYPE_COL = None
-    POUND = symbols.POUND
-    SPACE = symbols.SPACE
-    SPACE_PATTERN = symbols.SPACE_PATTERN
-    LABEL = 'label'
-    FLOAT_FMT = '%.4f'
-    FMT = None
+    COLUMNS = ['label']  # Column labels
+    NAME = 'Block'  # Block header
+    LABEL = 'label'  # Counting suffix
+    ID_COLS = None  # Atom (or molecule) ids
+    TYPE_COL = None  # Atom type
+    FMT = None  # when use np.savetxt to speed up
 
     def __init__(self, data=None, index=None, columns=None, **kwargs):
         """
         Initialize the Mass object.
 
-        :param data: `pandas.DataFrame`: the data to initialize the object.
+        :param data: `pandas.DataFrame` or int: the data or the row number.
         :param index: `pandas.Index`: the index to initialize the object.
         :param columns: `list`: the column labels to initialize the object.
         """
         if not isinstance(data, pd.DataFrame) and columns is None:
-            columns = self.COLUMN_LABELS
+            columns = self.COLUMNS
         if isinstance(data, int):
             data = np.ones((data, len(columns)), dtype=np.int32)
         super().__init__(data=data, index=index, columns=columns, **kwargs)
@@ -56,31 +51,19 @@ class Base(pd.DataFrame):
         return cls
 
     @classmethod
-    def new(cls, *args, **kwargs):
-        """
-        Create a new instance of the (sub-)class.
-
-        :return instance of Block (sub-)class: the new instance.
-        """
-        return cls(*args, **kwargs)
-
-    @classmethod
     def fromLines(cls,
                   lines,
-                  *args,
                   names=None,
                   index_col=None,
-                  header=None,
-                  sep=SPACE_PATTERN,
-                  quotechar=POUND,
+                  sep=r'\s+',
+                  quotechar=symbols.POUND,
                   **kwargs):
         """
         Construct a new instance from a list of lines.
 
+        :param lines list: list of lines to parse.
         :param names list: Sequence of column labels to apply.
         :param index_col int: Column(s) to use as row label(s)
-        :param header int, ‘infer’ or None: the row number defining the header
-        :param lines list: list of lines to parse.
         :param sep str: Character or regex pattern to treat as the delimiter.
         :param quotechar str: Character used to denote the start and end of a
             quoted item
@@ -88,24 +71,33 @@ class Base(pd.DataFrame):
         :return instance of Block (sub-)class: the parsed object.
         """
         if names is None:
-            names = cls.COLUMN_LABELS
+            names = cls.COLUMNS
         df = pd.read_csv(io.StringIO(''.join(lines)),
-                         *args,
                          names=names,
                          index_col=index_col,
-                         header=header,
                          sep=sep,
                          quotechar=quotechar,
                          **kwargs)
         if df.empty:
             return cls(df)
-        if cls.ID_COLS is not None:
-            df[cls.ID_COLS] -= 1
-        if cls.TYPE_COL is not None:
-            df[cls.TYPE_COL] -= 1
-        if index_col == 0:
-            df.index -= 1
+        cls.shift(df, delta=-1, index=index_col is not None)
         return cls(df)
+
+    @classmethod
+    def shift(cls, df, delta=1, index=True):
+        """
+        Shift the id, type, and index columns by delta.
+
+        :param df `pd.DataFrame`: the dataframe to shift
+        :param delta int: the delta to shift by
+        :param index bool: shift the index if True
+        """
+        if cls.ID_COLS is not None:
+            df[cls.ID_COLS] += delta
+        if cls.TYPE_COL is not None:
+            df[cls.TYPE_COL] += delta
+        if index:
+            df.index += delta
 
     def write(self,
               hdl,
@@ -113,11 +105,11 @@ class Base(pd.DataFrame):
               index_column=None,
               as_block=True,
               columns=None,
-              sep=SPACE,
+              sep=symbols.SPACE,
               header=False,
-              float_format=FLOAT_FMT,
+              float_format=symbols.FLOAT_FMT,
               mode='a',
-              quotechar=POUND,
+              quotechar=symbols.POUND,
               **kwargs):
         """
         Write the data to a text stream.
@@ -135,22 +127,22 @@ class Base(pd.DataFrame):
         """
         if not self.size:
             return
+        # Columns
         if columns is None:
-            columns = self.COLUMN_LABELS
+            columns = self.COLUMNS
         if index_column is not None and index_column in columns:
             columns = [x for x in columns if x != index_column]
         if join is not None:
             columns.extend(join.columns)
-        if as_block and self.NAME:
-            hdl.write(self.NAME + '\n\n')
-        if self.TYPE_COL is not None:
-            self[self.TYPE_COL] += 1
-        if self.ID_COLS is not None:
-            self[self.ID_COLS] += 1
+        # Join
         data = self if join is None else self.join(join)
+        # Index
         if index_column is not None:
             data = data.set_index(index_column)
-        data.index += 1
+        self.shift(data)
+        # Write
+        if as_block and self.NAME:
+            hdl.write(self.NAME + '\n\n')
         if self.FMT:
             np.savetxt(hdl, data.reset_index().values, fmt=self.FMT)
         else:
@@ -162,38 +154,25 @@ class Base(pd.DataFrame):
                         mode=mode,
                         quotechar=quotechar,
                         **kwargs)
-        data.index -= 1
-        if self.TYPE_COL is not None:
-            self[self.TYPE_COL] -= 1
-        if self.ID_COLS is not None:
-            self[self.ID_COLS] -= 1
         if as_block:
             hdl.write('\n')
+        self.shift(data, delta=-1)
 
-    def allClose(self, other, atol=1e-08, rtol=1e-05, equal_nan=False):
+    def allClose(self, other, **kwargs):
         """
         Returns a boolean where two arrays are equal within a tolerance
 
-        :param other: the other data reader to compare against.
-        :type other: float
-        :param atol: The relative tolerance parameter (see Notes).
-        :type atol: float
-        :param rtol: The absolute tolerance parameter (see Notes).
-        :type rtol: float
-        :param equal_nan: If True, NaNs are considered close.
-        :type equal_nan: bool
-        :return: whether two data are close.
-        :rtype: bool
+        :param other float: the other data reader to compare against.
+        :return bool: whether two data are close.
         """
-        sf = self.select_dtypes(include=['float'])
-        of = other.select_dtypes(include=['float'])
-        if sf.shape != of.shape:
+        included = self.select_dtypes(include=['float'])
+        others = other.select_dtypes(include=['float'])
+        if included.shape != others.shape:
             return False
-        if not np.allclose(sf, of, atol=atol, rtol=rtol, equal_nan=equal_nan):
+        if not np.allclose(included, others, **kwargs):
             return False
-        nsf = self.select_dtypes(exclude=['float'])
-        nof = other.select_dtypes(exclude=['float'])
-        return nsf.equals(nof)
+        excluded = self.select_dtypes(exclude=['float'])
+        return excluded.equals(other.select_dtypes(exclude=['float']))
 
 
 class Box(Base):
@@ -208,12 +187,12 @@ class Box(Base):
     ORIGIN = [0, 0, 0]
     LIMIT_CMT = '{limit}_cmt'
     LO_LABEL, HI_LABEL = LIMIT_CMT.format(limit=LO), LIMIT_CMT.format(limit=HI)
-    COLUMN_LABELS = [LO, HI, LO_LABEL, HI_LABEL]
+    COLUMNS = [LO, HI, LO_LABEL, HI_LABEL]
     LO_CMT = [x + y for x, y in itertools.product(INDEX, [LO])]
     HI_CMT = [x + y for x, y in itertools.product(INDEX, [HI])]
-    FLT_RE = "[+-]?[\d\.\d]+"
+    FLT_RE = r"[+-]?[\d\.\d]+"
     LO_HI = [f'{x}{symbols.SPACE}{y}' for x, y in zip(LO_CMT, HI_CMT)]
-    RE = re.compile(f"^{FLT_RE}\s+{FLT_RE}\s+({'|'.join(LO_HI)}).*$")
+    RE = re.compile(rf"^{FLT_RE}\s+{FLT_RE}\s+({'|'.join(LO_HI)}).*$")
 
     # https://pandas.pydata.org/docs/development/extending.html
     _internal_names = pd.DataFrame._internal_names + ['_span', '_tilt']
@@ -296,7 +275,7 @@ class Box(Base):
                               sep=' ',
                               lineterminator=' xy xz yz\n',
                               index=index,
-                              float_format=self.FLOAT_FMT)
+                              float_format=symbols.FLOAT_FMT)
         fh.write("\n")
 
     @property
