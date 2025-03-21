@@ -37,4 +37,4 @@ class Struct(lmpatomic.Struct, lammpsin.In):
         Write box information.
         """
         # FIXME: crystal mixture and interface
-        return box.Box.fromVecs(self.molecules[0].vecs)
+        return box.Box.fromVecs(*self.molecules[0].vecs)

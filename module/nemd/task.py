@@ -184,9 +184,7 @@ class Cmd(taskbase.Cmd):
         """
         Set the screen output.
         """
-        if self.options.screen is None and self.options.DEBUG:
-            return
-        if self.options.screen and jobutils.JOB in self.options.screen:
+        if self.options.screen != symbols.OFF or self.options.DEBUG:
             return
         for idx, cmd in enumerate(self.args):
             self.args[idx] = f"{cmd} > /dev/null"

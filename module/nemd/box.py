@@ -5,10 +5,9 @@ This module handles the Box, which represents the periodic boundary conditions.
 """
 import collections
 import io
-import itertools
 import math
-import re
 
+import methodtools
 import numpy as np
 import pandas as pd
 
@@ -180,85 +179,81 @@ class Box(Base):
     The Box block representing the periodic boundary conditions.
     """
 
-    NAME = ''
+    NAME = None
     LABEL = 'box'
     LO, HI = 'lo', 'hi'
-    INDEX = ['x', 'y', 'z']
-    ORIGIN = [0, 0, 0]
     LIMIT_CMT = '{limit}_cmt'
-    LO_LABEL, HI_LABEL = LIMIT_CMT.format(limit=LO), LIMIT_CMT.format(limit=HI)
+    LO_LABEL = LIMIT_CMT.format(limit=LO)
+    HI_LABEL = LIMIT_CMT.format(limit=HI)
     COLUMNS = [LO, HI, LO_LABEL, HI_LABEL]
-    LO_CMT = [x + y for x, y in itertools.product(INDEX, [LO])]
-    HI_CMT = [x + y for x, y in itertools.product(INDEX, [HI])]
-    FLT_RE = r"[+-]?[\d\.\d]+"
-    LO_HI = [f'{x}{symbols.SPACE}{y}' for x, y in zip(LO_CMT, HI_CMT)]
-    RE = re.compile(rf"^{FLT_RE}\s+{FLT_RE}\s+({'|'.join(LO_HI)}).*$")
 
     # https://pandas.pydata.org/docs/development/extending.html
-    _internal_names = pd.DataFrame._internal_names + ['_span', '_tilt']
-    _internal_names_set = set(_internal_names)
+    _metadata = ['tilt']
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, tilt=None, **kwargs):
+        """
+        :param tilt list: xy, xz, yz tilt factors
+        """
         super().__init__(*args, **kwargs)
-        self._span = None
-        self._tilt = None
+        self.tilt = tilt
 
     @property
     def volume(self):
         """
-        Get the volume of the frame.
+        Get the box volume.
 
-        :param float: the volume of the frame
+        :param float: the box volume
         """
         return np.prod(self.span)
 
+    @methodtools.lru_cache()
     @property
     def span(self):
         """
         Set and cache the span of the box.
 
-        :return: the span of the box.
-        :rtype: 'numpy.ndarray'
+        :return 'numpy.ndarray': the span of the box.
         """
-        if self._span is not None:
-            return self._span
-        self._span = (self.hi - self.lo).values
-        return self._span
+        return (self.hi - self.lo).values
 
     @classmethod
-    def fromEdges(cls, edges):
+    def fromEdges(cls, edges, **kwargs):
         """
         Box built from these edges and origin.
 
         :param list: the box edges.
         """
-        data = {
-            cls.LO: cls.ORIGIN,
-            cls.HI: edges,
-            cls.LO_LABEL: cls.LO_CMT,
-            cls.HI_LABEL: cls.HI_CMT
-        }
-        return cls(data=data)
+        data = {cls.LO: [0, 0, 0], cls.HI: edges}
+        return cls(data={**data, **cls.getLabels()}, **kwargs)
+
+    @methodtools.lru_cache()
+    @classmethod
+    def getLabels(cls):
+        """
+        Get the tailing labels.
+
+        :return dict: the tail labels of different dimensions
+        """
+        lo_cmt = [f'{d}{cls.LO}' for d in symbols.XYZ]
+        hi_cmt = [f'{d}{cls.HI}' for d in symbols.XYZ]
+        return {cls.LO_LABEL: lo_cmt, cls.HI_LABEL: hi_cmt}
 
     @classmethod
-    def fromVecs(cls, vecs):
+    def fromVecs(cls, a_vec, b_vec, c_vec, alpha, beta, gamma):
         """
         Construct a box instance from lattice vectors.
 
         Crystallographic general triclinic representation of a simulation box
         https://docs.lammps.org/Howto_triclinic.html
 
+        :return `Box`: the Box build from edge vectors
         """
-        a_vec, b_vec, c_vec, alpha, beta, gamma = vecs
-        lx = a_vec
         xy = b_vec * math.cos(math.radians(gamma))
-        xz = c_vec * math.cos(math.radians(beta))
         ly = math.sqrt(b_vec**2 - xy**2)
+        xz = c_vec * math.cos(math.radians(beta))
         yz = (b_vec * c_vec * math.cos(math.radians(alpha)) - xy * xz) / ly
         lz = math.sqrt(c_vec**2 - xz**2 - yz**2)
-        box = cls.fromEdges([lx, ly, lz])
-        box._tilt = pd.DataFrame([[xy, xz, yz]])
-        return box
+        return cls.fromEdges([a_vec, ly, lz], tilt=[xy, xz, yz])
 
     def write(self, fh, index=False, as_block=False, **kwargs):
         """
@@ -269,13 +264,9 @@ class Box(Base):
         :param index `bool`: whether to write the index.
         """
         super().write(fh, index=index, as_block=as_block, **kwargs)
-        if self._tilt is not None:
-            self._tilt.to_csv(fh,
-                              header=False,
-                              sep=' ',
-                              lineterminator=' xy xz yz\n',
-                              index=index,
-                              float_format=symbols.FLOAT_FMT)
+        if self.tilt:
+            tilt = [symbols.FLOAT_FMT % x for x in self.tilt]
+            fh.write(' '.join(tilt + ['xy', 'xz', 'yz']) + "\n")
         fh.write("\n")
 
     @property

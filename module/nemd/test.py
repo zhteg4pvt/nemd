@@ -308,7 +308,7 @@ class Cmp(Exist):
             return
         # Exact Match
         if not filecmp.cmp(*self.args):
-            self.raiseError(', '.join(self.args))
+            self.raiseError(', '.join(self.args[1:]))
 
     def cmpCsv(self):
         """

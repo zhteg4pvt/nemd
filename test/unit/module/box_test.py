@@ -69,7 +69,14 @@ class TestBase:
 
     @pytest.mark.parametrize('TYPE_COL,ID_COLS,FMT', [('b', ['c'], None)])
     @pytest.mark.parametrize('dtype,expected', [(int, True), (float, False)])
-    def testFromLines(self, base, dtype, expected):
+    def testAllClose(self, base, dtype, expected):
         other = np.zeros((3, 3), dtype=dtype)
         other = pd.DataFrame(other, columns=['a', 'b', 'c'])
         assert expected == base.allClose(other)
+
+
+class TestBox:
+
+    @pytest.fixture
+    def box(self):
+        return

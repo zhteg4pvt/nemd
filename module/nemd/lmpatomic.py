@@ -427,10 +427,6 @@ class Reader:
     Mass = Mass
     AtomBlock = AtomBlock
     BLOCK_CLASSES = [Mass, AtomBlock]
-    BLOCK_NAMES = [x.NAME for x in BLOCK_CLASSES]
-    BLOCK_LABELS = [x.LABEL for x in BLOCK_CLASSES]
-    NAME_RE = re.compile(f"^{'|'.join(BLOCK_NAMES)}$")
-    COUNT_RE = re.compile(rf"^[0-9]+\s+({'|'.join(BLOCK_LABELS)})$")
     DESCR_RE = Struct.DESCR.replace('{style}', '(.*)$')
 
     def __init__(self, data_file=None, contents=None, delay=False):
@@ -466,9 +462,10 @@ class Reader:
         Index the lines by block markers, and Parse the descr section for
         topo counts and type counts.
         """
+
         names = {}
         for idx, line in enumerate(self.lines):
-            match = self.NAME_RE.match(line)
+            match = self.name_re.match(line)
             if not match:
                 continue
             # The block name occupies one lien and there is one empty line below
@@ -476,7 +473,7 @@ class Reader:
 
         counts = {}
         for line in self.lines[:min(names.values())]:
-            match = self.COUNT_RE.match(line)
+            match = self.count_re.match(line)
             if not match:
                 continue
             # 'atoms': 1620, 'bonds': 1593, 'angles': 1566 ...
@@ -492,8 +489,43 @@ class Reader:
 
         lines = self.lines[:min(names.values())]
         # 'xlo xhi': [-7.12, 35.44], 'ylo yhi': [-7.53, 34.26], ..
-        box_lines = [i for i, x in enumerate(lines) if box.Box.RE.match(x)]
+        box_lines = [i for i, x in enumerate(lines) if self.box_re.match(x)]
         self.name[box.Box.LABEL] = slice(min(box_lines), max(box_lines) + 1)
+
+    @property
+    @functools.cache
+    def name_re(self):
+        """
+        The regular expression of any names. (e.g. 'Masses', 'Atoms')
+
+        :return 're.pattern': the name regular expression
+        """
+        names = [x.NAME for x in self.BLOCK_CLASSES]
+        return re.compile(f"^{'|'.join(names)}$")
+
+    @property
+    @functools.cache
+    def count_re(self):
+        """
+        The regular expression of any counts. (e.g. 'atom types', 'atoms')
+
+        :return 're.pattern': the count regular expression
+        """
+        labels = [x.LABEL for x in self.BLOCK_CLASSES]
+        return re.compile(rf"^[0-9]+\s+({'|'.join(labels)})$")
+
+    @property
+    @functools.cache
+    def box_re(self, float_re=r"[+-]?[\d\.]+"):
+        """
+        The regular expression of any box lines. (e.g. 'xlo xhi', 'ylo yhi')
+
+        :return 're.pattern': the count regular expression
+        """
+        # FIXME: read tilt factors of the triclinic box
+        values = box.Box.getLabels().values()
+        labels = '|'.join([f'{x}{symbols.SPACE}{y}' for x, y in zip(*values)])
+        return re.compile(rf"^{float_re}\s+{float_re}\s+({labels}).*$")
 
     @property
     @functools.cache
