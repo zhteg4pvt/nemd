@@ -11,6 +11,8 @@ import methodtools
 import numpy as np
 import pandas as pd
 
+from nemd import envutils
+from nemd import numbautils
 from nemd import symbols
 
 
@@ -174,7 +176,7 @@ class Base(pd.DataFrame):
         return excluded.equals(other.select_dtypes(exclude=['float']))
 
 
-class Box(Base):
+class BoxOrig(Base):
     """
     The Box block representing the periodic boundary conditions.
     """
@@ -219,14 +221,14 @@ class Box(Base):
         return (self.hi - self.lo).values
 
     @classmethod
-    def fromVecs(cls,
-                 al,
-                 bl=None,
-                 cl=None,
-                 alpha=90,
-                 beta=90,
-                 gamma=90,
-                 tilted=True):
+    def fromParams(cls,
+                   al,
+                   bl=None,
+                   cl=None,
+                   alpha=90,
+                   beta=90,
+                   gamma=90,
+                   tilted=True):
         """
         Construct a box instance from lattice vectors.
 
@@ -274,9 +276,9 @@ class Box(Base):
         """
         Write the box into the handler.
 
-        :param hdl `_io.TextIOWrapper` or `_io.StringIO`: write to this handler.
-        :param as_block `bool`: whether to write the data as a block.
+        :param fh `_io.TextIOWrapper` or `_io.StringIO`: write to this handler.
         :param index `bool`: whether to write the index.
+        :param as_block `bool`: whether to write the data as a block.
         """
         super().write(fh, index=index, as_block=as_block, **kwargs)
         if self.tilt:
@@ -311,3 +313,37 @@ class Box(Base):
         epnts.rotate(1)
         oedges += [[x, y] for x, y in zip(spnts, epnts)]
         return np.concatenate((lo_edges, hi_edges, np.array(oedges)))
+
+    def norm(self, vecs):
+        """
+        Calculate the PBC distance of the vectors.
+
+        FIXME: triclinic support
+
+        :param vecs `np.array`: the vectors
+        :return `np.ndarray`: the PBC distances
+        """
+        for idx in range(3):
+            func = lambda x: math.remainder(x, self.span[idx])
+            vecs[:, idx] = np.frompyfunc(func, 1, 1)(vecs[:, idx])
+        return np.linalg.norm(vecs, axis=1)
+
+
+class BoxNumba(BoxOrig):
+    """
+    Base class sped up with numba.
+    """
+
+    def norm(self, vecs):
+        """
+        Calculate the PBC distance of the vectors.
+
+        FIXME: triclinic support
+
+        :param vecs `np.array`: the vectors
+        :return `np.ndarray`: the PBC distances
+        """
+        return np.array(numbautils.norm(vecs, self.span))
+
+
+Box = BoxOrig if envutils.is_original() else BoxNumba

@@ -37,15 +37,15 @@ def jit(*args, **kwargs):
 
 
 @jit
-def remainder(dists, span):
+def norm(vecs, span):
     """
-    Calculate IEEE 754 remainder.
+    Calculate IEEE 754 remainder (pbc distance) and norm (vector length).
 
     https://stackoverflow.com/questions/26671975/why-do-we-need-ieee-754-remainder
 
-    :param distance vectors nx3 numpy.ndarray: each sublist is a vector
+    :param vecs vectors nx3 numpy.ndarray: each sublist is a vector
     :param span numpy.ndarray: box span lengths
     :return list of floats: distances within half box span
     """
-    dists -= np.round(np.divide(dists, span)) * span
-    return [np.sqrt(x[0]**2 + x[1]**2 + x[2]**2) for x in dists]
+    vecs -= np.round(np.divide(vecs, span)) * span
+    return [np.sqrt(x[0]**2 + x[1]**2 + x[2]**2) for x in vecs]

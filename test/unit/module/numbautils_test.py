@@ -36,6 +36,6 @@ class TestFunc:
         "dists,span,expected",
         [([[0.5, 2, 3], [2.5, 3.5, -0.5]], [2.5, 2.5, 2.5], [0.8660, 1.1180]),
          ([[0.5, 2], [2.5, -0.1]], [1, 2], [0.7071, 0.5099])])
-    def testRemainder(self, dists, span, expected):
-        remained = numbautils.remainder(np.array(dists), np.array(span))
+    def testNorn(self, dists, span, expected):
+        remained = numbautils.norm(np.array(dists), np.array(span))
         np.testing.assert_almost_equal(remained, expected, decimal=4)

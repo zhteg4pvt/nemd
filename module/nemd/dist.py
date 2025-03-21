@@ -56,10 +56,8 @@ class Radius(np.ndarray):
         """
         Map the given index to the corresponding index in the array.
 
-        :param index: the input index.
-        :type index: int, list, np.ndarray, or slice
-        :return: the mapped index.
-        :rtype: int, list, np.ndarray, or slice
+        :param index int, list, np.ndarray, or slice: the input index.
+        :return int, list, np.ndarray, or slice: the mapped index.
         """
         if isinstance(index, slice):
             args = [index.start, index.stop, index.step]
@@ -71,10 +69,8 @@ class Radius(np.ndarray):
         """
         Get the item(s) at the given index(es).
 
-        :param index: the input index.
-        :type index: int, list, np.ndarray, or slice
-        :return: the item(s) at the given index(es)
-        :rtype: int or np.ndarray
+        :param index int, list, np.ndarray, or slice: the input index.
+        :return int or np.ndarray: the item(s) at the given index(es)
         """
         nindex = tuple(self.imap(x) for x in index)
         data = super().__getitem__(nindex)
@@ -84,10 +80,8 @@ class Radius(np.ndarray):
         """
         Set the item(s) at the given index(es) to the given value(s).
 
-        :param index: the input index.
-        :type index: int, list, np.ndarray, or slice
-        :param value: the value to set.
-        :type value: int, list, np.ndarray
+        :param index int, list, np.ndarray, or slice: the input index.
+        :param value int, list, np.ndarray: the value to set.
         """
         nindex = tuple(self.imap(x) for x in index)
         super().__setitem__(nindex, value)
@@ -233,7 +227,7 @@ class CellOrig(frame.Base):
         if not neighbors:
             return []
         neighbors = list(neighbors)
-        dists = self.pbc(self[neighbors, :] - self[gid, :])
+        dists = self.box.norm(self[neighbors, :] - self[gid, :])
         thresholds = self.radii[gid, neighbors]
         return dists[np.nonzero(dists < thresholds)]
 
@@ -254,8 +248,8 @@ class CellOrig(frame.Base):
         """
         The neighbor cells ids of all cells.
 
-        :reteurn 3x3x3xNx3 numpy.ndarray: the query cell id is 3x3x3 tuple, and
-        the return neighbor cell ids are Nx3 numpy.ndarray.
+        :return 3x3x3xNx3 numpy.ndarray: the query cell id is 3x3x3 tuple, and
+            the return neighbor cell ids are Nx3 numpy.ndarray.
         """
         nbr = np.zeros((*self.cshape, *self.nbr_inc.shape), dtype=int)
         nodes = list(itertools.product(*[range(x) for x in self.cshape]))
@@ -445,7 +439,7 @@ class CellNumba(CellOrig):
             ])
             if not nbrs.size:
                 continue
-            dists = numbautils.remainder(self[nbrs, :] - self[gid, :], span)
+            dists = numbautils.norm(self[nbrs, :] - self[gid, :], span)
             if (radii[id_map[gid], id_map[nbrs]] > np.array(dists)).any():
                 return True
 

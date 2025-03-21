@@ -77,65 +77,79 @@ class TestBase:
         assert expected == base.allClose(other)
 
 
-class TestBox:
+class TestBoxOrig:
 
     @pytest.fixture
-    def abox(self, al, bl, cl, alpha, beta, gamma, tilted):
-        return box.Box.fromVecs(al, bl, cl, alpha, beta, gamma, tilted=tilted)
+    def obox(self, params, tilted):
+        return box.BoxOrig.fromParams(*params, tilted=tilted)
 
-    @pytest.mark.parametrize('al,bl,cl,alpha,beta,gamma,tilted',
-                             [(2, 2, 2, 90, 90, 90, False),
-                              (1, 2, 3, 90, 90, 90, False),
-                              (1, 2, 3, 90, 90, 90, True),
-                              (2, 2, 2, 60, 70, 80, True)])
-    def testVolume(self, al, bl, cl, alpha, beta, gamma, tilted, abox):
-        cos_values = [math.cos(math.radians(x)) for x in [alpha, beta, gamma]]
+    @pytest.mark.parametrize('params,tilted', [([2, 2, 2, 90, 90, 90], False),
+                                               ([1, 2, 3, 90, 90, 90], False),
+                                               ([1, 2, 3, 90, 90, 90], True),
+                                               ([2, 2, 2, 60, 70, 80], True)])
+    def testVolume(self, params, obox):
+        cos_values = [math.cos(math.radians(x)) for x in params[3:]]
         squared = np.square(cos_values)
         product = np.prod(cos_values)
-        volume = al * bl * cl * np.sqrt(1 - sum(squared) + 2 * product)
-        np.testing.assert_almost_equal(abox.volume, volume, decimal=2)
+        volume = np.prod(params[:3]) * np.sqrt(1 - sum(squared) + 2 * product)
+        np.testing.assert_almost_equal(obox.volume, volume, decimal=2)
 
-    @pytest.mark.parametrize('al,bl,cl,alpha,beta,gamma,tilted',
-                             [(2, 2, 2, 90, 90, 90, False),
-                              (1, 2, 3, 90, 90, 90, False),
-                              (1, 2, 3, 90, 90, 90, True)])
-    def testSpan(self, al, bl, cl, alpha, beta, gamma, tilted, abox):
-        assert [al, bl, cl] == abox.span.tolist()
+    @pytest.mark.parametrize('params,tilted', [([2, 2, 2, 90, 90, 90], False),
+                                               ([1, 2, 3, 90, 90, 90], False),
+                                               ([1, 2, 3, 90, 90, 90], True)])
+    def testSpan(self, params, obox):
+        assert params[:3] == obox.span.tolist()
 
     @pytest.mark.parametrize(
-        'al,bl,cl,alpha,beta,gamma,tilted,his,expected',
-        [(2, None, None, 90, 90, 90, False, [2, 2, 2], None),
-         (1, 2, None, 90, 90, 90, False, [1, 2, 2], None),
-         (2, 2, 2, 90, 90, 90, False, [2, 2, 2], None),
-         (1, 2, 3, 90, 90, 90, False, [1, 2, 3], None),
-         (1, 2, 3, 90, 90, 90, True, [1, 2, 3], [0, 0, 0]),
-         (2, 2, 2, 60, 70, 80, True, [2, 1.97, 1.65], [0.34, 0.68, 0.89]),
-         (2, 2, 2, 60, 70, 80, False, None, AssertionError)])
-    def testFromVecs(self, al, bl, cl, alpha, beta, gamma, tilted, his,
-                     expected, raises):
+        'params,tilted,his,expected',
+        [([2, None, None, 90, 90, 90], False, [2, 2, 2], None),
+         ([1, 2, None, 90, 90, 90], False, [1, 2, 2], None),
+         ([2, 2, 2, 90, 90, 90], False, [2, 2, 2], None),
+         ([1, 2, 3, 90, 90, 90], False, [1, 2, 3], None),
+         ([1, 2, 3, 90, 90, 90], True, [1, 2, 3], [0, 0, 0]),
+         ([2, 2, 2, 60, 70, 80], True, [2, 1.97, 1.65], [0.34, 0.68, 0.89]),
+         ([2, 2, 2, 60, 70, 80], False, None, AssertionError)])
+    def testFromParams(self, params, tilted, his, expected, raises):
         with raises:
-            abox = box.Box.fromVecs(al,
-                                    bl,
-                                    cl,
-                                    alpha,
-                                    beta,
-                                    gamma,
-                                    tilted=tilted)
+            obox = box.BoxOrig.fromParams(*params, tilted=tilted)
         if his is None:
             return
-        np.testing.assert_almost_equal(his, abox['hi'], decimal=2)
+        np.testing.assert_almost_equal(his, obox['hi'], decimal=2)
         if expected:
-            np.testing.assert_almost_equal(abox.tilt, expected, decimal=2)
+            np.testing.assert_almost_equal(obox.tilt, expected, decimal=2)
         else:
-            assert abox.tilt is None
+            assert obox.tilt is None
 
     def testGetLables(self):
-        labels = box.Box.getLabels()
+        labels = box.BoxOrig.getLabels()
         assert ['xlo', 'ylo', 'zlo'] == labels['lo_cmt']
         assert ['xhi', 'yhi', 'zhi'] == labels['hi_cmt']
 
-    @pytest.mark.parametrize('al,bl,cl,alpha,beta,gamma,tilted',
-                             [(1, 2, 3, 90, 90, 90, False),
-                              (3, 2, 5, 90, 90, 90, True)])
-    def testEdges(self, al, bl, cl, alpha, beta, gamma, tilted, abox):
-        assert sum([al, bl, cl]) * 12 == abox.edges.sum()
+    @pytest.mark.parametrize('tilted', [False])
+    @pytest.mark.parametrize('params', [([1, 2, 3, 90, 90, 90]),
+                                        ([3, 2, 5, 90, 90, 90])])
+    def testEdges(self, params, obox):
+        assert sum(params[:3]) * 12 == obox.edges.sum()
+
+    @pytest.mark.parametrize('tilted,vec', [(False, [1, 1, 1])])
+    @pytest.mark.parametrize('params,expected',
+                             [([1, 2, 3, 90, 90, 90], 1.41421356),
+                              ([3, 3, 5, 90, 90, 90], 1.73205081)])
+    def testNorm(self, obox, vec, expected):
+        vecs = np.array([vec])
+        np.testing.assert_almost_equal(obox.norm(vecs), expected)
+
+
+class TestBoxNumba:
+
+    @pytest.fixture
+    def nbox(self, params, tilted):
+        return box.BoxNumba.fromParams(*params, tilted=tilted)
+
+    @pytest.mark.parametrize('tilted,vec', [(False, [1., 1, 1])])
+    @pytest.mark.parametrize('params,expected',
+                             [([1, 2, 3, 90, 90, 90], 1.41421356),
+                              ([3, 3, 5, 90, 90, 90], 1.73205081)])
+    def testNorm(self, nbox, vec, expected):
+        vecs = np.array([vec])
+        np.testing.assert_almost_equal(nbox.norm(vecs), expected)

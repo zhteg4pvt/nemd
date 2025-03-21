@@ -4,7 +4,6 @@
 Trajectory frame module to read, copy, wrap, blue, and writes coordinates as
 well as computing pair distances.
 """
-import math
 import types
 import warnings
 
@@ -12,12 +11,10 @@ import numpy as np
 import pandas as pd
 
 from nemd import box
-from nemd import envutils
-from nemd import numbautils
 from nemd import symbols
 
 
-class BaseOrig(np.ndarray):
+class Base(np.ndarray):
     """
     Base class for xyz coordinates and box.
     """
@@ -52,42 +49,8 @@ class BaseOrig(np.ndarray):
         grp1 = list(range(self.shape[0])) if grp1 is None else sorted(grp1)
         grp2 = (grp1[:i] for i in range(len(grp1))) if grp2 is None else grp2
         delta = [self[x, :] - self[y, :] for x, y in zip(grp2, grp1)]
-        dists = [self.pbc(x) for x in delta]
+        dists = [self.box.norm(x) for x in delta]
         return np.concatenate(dists) if dists else np.array([])
-
-    def pbc(self, vecs):
-        """
-        Calculate the PBC distance of the vectors.
-
-        FIXME: triclinic support
-
-        :param vecs `np.array`: the vetors
-        :return `np.ndarray`: the PBC distances
-        """
-        for idx in range(3):
-            func = lambda x: math.remainder(x, self.box.span[idx])
-            vecs[:, idx] = np.frompyfunc(func, 1, 1)(vecs[:, idx])
-        return np.linalg.norm(vecs, axis=1)
-
-
-class BaseNumba(BaseOrig):
-    """
-    Base class sped up with numba.
-    """
-
-    def pbc(self, vecs):
-        """
-        Calculate the PBC distance of the vectors.
-
-        FIXME: triclinic support
-
-        :param vecs `np.array`: the vetors
-        :return `np.ndarray`: the PBC distances
-        """
-        return np.array(numbautils.remainder(vecs, self.box.span))
-
-
-Base = BaseOrig if envutils.is_original() else BaseNumba
 
 
 class Frame(Base):
