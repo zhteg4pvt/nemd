@@ -52,21 +52,22 @@ class BaseOrig(np.ndarray):
         grp1 = list(range(self.shape[0])) if grp1 is None else sorted(grp1)
         grp2 = (grp1[:i] for i in range(len(grp1))) if grp2 is None else grp2
         delta = [self[x, :] - self[y, :] for x, y in zip(grp2, grp1)]
-        dists = [x.pbc(self.box.span) for x in delta]
+        dists = [self.pbc(x) for x in delta]
         return np.concatenate(dists) if dists else np.array([])
 
-    def pbc(self, span):
+    def pbc(self, vecs):
         """
-        Get the distance between the xyz and the of the xyzs associated with the
-        input atom ids.
+        Calculate the PBC distance of the vectors.
 
-        :param span `np.ndarray`: the span of the PBC box
+        FIXME: triclinic support
+
+        :param vecs `np.array`: the vetors
         :return `np.ndarray`: the PBC distances
         """
         for idx in range(3):
-            func = lambda x: math.remainder(x, span[idx])
-            self[:, idx] = np.frompyfunc(func, 1, 1)(self[:, idx])
-        return np.linalg.norm(self, axis=1)
+            func = lambda x: math.remainder(x, self.box.span[idx])
+            vecs[:, idx] = np.frompyfunc(func, 1, 1)(vecs[:, idx])
+        return np.linalg.norm(vecs, axis=1)
 
 
 class BaseNumba(BaseOrig):
@@ -74,16 +75,16 @@ class BaseNumba(BaseOrig):
     Base class sped up with numba.
     """
 
-    def pbc(self, span):
+    def pbc(self, vecs):
         """
-        Get the distance between the xyz and the of the xyzs associated with the
-        input atom ids.
+        Calculate the PBC distance of the vectors.
 
-        :param ids list of int: atom ids
-        :param xyz (3,) 'pandas.core.series.Series': xyz coordinates and atom id
-        :return list of floats: distances
+        FIXME: triclinic support
+
+        :param vecs `np.array`: the vetors
+        :return `np.ndarray`: the PBC distances
         """
-        return np.array(numbautils.remainder(self, span))
+        return np.array(numbautils.remainder(vecs, self.box.span))
 
 
 Base = BaseOrig if envutils.is_original() else BaseNumba

@@ -212,19 +212,51 @@ class Box(Base):
         """
         Set and cache the span of the box.
 
+        FIXME: triclinic support
+
         :return 'numpy.ndarray': the span of the box.
         """
         return (self.hi - self.lo).values
 
     @classmethod
-    def fromEdges(cls, edges, **kwargs):
+    def fromVecs(cls,
+                 al,
+                 bl=None,
+                 cl=None,
+                 alpha=90,
+                 beta=90,
+                 gamma=90,
+                 tilted=True):
         """
-        Box built from these edges and origin.
+        Construct a box instance from lattice vectors.
 
-        :param list: the box edges.
+        Crystallographic general triclinic representation of a simulation box:
+        https://docs.lammps.org/Howto_triclinic.html
+
+        Lattice constant:
+        https://en.wikipedia.org/wiki/Lattice_constant
+
+        :param al float: lattice constant a
+        :param bl float: lattice constant b
+        :param cl float: lattice constant c
+        :param alpha float: angles alpha
+        :param beta float: angles beta
+        :param gamma float: angles gamma
+        :return `Box`: the Box build from lattice vectors
         """
-        data = {cls.LO: [0, 0, 0], cls.HI: edges}
-        return cls(data={**data, **cls.getLabels()}, **kwargs)
+        if not tilted:
+            assert all(x == 90 for x in [alpha, beta, gamma])
+        if bl is None:
+            bl = al
+        if cl is None:
+            cl = bl
+        xy = bl * math.cos(math.radians(gamma))
+        ly = math.sqrt(bl**2 - xy**2)
+        xz = cl * math.cos(math.radians(beta))
+        yz = (bl * cl * math.cos(math.radians(alpha)) - xy * xz) / ly
+        lz = math.sqrt(cl**2 - xz**2 - yz**2)
+        data = {cls.LO: [0, 0, 0], cls.HI: [al, ly, lz], **cls.getLabels()}
+        return cls(data=data, tilt=[xy, xz, yz] if tilted else None)
 
     @methodtools.lru_cache()
     @classmethod
@@ -232,28 +264,11 @@ class Box(Base):
         """
         Get the tailing labels.
 
-        :return dict: the tail labels of different dimensions
+        :return dict: the tailing labels of different dimensions
         """
-        lo_cmt = [f'{d}{cls.LO}' for d in symbols.XYZ]
-        hi_cmt = [f'{d}{cls.HI}' for d in symbols.XYZ]
-        return {cls.LO_LABEL: lo_cmt, cls.HI_LABEL: hi_cmt}
-
-    @classmethod
-    def fromVecs(cls, a_vec, b_vec, c_vec, alpha, beta, gamma):
-        """
-        Construct a box instance from lattice vectors.
-
-        Crystallographic general triclinic representation of a simulation box
-        https://docs.lammps.org/Howto_triclinic.html
-
-        :return `Box`: the Box build from edge vectors
-        """
-        xy = b_vec * math.cos(math.radians(gamma))
-        ly = math.sqrt(b_vec**2 - xy**2)
-        xz = c_vec * math.cos(math.radians(beta))
-        yz = (b_vec * c_vec * math.cos(math.radians(alpha)) - xy * xz) / ly
-        lz = math.sqrt(c_vec**2 - xz**2 - yz**2)
-        return cls.fromEdges([a_vec, ly, lz], tilt=[xy, xz, yz])
+        lo_labels = [f'{d}{cls.LO}' for d in symbols.XYZ]
+        hi_labels = [f'{d}{cls.HI}' for d in symbols.XYZ]
+        return {cls.LO_LABEL: lo_labels, cls.HI_LABEL: hi_labels}
 
     def write(self, fh, index=False, as_block=False, **kwargs):
         """
@@ -277,6 +292,7 @@ class Box(Base):
         :return 12x2x3 numpy.ndarray: 12 edges of the box, and each edge
             contains two points.
         """
+        # FIXME: triclinic support
         # Three edges starting from the [xlo, ylo, zlo]
         lo_xyzs = np.array([self.lo.values] * 3, dtype=float)
         lo_points = lo_xyzs.copy()

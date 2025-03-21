@@ -552,7 +552,7 @@ class GriddedStruct(Struct):
         # vectors shifts molecules by the largest box size
         total_box_num = sum(x.box_num for x in self.molecules)
         edges = self.size * math.ceil(math.pow(total_box_num, 1. / 3))
-        self.box = box.Box.fromEdges(edges)
+        self.box = box.Box.fromVecs(*edges, tilted=False)
         span = self.box.span.max()
         logger.debug(f'Cubic box of {span:.2f} {symbols.ANGSTROM} is created.')
 
@@ -686,7 +686,7 @@ class PackedStruct(Struct):
         vol = self.mw / self.density / scipy.constants.Avogadro
         edge = math.pow(vol, 1 / 3)  # centimeter
         edge *= scipy.constants.centi / scipy.constants.angstrom
-        self.box = self.Box.fromEdges([edge] * 3)
+        self.box = self.Box.fromVecs(edge, tilted=False)
         logger.debug(f'Cubic box of size {edge:.2f} angstrom is created.')
         self.dcell.setup(self.box)
 

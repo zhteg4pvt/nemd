@@ -233,8 +233,7 @@ class CellOrig(frame.Base):
         if not neighbors:
             return []
         neighbors = list(neighbors)
-        delta = self[neighbors, :] - self[gid, :]
-        dists = delta.pbc(self.box.span)
+        dists = self.pbc(self[neighbors, :] - self[gid, :])
         thresholds = self.radii[gid, neighbors]
         return dists[np.nonzero(dists < thresholds)]
 
