@@ -10,7 +10,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from nemd import box
+from nemd import pbc
 from nemd import symbols
 
 
@@ -19,7 +19,7 @@ class Base(np.ndarray):
     Coordinates and box container.
     """
 
-    def __new__(cls, data=None, box=None, shape=(0, ), **kwargs):
+    def __new__(cls, data=None, shape=(0, ), **kwargs):
         """
         :param data 'np.ndarray': the xyz coordinates.
         :param box `Box`: the pbc box
@@ -95,7 +95,7 @@ class Frame(Base):
         else:
             ndata = np.full([atom_num, 3], np.nan)
             ndata[data[:, 0].astype(int) - 1, :] = data[:, 1:]
-        return cls(ndata, box=box.Box.fromLines(header[5:8]), step=step)
+        return cls(ndata, box=pbc.Box.fromLines(header[5:8]), step=step)
 
     def copy(self, array=True):
         """
@@ -112,8 +112,8 @@ class Frame(Base):
 
     def wrap(self, broken_bonds=False, dreader=None):
         """
-        Wrap coordinates into the PBC box. If broken_bonds is False and mols is
-        provided, the geometric center of each molecule is wrapped into the box.
+        Wrap coordinates into the PBC first image. If broken_bonds False and
+        molecules provided, the geometric center of each molecule is wrapped.
 
         :param broken_bonds bool: If True, bonds may be broken by PBC boundaries
         :param dreader 'oplsua.Reader': to get molecule ids and

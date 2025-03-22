@@ -13,9 +13,9 @@ import re
 import numpy as np
 import pandas as pd
 
-from nemd import box
 from nemd import forcefield
 from nemd import numpyutils
+from nemd import pbc
 from nemd import structure
 from nemd import symbols
 from nemd import table
@@ -25,7 +25,7 @@ ATOM1 = 'atom1'
 ENE = 'ene'
 
 
-class Base(box.Base):
+class Base(pbc.Base):
     """
     The base class for the coefficient and topology.
     """
@@ -490,7 +490,7 @@ class Reader:
         lines = self.lines[:min(names.values())]
         # 'xlo xhi': [-7.12, 35.44], 'ylo yhi': [-7.53, 34.26], ..
         box_lines = [i for i, x in enumerate(lines) if self.box_re.match(x)]
-        self.name[box.Box.LABEL] = slice(min(box_lines), max(box_lines) + 1)
+        self.name[pbc.Box.LABEL] = slice(min(box_lines), max(box_lines) + 1)
 
     @property
     @functools.cache
@@ -523,7 +523,7 @@ class Reader:
         :return 're.pattern': the count regular expression
         """
         # FIXME: read tilt factors of the triclinic box
-        values = box.Box.getLabels().values()
+        values = pbc.Box.getLabels().values()
         labels = '|'.join([f'{x}{symbols.SPACE}{y}' for x, y in zip(*values)])
         return re.compile(rf"^{float_re}\s+{float_re}\s+({labels}).*$")
 
@@ -535,7 +535,7 @@ class Reader:
 
         :return `Box`: the box
         """
-        return self.fromLines(box.Box)
+        return self.fromLines(pbc.Box)
 
     @property
     @functools.cache

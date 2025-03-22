@@ -12,10 +12,10 @@ import numba
 import numpy as np
 import pandas as pd
 
-from nemd import box
 from nemd import envutils
 from nemd import frame
 from nemd import numbautils
+from nemd import pbc
 from nemd import symbols
 
 
@@ -129,11 +129,11 @@ class CellOrig(frame.Base):
         self.setup(arg.box)
 
     @setup.register
-    def _(self, arg: box.Box):
+    def _(self, arg: pbc.Box):
         """
-        Set up the distance cell starting from a new periodic boundary box.
+        Set up the simulation box and distance cell.
 
-        :param arg `Box`: the periodic boundary box.
+        :param arg `Box`: the simulation box
         """
         self.box = arg
         self.setCell()

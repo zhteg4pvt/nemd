@@ -22,11 +22,11 @@ import pandas as pd
 import rdkit
 import scipy
 
-from nemd import box
 from nemd import constants
 from nemd import dist
 from nemd import lmpfull
 from nemd import logutils
+from nemd import pbc
 from nemd import symbols
 
 logger = logutils.Logger.get(__file__)
@@ -552,7 +552,7 @@ class GriddedStruct(Struct):
         # vectors shifts molecules by the largest box size
         total_box_num = sum(x.box_num for x in self.molecules)
         edges = self.size * math.ceil(math.pow(total_box_num, 1. / 3))
-        self.box = box.Box.fromParams(*edges, tilted=False)
+        self.box = pbc.Box.fromParams(*edges, tilted=False)
         span = self.box.span.max()
         logger.debug(f'Cubic box of {span:.2f} {symbols.ANGSTROM} is created.')
 
@@ -613,7 +613,7 @@ class PackedCell(dist.Cell):
         self.cell = self.orig_cell.copy()
 
 
-class PackedBox(box.Box):
+class PackedBox(pbc.Box):
     """
     Customized box class for packed structures.
     """

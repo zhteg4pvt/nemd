@@ -3,9 +3,9 @@
 """
 LAMMPS input file generator for Stillinger force field.
 """
-from nemd import box
 from nemd import lammpsin
 from nemd import lmpatomic
+from nemd import pbc
 from nemd import symbols
 
 
@@ -37,4 +37,4 @@ class Struct(lmpatomic.Struct, lammpsin.In):
         Write box information.
         """
         # FIXME: crystal mixture and interface
-        return box.Box.fromParams(*self.molecules[0].vecs)
+        return pbc.Box.fromParams(*self.molecules[0].vecs)

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from nemd import box
+from nemd import pbc
 
 
 class TestBase:
@@ -15,19 +15,19 @@ class TestBase:
                      TYPE_COL=TYPE_COL,
                      ID_COLS=ID_COLS,
                      FMT=FMT)
-        Base = type('Raw', (box.Base, ), attrs)
+        Base = type('Raw', (pbc.Base, ), attrs)
         return Base(np.zeros((3, 3), dtype=int))
 
     @pytest.mark.parametrize('data,shape,columns',
                              [(2, (2, 1), ['label']),
                               (pd.DataFrame([[2, 1]]), (1, 2), [0, 1])])
     def testInit(self, data, shape, columns):
-        base = box.Base(data=data)
+        base = pbc.Base(data=data)
         assert shape == base.shape
         assert columns == base.columns.to_list()
 
     def testConstructor(self):
-        assert isinstance(box.Base().iloc[:], box.Base)
+        assert isinstance(pbc.Base().iloc[:], pbc.Base)
 
     @pytest.mark.parametrize('TYPE_COL,ID_COLS,FMT', [('b', ['c'], None)])
     @pytest.mark.parametrize('lines', [(['1 2 3\n', '3 4 5\n'])])
@@ -80,25 +80,25 @@ class TestBase:
 class TestBoxOrig:
 
     @pytest.fixture
-    def obox(self, params, tilted):
-        return box.BoxOrig.fromParams(*params, tilted=tilted)
+    def box(self, params, tilted):
+        return pbc.BoxOrig.fromParams(*params, tilted=tilted)
 
     @pytest.mark.parametrize('params,tilted', [([2, 2, 2, 90, 90, 90], False),
                                                ([1, 2, 3, 90, 90, 90], False),
                                                ([1, 2, 3, 90, 90, 90], True),
                                                ([2, 2, 2, 60, 70, 80], True)])
-    def testVolume(self, params, obox):
+    def testVolume(self, params, box):
         cos_values = [math.cos(math.radians(x)) for x in params[3:]]
         squared = np.square(cos_values)
         product = np.prod(cos_values)
         volume = np.prod(params[:3]) * np.sqrt(1 - sum(squared) + 2 * product)
-        np.testing.assert_almost_equal(obox.volume, volume, decimal=2)
+        np.testing.assert_almost_equal(box.volume, volume, decimal=2)
 
     @pytest.mark.parametrize('params,tilted', [([2, 2, 2, 90, 90, 90], False),
                                                ([1, 2, 3, 90, 90, 90], False),
                                                ([1, 2, 3, 90, 90, 90], True)])
-    def testSpan(self, params, obox):
-        assert params[:3] == obox.span.tolist()
+    def testSpan(self, params, box):
+        assert params[:3] == box.span.tolist()
 
     @pytest.mark.parametrize(
         'params,tilted,his,expected',
@@ -111,45 +111,45 @@ class TestBoxOrig:
          ([2, 2, 2, 60, 70, 80], False, None, AssertionError)])
     def testFromParams(self, params, tilted, his, expected, raises):
         with raises:
-            obox = box.BoxOrig.fromParams(*params, tilted=tilted)
+            box = pbc.BoxOrig.fromParams(*params, tilted=tilted)
         if his is None:
             return
-        np.testing.assert_almost_equal(his, obox['hi'], decimal=2)
+        np.testing.assert_almost_equal(his, box['hi'], decimal=2)
         if expected:
-            np.testing.assert_almost_equal(obox.tilt, expected, decimal=2)
+            np.testing.assert_almost_equal(box.tilt, expected, decimal=2)
         else:
-            assert obox.tilt is None
+            assert box.tilt is None
 
     def testGetLables(self):
-        labels = box.BoxOrig.getLabels()
+        labels = pbc.BoxOrig.getLabels()
         assert ['xlo', 'ylo', 'zlo'] == labels['lo_cmt']
         assert ['xhi', 'yhi', 'zhi'] == labels['hi_cmt']
 
     @pytest.mark.parametrize('tilted', [False])
     @pytest.mark.parametrize('params', [([1, 2, 3, 90, 90, 90]),
                                         ([3, 2, 5, 90, 90, 90])])
-    def testEdges(self, params, obox):
-        assert sum(params[:3]) * 12 == obox.edges.sum()
+    def testEdges(self, params, box):
+        assert sum(params[:3]) * 12 == box.edges.sum()
 
     @pytest.mark.parametrize('tilted,vec', [(False, [1, 1, 1])])
     @pytest.mark.parametrize('params,expected',
                              [([1, 2, 3, 90, 90, 90], 1.41421356),
                               ([3, 3, 5, 90, 90, 90], 1.73205081)])
-    def testNorm(self, obox, vec, expected):
+    def testNorm(self, box, vec, expected):
         vecs = np.array([vec])
-        np.testing.assert_almost_equal(obox.norm(vecs), expected)
+        np.testing.assert_almost_equal(box.norm(vecs), expected)
 
 
 class TestBoxNumba:
 
     @pytest.fixture
-    def nbox(self, params, tilted):
-        return box.BoxNumba.fromParams(*params, tilted=tilted)
+    def box(self, params, tilted):
+        return pbc.BoxNumba.fromParams(*params, tilted=tilted)
 
     @pytest.mark.parametrize('tilted,vec', [(False, [1., 1, 1])])
     @pytest.mark.parametrize('params,expected',
                              [([1, 2, 3, 90, 90, 90], 1.41421356),
                               ([3, 3, 5, 90, 90, 90], 1.73205081)])
-    def testNorm(self, nbox, vec, expected):
+    def testNorm(self, box, vec, expected):
         vecs = np.array([vec])
-        np.testing.assert_almost_equal(nbox.norm(vecs), expected)
+        np.testing.assert_almost_equal(box.norm(vecs), expected)
