@@ -16,41 +16,41 @@ from nemd import symbols
 
 class Base(np.ndarray):
     """
-    Base class for xyz coordinates and box.
+    Coordinates and box container.
     """
 
-    def __new__(cls, data=None, dtype=float, **kwargs):
+    def __new__(cls, data=None, box=None, shape=(0, ), **kwargs):
         """
         :param data 'np.ndarray': the xyz coordinates.
-        :param dtype 'numpy.dtype': the data type of the xyz coordinates.
+        :param box `Box`: the pbc box
+        :param shape tuple: the shape of the xyz coordinates.
+        :return (sub-)class of the base: the base object of coordinates and box
         """
-        if data is not None:
-            return np.asarray(data).view(cls)
-        return super().__new__(cls, dtype=dtype, **kwargs)
+        return super().__new__(cls, shape=shape) if data is None \
+            else np.asarray(data).view(cls)
 
-    def __init__(self, data=None, box=None):
+    def __init__(self, data=None, box=None, **kwargs):
         """
-        :param data `np.ndarray` (sub-)class: the xyz coordinates (with box)
-        :param box `Box`: the box object
+        :param data nx3 'numpy.ndarray' or 'DataFrame': xyz data
+        :param box `Box`: the pbc box
         """
-        self.box = box
-        if self.box is None and hasattr(data, 'box'):
-            self.box = data.box.copy()
+        self.box = getattr(data, 'box', None) if box is None else box
 
-    def pairDists(self, grp1=None, grp2=None):
+    def pairDists(self, grp=None, grps=None):
         """
-        Get the distance between atom pair.
+        Get the distances between atom pairs.
 
-        :param grp1 list: list of gids as the atom selection
-        :param grp2 list of list: each sublist contains atom ids to compute
-            distances with each atom in grp1.
-        return numpy.ndarray: list of distance between pairs.
+        :param grp list: atom global ids
+        :param grps list of list: each sublist contains atom global ids to
+            compute distances with each atom in grp.
+        return numpy.ndarray: pair distances.
         """
-        grp1 = list(range(self.shape[0])) if grp1 is None else sorted(grp1)
-        grp2 = (grp1[:i] for i in range(len(grp1))) if grp2 is None else grp2
-        delta = [self[x, :] - self[y, :] for x, y in zip(grp2, grp1)]
-        dists = [self.box.norm(x) for x in delta]
-        return np.concatenate(dists) if dists else np.array([])
+        grp = list(range(self.shape[0])) if grp is None else sorted(grp)
+        grps = [grp[i:] for i in range(1, len(grp))] if grps is None else grps
+        vecs = [self[x, :] - self[y, :] for x, y in zip(grps, grp)]
+        if not vecs:
+            return np.array([])
+        return np.concatenate([self.box.norm(x) for x in vecs])
 
 
 class Frame(Base):
@@ -58,22 +58,13 @@ class Frame(Base):
     Class to read, copy, wrap, glue, and write coordinates.
     """
 
-    def __new__(cls, data, **kwargs):
-        """
-        :param data 'np.ndarray': the xyz coordinates
-        """
-        return super().__new__(cls, data=data)
-
-    def __init__(self, data, box=None, step=None):
+    def __init__(self, data=None, step=None, **kwargs):
         """
         :param data nx3 'numpy.ndarray' or 'DataFrame': xyz data
-        :param box str: xlo, xhi, ylo, yhi, zlo, zhi boundaries
         :param step int: the number of simulation step that this frame is at
         """
-        super().__init__(data=data, box=box)
-        self.step = step
-        if self.step is None and hasattr(data, 'step'):
-            self.step = data.step
+        super().__init__(data=data, **kwargs)
+        self.step = getattr(data, 'step', None) if step is None else step
 
     @classmethod
     def read(cls, fh, start=0):

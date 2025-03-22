@@ -23,8 +23,7 @@ class Radius(np.ndarray):
     """
     Class to get and hold vdw radius by atom id pair.
 
-    NOTE: the scaled radii here are more of diameters (or distance)
-        between two sites.
+    NOTE: the radii here are more of diameters (or distances) between two sites.
     """
 
     MIN_DIST = 1.4
@@ -94,22 +93,14 @@ class CellOrig(frame.Base):
 
     GRID_MAX = 20
 
-    def __new__(cls, data=None, shape=(0, ), **kwargs):
+    def __init__(self, gids=None, cut=None, struct=None, **kwargs):
         """
-        :param data 'np.ndarray': the xyz coordinates.
-        :param shape tuple: the shape of the xyz coordinates.
-        """
-        return super().__new__(cls, data=data, shape=shape)
-
-    def __init__(self, data=None, gids=None, cut=None, struct=None):
-        """
-        :param data 'Frame': trajectory frame
         :param gids list: global atom ids to analyze
         :param cut float: the cutoff distance to search neighbors
         :param struct 'Struct' or 'Reader': radii and excluded pairs
             are set from this object.
         """
-        super().__init__(data)
+        super().__init__(**kwargs)
         self.gids = gids
         self.cut = cut
         self.struct = struct
@@ -364,10 +355,10 @@ class CellOrig(frame.Base):
         :param nbrs list: the neighbor global atom ids.
         :return 'numpy.ndarray': the pair distances
         """
-        grp1 = sorted(self.gids) if gids is None else sorted(gids)
-        nbrs = map(self.getNbrs, grp1) if nbrs is None else [nbrs] * len(grp1)
-        grp2 = [[z for z in y if z < x] for x, y in zip(grp1, nbrs)]
-        return self.pairDists(grp1=grp1, grp2=grp2)
+        grp = sorted(self.gids) if gids is None else sorted(gids)
+        nbrs = map(self.getNbrs, grp) if nbrs is None else [nbrs] * len(grp)
+        grps = [[z for z in y if z < x] for x, y in zip(grp, nbrs)]
+        return self.pairDists(grp=grp, grps=grps)
 
 
 class CellNumba(CellOrig):
@@ -575,6 +566,6 @@ class DistCell(Cell):
         :return `numpy.ndarray`: the pair distances.
         """
         if self.dist is None:
-            return frm.pairDists(grp1=self.gids)
+            return frm.pairDists(grp=self.gids)
         self.setup(frm)
         return self.nbrDists()

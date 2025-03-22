@@ -871,9 +871,9 @@ class GrownCell(PackedCell):
         dat = []
         init_gids = sorted(self.init_gids, key=lambda x: x[0])
         for idx in range(1, len(init_gids)):
-            grp1 = init_gids[idx]
-            grp2 = [list(itertools.chain(*init_gids[:idx]))]
-            dat.append(self.pairDists(grp1=grp1, grp2=grp2))
+            grp = init_gids[idx]
+            grps = [list(itertools.chain(*init_gids[:idx]))]
+            dat.append(self.pairDists(grp=grp, grps=grps))
         return np.concatenate(dat)
 
     def reset(self):
