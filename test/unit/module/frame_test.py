@@ -78,19 +78,30 @@ class TestFrame:
         copied = frm.copy(array=array)
         assert not array == isinstance(copied, frame.Frame)
 
-    @pytest.mark.parametrize('file', [HEXANE_FRAME])
-    @pytest.mark.parametrize('broken_bonds,dreader,expected',
-                             [(True, None, 0.0002537),
-                              (False, HEXANE_READER, -2.25869)])
+    @pytest.mark.parametrize('file,dreader', [(HEXANE_FRAME, HEXANE_READER)])
+    @pytest.mark.parametrize('broken_bonds,expected', [(True, 0.0002537),
+                                                       (False, -2.25869)])
     def testWrap(self, frm, broken_bonds, dreader, expected):
-        frm.wrap(broken_bonds=broken_bonds, dreader=dreader)
+        frm.wrap(broken_bonds=broken_bonds, molecules=dreader.molecules)
         np.testing.assert_almost_equal(frm.min(), expected)
+        # Scientific test: bond length; atom or molecule centroid within box
+        inbox = (frm.max(axis=0) - frm.min(axis=0)) < frm.box.span
+        assert broken_bonds == inbox.all()
+        atom1s, atom2s = dreader.bonds[['atom1', 'atom2']].transpose().values
+        mbond = np.linalg.norm(frm[atom1s, :] - frm[atom2s, :], axis=1).max()
+        assert broken_bonds == (mbond > 2)
+        if mbond > 2:
+            return
+        centers = [frm[x, :].mean(axis=0) for x in dreader.molecules.values()]
+        centers = np.array(centers)
+        inbox = (centers.max(axis=0) - centers.min(axis=0)) < frm.box.span
+        assert inbox.all()
 
     @pytest.mark.parametrize('file', [HEXANE_FRAME])
     @pytest.mark.parametrize('dreader,expected',
                              [(None, -37.6929), (HEXANE_READER, -20.78769261)])
     def testGlue(self, frm, dreader, expected):
-        frm.glue(dreader=dreader)
+        frm.glue(molecules=dreader.molecules if dreader else None)
         np.testing.assert_almost_equal(frm.min(), expected)
 
     @pytest.mark.parametrize('file', [TWO_FRAMES])

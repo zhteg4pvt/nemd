@@ -108,44 +108,41 @@ class Frame(Base):
             return np.array(self)
         return Frame(data=self.copy(), box=self.box, step=self.step)
 
-    def wrap(self, broken_bonds=False, dreader=None):
+    def wrap(self, broken_bonds=False, molecules=None):
         """
         Wrap atoms or molecule centers into the PBC first image.
 
         :param broken_bonds bool: allow bonds broken by PBC boundaries.
-        :param dreader 'oplsua.Reader': atoms grouped by molecules
+        :param molecules 'dict': molecule ids -> global atom ids
         """
         if broken_bonds:
             self[:] = self % self.box.span
             return
-        if dreader is None:
+        if molecules is None:
             return
         # The unwrapped xyz can directly perform molecule center operation
-        for gids in dreader.molecules.values():
+        for gids in molecules.values():
             center = self[gids, :].mean(axis=0)
-            delta = (center % self.box.span) - center
-            self[gids, :] += delta
+            self[gids, :] += (center % self.box.span) - center
 
-    def glue(self, dreader=None):
+    def glue(self, molecules=None):
         """
         Circular mean to compact the molecules. (molecules droplets in vacuum)
 
         FIXME: support droplets or clustering in solution
 
-        :param dreader 'oplsua.Reader': to get molecule ids and
-            associated atoms are available
+        :param molecules 'dict': molecule ids -> global atom ids
         """
-        if dreader is None:
+        if molecules is None:
             return
-        centers = [self[x].mean(axis=0) for x in dreader.molecules.values()]
-        centers = np.array(centers)
+        centers = np.array([self[x].mean(axis=0) for x in molecules.values()])
         theta = centers / self.box.span * 2 * np.pi
         cos_theta = np.cos(theta)
         sin_theta = np.sin(theta)
         mtheta = np.arctan2(sin_theta.mean(axis=0), cos_theta.mean(axis=0))
         mcenters = mtheta * self.box.span / 2 / np.pi
         shifts = ((mcenters - centers) / self.box.span).round() * self.box.span
-        for mol_id, gids in dreader.molecules.items():
+        for mol_id, gids in molecules.items():
             self[gids] += shifts[mol_id]
 
     def write(self, fh, dreader=None, visible=None, points=None):
