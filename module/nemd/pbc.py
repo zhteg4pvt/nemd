@@ -220,6 +220,16 @@ class BoxOrig(Base):
         """
         return (self.hi - self.lo).values
 
+    @methodtools.lru_cache()
+    @property
+    def center(self):
+        """
+        Set and cache the center of the box.
+
+        :return 'numpy.ndarray': the span of the box.
+        """
+        return self[[self.LO, self.HI]].mean(axis=1).values
+
     @classmethod
     def fromParams(cls,
                    al,

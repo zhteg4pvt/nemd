@@ -108,6 +108,23 @@ class Frame(Base):
             return np.array(self)
         return Frame(data=self.copy(), box=self.box, step=self.step)
 
+    def glue(self, molecules=None):
+        """
+        Align circular-mean center with the box center. (droplets in vacuum)
+
+        FIXME: support droplets or clustering in solution
+
+        :param molecules 'dict': molecule ids -> global atom ids
+        """
+        if molecules is None:
+            return
+        centers = np.array([self[x].mean(axis=0) for x in molecules.values()])
+        theta = centers / self.box.span * 2 * np.pi
+        sin_ave = np.sin(theta).mean(axis=0)
+        cos_ave = np.cos(theta).mean(axis=0)
+        center = np.arctan2(sin_ave, cos_ave) * self.box.span / 2 / np.pi
+        self[:] += center - self.box.center
+
     def wrap(self, broken_bonds=False, molecules=None):
         """
         Wrap atoms or molecule centers into the PBC first image.
@@ -124,26 +141,6 @@ class Frame(Base):
         for gids in molecules.values():
             center = self[gids, :].mean(axis=0)
             self[gids, :] += (center % self.box.span) - center
-
-    def glue(self, molecules=None):
-        """
-        Circular mean to compact the molecules. (molecules droplets in vacuum)
-
-        FIXME: support droplets or clustering in solution
-
-        :param molecules 'dict': molecule ids -> global atom ids
-        """
-        if molecules is None:
-            return
-        centers = np.array([self[x].mean(axis=0) for x in molecules.values()])
-        theta = centers / self.box.span * 2 * np.pi
-        cos_theta = np.cos(theta)
-        sin_theta = np.sin(theta)
-        mtheta = np.arctan2(sin_theta.mean(axis=0), cos_theta.mean(axis=0))
-        mcenters = mtheta * self.box.span / 2 / np.pi
-        shifts = ((mcenters - centers) / self.box.span).round() * self.box.span
-        for mol_id, gids in molecules.items():
-            self[gids] += shifts[mol_id]
 
     def write(self, fh, dreader=None, visible=None, points=None):
         """

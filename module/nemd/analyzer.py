@@ -283,28 +283,28 @@ class XYZ(TrajBase):
     DESCR = NAME.upper()
     DATA_EXT = '.xyz'
 
-    def run(self, wrapped=True, broken_bonds=False, glue=False):
+    def run(self, glue=False, wrapped=True, broken_bonds=False):
         """
         Write the coordinates of the trajectory into XYZ format.
 
-        :param wrapped bool: coordinates are wrapped into the PBC first image
+        :param glue bool: align circular-mean center with the box center
+        :param wrapped bool: wrap atoms or molecules into the first PBC image
         :param broken_bonds bool: allow bonds broken by PBC boundaries.
-        :param glue bool: circular mean to compact the molecules.
 
-        NOTE: wrapped=False & glue=False is good for diffusion virtualization
-        wrapped True & broken_bonds=False is good for box fully filled with molecules
-        broken_bonds=False & glue=True is good for molecules droplets in vacuum
-        Not all combination make physical senses.
+        glue=True & wrapped=True: one droplet in vacuum
+        glue=False & wrapped=False: diffusion virtualization
+        wrapped=True & broken_bonds=False: condensed-phase molecules
+        broken_bonds=True: infinite structures
         """
         with open(self.outfile, 'w') as self.out_fh:
             for frm in self.traj:
-                if any([wrapped, glue]) and self.df_reader:
+                if any([glue, wrapped]) and self.df_reader:
                     # wrapped and glue change the coordinates
                     frm = frm.copy(array=False)
-                if wrapped:
-                    frm.wrap(broken_bonds, dreader=self.df_reader)
                 if glue:
-                    frm.glue(dreader=self.df_reader)
+                    frm.glue(molecules=self.df_reader.molecules)
+                if wrapped:
+                    frm.wrap(broken_bonds, molecules=self.df_reader.molecules)
                 frm.write(self.out_fh, dreader=self.df_reader)
         self.log(f"{self.DESCR} coordinates are written into {self.outfile}")
 

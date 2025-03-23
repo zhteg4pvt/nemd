@@ -99,7 +99,7 @@ class TestFrame:
 
     @pytest.mark.parametrize('file', [HEXANE_FRAME])
     @pytest.mark.parametrize('dreader,expected',
-                             [(None, -37.6929), (HEXANE_READER, -20.78769261)])
+                             [(None, -37.6929), (HEXANE_READER, -40.8407627)])
     def testGlue(self, frm, dreader, expected):
         frm.glue(molecules=dreader.molecules if dreader else None)
         np.testing.assert_almost_equal(frm.min(), expected)

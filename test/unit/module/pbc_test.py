@@ -94,11 +94,16 @@ class TestBoxOrig:
         volume = np.prod(params[:3]) * np.sqrt(1 - sum(squared) + 2 * product)
         np.testing.assert_almost_equal(box.volume, volume, decimal=2)
 
-    @pytest.mark.parametrize('params,tilted', [([2, 2, 2, 90, 90, 90], False),
-                                               ([1, 2, 3, 90, 90, 90], False),
-                                               ([1, 2, 3, 90, 90, 90], True)])
+    @pytest.mark.parametrize('tilted', [True, False])
+    @pytest.mark.parametrize('params', [([1, 2, 3, 90, 90, 90])])
     def testSpan(self, params, box):
         assert params[:3] == box.span.tolist()
+
+    @pytest.mark.parametrize('tilted', [True, False])
+    @pytest.mark.parametrize('params,expected',
+                             [([1, 2, 3, 90, 90, 90], [0.5, 1, 1.5])])
+    def testCenter(self, box, expected):
+        assert expected == box.center.tolist()
 
     @pytest.mark.parametrize(
         'params,tilted,his,expected',
