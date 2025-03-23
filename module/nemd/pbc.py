@@ -178,7 +178,7 @@ class Base(pd.DataFrame):
 
 class BoxOrig(Base):
     """
-    The Box block representing the periodic boundary conditions.
+    The simulation box (e.g., periodic boundary conditions).
     """
 
     NAME = None

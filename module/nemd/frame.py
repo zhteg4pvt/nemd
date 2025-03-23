@@ -22,7 +22,6 @@ class Base(np.ndarray):
     def __new__(cls, data=None, shape=(0, ), **kwargs):
         """
         :param data 'np.ndarray': the xyz coordinates.
-        :param box `Box`: the pbc box
         :param shape tuple: the shape of the xyz coordinates.
         :return (sub-)class of the base: the base object of coordinates and box
         """
@@ -55,7 +54,7 @@ class Base(np.ndarray):
 
 class Frame(Base):
     """
-    Class to read, copy, wrap, glue, and write coordinates.
+    Coordinates manipulation.
     """
 
     def __init__(self, data=None, step=None, **kwargs):
@@ -74,8 +73,8 @@ class Frame(Base):
 
         :param fh '_io.TextIOWrapper': the file handle to read the frame from.
         :param start int: frames with step number < this value are fully read.
-        :return 'SimpleNamespace' / 'Frame': 'Frame' has step, box and
-            coordinates information. 'SimpleNamespace' only has step info.
+        :return 'SimpleNamespace' or 'Frame': 'Frame' has step, box and
+            coordinates information; 'SimpleNamespace' only has step info.
         :raise EOFError: the frame block is incomplete.
         """
         header = [fh.readline() for _ in range(9)]
@@ -107,26 +106,20 @@ class Frame(Base):
         """
         if array:
             return np.array(self)
-        box = None if self.box is None else self.box.copy()
-        return Frame(data=self.copy(), box=box, step=self.step)
+        return Frame(data=self.copy(), box=self.box, step=self.step)
 
     def wrap(self, broken_bonds=False, dreader=None):
         """
-        Wrap coordinates into the PBC first image. If broken_bonds False and
-        molecules provided, the geometric center of each molecule is wrapped.
+        Wrap atoms or molecule centers into the PBC first image.
 
-        :param broken_bonds bool: If True, bonds may be broken by PBC boundaries
-        :param dreader 'oplsua.Reader': to get molecule ids and
-            associated atoms
+        :param broken_bonds bool: allow bonds broken by PBC boundaries.
+        :param dreader 'oplsua.Reader': atoms grouped by molecules
         """
-        if dreader is None:
-            return
-
         if broken_bonds:
             self[:] = self % self.box.span
-            # The wrapped xyz shouldn't support molecule center operation
             return
-
+        if dreader is None:
+            return
         # The unwrapped xyz can directly perform molecule center operation
         for gids in dreader.molecules.values():
             center = self[gids, :].mean(axis=0)
@@ -135,29 +128,25 @@ class Frame(Base):
 
     def glue(self, dreader=None):
         """
-        Circular mean to compact the molecules. Good for molecules droplets in
-        vacuum. (extension needed for droplets or clustering in solution)
+        Circular mean to compact the molecules. (molecules droplets in vacuum)
+
+        FIXME: support droplets or clustering in solution
 
         :param dreader 'oplsua.Reader': to get molecule ids and
             associated atoms are available
         """
         if dreader is None:
             return
-
-        centers = pd.concat(
-            [self[x].mean(axis=0) for x in dreader.molecules.values()],
-            axis=1).transpose()
-        centers.index = dreader.molecules.keys()
+        centers = [self[x].mean(axis=0) for x in dreader.molecules.values()]
+        centers = np.array(centers)
         theta = centers / self.box.span * 2 * np.pi
         cos_theta = np.cos(theta)
         sin_theta = np.sin(theta)
-        theta = np.arctan2(sin_theta.mean(), cos_theta.mean())
-        mcenters = theta * self.box.span / 2 / np.pi
-        cshifts = (
-            (mcenters - centers) / self.box.span).round() * self.box.span
-        for id, mol in dreader.molecules.items():
-            cshift = cshifts.loc[id]
-            self[mol] += cshift
+        mtheta = np.arctan2(sin_theta.mean(axis=0), cos_theta.mean(axis=0))
+        mcenters = mtheta * self.box.span / 2 / np.pi
+        shifts = ((mcenters - centers) / self.box.span).round() * self.box.span
+        for mol_id, gids in dreader.molecules.items():
+            self[gids] += shifts[mol_id]
 
     def write(self, fh, dreader=None, visible=None, points=None):
         """
@@ -168,7 +157,6 @@ class Frame(Base):
         :param visible list: visible atom gids.
         :param points list: additional point to visualize.
         """
-
         data = self[visible] if visible else self
         index = np.argwhere(~np.isnan(data[:, 0])).flatten()
         data = pd.DataFrame(data, columns=symbols.XYZU, index=index)

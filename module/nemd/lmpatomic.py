@@ -549,6 +549,18 @@ class Reader:
 
     @property
     @functools.cache
+    def elements(self, name='element'):
+        """
+        The elements of all atoms.
+
+        :param name str: the name of the element column.
+        :return `pd.DataFrame`: the element dataframe with atom ids
+        """
+        data = self.masses.element[self.atoms.type_id]
+        return pd.DataFrame(data, index=self.atoms.index, columns=[name])
+
+    @property
+    @functools.cache
     def atoms(self):
         """
         The atom section (the atom block of the int data type).

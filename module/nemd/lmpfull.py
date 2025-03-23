@@ -33,7 +33,7 @@ class Mass(lmpatomic.Mass):
     """
 
     CMT_FMT = "{descr} {symbol} {idx}"
-    CMT_RE = '(\w+)\s+\d+$'
+    CMT_RE = r'(\w+)\s+\d+$'
 
     @classmethod
     def fromAtoms(cls, atoms):
@@ -1271,19 +1271,6 @@ class Reader(lmpatomic.Reader):
             and atom ids in the improper angle.
         """
         return self.fromLines(Improper)
-
-    @property
-    def elements(self, name='element'):
-        """
-        The elements of all atoms.
-
-        :param name: the name of the element column.
-        :type name: str
-        :return: the element dataframe with atom ids
-        :rtype: `pd.DataFrame`
-        """
-        data = self.masses.element[self.atoms.type_id]
-        return pd.DataFrame(data, index=self.atoms.index, columns=[name])
 
     @property
     @functools.cache

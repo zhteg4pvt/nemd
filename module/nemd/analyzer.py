@@ -288,7 +288,7 @@ class XYZ(TrajBase):
         Write the coordinates of the trajectory into XYZ format.
 
         :param wrapped bool: coordinates are wrapped into the PBC first image
-        :param bond_across_pbc bool: allow bonds passing PBC boundaries.
+        :param broken_bonds bool: allow bonds broken by PBC boundaries.
         :param glue bool: circular mean to compact the molecules.
 
         NOTE: wrapped=False & glue=False is good for diffusion virtualization

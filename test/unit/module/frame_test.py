@@ -1,8 +1,12 @@
+import os.path
+
 import numpy as np
 import pytest
 
-from nemd import box
+from nemd import envutils
 from nemd import frame
+from nemd import lmpfull
+from nemd import pbc
 
 
 class TestBase:
@@ -13,17 +17,90 @@ class TestBase:
 
     @pytest.mark.parametrize('data,box,shape',
                              [(None, None, (0, )),
-                              (np.array([[1, 2], [3, 4]]), box.Box(), None)])
-    def testNew(self, data, box, shape, base):
+                              (np.array([[1, 2], [3, 4]]), pbc.Box(), None)])
+    def testInit(self, data, box, shape, base):
         assert base.box is box
         expected = np.zeros(shape) == data if data is None else data
         np.testing.assert_almost_equal(base, expected)
 
     @pytest.mark.parametrize('data,box,shape,expected',
                              [([[0.1, 0.2, 0.4], [0.9, 0.8, 0.6]],
-                               box.Box.fromParams(1.), None, [0.48989795])])
+                               pbc.Box.fromParams(1.), None, [0.48989795])])
     @pytest.mark.parametrize('grp,grps', [(None, None), ([0, 1], None),
                                           ([0], [[1]])])
     def testPairDists(self, base, grp, grps, expected):
         dists = base.pairDists(grp=grp, grps=grps)
         np.testing.assert_almost_equal(dists, expected)
+
+
+class TestFrame:
+
+    AR_READER = lmpfull.Reader(envutils.test_data('ar', 'ar100.data'))
+    TWO_FRAMES = envutils.test_data('ar', 'two_frames.custom')
+    BROKEN_HEADER = envutils.test_data('ar', 'broken_header.custom')
+    BROKEN_ATOMS = envutils.test_data('ar', 'broken_atoms.custom')
+    HEX = envutils.test_data('hexane_liquid')
+    HEXANE_READER = lmpfull.Reader(os.path.join(HEX, 'polymer_builder.data'))
+    HEXANE_FRAME = os.path.join(HEX, 'dump.custom')
+
+    @pytest.fixture
+    def frm(self, file):
+        with open(file, 'r') as fh:
+            return frame.Frame.read(fh)
+
+    @pytest.mark.parametrize('data,step,expected',
+                             [(None, None, [(0, ), None]),
+                              ([1, 2], 3, [(2, ), 3]),
+                              (frame.Frame([4], step=2), None, [(1, ), 2])])
+    def testInit(self, data, step, expected):
+        frm = frame.Frame(data=data, step=step)
+        assert expected == [frm.shape, frm.step]
+
+    @pytest.mark.parametrize('file,start,expected',
+                             [(TWO_FRAMES, 0, True), (TWO_FRAMES, 1, False),
+                              (BROKEN_HEADER, 0, EOFError),
+                              (BROKEN_ATOMS, 1, EOFError)])
+    def testRead(self, file, start, expected, raises):
+        with open(file) as fh:
+            frms = [frame.Frame.read(fh, start=start)]
+            with raises:
+                frms.append(frame.Frame.read(fh, start=start))
+        assert 0 == frms[0].step
+        assert not start == isinstance(frms[0], frame.Frame)
+        if not isinstance(expected, bool):
+            return
+        assert 1000 == frms[1].step
+        assert 100 == frms[1].shape[0]
+
+    @pytest.mark.parametrize('file', [TWO_FRAMES])
+    @pytest.mark.parametrize('array', [True, False])
+    def testCopy(self, frm, array):
+        copied = frm.copy(array=array)
+        assert not array == isinstance(copied, frame.Frame)
+
+    @pytest.mark.parametrize('file', [HEXANE_FRAME])
+    @pytest.mark.parametrize('broken_bonds,dreader,expected',
+                             [(True, None, 0.0002537),
+                              (False, HEXANE_READER, -2.25869)])
+    def testWrap(self, frm, broken_bonds, dreader, expected):
+        frm.wrap(broken_bonds=broken_bonds, dreader=dreader)
+        np.testing.assert_almost_equal(frm.min(), expected)
+
+    @pytest.mark.parametrize('file', [HEXANE_FRAME])
+    @pytest.mark.parametrize('dreader,expected',
+                             [(None, -37.6929), (HEXANE_READER, -20.78769261)])
+    def testGlue(self, frm, dreader, expected):
+        frm.glue(dreader=dreader)
+        np.testing.assert_almost_equal(frm.min(), expected)
+
+    @pytest.mark.parametrize('file', [TWO_FRAMES])
+    @pytest.mark.parametrize(
+        'dreader,visible,points,expected',
+        [(None, [3, 4], None, [4, 'X', 'X']),
+         (AR_READER, None, [[1, 2, 3]], [103, 'Ar', 'X'])])
+    def testWrite(self, frm, dreader, visible, points, expected, tmp_dir):
+        with open('file', 'w') as fh:
+            frm.write(fh, dreader=dreader, visible=visible, points=points)
+        with open('file', 'r') as fh:
+            lines = fh.readlines()
+        assert expected == [len(lines)] + [x.split()[0] for x in lines[-2:]]
