@@ -283,26 +283,26 @@ class XYZ(TrajBase):
     DESCR = NAME.upper()
     DATA_EXT = '.xyz'
 
-    def run(self, glue=False, wrapped=True, broken_bonds=False):
+    def run(self, center=False, wrapped=True, broken_bonds=False):
         """
         Write the coordinates of the trajectory into XYZ format.
 
-        :param glue bool: align circular-mean center with the box center
+        :param center bool: align circular-mean center with the box center
         :param wrapped bool: wrap atoms or molecules into the first PBC image
         :param broken_bonds bool: allow bonds broken by PBC boundaries.
 
         glue=True & wrapped=True: one droplet in vacuum
-        glue=False & wrapped=False: diffusion virtualization
+        glue=False & wrapped=False: diffusion visualization
         wrapped=True & broken_bonds=False: condensed-phase molecules
         broken_bonds=True: infinite structures
         """
         with open(self.outfile, 'w') as self.out_fh:
             for frm in self.traj:
-                if any([glue, wrapped]) and self.df_reader:
+                if any([center, wrapped]) and self.df_reader:
                     # wrapped and glue change the coordinates
                     frm = frm.copy(array=False)
-                if glue:
-                    frm.glue(molecules=self.df_reader.molecules)
+                if center:
+                    frm.center()
                 if wrapped:
                     frm.wrap(broken_bonds, molecules=self.df_reader.molecules)
                 frm.write(self.out_fh, dreader=self.df_reader)

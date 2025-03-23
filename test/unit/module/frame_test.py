@@ -76,7 +76,7 @@ class TestFrame:
     @pytest.mark.parametrize('array', [True, False])
     def testCopy(self, frm, array):
         copied = frm.copy(array=array)
-        assert not array == isinstance(copied, frame.Frame)
+        assert not array == hasattr(copied, 'box')
 
     @pytest.mark.parametrize('file,dreader', [(HEXANE_FRAME, HEXANE_READER)])
     @pytest.mark.parametrize('broken_bonds,expected', [(True, 0.0002537),
@@ -98,10 +98,9 @@ class TestFrame:
         assert inbox.all()
 
     @pytest.mark.parametrize('file', [HEXANE_FRAME])
-    @pytest.mark.parametrize('dreader,expected',
-                             [(None, -37.6929), (HEXANE_READER, -40.8407627)])
-    def testGlue(self, frm, dreader, expected):
-        frm.glue(molecules=dreader.molecules if dreader else None)
+    @pytest.mark.parametrize('expected', [-40.274934])
+    def testCenter(self, frm, expected):
+        frm.center()
         np.testing.assert_almost_equal(frm.min(), expected)
 
     @pytest.mark.parametrize('file', [TWO_FRAMES])

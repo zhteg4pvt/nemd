@@ -96,30 +96,24 @@ class Frame(Base):
             ndata[data[:, 0].astype(int) - 1, :] = data[:, 1:]
         return cls(ndata, box=pbc.Box.fromLines(header[5:8]), step=step)
 
-    def copy(self, array=True):
+    def copy(self, array=True, **kwargs):
         """
-        Copy the numpy array content if array else the whole object.
-        The default copy behavior follows numpy.ndarray.copy() as pandas may
-        use it. The array=False option is added to copy the object.
+        Copy the numpy array if array else the whole object.
 
         :return 'np.ndarray' or 'Frame': the copied.
         """
-        if array:
-            return np.array(self)
-        return Frame(data=self.copy(), box=self.box, step=self.step)
+        copied = super().copy(**kwargs)
+        return copied if array else Frame(copied, box=self.box, step=self.step)
 
-    def glue(self, molecules=None):
+    def center(self):
         """
-        Align circular-mean center with the box center. (droplets in vacuum)
+        Align circular-mean center with the box center. (one droplet in vacuum)
 
         FIXME: support droplets or clustering in solution
 
         :param molecules 'dict': molecule ids -> global atom ids
         """
-        if molecules is None:
-            return
-        centers = np.array([self[x].mean(axis=0) for x in molecules.values()])
-        theta = centers / self.box.span * 2 * np.pi
+        theta = self / self.box.span * 2 * np.pi
         sin_ave = np.sin(theta).mean(axis=0)
         cos_ave = np.cos(theta).mean(axis=0)
         center = np.arctan2(sin_ave, cos_ave) * self.box.span / 2 / np.pi
