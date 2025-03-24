@@ -73,10 +73,9 @@ class TestFrame:
         assert 100 == frms[1].shape[0]
 
     @pytest.mark.parametrize('file', [TWO_FRAMES])
-    @pytest.mark.parametrize('array', [True, False])
-    def testCopy(self, frm, array):
-        copied = frm.copy(array=array)
-        assert not array == hasattr(copied, 'box')
+    def testGetCopy(self, frm):
+        copied = frm.getCopy()
+        assert hasattr(copied, 'box')
 
     @pytest.mark.parametrize('file,dreader', [(HEXANE_FRAME, HEXANE_READER)])
     @pytest.mark.parametrize('broken_bonds,expected', [(True, 0.0002537),

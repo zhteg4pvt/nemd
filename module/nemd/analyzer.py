@@ -300,7 +300,7 @@ class XYZ(TrajBase):
             for frm in self.traj:
                 if any([center, wrapped]) and self.df_reader:
                     # wrapped and glue change the coordinates
-                    frm = frm.copy(array=False)
+                    frm = frm.getCopy()
                 if center:
                     frm.center()
                 if wrapped:

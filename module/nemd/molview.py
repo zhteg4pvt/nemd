@@ -17,8 +17,7 @@ class Frame(pd.DataFrame):
     """
 
     # https://pandas.pydata.org/docs/development/extending.html
-    _internal_names = pd.DataFrame._internal_names + ['box']
-    _internal_names_set = set(_internal_names)
+    _metadata = ['box']
 
     def __init__(self, data=None, box=None):
         """
@@ -34,8 +33,8 @@ class Frame(pd.DataFrame):
 
         :param other traj.Frame: DataFrame, or object coercible into a DataFrame
         """
-        self[symbols.XYZU] = other
-        self.box = other.box.copy()
+        self.loc[:, symbols.XYZU] = other
+        self.box = other.box
 
 
 class FrameView:

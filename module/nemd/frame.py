@@ -96,14 +96,13 @@ class Frame(Base):
             ndata[data[:, 0].astype(int) - 1, :] = data[:, 1:]
         return cls(ndata, box=pbc.Box.fromLines(header[5:8]), step=step)
 
-    def copy(self, array=True, **kwargs):
+    def getCopy(self, **kwargs):
         """
-        Copy the numpy array if array else the whole object.
+        Get the frame with the array copied.
 
-        :return 'np.ndarray' or 'Frame': the copied.
+        :return 'Frame': the copied frame.
         """
-        copied = super().copy(**kwargs)
-        return copied if array else Frame(copied, box=self.box, step=self.step)
+        return Frame(super().copy(**kwargs), box=self.box, step=self.step)
 
     def center(self):
         """

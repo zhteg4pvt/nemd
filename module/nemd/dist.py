@@ -10,7 +10,6 @@ import math
 import methodtools
 import numba
 import numpy as np
-import pandas as pd
 
 from nemd import envutils
 from nemd import frame
@@ -22,68 +21,36 @@ from nemd import symbols
 class Radius(np.ndarray):
     """
     Class to get and hold vdw radius by atom id pair.
-
-    NOTE: the radii here are more of diameters (or distances) between two sites.
     """
 
-    MIN_DIST = 1.4
-    SCALE = 0.45
-
-    def __new__(cls, *args, struct=None, num=None, **kwargs):
+    def __new__(cls, *args, struct=None, num=1, scale=0.45, min_dist=1.4):
         """
         :param struct `lmpatomic.Struct`: the structure for id map amd distances
         :param num int: the total number of atoms.
+        :param scale float: scale the original radii by this factor
+        :param min_dist float: the minimum distance.
         :return `Radius`: the vdw radius for each atom pair.
         """
-        # Type 0 for all atoms if no atom types provided.
-        atypes = struct.atoms.type_id if struct else pd.Series([0] * num)
-        dists = struct.pair_coeffs.dist if struct else pd.Series(0)
-        # Data.GEOMETRIC is optimized for speed and is supported
-        kwargs = dict(index=range(dists.index.max() + 1), fill_value=-1)
-        radii = dists.reindex(**kwargs).values.tolist()
-        radii = np.full((len(radii), len(radii)), radii)
+        # More of diameters (or distances) between two sites
+        radii = struct.pair_coeffs.dist.values if struct else np.zeros(1)
+        # Mix geometric from https://docs.lammps.org/pair_modify.html
+        radii = np.full(radii.shape * 2, radii)
         radii *= radii.transpose()
         radii = np.sqrt(radii)
-        radii *= pow(2, 1 / 6) * cls.SCALE
-        radii[radii < cls.MIN_DIST] = cls.MIN_DIST
+        radii *= pow(2, 1 / 6) * scale
+        radii[radii < min_dist] = min_dist
         obj = np.asarray(radii).view(cls)
-        kwargs = dict(index=range(atypes.index.max() + 1), fill_value=-1)
-        obj.id_map = atypes.reindex(**kwargs).values
+        obj.map = struct.atoms.type_id.values if struct else np.zeros(num)
         return obj
 
-    def imap(self, index):
+    def get(self, *args):
         """
-        Map the given index to the corresponding index in the array.
+        Get radius of atom pairs.
 
-        :param index int, list, np.ndarray, or slice: the input index.
-        :return int, list, np.ndarray, or slice: the mapped index.
+        :param args tuple of int, list, np.ndarray: the global atom ids
+        :return np.ndarray: the radii of the atom pair(s)
         """
-        if isinstance(index, slice):
-            args = [index.start, index.stop, index.step]
-            return slice(*[x if x is None else self.id_map[x] for x in args])
-        # int, list, or np.ndarray
-        return self.id_map[index]
-
-    def __getitem__(self, index):
-        """
-        Get the item(s) at the given index(es).
-
-        :param index int, list, np.ndarray, or slice: the input index.
-        :return int or np.ndarray: the item(s) at the given index(es)
-        """
-        nindex = tuple(self.imap(x) for x in index)
-        data = super().__getitem__(nindex)
-        return np.asarray(data)
-
-    def __setitem__(self, index, value):
-        """
-        Set the item(s) at the given index(es) to the given value(s).
-
-        :param index int, list, np.ndarray, or slice: the input index.
-        :param value int, list, np.ndarray: the value to set.
-        """
-        nindex = tuple(self.imap(x) for x in index)
-        super().__setitem__(nindex, value)
+        return self[tuple(self.map[x] for x in args)]
 
 
 class CellOrig(frame.Base):
@@ -219,7 +186,7 @@ class CellOrig(frame.Base):
             return []
         neighbors = list(neighbors)
         dists = self.box.norm(self[neighbors, :] - self[gid, :])
-        thresholds = self.radii[gid, neighbors]
+        thresholds = self.radii.get(gid, neighbors)
         return dists[np.nonzero(dists < thresholds)]
 
     def getNbrs(self, gid):
@@ -401,7 +368,7 @@ class CellNumba(CellOrig):
         :return bool: whether the selected atoms have clashes
         """
         idxs = self.getIdxs(gids)
-        return self.hasClashNumba(gids, idxs, self.radii.id_map, self.radii,
+        return self.hasClashNumba(gids, idxs, self.radii.map, self.radii,
                                   self.excluded, self.nbr, self.cell,
                                   self.box.span)
 
