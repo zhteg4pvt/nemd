@@ -20,24 +20,24 @@ from nemd import symbols
 
 class Radius(np.ndarray):
     """
-    Class to get and hold vdw radius by atom id pair.
+    Van der Waals radius.
+
+    He: 1.4345 OPLSUA vs 1.40 https://en.wikipedia.org/wiki/Van_der_Waals_radius
     """
 
-    def __new__(cls, *args, struct=None, num=1, scale=0.45, min_dist=1.4):
+    def __new__(cls, *args, struct=None, num=1, scale=0.9, min_dist=1.4):
         """
         :param struct `lmpatomic.Struct`: the structure for id map amd distances
         :param num int: the total number of atoms.
-        :param scale float: scale the original radii by this factor
+        :param scale float: scale the mean radii by this factor
         :param min_dist float: the minimum distance.
         :return `Radius`: the vdw radius for each atom pair.
         """
-        # More of diameters (or distances) between two sites
         radii = struct.pair_coeffs.dist.values if struct else np.zeros(1)
         # Mix geometric from https://docs.lammps.org/pair_modify.html
         radii = np.full(radii.shape * 2, radii)
         radii *= radii.transpose()
-        radii = np.sqrt(radii)
-        radii *= pow(2, 1 / 6) * scale
+        radii = scale * pow(2, 1 / 6) * np.sqrt(radii) / 2
         radii[radii < min_dist] = min_dist
         obj = np.asarray(radii).view(cls)
         obj.map = struct.atoms.type_id.values if struct else np.zeros(num)
