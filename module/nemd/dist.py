@@ -17,6 +17,8 @@ from nemd import numbautils
 from nemd import pbc
 from nemd import symbols
 
+IS_NOPYTHON = envutils.is_nopython()
+
 
 class Radius(np.ndarray):
     """
@@ -34,9 +36,10 @@ class Radius(np.ndarray):
         :return `Radius`: the vdw radius for each atom pair.
         """
         radii = struct.pair_coeffs.dist.values if struct else np.zeros(1)
-        # Mix geometric from https://docs.lammps.org/pair_modify.html
+        # Mix geometric https://docs.lammps.org/pair_modify.html
         radii = np.full(radii.shape * 2, radii)
         radii *= radii.transpose()
+        # Energy minimum https://en.wikipedia.org/wiki/Lennard-Jones_potential
         radii = scale * pow(2, 1 / 6) * np.sqrt(radii) / 2
         radii[radii < min_dist] = min_dist
         obj = np.asarray(radii).view(cls)
@@ -53,11 +56,93 @@ class Radius(np.ndarray):
         return self[tuple(self.map[x] for x in args)]
 
 
-class CellOrig(frame.Base):
+class AtomCell(np.ndarray):
     """
-    Class to search neighbors and check clashes.
+    FIXME: triclinic support
     """
 
+    def __new__(cls, frm, cut=None, *args, **kwargs):
+        dims = [
+            min(CellOrig.GRID_MAX, math.ceil(x / cut)) for x in frm.box.span
+        ]
+        grids = frm.box.span / dims
+        obj = np.zeros((*dims, frm.shape[0]), dtype=bool).view(cls)
+        obj.cut = cut
+        obj.dims = np.array(dims)
+        obj.grids = np.array(grids)
+        return obj
+
+    def set(self, xyzs, gids, state=True):
+        ixs, iys, izs = self.getIds(xyzs).transpose()
+        self[ixs, iys, izs, gids] = state
+
+    def getIds(self, xyzs):
+        return (xyzs / self.grids).round().astype(int) % self.dims
+
+    def getNbrs(self, xyzs):
+        """
+        Get the neighbor atom ids from the neighbor cells (including the current
+        cell itself).
+
+        :param xyz 1x3 array of floats: xyz of one atom coordinates
+        :return list of ints: the atom ids of the neighbor atoms
+        """
+        idx = self.nbr[tuple(self.getIds(xyzs))]
+        return [y for x in idx for y in self[tuple(x)].nonzero()[0]]
+
+    @methodtools.lru_cache()
+    @property
+    def nbr(self):
+        """
+        The neighbor cells ids of all cells.
+
+        :return 3x3x3xNx3 numpy.ndarray: the query cell id is 3x3x3 tuple, and
+            the return neighbor cell ids are Nx3 numpy.ndarray.
+        """
+        nbr = np.zeros((*self.dims, *self.nbr_inc.shape), dtype=int)
+        nodes = list(itertools.product(*[range(x) for x in self.dims]))
+        for node in nodes:
+            nbr[node] = (self.nbr_inc + node) % self.dims
+        cols = list(itertools.product(*[range(x) for x in self.dims]))
+        unique_maps = [np.unique(nbr[tuple(x)], axis=0) for x in cols]
+        shape = np.unique([x.shape for x in unique_maps], axis=0).max(axis=0)
+        nbr = np.zeros((*self.dims, *shape), dtype=int)
+        for col, unique_map in zip(cols, unique_maps):
+            nbr[col[0], col[1], col[2], :, :] = unique_map
+        # getNbrMap() and the original mode generate nbr in different
+        # order: np.unique(nbr[i, j, j, :, :], axis=0) remains the same
+        return nbr
+
+    @methodtools.lru_cache()
+    @property
+    def nbr_inc(self):
+        """
+        The neighbor cells ids when sitting on the (0,0,0) cell. (Cells with
+        separation distances less than the cutoff are set as neighbors)
+
+        :return nx3 numpy.ndarray: the neighbor cell ids.
+        """
+
+        def separation_dist(ijk):
+            separation_ids = [y - 1 if y else y for y in ijk]
+            return np.linalg.norm(self.grids * separation_ids)
+
+        max_ids = [math.ceil(self.cut / x) + 1 for x in self.grids]
+        ijks = itertools.product(*[range(max_ids[x]) for x in range(3)])
+        # Adjacent Cells are zero distance separated.
+        nbr_ids = [x for x in ijks if separation_dist(x) < self.cut]
+        # Keep itself (0,0,0) cell as multiple atoms may be in one cell.
+        signs = itertools.product((-1, 1), (-1, 1), (-1, 1))
+        signs = [np.array(x) for x in signs]
+        uq_nbr_ids = set([tuple(y * x) for x in signs for y in nbr_ids])
+        return np.array(list(uq_nbr_ids))
+
+
+class CellOrig(frame.Base):
+    """
+    Search neighbors and check clashes.
+    """
+    AtomCell = AtomCell
     GRID_MAX = 20
 
     def __init__(self, gids=None, cut=None, struct=None, **kwargs):
@@ -65,15 +150,17 @@ class CellOrig(frame.Base):
         :param gids list: global atom ids to analyze
         :param cut float: the cutoff distance to search neighbors
         :param struct 'Struct' or 'Reader': radii and excluded pairs
-            are set from this object.
         """
         super().__init__(**kwargs)
         self.gids = gids
         self.cut = cut
         self.struct = struct
         self.cell = None
+        self.radii = Radius(struct=self.struct, num=self.shape[0])
         if self.gids is None:
             self.gids = set(range(self.shape[0]))
+        if self.cut is None:
+            self.cut = self.radii.max()
 
     @functools.singledispatchmethod
     def setup(self, arg):
@@ -85,10 +172,9 @@ class CellOrig(frame.Base):
     @setup.register
     def _(self, arg: frame.Frame):
         """
-        Set up the distance cell starting from a trajectory frame.
+        Set up coordinates, step, box, and distance cell.
 
-        :param arg: the input trajectory frame.
-        :type arg: `Frame`
+        :param arg `Frame`: the input trajectory frame.
         """
         self.resize(arg.shape, refcheck=False)
         self[:] = arg
@@ -98,7 +184,7 @@ class CellOrig(frame.Base):
     @setup.register
     def _(self, arg: pbc.Box):
         """
-        Set up the simulation box and distance cell.
+        Set up box and distance cell.
 
         :param arg `Box`: the simulation box
         """
@@ -111,42 +197,10 @@ class CellOrig(frame.Base):
 
         self.cell.shape = [X index, Y index, Z index, all atom ids]
         """
-        idxs = self.getIdxs(list(range(self.shape[0])))
-        self.cell = np.zeros((*self.cshape, idxs.shape[0] + 1), dtype=bool)
-        for gid in self.gids:
-            self.cell[tuple([*idxs[gid], gid])] = True
-
-    def getIdxs(self, gids):
-        """
-        Get the cell id(s).
-
-        :param gids list or int: the global atom id(s) to locate the cell id.
-        :return `np.ndarray`: the cell id(s)
-        """
-        return (self[gids, :] / self.cspan).round().astype(int) % self.cshape
-
-    @methodtools.lru_cache()
-    @property
-    def cspan(self):
-        """
-        The span of atom cells in each dimension.
-
-        :return numpy.ndarray: span of neighboring cells in each dimension.
-        """
-        return self.box.span / self.cshape
-
-    @methodtools.lru_cache()
-    @property
-    def cshape(self, max_num=GRID_MAX):
-        """
-        The number of the atom cells in each dimension.
-
-        :param max_num int: maximum number of cells in each dimension.
-        :return list of int: the number of the cell in each dimension
-        """
-        cut = self.cut if self.cut is not None else self.radii.max()
-        return np.array(
-            [min(max_num, math.ceil(x / cut)) for x in self.box.span])
+        self.cell = self.AtomCell(self, cut=self.cut)
+        if not self.gids:
+            return
+        self.cell.set(self[list(self.gids), :], self.gids)
 
     def getClashes(self, gids=None):
         """
@@ -180,7 +234,7 @@ class CellOrig(frame.Base):
         :param gid int: the global atom id
         :return list of floats: clash distances between atom pairs
         """
-        neighbors = set(self.getNbrs(gid))
+        neighbors = set(self.cell.getNbrs(self[gid, :]))
         neighbors = neighbors.difference(self.excluded[gid])
         if not neighbors:
             return []
@@ -188,75 +242,6 @@ class CellOrig(frame.Base):
         dists = self.box.norm(self[neighbors, :] - self[gid, :])
         thresholds = self.radii.get(gid, neighbors)
         return dists[np.nonzero(dists < thresholds)]
-
-    def getNbrs(self, gid):
-        """
-        Get the neighbor atom ids from the neighbor cells (including the current
-        cell itself).
-
-        :param xyz 1x3 array of floats: xyz of one atom coordinates
-        :return list of ints: the atom ids of the neighbor atoms
-        """
-        idx = self.nbr[tuple(self.getIdxs(gid))]
-        return [y for x in idx for y in self.cell[tuple(x)].nonzero()[0]]
-
-    @methodtools.lru_cache()
-    @property
-    def nbr(self):
-        """
-        The neighbor cells ids of all cells.
-
-        :return 3x3x3xNx3 numpy.ndarray: the query cell id is 3x3x3 tuple, and
-            the return neighbor cell ids are Nx3 numpy.ndarray.
-        """
-        nbr = np.zeros((*self.cshape, *self.nbr_inc.shape), dtype=int)
-        nodes = list(itertools.product(*[range(x) for x in self.cshape]))
-        for node in nodes:
-            nbr[node] = (self.nbr_inc + node) % self.cshape
-        cols = list(itertools.product(*[range(x) for x in self.cshape]))
-        unique_maps = [np.unique(nbr[tuple(x)], axis=0) for x in cols]
-        shape = np.unique([x.shape for x in unique_maps], axis=0).max(axis=0)
-        nbr = np.zeros((*self.cshape, *shape), dtype=int)
-        for col, unique_map in zip(cols, unique_maps):
-            nbr[col[0], col[1], col[2], :, :] = unique_map
-        # getNbrMap() and the original mode generate nbr in different
-        # order: np.unique(nbr[i, j, j, :, :], axis=0) remains the same
-        return nbr
-
-    @methodtools.lru_cache()
-    @property
-    def nbr_inc(self):
-        """
-        The neighbor cells ids when sitting on the (0,0,0) cell. (Cells with
-        separation distances less than the cutoff are set as neighbors)
-
-        :return nx3 numpy.ndarray: the neighbor cell ids.
-        """
-
-        def separation_dist(ijk):
-            separation_ids = [y - 1 if y else y for y in ijk]
-            return np.linalg.norm(self.cspan * separation_ids)
-
-        cut = self.cut if self.cut is not None else self.radii.max()
-        max_ids = [math.ceil(cut / x) + 1 for x in self.cspan]
-        ijks = itertools.product(*[range(max_ids[x]) for x in range(3)])
-        # Adjacent Cells are zero distance separated.
-        nbr_ids = [x for x in ijks if separation_dist(x) < cut]
-        # Keep itself (0,0,0) cell as multiple atoms may be in one cell.
-        signs = itertools.product((-1, 1), (-1, 1), (-1, 1))
-        signs = [np.array(x) for x in signs]
-        uq_nbr_ids = set([tuple(y * x) for x in signs for y in nbr_ids])
-        return np.array(list(uq_nbr_ids))
-
-    @methodtools.lru_cache()
-    @property
-    def radii(self):
-        """
-        The vdw radius.
-
-        :return lmpatomic.Radius: the vdw radius by type.
-        """
-        return Radius(struct=self.struct, num=self.shape[0])
 
     @methodtools.lru_cache()
     @property
@@ -292,8 +277,7 @@ class CellOrig(frame.Base):
         :param gids list: the global atom ids to be added.
         """
         self.gids.update(gids)
-        for idx, (ix, iy, iz) in zip(gids, self.getIdxs(gids)):
-            self.cell[ix, iy, iz][idx] = True
+        self.cell.set(self[gids, :], gids)
 
     def remove(self, gids):
         """
@@ -302,8 +286,7 @@ class CellOrig(frame.Base):
         :param gids list: the global atom ids to be removed.
         """
         self.gids = self.gids.difference(gids)
-        for idx, (ix, iy, iz) in zip(gids, self.getIdxs(gids)):
-            self.cell[ix, iy, iz][idx] = False
+        self.cell.set(self[gids, :], gids, state=False)
 
     @property
     def ratio(self):
@@ -323,83 +306,13 @@ class CellOrig(frame.Base):
         :return 'numpy.ndarray': the pair distances
         """
         grp = sorted(self.gids) if gids is None else sorted(gids)
-        nbrs = map(self.getNbrs, grp) if nbrs is None else [nbrs] * len(grp)
+        nbrs = map(self.cell.getNbrs,
+                   self[grp, :]) if nbrs is None else [nbrs] * len(grp)
         grps = [[z for z in y if z < x] for x, y in zip(grp, nbrs)]
         return self.pairDists(grp=grp, grps=grps)
 
 
-class CellNumba(CellOrig):
-
-    IS_NOPYTHON = envutils.is_nopython()
-
-    def setCell(self):
-        """
-        Put atom ids into the corresponding cells.
-
-        self.cell.shape = [X index, Y index, Z index, all atom ids]
-        """
-        gids = numba.int32(list(self.gids))
-        self.cell = self.setCellNumba(gids, self.cspan, self.cshape)
-
-    @numbautils.jit
-    def setCellNumba(self, gids, cspan, cshape, nopython=IS_NOPYTHON):
-        """
-        Put atom ids into the corresponding cells.
-
-        :param gids 'numba.int32': the global atom gids
-        :param cspan 'numpy.ndarray': the length of the cell in each dimension
-        :param cshape list of numba.int32: the cell number in each dimension
-        :param nopython bool: whether numba nopython mode is on
-        :return 'numpy.ndarray': map between cell id to atom ids
-            [X index, Y index, Z index, all atom ids]
-        """
-        shape = (cshape[0], cshape[1], cshape[2], self.shape[0])
-        cell = np.zeros(shape, dtype=numba.boolean if nopython else np.bool_)
-        cell_ids = np.round(self / cspan).astype(np.int64) % cshape
-        for aid, cell_id in zip(gids, cell_ids):
-            cell[cell_id[0], cell_id[1], cell_id[2], aid] = True
-        return cell
-
-    def hasClash(self, gids):
-        """
-        Whether the selected atoms have clashes
-
-        :param gids set: global atom ids for atom selection.
-        :return bool: whether the selected atoms have clashes
-        """
-        idxs = self.getIdxs(gids)
-        return self.hasClashNumba(gids, idxs, self.radii.map, self.radii,
-                                  self.excluded, self.nbr, self.cell,
-                                  self.box.span)
-
-    @numbautils.jit
-    def hasClashNumba(self, gids, idxs, id_map, radii, excluded, nbr, cell,
-                      span):
-        """
-        Get the neighbor atom ids from the neighbor cells (including the current
-        cell itself) via Numba.
-
-        :param gids set: global atom ids for selection
-        :param idxs list of 3x1 'numpy.ndarray': the cell id(s)
-        :param id_map 1xn 'numpy.ndarray': map global atom ids to atom types
-        :param radii nxn 'numpy.ndarray': the radius of atom type pairs
-        :param excluded dict of int list: atom ids to be excluded in clash check
-        :param nbr ixjxkxnx3 'numpy.ndarray': cell id to neighbor cell ids
-        :param cell ixjxkxn array of floats: cell id to containing atom ids
-        :param span 1x3 'numpy.ndarray': the span of the box
-        :return float: the fist clash distance between the selected atoms
-        """
-        for gid, idx in zip(gids, idxs):
-            ids = nbr[idx[0], idx[1], idx[2], :]
-            nbrs = np.array([
-                y for x in ids for y in cell[x[0], x[1], x[2], :].nonzero()[0]
-                if y not in excluded[gid]
-            ])
-            if not nbrs.size:
-                continue
-            dists = numbautils.norm(self[nbrs, :] - self[gid, :], span)
-            if (radii[id_map[gid], id_map[nbrs]] > np.array(dists)).any():
-                return True
+class AtomCellNumba(AtomCell):
 
     @methodtools.lru_cache()
     @property
@@ -410,7 +323,7 @@ class CellNumba(CellOrig):
         :reteurn 3x3x3xNx3 numpy.ndarray: the query cell id is 3x3x3 tuple, and
         the return neighbor cell ids are Nx3 numpy.ndarray.
         """
-        return self.getNbrNumba(self.nbr_inc, self.cshape)
+        return self.getNbrNumba(self.nbr_inc, self.dims)
 
     @staticmethod
     @numbautils.jit
@@ -451,33 +364,20 @@ class CellNumba(CellOrig):
         :param gid int: the global atom id to locate the cell and the neighbors
         :return 'numpy.ndarray': the atom ids of the neighbor atoms
         """
-        return self.getNbrsNumba(self.getIdxs(gid), self.nbr, self.cell)
+        return self._getNbrs(self.getIds(gid), self.nbr, self)
 
-    def getIdxs(self, gids):
+    def getIds(self, xyzs):
         """
         Get the cell id(s).
 
         :param gids list or int: the global atom id(s) to locate the cell id.
         :return `np.ndarray`: the cell id(x)
         """
-        return self.getIdxsNumba(np.array(gids), self.cspan, self.cshape)
-
-    @numbautils.jit
-    def getIdxsNumba(self, gids, cspan, cshape, nopython=IS_NOPYTHON):
-        """
-        Get the cell id for xyz.
-
-        :param cspan 'numpy.ndarray': the length of the cell in each dimension
-        :param cshape list of 'numba.int32': the cell number in each dimension
-        :param nopython bool: whether numba nopython mode is on
-        :return list of ints: the cell id
-        """
-        int32 = numba.int32 if nopython else np.int32
-        return np.round(self[gids] / cspan).astype(int32) % cshape
+        return numbautils.getIds(xyzs, self.grids, self.dims)
 
     @staticmethod
     @numbautils.jit
-    def getNbrsNumba(idx, nbr, cell):
+    def _getNbrs(idx, nbr, cell):
         """
         Get the neighbor atom ids from the neighbor cells (including the current
         cell itself) via Numba.
@@ -490,6 +390,62 @@ class CellNumba(CellOrig):
         ids = nbr[idx[0], idx[1], idx[2], :]
         # The atom ids from all neighbor cells
         return [y for x in ids for y in cell[x[0], x[1], x[2], :].nonzero()[0]]
+
+    def set(self, xyzs, gids, state=True):
+        gids = numba.int32(list(gids))
+        self._set(xyzs, self.grids, self.dims, gids, state)
+
+    @numbautils.jit
+    def _set(self, xyzs, grids, dims, gids, state):
+        cell_ids = numbautils.getIds(xyzs, grids, dims)
+        for aid, cell_id in zip(gids, cell_ids):
+            self[cell_id[0], cell_id[1], cell_id[2], aid] = state
+
+
+class CellNumba(CellOrig):
+
+    AtomCell = AtomCellNumba
+
+    def hasClash(self, gids):
+        """
+        Whether the selected atoms have clashes
+
+        :param gids set: global atom ids for atom selection.
+        :return bool: whether the selected atoms have clashes
+        """
+        idxs = self.cell.getIds(self[gids, :])
+        return self.hasClashNumba(gids, idxs, self.radii.map, self.radii,
+                                  self.excluded, self.cell.nbr, self.cell,
+                                  self.box.span)
+
+    @numbautils.jit
+    def hasClashNumba(self, gids, idxs, id_map, radii, excluded, nbr, cell,
+                      span):
+        """
+        Get the neighbor atom ids from the neighbor cells (including the current
+        cell itself) via Numba.
+
+        :param gids set: global atom ids for selection
+        :param idxs list of 3x1 'numpy.ndarray': the cell id(s)
+        :param id_map 1xn 'numpy.ndarray': map global atom ids to atom types
+        :param radii nxn 'numpy.ndarray': the radius of atom type pairs
+        :param excluded dict of int list: atom ids to be excluded in clash check
+        :param nbr ixjxkxnx3 'numpy.ndarray': cell id to neighbor cell ids
+        :param cell ixjxkxn array of floats: cell id to containing atom ids
+        :param span 1x3 'numpy.ndarray': the span of the box
+        :return float: the fist clash distance between the selected atoms
+        """
+        for gid, idx in zip(gids, idxs):
+            ids = nbr[idx[0], idx[1], idx[2], :]
+            nbrs = np.array([
+                y for x in ids for y in cell[x[0], x[1], x[2], :].nonzero()[0]
+                if y not in excluded[gid]
+            ])
+            if not nbrs.size:
+                continue
+            dists = numbautils.norm(self[nbrs, :] - self[gid, :], span)
+            if (radii[id_map[gid], id_map[nbrs]] > np.array(dists)).any():
+                return True
 
     @methodtools.lru_cache()
     @property

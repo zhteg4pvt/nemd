@@ -610,7 +610,7 @@ class PackedCell(dist.Cell):
         """
         self[:] = self.orig.copy()
         self.gids = self.orig_gids.copy()
-        self.cell = self.orig_cell.copy()
+        self.cell[:] = self.orig_cell.copy()
 
 
 class PackedBox(pbc.Box):

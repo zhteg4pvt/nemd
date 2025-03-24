@@ -60,18 +60,14 @@ def is_nopython():
     return get_python_mode() in NOPYTHON_MODES
 
 
-def get_jit_kwargs(**kwargs):
+def get_jit_kwargs():
     """
     Get the jit decorator kwargs.
 
     :return dict: jit decorator kwargs.
     """
     mode = get_python_mode()
-    return {
-        NOPYTHON: mode in NOPYTHON_MODES,
-        'cache': mode == CACHE_MODE,
-        **kwargs
-    }
+    return {NOPYTHON: mode in NOPYTHON_MODES, 'cache': mode == CACHE_MODE}
 
 
 def get_jobname(name=None):
