@@ -73,16 +73,29 @@ class AtomCell(np.ndarray):
         return obj
 
     def set(self, xyzs, gids, state=True):
+        """
+        Set the cell state.
+
+        :param xyzs nx3 'numpy.ndarray': the coordinates to retrieve the cells
+        :param gids set: the corresponding global atom ids
+        :param state bool: the state to set
+        """
         ixs, iys, izs = self.getIds(xyzs).transpose()
         self[ixs, iys, izs, gids] = state
 
     def getIds(self, xyzs):
+        """
+        Get the cell id(s).
+
+        :param gids list or int: the global atom id(s) to locate the cell id.
+        :return `np.ndarray`: the cell id(x)
+        """
         return (xyzs / self.grids).round().astype(int) % self.dims
 
-    def getNbrs(self, xyzs):
+    def getGids(self, xyzs):
         """
-        Get the neighbor atom ids from the neighbor cells (including the current
-        cell itself).
+        Get the neighbor global atom ids from the neighbor cells (including the
+        current cell itself).
 
         :param xyz 1x3 array of floats: xyz of one atom coordinates
         :return list of ints: the atom ids of the neighbor atoms
@@ -234,7 +247,7 @@ class CellOrig(frame.Base):
         :param gid int: the global atom id
         :return list of floats: clash distances between atom pairs
         """
-        neighbors = set(self.cell.getNbrs(self[gid, :]))
+        neighbors = set(self.cell.getGids(self[gid, :]))
         neighbors = neighbors.difference(self.excluded[gid])
         if not neighbors:
             return []
@@ -306,7 +319,7 @@ class CellOrig(frame.Base):
         :return 'numpy.ndarray': the pair distances
         """
         grp = sorted(self.gids) if gids is None else sorted(gids)
-        nbrs = map(self.cell.getNbrs,
+        nbrs = map(self.cell.getGids,
                    self[grp, :]) if nbrs is None else [nbrs] * len(grp)
         grps = [[z for z in y if z < x] for x, y in zip(grp, nbrs)]
         return self.pairDists(grp=grp, grps=grps)
@@ -314,92 +327,31 @@ class CellOrig(frame.Base):
 
 class AtomCellNumba(AtomCell):
 
+    def set(self, *args, **kwargs):
+        """
+        See the parent.
+        """
+        numbautils.set(self, self.grids, self.dims, *args, **kwargs)
+
+    def getIds(self, *args):
+        """
+        See the parent.
+        """
+        return numbautils.get_ids(self.grids, self.dims, *args)
+
+    def getGids(self, *args):
+        """
+        See the parent.
+        """
+        return numbautils.get_atoms(self.getIds(*args), self.nbr, self)
+
     @methodtools.lru_cache()
     @property
     def nbr(self):
         """
-        The neighbor cells ids of all cells.
-
-        :reteurn 3x3x3xNx3 numpy.ndarray: the query cell id is 3x3x3 tuple, and
-        the return neighbor cell ids are Nx3 numpy.ndarray.
+        See the parent.
         """
-        return self.getNbrNumba(self.nbr_inc, self.dims)
-
-    @staticmethod
-    @numbautils.jit
-    def getNbrNumba(nbr_ids, cshape, nopython=IS_NOPYTHON):
-        """
-        Get map between node id to neighbor node ids.
-
-        :param nbr_ids numpy.ndarray: Neighbors cells sitting on the (0,0,0)
-        :param cshape numpy.ndarray: the number of cells in three dimensions
-        :param nopython bool: whether numba nopython mode is on
-        :return numpy.ndarray: map between node id to neighbor node ids
-        """
-        # Unique neighbor cell ids
-        min_id = np.min(nbr_ids)
-        shifted_nbr_ids = nbr_ids - min_id
-        wrapped_nbr_ids = shifted_nbr_ids % cshape
-        ushape = np.max(wrapped_nbr_ids) + 1
-        boolean = numba.boolean if nopython else np.bool_
-        uids = np.zeros((ushape, ushape, ushape), dtype=boolean)
-        for wrapped_ids in wrapped_nbr_ids:
-            uids[wrapped_ids[0], wrapped_ids[1], wrapped_ids[2]] = True
-        uq_ids = np.array(list([list(x) for x in uids.nonzero()])).T + min_id
-        # Build neighbor map based on unique neighbor ids
-        shape = (cshape[0], cshape[1], cshape[2], len(uq_ids), 3)
-        neigh_mp = np.empty(shape, dtype=numba.int32 if nopython else np.int32)
-        for xid in numba.prange(cshape[0]):
-            for yid in numba.prange(cshape[1]):
-                for zid in numba.prange(cshape[2]):
-                    idx = np.array([xid, yid, zid])
-                    neigh_mp[xid, yid, zid, :, :] = (uq_ids + idx) % cshape
-        return neigh_mp
-
-    def getNbrs(self, gid):
-        """
-        Get the neighbor atom ids from the neighbor cells (including the current
-        cell itself).
-
-        :param gid int: the global atom id to locate the cell and the neighbors
-        :return 'numpy.ndarray': the atom ids of the neighbor atoms
-        """
-        return self._getNbrs(self.getIds(gid), self.nbr, self)
-
-    def getIds(self, xyzs):
-        """
-        Get the cell id(s).
-
-        :param gids list or int: the global atom id(s) to locate the cell id.
-        :return `np.ndarray`: the cell id(x)
-        """
-        return numbautils.getIds(xyzs, self.grids, self.dims)
-
-    @staticmethod
-    @numbautils.jit
-    def _getNbrs(idx, nbr, cell):
-        """
-        Get the neighbor atom ids from the neighbor cells (including the current
-        cell itself) via Numba.
-
-        :param xyz 1x3 'numpy.ndarray': xyz of one atom coordinates
-        :param nbr ixjxkxnx3 'numpy.ndarray': cell id to neighor cell ids
-        :param cell ixjxkxn array of floats: cell id into with atom ids
-        :return list of int: the atom ids of the neighbor atoms
-        """
-        ids = nbr[idx[0], idx[1], idx[2], :]
-        # The atom ids from all neighbor cells
-        return [y for x in ids for y in cell[x[0], x[1], x[2], :].nonzero()[0]]
-
-    def set(self, xyzs, gids, state=True):
-        gids = numba.int32(list(gids))
-        self._set(xyzs, self.grids, self.dims, gids, state)
-
-    @numbautils.jit
-    def _set(self, xyzs, grids, dims, gids, state):
-        cell_ids = numbautils.getIds(xyzs, grids, dims)
-        for aid, cell_id in zip(gids, cell_ids):
-            self[cell_id[0], cell_id[1], cell_id[2], aid] = state
+        return numbautils.get_nbr(self.nbr_inc, self.dims)
 
 
 class CellNumba(CellOrig):
