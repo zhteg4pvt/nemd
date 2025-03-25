@@ -374,10 +374,11 @@ class Clash(TrajBase):
             self.warning("No atoms selected for clash counting.")
             self.data = pd.DataFrame({self.LABEL: []})
             return
-        dcell = dist.Cell(gids=set(self.gids), struct=self.df_reader)
         data = []
         for frm in self.traj:
-            dcell.setup(frm)
+            dcell = dist.Frame(data=frm,
+                               gids=set(self.gids),
+                               struct=self.df_reader)
             data.append(len(dcell.getClashes()))
         self.data = pd.DataFrame(data={self.LABEL: data}, index=self.traj.time)
 
@@ -395,7 +396,7 @@ class RDF(Clash):
     PROP_NAME = f'{NAME} peak'
     POS_NAME = f"{PROP_NAME} position ({symbols.ANGSTROM})"
 
-    def setData(self, res=0.02):
+    def setData(self, res=0.02, cut=symbols.DEFAULT_CUT):
         """
         Set the radial distribution function.
 
@@ -413,9 +414,12 @@ class RDF(Clash):
         self.log(f'The volume fluctuates: [{vol.min():.2f} {vol.max():.2f}] '
                  f'{symbols.ANGSTROM}^3')
 
-        dcell = dist.DistCell(span=span.min(), gids=self.gids)
-        # the maximum distance for the RDF calculation
-        max_dist = dcell.dist or span.min() * 0.5
+        # Smallest span means the smallest cut off for the RDF calculation
+        data = self.traj.sel[span.min(axis=1).argmin()]
+        max_dist = dist.DistFrame(data=data,
+                                  gids=self.gids,
+                                  cut=cut,
+                                  auto=True).max_dist
         res = min(res, max_dist / 100)
         bins = round(max_dist / res)
         hist_range = [res / 2, res * bins + res / 2]
@@ -423,7 +427,10 @@ class RDF(Clash):
         tenth, threshold, = len(self.traj.sel) / 10., 0
         for idx, frm in enumerate(self.traj.sel, start=1):
             self.debug(f"Analyzing frame {idx} for RDF..")
-            dists = dcell.getDists(frm)
+            dists = dist.DistFrame(data=frm,
+                                   gids=self.gids,
+                                   cut=cut,
+                                   auto=True).getDists(frm)
             hist, edge = np.histogram(dists, range=hist_range, bins=bins)
             mid = np.array([x for x in zip(edge[:-1], edge[1:])]).mean(axis=1)
             # 4pi*r^2*dr*rho from Radial distribution function - Wikipedia

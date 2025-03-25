@@ -24,6 +24,7 @@ import scipy
 
 from nemd import constants
 from nemd import dist
+from nemd import frame
 from nemd import lmpfull
 from nemd import logutils
 from nemd import pbc
@@ -106,12 +107,12 @@ class PackedConf(GriddedConf):
             centroid = self.centroid()
             self.translate(-centroid)
             self.rotateRandomly()
-            pnt = self.mol.struct.dcell.box.getPoint()
+            pnt = self.mol.struct.dfrm.box.getPoint()
             self.translate(pnt)
-            self.mol.struct.dcell[self.gids, :] = self.GetPositions()
+            self.mol.struct.dfrm[self.gids, :] = self.GetPositions()
             if self.hasClash():
                 continue
-            self.mol.struct.dcell.add(self.gids)
+            self.mol.struct.dfrm.add(self.gids)
             return
         raise ConfError
 
@@ -137,7 +138,7 @@ class PackedConf(GriddedConf):
         :return bool: True if clashes are found.
         """
         gids = self.id_map[self.aids if aids is None else aids]
-        return self.mol.struct.dcell.hasClash(gids)
+        return self.mol.struct.dfrm.hasClash(gids)
 
     def reset(self):
         """
@@ -220,19 +221,19 @@ class GrownConf(PackedConf):
         :raise ValueError: when no void to place the initiator fragment of the
             dead molecule.
         """
-        for point in self.mol.struct.dcell.getVoid():
+        for point in self.mol.struct.dfrm.getVoid():
             centroid = np.array(self.centroid(aids=self.init_aids))
             self.translate(-centroid)
             self.rotateRandomly()
             self.translate(point)
-            self.mol.struct.dcell[self.gids, :] = self.GetPositions()
+            self.mol.struct.dfrm[self.gids, :] = self.GetPositions()
             if self.hasClash(self.init_aids):
                 continue
-            self.mol.struct.dcell.add(self.id_map[self.init_aids], init=True)
+            self.mol.struct.dfrm.add(self.id_map[self.init_aids], init=True)
             return
 
         # FIXME: Failed to fill the void with initiator too often
-        logger.debug(f'Only {self.mol.struct.dcell.ratio} placed')
+        logger.debug(f'Only {self.mol.struct.dfrm.ratio} placed')
         raise ConfError
 
     def setFrag(self, max_trial=MAX_TRIAL_PER_CONF):
@@ -258,13 +259,13 @@ class GrownConf(PackedConf):
         # The molecule has grown to a dead end
         if self.failed_num > max_trial:
             logger.debug(
-                f'Placed {self.mol.struct.dcell.ratio} atoms reaching max'
+                f'Placed {self.mol.struct.dfrm.ratio} atoms reaching max'
                 f' trial number for conformer {self.gid}.')
             raise ConfError
         self.failed_num += 1
         self.ifrag.reset()
         # The method backmove() deletes some existing gids
-        self.mol.struct.dcell.box.reset()
+        self.mol.struct.dfrm.box.reset()
         self.placeInitFrag()
         self.reportRelocation()
 
@@ -277,10 +278,10 @@ class GrownConf(PackedConf):
         """
         while frag.vals:
             frag.setDihedralDeg()
-            self.mol.struct.dcell[self.gids, :] = self.GetPositions()
+            self.mol.struct.dfrm[self.gids, :] = self.GetPositions()
             if self.hasClash(frag.aids):
                 continue
-            self.mol.struct.dcell.add(self.id_map[frag.aids])
+            self.mol.struct.dfrm.add(self.id_map[frag.aids])
             self.frags += frag.nfrags
             return True
 
@@ -303,7 +304,7 @@ class GrownConf(PackedConf):
         ratom_aids = [y for x in nxt_frags for y in x.aids] + frag.aids
         if not found:
             ratom_aids += frag.conf.init_aids
-        self.mol.struct.dcell.remove(self.id_map[ratom_aids])
+        self.mol.struct.dfrm.remove(self.id_map[ratom_aids])
         # 3）The next fragments of the frag may have been added to the growing
         # self.frags before this backmove step. These added next fragments
         # may have never been growed even once.
@@ -315,13 +316,13 @@ class GrownConf(PackedConf):
         """
         Report the status after relocate an initiator fragment.
         """
-        idists = self.mol.struct.dcell.initPairDists()
+        idists = self.mol.struct.dfrm.initPairDists()
         nbrs = self.id_map[self.init_aids]
-        min_dist = self.mol.struct.dcell.nbrDists(nbrs=nbrs).min()
+        min_dist = self.mol.struct.dfrm.nbrDists(nbrs=nbrs).min()
         logger.debug(f"Relocate the initiator of {self.gid} conformer "
                      f"(initiator: {idists.min():.2f}-{idists.max():.2f}; "
                      f"close contact: {min_dist:.2f}) ")
-        logger.debug(f'{self.mol.struct.dcell.ratio} atoms placed.')
+        logger.debug(f'{self.mol.struct.dfrm.ratio} atoms placed.')
 
 
 class GriddedMol(lmpfull.Mol):
@@ -587,32 +588,6 @@ class DensityError(RuntimeError):
     pass
 
 
-class PackedCell(dist.Cell):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.orig = self.copy()
-        self.orig_gids = self.gids.copy()
-        self.orig_cell = None
-
-    def setCell(self):
-        """
-        Put atom ids into the corresponding cells.
-
-        self.atom_cell.shape = [X index, Y index, Z index, all atom ids]
-        """
-        super().setCell()
-        self.orig_cell = self.cell.copy()
-
-    def reset(self):
-        """
-        Reset the distance cell.
-        """
-        self[:] = self.orig.copy()
-        self.gids = self.orig_gids.copy()
-        self.cell[:] = self.orig_cell.copy()
-
-
 class PackedBox(pbc.Box):
     """
     Customized box class for packed structures.
@@ -635,27 +610,20 @@ class PackedStruct(Struct):
 
     MolClass = PackedMol
     MAX_TRIAL_PER_DENSITY = 50
-    Cell = PackedCell
     Box = PackedBox
 
     def __init__(self, *args, **kwargs):
         # Force field -> Molecular weight -> Box -> Frame -> Distance cell
         super().__init__(*args, **kwargs)
-        self.dcell = None
+        self.frm = None
 
     def finalize(self):
         """
         Finalize the structure.
         """
         super().finalize()
-        self.setCell()
-
-    def setCell(self, **kwargs):
-        """
-        Set the distance cell with the trajectory frame.
-        """
         data = np.concatenate([x.GetPositions() for x in self.conformer])
-        self.dcell = self.Cell(data=data, gids=set(), struct=self, **kwargs)
+        self.frm = frame.Frame(data=data)
 
     def runWithDensity(self, density):
         """
@@ -688,7 +656,10 @@ class PackedStruct(Struct):
         edge *= scipy.constants.centi / scipy.constants.angstrom
         self.box = self.Box.fromParams(edge, tilted=False)
         logger.debug(f'Cubic box of size {edge:.2f} angstrom is created.')
-        self.dcell.setup(self.box)
+        self.dfrm = Frame(data=self.frm.copy(),
+                          box=self.box,
+                          struct=self,
+                          gids=set())
 
     def setConformers(self, max_trial=MAX_TRIAL_PER_DENSITY):
         """
@@ -739,7 +710,14 @@ class PackedStruct(Struct):
         """
         for conf in self.conformer:
             conf.reset()
-        self.dcell.reset()
+        self.dfrm = Frame(data=self.frm.copy(),
+                          box=self.box,
+                          struct=self,
+                          gids=set())
+        try:
+            self.dfrm.box.reset()
+        except AttributeError:
+            pass
 
 
 class GrownBox(PackedBox):
@@ -843,7 +821,7 @@ class GrownBox(PackedBox):
         self.graph = self.orig_graph.copy()
 
 
-class GrownCell(PackedCell):
+class Frame(dist.Frame):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -876,14 +854,6 @@ class GrownCell(PackedCell):
             dat.append(self.pairDists(grp=grp, grps=grps))
         return np.concatenate(dat)
 
-    def reset(self):
-        """
-        Reset the object.
-        """
-        super().reset()
-        self.box.reset()
-        self.init_gids = []
-
     def getVoid(self):
         """
         Remove nodes occupied by existing atoms.
@@ -898,7 +868,6 @@ class GrownStruct(PackedStruct):
 
     MolClass = GrownMol
     MAX_TRIAL_PER_DENSITY = 10
-    Cell = GrownCell
     Box = GrownBox
 
     def finalize(self):
@@ -943,7 +912,7 @@ class GrownStruct(PackedStruct):
         logger.debug(f'{self.conformer_total} initiators have been placed.')
         if self.conformer_total == 1:
             return
-        dist = self.dcell.initPairDists().min()
+        dist = self.dfrm.initPairDists().min()
         logger.debug(f'({dist:.2f} as the minimum pair distance)')
 
     def setConformers(self, max_trial=MAX_TRIAL_PER_DENSITY):

@@ -15,7 +15,6 @@ from nemd import envutils
 from nemd import frame
 from nemd import numbautils
 from nemd import pbc
-from nemd import symbols
 
 IS_NOPYTHON = envutils.is_nopython()
 
@@ -56,20 +55,17 @@ class Radius(np.ndarray):
         return self[tuple(self.map[x] for x in args)]
 
 
-class AtomCell(np.ndarray):
+class Cell(np.ndarray):
     """
     FIXME: triclinic support
     """
 
-    def __new__(cls, frm, cut=None, *args, **kwargs):
-        dims = [
-            min(CellOrig.GRID_MAX, math.ceil(x / cut)) for x in frm.box.span
-        ]
-        grids = frm.box.span / dims
-        obj = np.zeros((*dims, frm.shape[0]), dtype=bool).view(cls)
-        obj.cut = cut
+    def __new__(cls, num, span, cut):
+        dims = [min(math.ceil(x / cut), 20) for x in span]
+        obj = np.zeros((*dims, num), dtype=bool).view(cls)
         obj.dims = np.array(dims)
-        obj.grids = np.array(grids)
+        obj.grids = span / dims
+        obj.cut = cut
         return obj
 
     def set(self, xyzs, gids, state=True):
@@ -100,8 +96,8 @@ class AtomCell(np.ndarray):
         :param xyz 1x3 array of floats: xyz of one atom coordinates
         :return list of ints: the atom ids of the neighbor atoms
         """
-        idx = self.nbr[tuple(self.getIds(xyzs))]
-        return [y for x in idx for y in self[tuple(x)].nonzero()[0]]
+        ids = self.nbr[tuple(self.getIds(xyzs))]
+        return [y for x in ids for y in self[tuple(x)].nonzero()[0]]
 
     @methodtools.lru_cache()
     @property
@@ -151,14 +147,13 @@ class AtomCell(np.ndarray):
         return np.array(list(uq_nbr_ids))
 
 
-class CellOrig(frame.Base):
+class FrameOrig(frame.Base):
     """
     Search neighbors and check clashes.
     """
-    AtomCell = AtomCell
-    GRID_MAX = 20
+    Cell = Cell
 
-    def __init__(self, gids=None, cut=None, struct=None, **kwargs):
+    def __init__(self, gids=None, cut=None, struct=None, auto=False, **kwargs):
         """
         :param gids list: global atom ids to analyze
         :param cut float: the cutoff distance to search neighbors
@@ -174,43 +169,12 @@ class CellOrig(frame.Base):
             self.gids = set(range(self.shape[0]))
         if self.cut is None:
             self.cut = self.radii.max()
-
-    @functools.singledispatchmethod
-    def setup(self, arg):
-        """
-        Set up the distance cell with additional arguments.
-        """
-        pass
-
-    @setup.register
-    def _(self, arg: frame.Frame):
-        """
-        Set up coordinates, step, box, and distance cell.
-
-        :param arg `Frame`: the input trajectory frame.
-        """
-        self.resize(arg.shape, refcheck=False)
-        self[:] = arg
-        self.step = arg.step
-        self.setup(arg.box)
-
-    @setup.register
-    def _(self, arg: pbc.Box):
-        """
-        Set up box and distance cell.
-
-        :param arg `Box`: the simulation box
-        """
-        self.box = arg
-        self.setCell()
-
-    def setCell(self):
-        """
-        Put atom ids into the corresponding cells.
-
-        self.cell.shape = [X index, Y index, Z index, all atom ids]
-        """
-        self.cell = self.AtomCell(self, cut=self.cut)
+        if auto:
+            self.cut = min(self.cut, self.box.span.min() / 2)
+            if self.cut * 5 > self.box.span.min():
+                self.cut = self.box.span.min() / 2
+                return
+        self.cell = self.Cell(self.shape[0], self.box.span, self.cut)
         if not self.gids:
             return
         self.cell.set(self[list(self.gids), :], self.gids)
@@ -247,7 +211,8 @@ class CellOrig(frame.Base):
         :param gid int: the global atom id
         :return list of floats: clash distances between atom pairs
         """
-        neighbors = set(self.cell.getGids(self[gid, :]))
+        neighbors = self.gids if self.cell is None else set(
+            self.cell.getGids(self[gid, :]))
         neighbors = neighbors.difference(self.excluded[gid])
         if not neighbors:
             return []
@@ -312,20 +277,22 @@ class CellOrig(frame.Base):
 
     def nbrDists(self, gids=None, nbrs=None):
         """
-        Get the pair distances between existing atoms.
+        Get the pair distances between atoms and neighbors.
 
         :param gids list: the center atom global atom ids.
         :param nbrs list: the neighbor global atom ids.
         :return 'numpy.ndarray': the pair distances
         """
         grp = sorted(self.gids) if gids is None else sorted(gids)
-        nbrs = map(self.cell.getGids,
-                   self[grp, :]) if nbrs is None else [nbrs] * len(grp)
+        nbrs = [
+            self.cell.getGids(self[x, :]) if nbrs is None else nbrs
+            for x in grp
+        ]
         grps = [[z for z in y if z < x] for x, y in zip(grp, nbrs)]
         return self.pairDists(grp=grp, grps=grps)
 
 
-class AtomCellNumba(AtomCell):
+class CellNumba(Cell):
 
     def set(self, *args, **kwargs):
         """
@@ -354,9 +321,9 @@ class AtomCellNumba(AtomCell):
         return numbautils.get_nbr(self.nbr_inc, self.dims)
 
 
-class CellNumba(CellOrig):
+class FrameNumba(FrameOrig):
 
-    AtomCell = AtomCellNumba
+    Cell = CellNumba
 
     def hasClash(self, gids):
         """
@@ -417,21 +384,13 @@ class CellNumba(CellOrig):
         return excluded
 
 
-Cell = CellOrig if envutils.is_original() else CellNumba
+Frame = FrameOrig if envutils.is_original() else FrameNumba
 
 
-class DistCell(Cell):
+class DistFrame(Frame):
     """
     The cell class to analyze the pair distances.
     """
-
-    def __init__(self, span=None, cut=symbols.DEFAULT_CUT, **kwargs):
-        """
-        :param span float: the minimum span of the cell
-        :param cut float: the cutoff distance for neighbor search
-        """
-        super().__init__(cut=cut, **kwargs)
-        self.dist = max(span / self.GRID_MAX, cut) if span > cut * 5 else None
 
     def getDists(self, frm):
         """
@@ -440,7 +399,10 @@ class DistCell(Cell):
         :param frm `frame.Frame`: the input trajectory frame.
         :return `numpy.ndarray`: the pair distances.
         """
-        if self.dist is None:
+        if self.cell is None:
             return frm.pairDists(grp=self.gids)
-        self.setup(frm)
         return self.nbrDists()
+
+    @property
+    def max_dist(self):
+        return max(self.cut, 0 if self.cell is None else self.cell.grids.min())
