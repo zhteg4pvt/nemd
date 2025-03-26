@@ -416,10 +416,8 @@ class RDF(Clash):
 
         # Smallest span means the smallest cut off for the RDF calculation
         data = self.traj.sel[span.min(axis=1).argmin()]
-        max_dist = dist.DistFrame(data=data,
-                                  gids=self.gids,
-                                  cut=cut,
-                                  auto=True).max_dist
+        max_dist = dist.Frame(data=data, gids=self.gids, cut=cut,
+                              search=None).max_dist
         res = min(res, max_dist / 100)
         bins = round(max_dist / res)
         hist_range = [res / 2, res * bins + res / 2]
@@ -427,10 +425,8 @@ class RDF(Clash):
         tenth, threshold, = len(self.traj.sel) / 10., 0
         for idx, frm in enumerate(self.traj.sel, start=1):
             self.debug(f"Analyzing frame {idx} for RDF..")
-            dists = dist.DistFrame(data=frm,
-                                   gids=self.gids,
-                                   cut=cut,
-                                   auto=True).getDists(frm)
+            dists = dist.Frame(data=frm, gids=self.gids, cut=cut,
+                               search=None).pairDists()
             hist, edge = np.histogram(dists, range=hist_range, bins=bins)
             mid = np.array([x for x in zip(edge[:-1], edge[1:])]).mean(axis=1)
             # 4pi*r^2*dr*rho from Radial distribution function - Wikipedia

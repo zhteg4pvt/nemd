@@ -35,22 +35,6 @@ class Base(np.ndarray):
         """
         self.box = getattr(data, 'box', None) if box is None else box
 
-    def pairDists(self, grp=None, grps=None):
-        """
-        Get the distances between atom pairs.
-
-        :param grp list: atom global ids
-        :param grps list of list: each sublist contains atom global ids to
-            compute distances with each atom in grp.
-        return numpy.ndarray: pair distances.
-        """
-        grp = list(range(self.shape[0])) if grp is None else sorted(grp)
-        grps = [grp[i:] for i in range(1, len(grp))] if grps is None else grps
-        vecs = [self[x, :] - self[y, :] for x, y in zip(grps, grp)]
-        if not vecs:
-            return np.array([])
-        return np.concatenate([self.box.norm(x) for x in vecs])
-
 
 class Frame(Base):
     """

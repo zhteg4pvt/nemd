@@ -3,7 +3,6 @@
 """
 Distance cell module to search neighbors and check clashes.
 """
-import functools
 import itertools
 import math
 
@@ -14,7 +13,6 @@ import numpy as np
 from nemd import envutils
 from nemd import frame
 from nemd import numbautils
-from nemd import pbc
 
 IS_NOPYTHON = envutils.is_nopython()
 
@@ -57,14 +55,21 @@ class Radius(np.ndarray):
 
 class Cell(np.ndarray):
     """
+    Grid box and track atoms.
+
     FIXME: triclinic support
     """
 
     def __new__(cls, num, span, cut):
-        dims = [min(math.ceil(x / cut), 20) for x in span]
-        obj = np.zeros((*dims, num), dtype=bool).view(cls)
-        obj.dims = np.array(dims)
-        obj.grids = span / dims
+        """
+        :param num int: totol number of atoms
+        :param span np.ndarray: the box span
+        :param cut: the cut-off distance in neighbor search
+        """
+        shape = [min(math.ceil(x / cut), 20) for x in span] + [num]
+        obj = np.zeros(shape, dtype=bool).view(cls)
+        obj.dims = np.array(obj.shape[:-1])
+        obj.grids = span / obj.dims
         obj.cut = cut
         return obj
 
@@ -83,18 +88,17 @@ class Cell(np.ndarray):
         """
         Get the cell id(s).
 
-        :param gids list or int: the global atom id(s) to locate the cell id.
-        :return `np.ndarray`: the cell id(x)
+        :param xyz nx3 array of floats: atom coordinates
+        :return `np.ndarray`: the cell id(s)
         """
         return (xyzs / self.grids).round().astype(int) % self.dims
 
     def getGids(self, xyzs):
         """
-        Get the neighbor global atom ids from the neighbor cells (including the
-        current cell itself).
+        Get the global atom ids of neighbor (and self) cells.
 
-        :param xyz 1x3 array of floats: xyz of one atom coordinates
-        :return list of ints: the atom ids of the neighbor atoms
+        :param xyz nx3 array of floats: atom coordinates
+        :return list of ints: the neighbor atom ids around the coordinates
         """
         ids = self.nbr[tuple(self.getIds(xyzs))]
         return [y for x in ids for y in self[tuple(x)].nonzero()[0]]
@@ -153,11 +157,17 @@ class FrameOrig(frame.Base):
     """
     Cell = Cell
 
-    def __init__(self, gids=None, cut=None, struct=None, auto=False, **kwargs):
+    def __init__(self,
+                 gids=None,
+                 cut=None,
+                 struct=None,
+                 search=False,
+                 **kwargs):
         """
         :param gids list: global atom ids to analyze
         :param cut float: the cutoff distance to search neighbors
         :param struct 'Struct' or 'Reader': radii and excluded pairs
+        :param search: use distance cell to search neighbors
         """
         super().__init__(**kwargs)
         self.gids = gids
@@ -169,7 +179,7 @@ class FrameOrig(frame.Base):
             self.gids = set(range(self.shape[0]))
         if self.cut is None:
             self.cut = self.radii.max()
-        if auto:
+        if search is None:
             self.cut = min(self.cut, self.box.span.min() / 2)
             if self.cut * 5 > self.box.span.min():
                 self.cut = self.box.span.min() / 2
@@ -178,6 +188,31 @@ class FrameOrig(frame.Base):
         if not self.gids:
             return
         self.cell.set(self[list(self.gids), :], self.gids)
+
+    @property
+    def max_dist(self):
+        return max(self.cut, 0 if self.cell is None else self.cell.grids.min())
+
+    def pairDists(self, grp=None, grps=None):
+        """
+        Get the distances between atom pairs.
+
+        :param grp list: atom global ids
+        :param grps list of list: each sublist contains atom global ids to
+            compute distances with each atom in grp.
+        return numpy.ndarray: pair distances.
+        """
+        grp = sorted(self.gids if grp is None else grp)
+        if grps is None:
+            if self.cell is None:
+                grps = [grp[i:] for i in range(1, len(grp))]
+            else:
+                grps = [self.cell.getGids(self[x, :]) for x in grp]
+                grps = [[z for z in y if z < x] for x, y in zip(grp, grps)]
+        vecs = [self[x, :] - self[y, :] for x, y in zip(grps, grp)]
+        if not vecs:
+            return np.array([])
+        return np.concatenate([self.box.norm(x) for x in vecs])
 
     def getClashes(self, gids=None):
         """
@@ -275,22 +310,6 @@ class FrameOrig(frame.Base):
         """
         return f'{len(self.gids)} / {self.shape[0]}'
 
-    def nbrDists(self, gids=None, nbrs=None):
-        """
-        Get the pair distances between atoms and neighbors.
-
-        :param gids list: the center atom global atom ids.
-        :param nbrs list: the neighbor global atom ids.
-        :return 'numpy.ndarray': the pair distances
-        """
-        grp = sorted(self.gids) if gids is None else sorted(gids)
-        nbrs = [
-            self.cell.getGids(self[x, :]) if nbrs is None else nbrs
-            for x in grp
-        ]
-        grps = [[z for z in y if z < x] for x, y in zip(grp, nbrs)]
-        return self.pairDists(grp=grp, grps=grps)
-
 
 class CellNumba(Cell):
 
@@ -355,11 +374,8 @@ class FrameNumba(FrameOrig):
         :return float: the fist clash distance between the selected atoms
         """
         for gid, idx in zip(gids, idxs):
-            ids = nbr[idx[0], idx[1], idx[2], :]
-            nbrs = np.array([
-                y for x in ids for y in cell[x[0], x[1], x[2], :].nonzero()[0]
-                if y not in excluded[gid]
-            ])
+            ids = numbautils.get_atoms(idx, nbr, cell)
+            nbrs = np.array([x for x in ids if x not in excluded[gid]])
             if not nbrs.size:
                 continue
             dists = numbautils.norm(self[nbrs, :] - self[gid, :], span)
@@ -385,24 +401,3 @@ class FrameNumba(FrameOrig):
 
 
 Frame = FrameOrig if envutils.is_original() else FrameNumba
-
-
-class DistFrame(Frame):
-    """
-    The cell class to analyze the pair distances.
-    """
-
-    def getDists(self, frm):
-        """
-        Get the pair distances of the given frame.
-
-        :param frm `frame.Frame`: the input trajectory frame.
-        :return `numpy.ndarray`: the pair distances.
-        """
-        if self.cell is None:
-            return frm.pairDists(grp=self.gids)
-        return self.nbrDists()
-
-    @property
-    def max_dist(self):
-        return max(self.cut, 0 if self.cell is None else self.cell.grids.min())
