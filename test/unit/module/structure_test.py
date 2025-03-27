@@ -130,7 +130,7 @@ class TestStruct:
         assert len(struct.molecules) == 2
 
     def testGetIds(self, struct):
-        assert struct.getIds() == (3, 11)
+        assert struct.getCids() == (3, 11)
 
     def testConformers(self, struct):
         assert struct.conformer_total == 2

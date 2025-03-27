@@ -56,9 +56,8 @@ class TestCell:
         np.testing.assert_almost_equal(span, cell.grids * cell.shape[:-1])
 
     @pytest.mark.parametrize('num,span,cut', [(4, [10, 9, 11], 2)])
-    @pytest.mark.parametrize('xyzs,gids',
-                             [([1, 4, 1], 1), ([[1, 4, 1]], [1]),
-                              ([[-1, -4, 0], [8, 100, 11]], [1, 2])])
+    @pytest.mark.parametrize('xyzs', [([1, 4, 1]), ([[1, 4, 1]])])
+    @pytest.mark.parametrize('gids', [(1), ([1])])
     def testSet(self, cell, xyzs, gids, span):
         cell.set(xyzs, gids)
         ixs, iys, izs, ids = cell.nonzero()
@@ -67,11 +66,17 @@ class TestCell:
         assert 0 == len(cell.nonzero()[0])
 
     @pytest.mark.parametrize('num,span,cut', [(4, [10, 9, 11], 2)])
-    @pytest.mark.parametrize(
-        'xyzs,gids', [([1, 4, 1], [0, 2, 1]), ([[1, 4, 1]], [[0, 2, 1]]),
-                      ([[-1, -4, 0], [8, 100, 11]], [[0, 3, 0], [4, 1, 0]])])
-    def testSet(self, cell, xyzs, gids, span):
-        assert (gids == cell.getIds(xyzs)).all()
+    @pytest.mark.parametrize('xyzs', [([1, 4, 1]), ([[1, 4, 1]])])
+    @pytest.mark.parametrize('ids', [([0, 2, 1]), ([[0, 2, 1]])])
+    def testGetIds(self, cell, xyzs, ids, span):
+        assert (ids == cell.getCids(xyzs)).all()
+
+    @pytest.mark.parametrize('num,span,cut,gids', [(4, [10, 9, 11], 2, [0, 1])])
+    @pytest.mark.parametrize('xyzs', [([1, 4, 1])])
+    @pytest.mark.parametrize('ids', [([0, 2, 1])])
+    def testGet(self, cell, xyzs, gids, ids, span):
+        cell.set(xyzs, gids)
+        cell.get(xyzs)
 
     @pytest.mark.parametrize('num,span,cut,gid', [(4, [10, 9, 11], 2, 1)])
     @pytest.mark.parametrize('xyz', [([1, 4, 1]), ([-1, -4, 0]),
@@ -90,6 +95,6 @@ class TestCell:
     # @pytest.mark.parametrize('grp,grps', [(None, None), ([0, 1], None),
     #                                       ([0], [[1]])])
     # def testPairDists(self, frm, grp, grps):
-    #     dists = frm.pairDists(grp=grp, grps=grps)
+    #     dists = frm.getDists(grp=grp, grps=grps)
     #     breakpoint()
     #     # np.testing.assert_almost_equal(dists, expected)

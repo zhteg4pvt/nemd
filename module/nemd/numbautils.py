@@ -119,7 +119,7 @@ def get_nbr(nbr_inc, dims):
     uq_ids = np.array(list([list(x) for x in uids.nonzero()])).T + min_id
     # Build neighbor map based on unique neighbor ids
     shape = (dims[0], dims[1], dims[2], len(uq_ids), 3)
-    neigh_mp = np.empty(shape, dtype=np.int32)
+    neigh_mp = np.zeros(shape, dtype=np.int32)
     for xid in numba.prange(dims[0]):
         for yid in numba.prange(dims[1]):
             for zid in numba.prange(dims[2]):

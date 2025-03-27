@@ -62,7 +62,7 @@ class Cell(np.ndarray):
 
     def __new__(cls, num, span, cut):
         """
-        :param num int: totol number of atoms
+        :param num int: total number of atoms
         :param span np.ndarray: the box span
         :param cut: the cut-off distance in neighbor search
         """
@@ -81,31 +81,31 @@ class Cell(np.ndarray):
         :param gids set or int: the corresponding global atom id(s)
         :param state bool: the state to set
         """
-        ixs, iys, izs = self.getIds(xyzs).transpose()
+        ixs, iys, izs = self.getCids(xyzs).transpose()
         self[ixs, iys, izs, gids] = state
 
-    def getIds(self, xyzs):
+    def getCids(self, xyzs):
         """
         Get the cell id(s).
 
-        :param xyz nx3 array of floats: atom coordinates
+        :param xyzs nx3 or (3, ) 'numpy.ndarray': atom coordinates
         :return `np.ndarray`: the cell id(s)
         """
         return (xyzs / self.grids).round().astype(int) % self.dims
 
-    def getGids(self, xyzs):
+    def get(self, xyz):
         """
         Get the global atom ids of neighbor (and self) cells.
 
-        :param xyz nx3 array of floats: atom coordinates
+        :param xyz (3, ) 'numpy.ndarray': the coordinates of one atom
         :return list of ints: the neighbor atom ids around the coordinates
         """
-        ids = self.nbr[tuple(self.getIds(xyzs))]
-        return [y for x in ids for y in self[tuple(x)].nonzero()[0]]
+        nbrs = self.nbrs[tuple(self.getCids(xyz))]
+        return [y for x in nbrs for y in self[tuple(x)].nonzero()[0]]
 
     @methodtools.lru_cache()
     @property
-    def nbr(self):
+    def nbrs(self):
         """
         The neighbor cells ids of all cells.
 
@@ -151,17 +151,46 @@ class Cell(np.ndarray):
         return np.array(list(uq_nbr_ids))
 
 
-class FrameOrig(frame.Base):
+class CellNumba(Cell):
+
+    def set(self, *args, **kwargs):
+        """
+        See the parent.
+        """
+        numbautils.set(self, self.grids, self.dims, *args, **kwargs)
+
+    def getCids(self, *args):
+        """
+        See the parent.
+        """
+        return numbautils.get_ids(self.grids, self.dims, *args)
+
+    def get(self, *args):
+        """
+        See the parent.
+        """
+        return numbautils.get_atoms(self.getCids(*args), self.nbrs, self)
+
+    @methodtools.lru_cache()
+    @property
+    def nbrs(self):
+        """
+        See the parent.
+        """
+        return numbautils.get_nbr(self.nbr_inc, self.dims)
+
+
+class Frame(frame.Base):
     """
     Search neighbors and check clashes.
     """
-    Cell = Cell
+    Cell = Cell if envutils.is_original() else CellNumba
 
     def __init__(self,
                  gids=None,
                  cut=None,
                  struct=None,
-                 search=False,
+                 search=None,
                  **kwargs):
         """
         :param gids list: global atom ids to analyze
@@ -193,7 +222,7 @@ class FrameOrig(frame.Base):
     def max_dist(self):
         return max(self.cut, 0 if self.cell is None else self.cell.grids.min())
 
-    def pairDists(self, grp=None, grps=None):
+    def getDists(self, grp=None, grps=None):
         """
         Get the distances between atom pairs.
 
@@ -207,7 +236,7 @@ class FrameOrig(frame.Base):
             if self.cell is None:
                 grps = [grp[i:] for i in range(1, len(grp))]
             else:
-                grps = [self.cell.getGids(self[x, :]) for x in grp]
+                grps = [self.cell.get(self[x, :]) for x in grp]
                 grps = [[z for z in y if z < x] for x, y in zip(grp, grps)]
         vecs = [self[x, :] - self[y, :] for x, y in zip(grps, grp)]
         if not vecs:
@@ -247,7 +276,7 @@ class FrameOrig(frame.Base):
         :return list of floats: clash distances between atom pairs
         """
         neighbors = self.gids if self.cell is None else set(
-            self.cell.getGids(self[gid, :]))
+            self.cell.get(self[gid, :]))
         neighbors = neighbors.difference(self.excluded[gid])
         if not neighbors:
             return []
@@ -269,7 +298,7 @@ class FrameOrig(frame.Base):
         :return dict: the key is the global atom id, and values are excluded
             global atom ids set.
         """
-        excluded = {i: set([i]) for i in range(self.shape[0])}
+        excluded = {i: {i} for i in range(self.shape[0])}
         if self.struct is None:
             return excluded
 
@@ -290,6 +319,8 @@ class FrameOrig(frame.Base):
         :param gids list: the global atom ids to be added.
         """
         self.gids.update(gids)
+        if self.cell is None:
+            return
         self.cell.set(self[gids, :], gids)
 
     def remove(self, gids):
@@ -299,6 +330,8 @@ class FrameOrig(frame.Base):
         :param gids list: the global atom ids to be removed.
         """
         self.gids = self.gids.difference(gids)
+        if self.cell is None:
+            return
         self.cell.set(self[gids, :], gids, state=False)
 
     @property
@@ -311,93 +344,4 @@ class FrameOrig(frame.Base):
         return f'{len(self.gids)} / {self.shape[0]}'
 
 
-class CellNumba(Cell):
 
-    def set(self, *args, **kwargs):
-        """
-        See the parent.
-        """
-        numbautils.set(self, self.grids, self.dims, *args, **kwargs)
-
-    def getIds(self, *args):
-        """
-        See the parent.
-        """
-        return numbautils.get_ids(self.grids, self.dims, *args)
-
-    def getGids(self, *args):
-        """
-        See the parent.
-        """
-        return numbautils.get_atoms(self.getIds(*args), self.nbr, self)
-
-    @methodtools.lru_cache()
-    @property
-    def nbr(self):
-        """
-        See the parent.
-        """
-        return numbautils.get_nbr(self.nbr_inc, self.dims)
-
-
-class FrameNumba(FrameOrig):
-
-    Cell = CellNumba
-
-    def hasClash(self, gids):
-        """
-        Whether the selected atoms have clashes
-
-        :param gids set: global atom ids for atom selection.
-        :return bool: whether the selected atoms have clashes
-        """
-        idxs = self.cell.getIds(self[gids, :])
-        return self.hasClashNumba(gids, idxs, self.radii.map, self.radii,
-                                  self.excluded, self.cell.nbr, self.cell,
-                                  self.box.span)
-
-    @numbautils.jit
-    def hasClashNumba(self, gids, idxs, id_map, radii, excluded, nbr, cell,
-                      span):
-        """
-        Get the neighbor atom ids from the neighbor cells (including the current
-        cell itself) via Numba.
-
-        :param gids set: global atom ids for selection
-        :param idxs list of 3x1 'numpy.ndarray': the cell id(s)
-        :param id_map 1xn 'numpy.ndarray': map global atom ids to atom types
-        :param radii nxn 'numpy.ndarray': the radius of atom type pairs
-        :param excluded dict of int list: atom ids to be excluded in clash check
-        :param nbr ixjxkxnx3 'numpy.ndarray': cell id to neighbor cell ids
-        :param cell ixjxkxn array of floats: cell id to containing atom ids
-        :param span 1x3 'numpy.ndarray': the span of the box
-        :return float: the fist clash distance between the selected atoms
-        """
-        for gid, idx in zip(gids, idxs):
-            ids = numbautils.get_atoms(idx, nbr, cell)
-            nbrs = np.array([x for x in ids if x not in excluded[gid]])
-            if not nbrs.size:
-                continue
-            dists = numbautils.norm(self[nbrs, :] - self[gid, :], span)
-            if (radii[id_map[gid], id_map[nbrs]] > np.array(dists)).any():
-                return True
-
-    @methodtools.lru_cache()
-    @property
-    def excluded(self):
-        """
-        The excluded global atom ids in numba typed dictionary.
-
-        :return numba.typed.Dict: the key is the global atom id, and values are
-            excluded global atom ids set.
-        """
-        excluded = numba.typed.Dict.empty(
-            key_type=numba.types.int64,
-            value_type=numba.types.int64[:],
-        )
-        for key, val in super().excluded.items():
-            excluded[key] = np.array(list(val)).astype(np.int64)
-        return excluded
-
-
-Frame = FrameOrig if envutils.is_original() else FrameNumba
