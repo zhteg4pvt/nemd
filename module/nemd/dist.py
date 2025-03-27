@@ -7,7 +7,6 @@ import itertools
 import math
 
 import methodtools
-import numba
 import numpy as np
 
 from nemd import envutils
@@ -24,9 +23,10 @@ class Radius(np.ndarray):
     He: 1.4345 OPLSUA vs 1.40 https://en.wikipedia.org/wiki/Van_der_Waals_radius
     """
 
+    @methodtools.lru_cache()
     def __new__(cls, *args, struct=None, num=1, scale=0.9, min_dist=1.4):
         """
-        :param struct `lmpatomic.Struct`: the structure for id map amd distances
+        :param struct `lmpatomic.Struct`: the structure
         :param num int: the total number of atoms.
         :param scale float: scale the mean radii by this factor
         :param min_dist float: the minimum distance.
@@ -66,7 +66,7 @@ class Cell(np.ndarray):
         :param span np.ndarray: the box span
         :param cut: the cut-off distance in neighbor search
         """
-        shape = [min(math.ceil(x / cut), 20) for x in span] + [num]
+        shape = [min(math.floor(x / cut), 20) for x in span] + [num]
         obj = np.zeros(shape, dtype=bool).view(cls)
         obj.dims = np.array(obj.shape[:-1])
         obj.grids = span / obj.dims
@@ -203,24 +203,29 @@ class Frame(frame.Base):
         self.cut = cut
         self.struct = struct
         self.cell = None
-        self.radii = Radius(struct=self.struct, num=self.shape[0])
         if self.gids is None:
             self.gids = set(range(self.shape[0]))
+        if search is False:
+            return
         if self.cut is None:
             self.cut = self.radii.max()
-        if search is None:
-            self.cut = min(self.cut, self.box.span.min() / 2)
-            if self.cut * 5 > self.box.span.min():
-                self.cut = self.box.span.min() / 2
-                return
+        self.cut = min(self.cut, self.box.span.min() / 2)
+        if search is None and self.box.span.min() < self.cut * 5:
+            return
         self.cell = self.Cell(self.shape[0], self.box.span, self.cut)
         if not self.gids:
             return
-        self.cell.set(self[list(self.gids), :], self.gids)
+        self.cell.set(self[self.gids, :], self.gids)
 
     @property
     def max_dist(self):
-        return max(self.cut, 0 if self.cell is None else self.cell.grids.min())
+        """
+        Get maximum accurate distance.
+
+        :return float: atoms further away may find the shortcut to the image or
+            get lost during the neighbor search.
+        """
+        return self.box.span.min() / 2 if self.cell is None else self.cell.cut
 
     def getDists(self, grp=None, grps=None):
         """
@@ -275,38 +280,56 @@ class Frame(frame.Base):
         :param gid int: the global atom id
         :return list of floats: clash distances between atom pairs
         """
-        neighbors = self.gids if self.cell is None else set(
+        nbrs = self.gids if self.cell is None else set(
             self.cell.get(self[gid, :]))
-        neighbors = neighbors.difference(self.excluded[gid])
-        if not neighbors:
-            return []
-        neighbors = list(neighbors)
-        dists = self.box.norms(self[neighbors, :] - self[gid, :])
-        thresholds = self.radii.get(gid, neighbors)
+        nbrs = list(nbrs.difference(self.excluded[gid]))
+        dists = self.box.norms(self[nbrs, :] - self[gid, :])
+        thresholds = self.radii.get(gid, nbrs)
         return dists[np.nonzero(dists < thresholds)]
+
+    @methodtools.lru_cache()
+    @property
+    def radii(self):
+        """
+        Get the radii.
+
+        :return `Radius`: the radii
+        """
+        return Radius(struct=self.struct, num=self.shape[0])
 
     @methodtools.lru_cache()
     @property
     def excluded(self, include14=True):
         """
-        Set the pair exclusion during clash check. Bonded atoms and atoms in
-        angles are in the exclusion. The dihedral angles are in the exclusion
-        if include14=True.
+        Set the pair exclusion.
 
-        :param include14 bool: If True, 1-4 interactions in a dihedral angle
-            count as exclusion.
-        :return dict: the key is the global atom id, and values are excluded
-            global atom ids set.
+        :param include14 bool: count 1-4 interaction in a dihedral as exclusion.
+        :return dict: global atom id -> excluded global atom ids set.
         """
-        excluded = {i: {i} for i in range(self.shape[0])}
-        if self.struct is None:
-            return excluded
+        return self.getExclusions(struct=self.struct,
+                                  num=self.shape[0],
+                                  include14=include14)
 
-        pairs = set(self.struct.bonds.getPairs())
-        pairs = pairs.union(self.struct.angles.getPairs())
-        pairs = pairs.union(self.struct.impropers.getPairs())
+    @methodtools.lru_cache()
+    @classmethod
+    def getExclusions(cls, struct=None, num=1, include14=True):
+        """
+        Set the pair exclusion. Atoms in bonds and angles are in the exclusion.
+        The dihedral angles are in the exclusion if include14=True.
+
+        :param struct `lmpatomic.Struct`: the structure
+        :param num int: total number of atoms
+        :param include14 bool: count 1-4 interaction in a dihedral as exclusion.
+        :return dict: global atom id -> excluded global atom ids set.
+        """
+        if struct is None:
+            return {i: {i} for i in range(num)}
+        pairs = set(struct.bonds.getPairs())
+        pairs = pairs.union(struct.angles.getPairs())
+        pairs = pairs.union(struct.impropers.getPairs())
         if include14:
-            pairs = pairs.union(self.struct.dihedrals.getPairs())
+            pairs = pairs.union(struct.dihedrals.getPairs())
+        excluded = {i: {i} for i in struct.atoms.atom1}
         for id1, id2 in pairs:
             excluded[id1].add(id2)
             excluded[id2].add(id1)
@@ -342,6 +365,3 @@ class Frame(frame.Base):
         :return str: the ratio of the existing gids with respect to the total.
         """
         return f'{len(self.gids)} / {self.shape[0]}'
-
-
-

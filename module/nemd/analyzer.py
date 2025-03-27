@@ -423,7 +423,7 @@ class RDF(Clash):
         rdf, num = np.zeros((bins)), len(self.gids)
         tenth, threshold, = len(self.traj.sel) / 10., 0
         for idx, frm in enumerate(self.traj.sel, start=1):
-            self.debug(f"Analyzing frame {idx} for RDF..")
+            self.debug(f"Analyzing frame {idx} for RDF...")
             dists = dist.Frame(data=frm, gids=self.gids, cut=cut).getDists()
             hist, edge = np.histogram(dists, range=hist_range, bins=bins)
             mid = np.array([x for x in zip(edge[:-1], edge[1:])]).mean(axis=1)
