@@ -49,8 +49,8 @@ def norm(vecs, span):
     :param span numpy.ndarray: box span lengths
     :return list of floats: distances within half box span
     """
-    vecs -= np.round(np.divide(vecs, span)) * span
-    return [np.sqrt(x[0]**2 + x[1]**2 + x[2]**2) for x in vecs]
+    shift = np.round(np.divide(vecs, span)) * span
+    return [np.linalg.norm(x) for x in vecs - shift]
 
 
 @jit

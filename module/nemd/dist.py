@@ -77,8 +77,8 @@ class Cell(np.ndarray):
         """
         Set the cell state.
 
-        :param xyzs nx3 'numpy.ndarray': the coordinates to retrieve the cells
-        :param gids set: the corresponding global atom ids
+        :param xyzs nx3 or (3, ) 'numpy.ndarray': the coordinates
+        :param gids set or int: the corresponding global atom id(s)
         :param state bool: the state to set
         """
         ixs, iys, izs = self.getIds(xyzs).transpose()
@@ -212,7 +212,7 @@ class FrameOrig(frame.Base):
         vecs = [self[x, :] - self[y, :] for x, y in zip(grps, grp)]
         if not vecs:
             return np.array([])
-        return np.concatenate([self.box.norm(x) for x in vecs])
+        return np.concatenate([self.box.norms(x) for x in vecs])
 
     def getClashes(self, gids=None):
         """
@@ -252,7 +252,7 @@ class FrameOrig(frame.Base):
         if not neighbors:
             return []
         neighbors = list(neighbors)
-        dists = self.box.norm(self[neighbors, :] - self[gid, :])
+        dists = self.box.norms(self[neighbors, :] - self[gid, :])
         thresholds = self.radii.get(gid, neighbors)
         return dists[np.nonzero(dists < thresholds)]
 

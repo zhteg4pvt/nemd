@@ -12,6 +12,7 @@ import flow
 import pytest
 
 from nemd import envutils
+from nemd import frame
 from nemd import osutils
 from nemd import pytestutils
 from nemd import taskbase
@@ -104,3 +105,9 @@ def Job(status):
             self.out = status
 
     return Job
+
+
+@pytest.fixture
+def frm(file):
+    with open(file, 'r') as fh:
+        return frame.Frame.read(fh)

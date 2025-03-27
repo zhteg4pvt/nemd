@@ -142,7 +142,7 @@ class TestBoxOrig:
                               ([3, 3, 5, 90, 90, 90], 1.73205081)])
     def testNorm(self, box, vec, expected):
         vecs = np.array([vec])
-        np.testing.assert_almost_equal(box.norm(vecs), expected)
+        np.testing.assert_almost_equal(box.norms(vecs), expected)
 
 
 class TestBoxNumba:
@@ -157,4 +157,4 @@ class TestBoxNumba:
                               ([3, 3, 5, 90, 90, 90], 1.73205081)])
     def testNorm(self, box, vec, expected):
         vecs = np.array([vec])
-        np.testing.assert_almost_equal(box.norm(vecs), expected)
+        np.testing.assert_almost_equal(box.norms(vecs), expected)

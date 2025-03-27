@@ -176,7 +176,7 @@ class Base(pd.DataFrame):
         return excluded.equals(other.select_dtypes(exclude=['float']))
 
 
-class BoxOrig(Base):
+class BoxNumba(Base):
     """
     The simulation box (e.g., periodic boundary conditions).
     """
@@ -324,27 +324,16 @@ class BoxOrig(Base):
         oedges += [[x, y] for x, y in zip(spnts, epnts)]
         return np.concatenate((lo_edges, hi_edges, np.array(oedges)))
 
-    def norm(self, vecs):
+    def norm(self, vec):
         """
-        Calculate the PBC distance of the vectors.
+        Calculate the PBC distance of the vector.
 
-        FIXME: triclinic support
-
-        :param vecs `np.array`: the vectors
-        :return `np.ndarray`: the PBC distances
+        :param vec `np.array`: the vector
+        :return float: the PBC distance
         """
-        for idx in range(3):
-            func = lambda x: math.remainder(x, self.span[idx])
-            vecs[:, idx] = np.frompyfunc(func, 1, 1)(vecs[:, idx])
-        return np.linalg.norm(vecs, axis=1)
+        return self.norms(vec.reshape(1, -1))[0]
 
-
-class BoxNumba(BoxOrig):
-    """
-    Base class sped up with numba.
-    """
-
-    def norm(self, vecs):
+    def norms(self, vecs):
         """
         Calculate the PBC distance of the vectors.
 
@@ -354,6 +343,37 @@ class BoxNumba(BoxOrig):
         :return `np.ndarray`: the PBC distances
         """
         return np.array(numbautils.norm(vecs, self.span))
+
+
+class BoxOrig(BoxNumba):
+    """
+    Base class sped up with numba.
+    """
+
+    def norms(self, vecs):
+        """
+        Calculate the PBC distance of the vectors.
+
+        FIXME: triclinic support
+
+        :param vecs `np.array`: the vectors
+        :return `np.ndarray`: the PBC distances
+        """
+        remain = [x(y) for x, y in zip(self.remainders, vecs.transpose())]
+        return np.linalg.norm(np.array(remain, dtype=float), axis=0)
+
+    @methodtools.lru_cache()
+    @property
+    def remainders(self):
+        """
+        Get the functions to calculate the vectorized remainder.
+
+        :return 'func': function to calculate the remainder of one dimension.
+        """
+        return [
+            np.frompyfunc(lambda x: math.remainder(x, s), 1, 1)
+            for s in self.span
+        ]
 
 
 Box = BoxOrig if envutils.is_original() else BoxNumba
