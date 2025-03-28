@@ -84,45 +84,38 @@ def set(cell, grids, dims, xyzs, gids, state=True):
 
 
 @jit
-def get_atoms(cid, nbr, cell):
+def get(cell, nbr, grids, dims, xyz):
     """
     Get the neighbor atom ids from the neighbor cells (including the current
     cell itself) via Numba.
 
-    :param idx 1x3 'numpy.ndarray': the distance cell id
-    :param nbr ixjxkxnx3 'numpy.ndarray': distance cell id to neighbor cell ids
     :param cell nxnxnxm 'numpy.ndarray': the distance cell
+    :param nbr ixjxkxnx3 'numpy.ndarray': distance cell id to neighbor cell ids
+    :param grids 1x3 'numpy.ndarray': the grid sizes
+    :param dims 1x3 'numpy.ndarray': the grid numbers
+    :param xyzs nx3 'numpy.ndarray': the coordinates
     :return list of int: the atom ids of the neighbor atoms
     """
+    cid = get_ids(grids, dims, xyz)
     ids = nbr[cid[0], cid[1], cid[2], :]
     # The atom ids from all neighbor cells
     return [y for x in ids for y in cell[x[0], x[1], x[2], :].nonzero()[0]]
 
 
 @jit
-def get_nbr(nbr_inc, dims):
+def get_nbrs(dims, nbr):
     """
     Get map between node id to neighbor node ids.
 
-    :param nbr_inc numpy.ndarray: Neighbors cells sitting on the (0,0,0) cell
     :param dims numpy.ndarray: the number of cells in three dimensions
+    :param nbr numpy.ndarray: Neighbors cells of the (0,0,0) cell
     :return numpy.ndarray: map between node id to neighbor node ids
     """
-    # Unique neighbor cell ids
-    min_id = np.min(nbr_inc)
-    shifted_nbr_ids = nbr_inc - min_id
-    wrapped_nbr_ids = shifted_nbr_ids % dims
-    ushape = np.max(wrapped_nbr_ids) + 1
-    uids = np.zeros((ushape, ushape, ushape), dtype=np.bool_)
-    for wrapped_ids in wrapped_nbr_ids:
-        uids[wrapped_ids[0], wrapped_ids[1], wrapped_ids[2]] = True
-    uq_ids = np.array(list([list(x) for x in uids.nonzero()])).T + min_id
-    # Build neighbor map based on unique neighbor ids
-    shape = (dims[0], dims[1], dims[2], len(uq_ids), 3)
-    neigh_mp = np.zeros(shape, dtype=np.int32)
+    shape = (dims[0], dims[1], dims[2], *nbr.shape)
+    nbrs = np.zeros(shape, dtype=np.int32)
     for xid in numba.prange(dims[0]):
         for yid in numba.prange(dims[1]):
             for zid in numba.prange(dims[2]):
                 idx = np.array([xid, yid, zid])
-                neigh_mp[xid, yid, zid, :, :] = (uq_ids + idx) % dims
-    return neigh_mp
+                nbrs[xid, yid, zid, :, :] = (nbr + idx) % dims
+    return nbrs

@@ -47,10 +47,10 @@ class TestCell:
 
     @pytest.fixture
     def cell(self, num, span, cut):
-        return dist.Cell(num, span, cut)
+        return dist.Cell(num, np.array(span), cut)
 
     @pytest.mark.parametrize('num,span,cut,expected',
-                             [(4, [10, 9, 11], 2, (5, 5, 6, 4))])
+                             [(4, [10, 9, 11], 2, (5, 4, 5, 4))])
     def testNew(self, span, cut, cell, expected):
         assert expected == cell.shape
         np.testing.assert_almost_equal(span, cell.grids * cell.shape[:-1])
@@ -67,11 +67,12 @@ class TestCell:
 
     @pytest.mark.parametrize('num,span,cut', [(4, [10, 9, 11], 2)])
     @pytest.mark.parametrize('xyzs', [([1, 4, 1]), ([[1, 4, 1]])])
-    @pytest.mark.parametrize('ids', [([0, 2, 1]), ([[0, 2, 1]])])
+    @pytest.mark.parametrize('ids', [([0, 2, 0]), ([[0, 2, 0]])])
     def testGetIds(self, cell, xyzs, ids, span):
         assert (ids == cell.getCids(xyzs)).all()
 
-    @pytest.mark.parametrize('num,span,cut,gids', [(4, [10, 9, 11], 2, [0, 1])])
+    @pytest.mark.parametrize('num,span,cut,gids',
+                             [(4, [10, 9, 11], 2, [0, 1])])
     @pytest.mark.parametrize('xyzs', [([1, 4, 1])])
     @pytest.mark.parametrize('ids', [([0, 2, 1])])
     def testGet(self, cell, xyzs, gids, ids, span):

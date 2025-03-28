@@ -13,8 +13,6 @@ from nemd import envutils
 from nemd import frame
 from nemd import numbautils
 
-IS_NOPYTHON = envutils.is_nopython()
-
 
 class Radius(np.ndarray):
     """
@@ -66,11 +64,12 @@ class Cell(np.ndarray):
         :param span np.ndarray: the box span
         :param cut: the cut-off distance in neighbor search
         """
-        shape = [min(math.floor(x / cut), 20) for x in span] + [num]
-        obj = np.zeros(shape, dtype=bool).view(cls)
-        obj.dims = np.array(obj.shape[:-1])
-        obj.grids = span / obj.dims
+        dims = tuple(min(math.floor(x / cut), 20) for x in span)
+        obj = np.zeros([*dims, num], dtype=bool).view(cls)
+        obj.dims = np.array(dims)
+        obj.grids = span / dims
         obj.cut = cut
+        obj.nbrs = cls.getNbrs(dims, *np.ceil(obj.grids / cut).astype(int))
         return obj
 
     def set(self, xyzs, gids, state=True):
@@ -104,51 +103,54 @@ class Cell(np.ndarray):
         return [y for x in nbrs for y in self[tuple(x)].nonzero()[0]]
 
     @methodtools.lru_cache()
-    @property
-    def nbrs(self):
+    @classmethod
+    def getNbrs(cls, dims, *nums):
         """
         The neighbor cells ids of all cells.
 
+        :param dims: number of grids per dimension
+        :param nums: number of cutoffs per grid
         :return 3x3x3xNx3 numpy.ndarray: the query cell id is 3x3x3 tuple, and
             the return neighbor cell ids are Nx3 numpy.ndarray.
         """
-        nbr = np.zeros((*self.dims, *self.nbr_inc.shape), dtype=int)
-        nodes = list(itertools.product(*[range(x) for x in self.dims]))
-        for node in nodes:
-            nbr[node] = (self.nbr_inc + node) % self.dims
-        cols = list(itertools.product(*[range(x) for x in self.dims]))
-        unique_maps = [np.unique(nbr[tuple(x)], axis=0) for x in cols]
-        shape = np.unique([x.shape for x in unique_maps], axis=0).max(axis=0)
-        nbr = np.zeros((*self.dims, *shape), dtype=int)
-        for col, unique_map in zip(cols, unique_maps):
-            nbr[col[0], col[1], col[2], :, :] = unique_map
-        # getNbrMap() and the original mode generate nbr in different
-        # order: np.unique(nbr[i, j, j, :, :], axis=0) remains the same
-        return nbr
+        nbr = cls.getNbr(nums, dims)
+        nbrs = np.zeros((*dims, *nbr.shape), dtype=int)
+        cids = list(itertools.product(*[range(x) for x in dims]))
+        for cid in cids:
+            nbrs[cid] = (nbr + cid) % dims
+        # Duplicated due to PBCs
+        uniques = [np.unique(nbrs[x], axis=0) for x in cids]
+        shape = np.array([x.shape for x in uniques]).max(axis=0)
+        nbrs = np.zeros((*dims, *shape), dtype=int)
+        for cid, unique in zip(cids, uniques):
+            nbrs[cid] = unique
+        return nbrs
 
     @methodtools.lru_cache()
-    @property
-    def nbr_inc(self):
+    @classmethod
+    def getNbr(cls, nums, dims):
         """
-        The neighbor cells ids when sitting on the (0,0,0) cell. (Cells with
-        separation distances less than the cutoff are set as neighbors)
+        The neighbor cells of the (0,0,0) cell without considering the PBC.
 
+        :param nums: number of cutoffs per grid
+        :param dims numpy.ndarray: the number of cells in three dimensions
         :return nx3 numpy.ndarray: the neighbor cell ids.
         """
-
-        def separation_dist(ijk):
-            separation_ids = [y - 1 if y else y for y in ijk]
-            return np.linalg.norm(self.grids * separation_ids)
-
-        max_ids = [math.ceil(self.cut / x) + 1 for x in self.grids]
-        ijks = itertools.product(*[range(max_ids[x]) for x in range(3)])
-        # Adjacent Cells are zero distance separated.
-        nbr_ids = [x for x in ijks if separation_dist(x) < self.cut]
-        # Keep itself (0,0,0) cell as multiple atoms may be in one cell.
         signs = itertools.product((-1, 1), (-1, 1), (-1, 1))
         signs = [np.array(x) for x in signs]
-        uq_nbr_ids = set([tuple(y * x) for x in signs for y in nbr_ids])
-        return np.array(list(uq_nbr_ids))
+        # Neighbors are cells separation distance <= the cutoff. Adjacent cells
+        # are 0 distance separated, and one cell may contain multiple atoms.
+        ijks = list(itertools.product(*[range(x + 1) for x in nums]))
+        nbr = np.prod(list(itertools.product(signs, ijks)), axis=1)
+        nbr = np.unique(nbr, axis=0)
+        # Unique neighbor cell ids
+        min_cid = np.min(nbr)
+        shifted = nbr - min_cid
+        wrapped = shifted % dims
+        uids = np.zeros([np.max(wrapped) + 1] * 3, dtype=bool)
+        for cid in wrapped:
+            uids[tuple(cid)] = True
+        return np.array([x for x in uids.nonzero()]).T + min_cid
 
 
 class CellNumba(Cell):
@@ -159,25 +161,19 @@ class CellNumba(Cell):
         """
         numbautils.set(self, self.grids, self.dims, *args, **kwargs)
 
-    def getCids(self, *args):
-        """
-        See the parent.
-        """
-        return numbautils.get_ids(self.grids, self.dims, *args)
-
     def get(self, *args):
         """
         See the parent.
         """
-        return numbautils.get_atoms(self.getCids(*args), self.nbrs, self)
+        return numbautils.get(self, self.nbrs, self.grids, self.dims, *args)
 
     @methodtools.lru_cache()
-    @property
-    def nbrs(self):
+    @classmethod
+    def getNbrs(cls, dims, *nums):
         """
         See the parent.
         """
-        return numbautils.get_nbr(self.nbr_inc, self.dims)
+        return numbautils.get_nbrs(np.array(dims), cls.getNbr(nums, dims))
 
 
 class Frame(frame.Base):
@@ -209,6 +205,7 @@ class Frame(frame.Base):
             return
         if self.cut is None:
             self.cut = self.radii.max()
+        # First image distance
         self.cut = min(self.cut, self.box.span.min() / 2)
         if search is None and self.box.span.min() < self.cut * 5:
             return
