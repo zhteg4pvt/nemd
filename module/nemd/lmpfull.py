@@ -888,11 +888,11 @@ class Struct(lmpatomic.Struct, In):
         """
         super().__init__(struct=struct, **kwargs)
         In.__init__(self, options=options, **kwargs)
-        self.atm_types = numpyutils.IntArray()
-        self.bnd_types = numpyutils.IntArray()
-        self.ang_types = numpyutils.IntArray()
-        self.dihe_types = numpyutils.IntArray()
-        self.impr_types = numpyutils.IntArray()
+        self.atm_types = None
+        self.bnd_types = None
+        self.ang_types = None
+        self.dihe_types = None
+        self.impr_types = None
         self.initTypeMap()
 
     def initTypeMap(self):

@@ -54,16 +54,17 @@ def norm(vecs, span):
 
 
 @jit
-def get_ids(grids, dims, xyzs):
+def get_ids(grids, dims, xyzs, gid):
     """
     Get the cell ids from xyz coordinates.
 
     :param grids 1x3 'numpy.ndarray': the grid sizes
     :param dims 1x3 'numpy.ndarray': the grid numbers
     :param xyzs nx3 'numpy.ndarray': the coordinates
+    :param gid int: the global atom id
     :return list of ints: the cell id
     """
-    return np.round(xyzs / grids).astype(np.int32) % dims
+    return np.round(xyzs[gid] / grids).astype(np.int32) % dims
 
 
 @jit
@@ -79,24 +80,26 @@ def set(cell, grids, dims, xyzs, gids, state=True):
     :param state 'bool': the state to set
     :return list of ints: the cell id
     """
-    for ids, aid in zip(get_ids(grids, dims, xyzs), gids):
-        cell[ids[0], ids[1], ids[2], aid] = state
+    for gid in gids:
+        ids = get_ids(grids, dims, xyzs, gid)
+        cell[ids[0], ids[1], ids[2], gid] = state
 
 
 @jit
-def get(cell, nbr, grids, dims, xyz):
+def get(cell, nbr, grids, dims, xyzs, gid):
     """
     Get the neighbor atom ids from the neighbor cells (including the current
     cell itself) via Numba.
 
     :param cell nxnxnxm 'numpy.ndarray': the distance cell
-    :param nbr ixjxkxnx3 'numpy.ndarray': distance cell id to neighbor cell ids
+    :param nbr ixjxkxnx3 'numpy.ndarray': map from cell id to neighbor ids
     :param grids 1x3 'numpy.ndarray': the grid sizes
     :param dims 1x3 'numpy.ndarray': the grid numbers
     :param xyzs nx3 'numpy.ndarray': the coordinates
+    :param gid int: the global atom id
     :return list of int: the atom ids of the neighbor atoms
     """
-    cid = get_ids(grids, dims, xyz)
+    cid = get_ids(grids, dims, xyzs, gid)
     ids = nbr[cid[0], cid[1], cid[2], :]
     # The atom ids from all neighbor cells
     return [y for x in ids for y in cell[x[0], x[1], x[2], :].nonzero()[0]]
@@ -105,11 +108,11 @@ def get(cell, nbr, grids, dims, xyz):
 @jit
 def get_nbrs(dims, nbr):
     """
-    Get map between node id to neighbor node ids.
+    Get map from any cell id to neighbor ids.
 
     :param dims numpy.ndarray: the number of cells in three dimensions
     :param nbr numpy.ndarray: Neighbors cells of the (0,0,0) cell
-    :return numpy.ndarray: map between node id to neighbor node ids
+    :return numpy.ndarray: map from any cell id to neighbor ids
     """
     shape = (dims[0], dims[1], dims[2], *nbr.shape)
     nbrs = np.zeros(shape, dtype=np.int32)

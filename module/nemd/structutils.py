@@ -661,7 +661,7 @@ class PackedStruct(Struct):
         self.dfrm = Frame(data=self.frm.copy(),
                           box=self.box,
                           struct=self,
-                          gids=set())
+                          gids=[])
 
     def setConformers(self, max_trial=MAX_TRIAL_PER_DENSITY):
         """
@@ -862,7 +862,7 @@ class Frame(dist.Frame):
 
         :return `numpy.ndarray`: each value is one random point from the voids.
         """
-        self.box.rmGraphNodes(self[list(self.gids), :])
+        self.box.rmGraphNodes(self[self.gids.values])
         return (y for x in self.box.getVoid() for y in x)
 
 

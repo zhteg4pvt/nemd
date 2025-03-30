@@ -12,6 +12,7 @@ import numpy as np
 from nemd import envutils
 from nemd import frame
 from nemd import numbautils
+from nemd import numpyutils
 
 
 class Radius(np.ndarray):
@@ -58,48 +59,45 @@ class Cell(np.ndarray):
     FIXME: triclinic support
     """
 
-    def __new__(cls, num, span, cut):
+    def __new__(cls, frm):
         """
-        :param num int: total number of atoms
-        :param span np.ndarray: the box span
-        :param cut: the cut-off distance in neighbor search
+        :param frm 'Frame': the distance frame
         """
-        dims = tuple(min(math.floor(x / cut), 20) for x in span)
-        obj = np.zeros([*dims, num], dtype=bool).view(cls)
+        dims = tuple(min(math.floor(x / frm.cut), 20) for x in frm.box.span)
+        obj = np.zeros([*dims, frm.shape[0]], dtype=bool).view(cls)
+        obj.frm = frm
         obj.dims = np.array(dims)
-        obj.grids = span / dims
-        obj.cut = cut
-        obj.nbrs = cls.getNbrs(dims, *np.ceil(obj.grids / cut).astype(int))
+        obj.grids = frm.box.span / dims
+        obj.nbrs = cls.getNbrs(dims, *np.ceil(obj.grids / frm.cut).astype(int))
         return obj
 
-    def set(self, xyzs, gids, state=True):
+    def set(self, gids, state=True):
         """
         Set the cell state.
 
-        :param xyzs nx3 or (3, ) 'numpy.ndarray': the coordinates
-        :param gids set or int: the corresponding global atom id(s)
+        :param gids list of int: the global atom ids
         :param state bool: the state to set
         """
-        ixs, iys, izs = self.getCids(xyzs).transpose()
+        ixs, iys, izs = self.getCids(gids).transpose()
         self[ixs, iys, izs, gids] = state
 
-    def getCids(self, xyzs):
+    def getCids(self, gids):
         """
         Get the cell id(s).
 
-        :param xyzs nx3 or (3, ) 'numpy.ndarray': atom coordinates
+        :param gids list of int: the global atom ids
         :return `np.ndarray`: the cell id(s)
         """
-        return (xyzs / self.grids).round().astype(int) % self.dims
+        return (self.frm[gids] / self.grids).round().astype(int) % self.dims
 
-    def get(self, xyz):
+    def get(self, gid):
         """
         Get the global atom ids of neighbor (and self) cells.
 
-        :param xyz (3, ) 'numpy.ndarray': the coordinates of one atom
+        :param gids list of int: the global atom ids
         :return list of ints: the neighbor atom ids around the coordinates
         """
-        nbrs = self.nbrs[tuple(self.getCids(xyz))]
+        nbrs = self.nbrs[tuple(self.getCids(gid))]
         return [y for x in nbrs for y in self[tuple(x)].nonzero()[0]]
 
     @methodtools.lru_cache()
@@ -159,13 +157,14 @@ class CellNumba(Cell):
         """
         See the parent.
         """
-        numbautils.set(self, self.grids, self.dims, *args, **kwargs)
+        numbautils.set(self, self.grids, self.dims, self.frm, *args, **kwargs)
 
     def get(self, *args):
         """
         See the parent.
         """
-        return numbautils.get(self, self.nbrs, self.grids, self.dims, *args)
+        return numbautils.get(self, self.nbrs, self.grids, self.dims, self.frm,
+                              *args)
 
     @methodtools.lru_cache()
     @classmethod
@@ -195,12 +194,10 @@ class Frame(frame.Base):
         :param search: use distance cell to search neighbors
         """
         super().__init__(**kwargs)
-        self.gids = gids
+        self.gids = numpyutils.IntArray(gids, mval=self.shape[0])
         self.cut = cut
         self.struct = struct
         self.cell = None
-        if self.gids is None:
-            self.gids = set(range(self.shape[0]))
         if search is False:
             return
         if self.cut is None:
@@ -209,10 +206,8 @@ class Frame(frame.Base):
         self.cut = min(self.cut, self.box.span.min() / 2)
         if search is None and self.box.span.min() < self.cut * 5:
             return
-        self.cell = self.Cell(self.shape[0], self.box.span, self.cut)
-        if not self.gids:
-            return
-        self.cell.set(self[self.gids, :], self.gids)
+        self.cell = self.Cell(self)
+        self.add(self.gids.values)
 
     @property
     def max_dist(self):
@@ -222,7 +217,7 @@ class Frame(frame.Base):
         :return float: atoms further away may find the shortcut to the image or
             get lost during the neighbor search.
         """
-        return self.box.span.min() / 2 if self.cell is None else self.cell.cut
+        return self.box.span.min() / 2 if self.cell is None else self.cut
 
     def getDists(self, grp=None, grps=None):
         """
@@ -233,12 +228,12 @@ class Frame(frame.Base):
             compute distances with each atom in grp.
         return numpy.ndarray: pair distances.
         """
-        grp = sorted(self.gids if grp is None else grp)
+        grp = sorted(self.gids.values if grp is None else grp)
         if grps is None:
             if self.cell is None:
                 grps = [grp[i:] for i in range(1, len(grp))]
             else:
-                grps = [self.cell.get(self[x, :]) for x in grp]
+                grps = [self.cell.get(x) for x in grp]
                 grps = [[z for z in y if z < x] for x, y in zip(grp, grps)]
         vecs = [self[x, :] - self[y, :] for x, y in zip(grps, grp)]
         if not vecs:
@@ -253,7 +248,7 @@ class Frame(frame.Base):
         :return list of float: the clash distances
         """
         if gids is None:
-            gids = self.gids
+            gids = self.gids.values
         return [y for x in gids for y in self.getClash(x)]
 
     def hasClash(self, gids):
@@ -277,9 +272,10 @@ class Frame(frame.Base):
         :param gid int: the global atom id
         :return list of floats: clash distances between atom pairs
         """
-        nbrs = self.gids if self.cell is None else set(
-            self.cell.get(self[gid, :]))
-        nbrs = list(nbrs.difference(self.excluded[gid]))
+        nbrs = self.gids if self.cell is None else numpyutils.IntArray(
+            self.cell.get(gid), mval=self.shape[0])
+
+        nbrs = nbrs.difference(self.excluded[gid])
         dists = self.box.norms(self[nbrs, :] - self[gid, :])
         thresholds = self.radii.get(gid, nbrs)
         return dists[np.nonzero(dists < thresholds)]
@@ -317,7 +313,7 @@ class Frame(frame.Base):
         :param struct `lmpatomic.Struct`: the structure
         :param num int: total number of atoms
         :param include14 bool: count 1-4 interaction in a dihedral as exclusion.
-        :return dict: global atom id -> excluded global atom ids set.
+        :return dict: global atom id -> excluded global atom ids list.
         """
         if struct is None:
             return {i: {i} for i in range(num)}
@@ -330,7 +326,7 @@ class Frame(frame.Base):
         for id1, id2 in pairs:
             excluded[id1].add(id2)
             excluded[id2].add(id1)
-        return excluded
+        return {x: list(y) for x, y in excluded.items()}
 
     def add(self, gids):
         """
@@ -338,10 +334,10 @@ class Frame(frame.Base):
 
         :param gids list: the global atom ids to be added.
         """
-        self.gids.update(gids)
+        self.gids[gids] = True
         if self.cell is None:
             return
-        self.cell.set(self[gids, :], gids)
+        self.cell.set(gids)
 
     def remove(self, gids):
         """
@@ -349,10 +345,10 @@ class Frame(frame.Base):
 
         :param gids list: the global atom ids to be removed.
         """
-        self.gids = self.gids.difference(gids)
+        self.gids[gids] = False
         if self.cell is None:
             return
-        self.cell.set(self[gids, :], gids, state=False)
+        self.cell.set(gids, state=False)
 
     @property
     def ratio(self):

@@ -376,9 +376,7 @@ class Clash(TrajBase):
             return
         data = []
         for frm in self.traj:
-            dcell = dist.Frame(data=frm,
-                               gids=set(self.gids),
-                               struct=self.df_reader)
+            dcell = dist.Frame(data=frm, gids=self.gids, struct=self.df_reader)
             data.append(len(dcell.getClashes()))
         self.data = pd.DataFrame(data={self.LABEL: data}, index=self.traj.time)
 
@@ -416,7 +414,7 @@ class RDF(Clash):
 
         # Smallest span means the smallest cut off for the RDF calculation
         data = self.traj.sel[span.min(axis=1).argmin()]
-        max_dist = dist.Frame(data=data, gids=self.gids, cut=cut).max_dist
+        max_dist = dist.Frame(data=data, cut=cut).max_dist
         res = min(res, max_dist / 100)
         bins = round(max_dist / res)
         hist_range = [res / 2, res * bins + res / 2]
