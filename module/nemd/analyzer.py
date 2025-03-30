@@ -376,7 +376,7 @@ class Clash(TrajBase):
             return
         data = []
         for frm in self.traj:
-            dcell = dist.Frame(data=frm, gids=self.gids, struct=self.df_reader)
+            dcell = dist.Frame(frm, gids=self.gids, struct=self.df_reader)
             data.append(len(dcell.getClashes()))
         self.data = pd.DataFrame(data={self.LABEL: data}, index=self.traj.time)
 
@@ -399,6 +399,7 @@ class RDF(Clash):
         Set the radial distribution function.
 
         :param res float: the rdf minimum step size.
+        :param cut float: the cut off for neighbor search
         """
         if self.data is not None:
             return
@@ -412,9 +413,9 @@ class RDF(Clash):
         self.log(f'The volume fluctuates: [{vol.min():.2f} {vol.max():.2f}] '
                  f'{symbols.ANGSTROM}^3')
 
-        # Smallest span means the smallest cut off for the RDF calculation
-        data = self.traj.sel[span.min(axis=1).argmin()]
-        max_dist = dist.Frame(data=data, cut=cut).max_dist
+        # Smallest span defines the largest cut-off for the RDF calculation
+        use_cell = any(dist.Frame.useCell(cut, x) for x in span)
+        max_dist = min(span.min() / 2, cut if use_cell else np.inf)
         res = min(res, max_dist / 100)
         bins = round(max_dist / res)
         hist_range = [res / 2, res * bins + res / 2]
@@ -422,7 +423,7 @@ class RDF(Clash):
         tenth, threshold, = len(self.traj.sel) / 10., 0
         for idx, frm in enumerate(self.traj.sel, start=1):
             self.debug(f"Analyzing frame {idx} for RDF...")
-            dists = dist.Frame(data=frm, gids=self.gids, cut=cut).getDists()
+            dists = dist.Frame(frm, gids=self.gids, cut=cut).getDists()
             hist, edge = np.histogram(dists, range=hist_range, bins=bins)
             mid = np.array([x for x in zip(edge[:-1], edge[1:])]).mean(axis=1)
             # 4pi*r^2*dr*rho from Radial distribution function - Wikipedia

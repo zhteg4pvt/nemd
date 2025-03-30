@@ -182,6 +182,7 @@ class Frame(frame.Base):
     Cell = Cell if envutils.is_original() else CellNumba
 
     def __init__(self,
+                 *args,
                  gids=None,
                  cut=None,
                  struct=None,
@@ -191,33 +192,35 @@ class Frame(frame.Base):
         :param gids list: global atom ids to analyze
         :param cut float: the cutoff distance to search neighbors
         :param struct 'Struct' or 'Reader': radii and excluded pairs
-        :param search: use distance cell to search neighbors
+        :param search: whether to use distance cell to search neighbors
         """
-        super().__init__(**kwargs)
+        super().__init__(*args, **kwargs)
         self.gids = numpyutils.IntArray(gids, mval=self.shape[0])
         self.cut = cut
         self.struct = struct
+        self.search = search
         self.cell = None
         if search is False:
             return
         if self.cut is None:
             self.cut = self.radii.max()
-        # First image distance
-        self.cut = min(self.cut, self.box.span.min() / 2)
-        if search is None and self.box.span.min() < self.cut * 5:
+        # Distance > the 1/2 diagonal is not in the first image
+        self.cut = min(self.cut, np.linalg.norm(self.box.span) / 2)
+        if search is None and not self.useCell(self.cut, self.box.span):
             return
         self.cell = self.Cell(self)
         self.add(self.gids.values)
 
-    @property
-    def max_dist(self):
+    @staticmethod
+    def useCell(cut, span):
         """
-        Get maximum accurate distance.
+        Whether to use the distance cell.
 
-        :return float: atoms further away may find the shortcut to the image or
-            get lost during the neighbor search.
+        :param cut float: the cut off
+        :param span np.ndarray: the box span
+        :return bool: whether to use the distance cell.
         """
-        return self.box.span.min() / 2 if self.cell is None else self.cut
+        return np.linalg.norm(span) > cut * 10
 
     def getDists(self, grp=None, grps=None):
         """

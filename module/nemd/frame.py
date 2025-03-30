@@ -19,21 +19,19 @@ class Base(np.ndarray):
     Coordinates and box container.
     """
 
-    def __new__(cls, data=None, shape=(0, ), **kwargs):
+    def __new__(cls, frm, **kwargs):
         """
         :param data 'np.ndarray': the xyz coordinates.
-        :param shape tuple: the shape of the xyz coordinates.
         :return (sub-)class of the base: the base object of coordinates and box
         """
-        return super().__new__(cls, shape=shape) if data is None \
-            else np.asarray(data).view(cls)
+        return np.asarray(frm).view(cls)
 
-    def __init__(self, data=None, box=None, **kwargs):
+    def __init__(self, frm, box=None, **kwargs):
         """
         :param data nx3 'numpy.ndarray' or 'DataFrame': xyz data
         :param box `Box`: the pbc box
         """
-        self.box = getattr(data, 'box', None) if box is None else box
+        self.box = getattr(frm, 'box', None) if box is None else box
 
 
 class Frame(Base):
@@ -41,13 +39,13 @@ class Frame(Base):
     Coordinates manipulation.
     """
 
-    def __init__(self, data=None, step=None, **kwargs):
+    def __init__(self, frm, step=None, **kwargs):
         """
         :param data nx3 'numpy.ndarray' or 'DataFrame': xyz data
         :param step int: the number of simulation step that this frame is at
         """
-        super().__init__(data=data, **kwargs)
-        self.step = getattr(data, 'step', None) if step is None else step
+        super().__init__(frm, **kwargs)
+        self.step = getattr(frm, 'step', None) if step is None else step
 
     @classmethod
     def read(cls, fh, start=0):
