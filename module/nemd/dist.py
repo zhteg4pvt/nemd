@@ -68,7 +68,8 @@ class Cell(np.ndarray):
         obj.frm = frm
         obj.dims = np.array(dims)
         obj.grids = frm.box.span / dims
-        obj.nbrs = cls.getNbrs(dims, *np.ceil(obj.grids / frm.cut).astype(int))
+        obj.nbrs = cls.getNbrs(dims,
+                               *np.floor(obj.grids / frm.cut).astype(int))
         return obj
 
     def set(self, gids, state=True):
@@ -159,12 +160,12 @@ class CellNumba(Cell):
         """
         numbautils.set(self, self.grids, self.dims, self.frm, *args, **kwargs)
 
-    def get(self, *args):
+    def get(self, *args, **kwargs):
         """
         See the parent.
         """
-        return numbautils.get(self, self.nbrs, self.grids, self.dims, self.frm,
-                              *args)
+        return numbautils.get(self, self.grids, self.dims, self.frm, self.nbrs,
+                              *args, **kwargs)
 
     @methodtools.lru_cache()
     @classmethod
@@ -195,7 +196,7 @@ class Frame(frame.Base):
         :param search: whether to use distance cell to search neighbors
         """
         super().__init__(*args, **kwargs)
-        self.gids = numpyutils.IntArray(gids, mval=self.shape[0])
+        self.gids = numpyutils.IntArray(gids, mval=self.shape[0] - 1)
         self.cut = cut
         self.struct = struct
         self.search = search
@@ -205,7 +206,8 @@ class Frame(frame.Base):
         if self.cut is None:
             self.cut = self.radii.max()
         # Distance > the 1/2 diagonal is not in the first image
-        self.cut = min(self.cut, np.linalg.norm(self.box.span) / 2)
+        # cut > edge / 2 includes all cells in that direction
+        self.cut = min(self.cut, self.box.span.max() / 2)
         if search is None and not self.useCell(self.cut, self.box.span):
             return
         self.cell = self.Cell(self)
@@ -220,9 +222,9 @@ class Frame(frame.Base):
         :param span np.ndarray: the box span
         :return bool: whether to use the distance cell.
         """
-        return np.linalg.norm(span) > cut * 10
+        return np.prod(span) / np.power(cut, 3) > 1000
 
-    def getDists(self, grp=None, grps=None):
+    def getDists(self, grp, grps):
         """
         Get the distances between atom pairs.
 
@@ -231,13 +233,9 @@ class Frame(frame.Base):
             compute distances with each atom in grp.
         return numpy.ndarray: pair distances.
         """
-        grp = sorted(self.gids.values if grp is None else grp)
-        if grps is None:
-            if self.cell is None:
-                grps = [grp[i:] for i in range(1, len(grp))]
-            else:
-                grps = [self.cell.get(x) for x in grp]
-                grps = [[z for z in y if z < x] for x, y in zip(grp, grps)]
+        if self.cell is not None:
+            grps = [self.cell.get(x) for x in grp]
+            grps = [[z for z in y if z > x] for x, y in zip(grp, grps)]
         vecs = [self[x, :] - self[y, :] for x, y in zip(grps, grp)]
         if not vecs:
             return np.array([])
@@ -276,7 +274,7 @@ class Frame(frame.Base):
         :return list of floats: clash distances between atom pairs
         """
         nbrs = self.gids if self.cell is None else numpyutils.IntArray(
-            self.cell.get(gid), mval=self.shape[0])
+            self.cell.get(gid), mval=self.shape[0] - 1)
 
         nbrs = nbrs.difference(self.excluded[gid])
         dists = self.box.norms(self[nbrs, :] - self[gid, :])

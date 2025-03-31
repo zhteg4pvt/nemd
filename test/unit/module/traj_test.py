@@ -40,57 +40,57 @@ class TestTraj:
 class TestCell:
 
     @pytest.fixture
-    def dcell(self, filename):
+    def frm(self, filename):
         frm = next(traj.Frame.read(filename))
         return traj.Cell(frm, cut=3., res=1.)
 
     @pytest.mark.parametrize(('filename'), [(CC3COOH)])
-    def testSetSpan(self, dcell):
-        dcell.setSpan()
-        assert (dcell.span == 48).all()
+    def testSetSpan(self, frm):
+        frm.setSpan()
+        assert (frm.span == 48).all()
 
     @pytest.mark.parametrize(('filename'), [(CC3COOH)])
-    def testSetgrids(self, dcell):
-        dcell.setSpan()
-        dcell.setgrids()
-        assert (dcell.grids == 1).all()
+    def testSetgrids(self, frm):
+        frm.setSpan()
+        frm.setgrids()
+        assert (frm.grids == 1).all()
 
     @pytest.mark.parametrize(('filename'), [(CC3COOH)])
-    def testSetNeighborIds(self, dcell):
-        dcell.setSpan()
-        dcell.setgrids()
-        dcell.setNeighborIds()
-        assert 311 == len(dcell.neigh_ids)
+    def testSetNeighborIds(self, frm):
+        frm.setSpan()
+        frm.setgrids()
+        frm.setNeighborIds()
+        assert 311 == len(frm.neigh_ids)
 
     @pytest.mark.parametrize(('filename'), [(CC3COOH)])
-    def testSetAtomCell(self, dcell):
-        dcell.setSpan()
-        dcell.setgrids()
-        dcell.setNeighborIds()
-        dcell.setAtomCell()
-        assert (48, 48, 48, 19) == dcell.atom_cell.shape
+    def testSetAtomCell(self, frm):
+        frm.setSpan()
+        frm.setgrids()
+        frm.setNeighborIds()
+        frm.setAtomCell()
+        assert (48, 48, 48, 19) == frm.atom_cell.shape
 
     @pytest.mark.parametrize(('filename'), [(CC3COOH)])
-    def testGetNeighbors(self, dcell):
-        dcell.cut = 3
-        dcell.res = 1
-        dcell.setSpan()
-        dcell.setgrids()
-        dcell.setNeighborIds()
-        dcell.setNeighborMap()
-        dcell.setAtomCell()
-        xyzs = [dcell.frm.getXYZ(x) for x in dcell.getNeighbors((0, 0, 0))]
+    def testGetNeighbors(self, frm):
+        frm.cut = 3
+        frm.res = 1
+        frm.setSpan()
+        frm.setgrids()
+        frm.setNeighborIds()
+        frm.setNeighborMap()
+        frm.setAtomCell()
+        xyzs = [frm.frm.getXYZ(x) for x in frm.getNeighbors((0, 0, 0))]
         dists = [np.linalg.norm(x) for x in xyzs]
         assert 16 == len(dists)
 
     @pytest.mark.parametrize(('filename'), [(CC3COOH)])
-    def testGetNeighbors(self, dcell):
-        dcell.cut = 3
-        dcell.res = 1
-        dcell.setSpan()
-        dcell.setgrids()
-        dcell.setNeighborIds()
-        dcell.setNeighborMap()
-        dcell.setAtomCell()
-        row = dcell.frm.getXYZ(1)
-        assert not dcell.getClashes(row)
+    def testGetNeighbors(self, frm):
+        frm.cut = 3
+        frm.res = 1
+        frm.setSpan()
+        frm.setgrids()
+        frm.setNeighborIds()
+        frm.setNeighborMap()
+        frm.setAtomCell()
+        row = frm.frm.getXYZ(1)
+        assert not frm.getClashes(row)

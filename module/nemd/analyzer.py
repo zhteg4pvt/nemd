@@ -37,16 +37,16 @@ class Base(logutils.Base):
     FIG_EXT = '.png'
     FLOAT_FMT = '%.4g'
 
-    def __init__(self, df_reader=None, options=None, logger=None):
+    def __init__(self, rdf=None, options=None, logger=None):
         """
-        :param df_reader: data file reader containing structural information
-        :type df_reader: 'nemd.oplsua.Reader'
+        :param rdf: data file reader containing structural information
+        :type rdf: 'nemd.oplsua.Reader'
         :param options: the options from command line
         :type options: 'argparse.Namespace'
         :param logger 'logging.Logger': the logger to log messages
         """
         super().__init__(logger=logger)
-        self.df_reader = df_reader
+        self.rdf = rdf
         self.options = options
         self.data = None
         self.sidx = 0
@@ -298,14 +298,14 @@ class XYZ(TrajBase):
         """
         with open(self.outfile, 'w') as self.out_fh:
             for frm in self.traj:
-                if any([center, wrapped]) and self.df_reader:
+                if any([center, wrapped]) and self.rdf:
                     # wrapped and glue change the coordinates
                     frm = frm.getCopy()
                 if center:
                     frm.center()
                 if wrapped:
-                    frm.wrap(broken_bonds, molecules=self.df_reader.molecules)
-                frm.write(self.out_fh, dreader=self.df_reader)
+                    frm.wrap(broken_bonds, molecules=self.rdf.molecules)
+                frm.write(self.out_fh, dreader=self.rdf)
         self.log(f"{self.DESCR} coordinates are written into {self.outfile}")
 
 
@@ -322,7 +322,7 @@ class View(TrajBase):
         """
         Main method to run the visualization.
         """
-        frm_vw = molview.FrameView(df_reader=self.df_reader)
+        frm_vw = molview.FrameView(rdf=self.rdf)
         frm_vw.setData(self.traj[0])
         frm_vw.setElements()
         frm_vw.addTraces()
@@ -348,7 +348,7 @@ class Density(TrajBase):
         """
         if self.data is not None:
             return
-        mass = self.df_reader.molecular_weight / scipy.constants.Avogadro
+        mass = self.rdf.molecular_weight / scipy.constants.Avogadro
         mass_scaled = mass / constants.ANG_TO_CM**3
         data = [mass_scaled / x.box.volume for x in self.traj]
         self.data = pd.DataFrame({self.LABEL: data}, index=self.traj.time)
@@ -364,6 +364,11 @@ class Clash(TrajBase):
     UNIT = 'count'
     LABEL = f'{NAME.capitalize()} ({UNIT})'
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.grp = self.gids[:-1]
+        self.grps = [self.gids[i:] for i in range(1, len(self.gids))]
+
     def setData(self):
         """
         Set the time vs clash number.
@@ -376,8 +381,8 @@ class Clash(TrajBase):
             return
         data = []
         for frm in self.traj:
-            dcell = dist.Frame(frm, gids=self.gids, struct=self.df_reader)
-            data.append(len(dcell.getClashes()))
+            frm = dist.Frame(frm, gids=self.gids, struct=self.rdf)
+            data.append(len(frm.getClashes()))
         self.data = pd.DataFrame(data={self.LABEL: data}, index=self.traj.time)
 
 
@@ -412,9 +417,8 @@ class RDF(Clash):
         vol = span.prod(axis=1)
         self.log(f'The volume fluctuates: [{vol.min():.2f} {vol.max():.2f}] '
                  f'{symbols.ANGSTROM}^3')
-
-        # Smallest span defines the largest cut-off for the RDF calculation
         use_cell = any(dist.Frame.useCell(cut, x) for x in span)
+        # edge / 2 sets the maximum distance in that direction
         max_dist = min(span.min() / 2, cut if use_cell else np.inf)
         res = min(res, max_dist / 100)
         bins = round(max_dist / res)
@@ -423,7 +427,8 @@ class RDF(Clash):
         tenth, threshold, = len(self.traj.sel) / 10., 0
         for idx, frm in enumerate(self.traj.sel, start=1):
             self.debug(f"Analyzing frame {idx} for RDF...")
-            dists = dist.Frame(frm, gids=self.gids, cut=cut).getDists()
+            dists = dist.Frame(frm, gids=self.gids,
+                               cut=cut).getDists(self.grp, self.grps)
             hist, edge = np.histogram(dists, range=hist_range, bins=bins)
             mid = np.array([x for x in zip(edge[:-1], edge[1:])]).mean(axis=1)
             # 4pi*r^2*dr*rho from Radial distribution function - Wikipedia
@@ -497,7 +502,7 @@ class MSD(RDF):
             self.data = pd.DataFrame({self.LABEL: []})
             return
         gids = list(self.gids)
-        masses = self.df_reader.masses.mass[self.df_reader.atoms.type_id[gids]]
+        masses = self.rdf.masses.mass[self.rdf.atoms.type_id[gids]]
         msd, num = [0], len(self.traj.sel)
         for idx in range(1, num):
             disp = [

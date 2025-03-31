@@ -26,7 +26,7 @@ class Log(logutils.Base):
         super().__init__(logger=logger)
         self.options = options
         self.thermo = None
-        self.df_reader = None
+        self.rdf = None
 
     def run(self):
         """
@@ -43,7 +43,7 @@ class Log(logutils.Base):
         """
         if not self.options.data_file:
             return
-        self.df_reader = lammpsdata.read(self.options.data_file)
+        self.rdf = lammpsdata.read(self.options.data_file)
 
     def setThermo(self):
         """
@@ -81,7 +81,7 @@ class Log(logutils.Base):
             anl = analyzer.ANLZ[task](self.thermo,
                                       options=self.options,
                                       logger=self.logger,
-                                      df_reader=self.df_reader)
+                                      rdf=self.rdf)
             anl.run()
 
 

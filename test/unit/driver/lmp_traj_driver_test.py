@@ -43,7 +43,7 @@ class TestTraj:
     @pytest.mark.parametrize("argv", [([AR_CUSTOM_GZ, '-data_file', AR_DATA])])
     def testSetStruct(self, obj):
         obj.setStruct()
-        assert obj.df_reader is not None
+        assert obj.rdf is not None
 
     @pytest.mark.parametrize(
         "argv,num",

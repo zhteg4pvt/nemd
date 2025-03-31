@@ -22,7 +22,7 @@ class TestLmpLog:
                               ([LOG, '-data_file', DATA_FILE], 100)])
     def testSetStruct(self, log, num):
         log.setStruct()
-        val = log.df_reader if num is None else log.df_reader.atoms.shape[0]
+        val = log.rdf if num is None else log.rdf.atoms.shape[0]
         assert num == val
 
     @pytest.mark.parametrize("argv,num", [([LOG], None)])

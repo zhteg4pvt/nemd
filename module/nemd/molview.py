@@ -52,12 +52,12 @@ class FrameView:
     X_COLOR = '#FF1493'
     ELE_SZ_CLR = {ELEMENT: X_ELE, SIZE: X_SIZE, COLOR: X_COLOR}
 
-    def __init__(self, df_reader=None):
+    def __init__(self, rdf=None):
         """
-        :param df_reader `nemd.oplsua.Reader`: datafile reader with
+        :param rdf `nemd.oplsua.Reader`: datafile reader with
             atom, bond, element and other info.
         """
-        self.df_reader = df_reader
+        self.rdf = rdf
         self.fig = graph_objects.Figure()
         self.data = None
         self.elements = None
@@ -68,19 +68,19 @@ class FrameView:
 
         :param frm 'nemd.traj.Frame': the frame to create the data from.
         """
-        if not self.df_reader:
+        if not self.rdf:
             data = pd.DataFrame(frm, columns=self.XYZU)
             self.data = Frame(data.assign(**self.ELE_SZ_CLR), box=frm.box)
             return
 
-        elements = self.df_reader.elements
-        smap = {i: x for i, x in self.df_reader.pair_coeffs.dist.items()}
-        sizes = self.df_reader.atoms.type_id.map(smap).to_frame(name=self.SIZE)
-        uq_elements = set(self.df_reader.masses.element)
+        elements = self.rdf.elements
+        smap = {i: x for i, x in self.rdf.pair_coeffs.dist.items()}
+        sizes = self.rdf.atoms.type_id.map(smap).to_frame(name=self.SIZE)
+        uq_elements = set(self.rdf.masses.element)
         color_map = {x: table.TABLE.loc[x].cpk_color for x in uq_elements}
         colors = elements.element.map(color_map).to_frame(name=self.COLOR)
-        data = [self.df_reader.xyz, elements, sizes, colors]
-        self.data = Frame(pd.concat(data, axis=1), box=self.df_reader.box)
+        data = [self.rdf.xyz, elements, sizes, colors]
+        self.data = Frame(pd.concat(data, axis=1), box=self.rdf.box)
 
     def setElements(self):
         """
@@ -129,11 +129,11 @@ class FrameView:
 
         :return list of Scatter3d: the line traces to represent bonds.
         """
-        if self.df_reader is None:
+        if self.rdf is None:
             return []
 
         data = []
-        for _, _, atom_id1, atom_id2 in self.df_reader.bonds.itertuples():
+        for _, _, atom_id1, atom_id2 in self.rdf.bonds.itertuples():
             pnts = self.data.loc[[atom_id1, atom_id2]][self.XYZU]
             pnts = pd.concat([pnts, pnts.mean().to_frame().transpose()])
             data.append(self.getLine(pnts[::2], atom_id1))

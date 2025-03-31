@@ -887,7 +887,7 @@ class Struct(lmpatomic.Struct, In):
         :param options 'argparse.Namespace': parsed command line options.
         """
         super().__init__(struct=struct, **kwargs)
-        In.__init__(self, options=options, **kwargs)
+        In.__init__(self, options=options)
         self.atm_types = None
         self.bnd_types = None
         self.ang_types = None
