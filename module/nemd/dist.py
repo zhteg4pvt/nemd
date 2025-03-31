@@ -21,9 +21,10 @@ class Radius(np.ndarray):
 
     He: 1.4345 OPLSUA vs 1.40 https://en.wikipedia.org/wiki/Van_der_Waals_radius
     """
+    MIN_DIST = 1.4
 
     @methodtools.lru_cache()
-    def __new__(cls, *args, struct=None, num=1, scale=0.9, min_dist=1.4):
+    def __new__(cls, *args, struct=None, num=1, scale=0.9, min_dist=MIN_DIST):
         """
         :param struct `lmpatomic.Struct`: the structure
         :param num int: the total number of atoms.
@@ -41,6 +42,16 @@ class Radius(np.ndarray):
         obj = np.asarray(radii).view(cls)
         obj.map = struct.atoms.type_id.values if struct else np.zeros(num)
         return obj
+
+    def __array_wrap__(self, obj):
+        """
+        Return scalar when no shape.
+
+        https://stackoverflow.com/questions/19223926/numpy-ndarray-subclass-ufunc-dont-return-scalar-type
+
+        :return `Radius` or float: the wrapped array
+        """
+        return super().__array_wrap__(obj) if obj.shape else obj.item()
 
     def get(self, *args):
         """
@@ -91,15 +102,19 @@ class Cell(np.ndarray):
         """
         return (self.frm[gids] / self.grids).round().astype(int) % self.dims
 
-    def get(self, gid):
+    def get(self, gid, gt=False):
         """
         Get the global atom ids of neighbor (and self) cells.
 
-        :param gids list of int: the global atom ids
+        :param gid list of int: the global atom ids
+        :param gt bool: only include the global atom ids greater than the gid
         :return list of ints: the neighbor atom ids around the coordinates
         """
-        nbrs = self.nbrs[tuple(self.getCids(gid))]
-        return [y for x in nbrs for y in self[tuple(x)].nonzero()[0]]
+        cids = self.nbrs[tuple(self.getCids(gid))]
+        gids = [self[tuple(x)].nonzero()[0] for x in cids]
+        if gt:
+            gids = [x[x > gid] for x in gids]
+        return [y for x in gids for y in x]
 
     @methodtools.lru_cache()
     @classmethod
@@ -187,28 +202,28 @@ class Frame(frame.Base):
                  gids=None,
                  cut=None,
                  struct=None,
-                 search=None,
+                 srch=None,
                  **kwargs):
         """
         :param gids list: global atom ids to analyze
         :param cut float: the cutoff distance to search neighbors
         :param struct 'Struct' or 'Reader': radii and excluded pairs
-        :param search: whether to use distance cell to search neighbors
+        :param srch: whether to use distance cell to search neighbors
         """
         super().__init__(*args, **kwargs)
-        self.gids = numpyutils.IntArray(gids, mval=self.shape[0] - 1)
+        self.gids = numpyutils.IntArray(gids, shape=self.shape[0])
         self.cut = cut
         self.struct = struct
-        self.search = search
+        self.srch = srch
         self.cell = None
-        if search is False:
+        if srch is False:
             return
         if self.cut is None:
             self.cut = self.radii.max()
         # Distance > the 1/2 diagonal is not in the first image
         # cut > edge / 2 includes all cells in that direction
         self.cut = min(self.cut, self.box.span.max() / 2)
-        if search is None and not self.useCell(self.cut, self.box.span):
+        if srch is None and not self.useCell(self.cut, self.box.span):
             return
         self.cell = self.Cell(self)
         self.add(self.gids.values)
@@ -224,33 +239,50 @@ class Frame(frame.Base):
         """
         return np.prod(span) / np.power(cut, 3) > 1000
 
-    def getDists(self, grp, grps):
+    def getDists(self, grp, grps=None, gt=False):
         """
         Get the distances between atom pairs.
 
         :param grp list: atom global ids
         :param grps list of list: each sublist contains atom global ids to
             compute distances with each atom in grp.
-        return numpy.ndarray: pair distances.
+        :param gt bool: only include the global atom ids greater than the gid
+        :return numpy.ndarray: pair distances.
         """
-        if self.cell is not None:
-            grps = [self.cell.get(x) for x in grp]
-            grps = [[z for z in y if z > x] for x, y in zip(grp, grps)]
-        vecs = [self[x, :] - self[y, :] for x, y in zip(grps, grp)]
-        if not vecs:
-            return np.array([])
-        return np.concatenate([self.box.norms(x) for x in vecs])
+        if self.cell is not None and grps is None:
+            grps = [self.cell.get(x, gt=gt) for x in grp]
+        dists = [self.box.norms(self[x] - self[y]) for x, y in zip(grp, grps)]
+        return np.concatenate(dists) if dists else np.array([])
 
-    def getClashes(self, gids=None):
+    def getClashes(self, grp, grps=None, gt=False):
         """
         Get the clashes distances.
 
-        :param gids set: global atom ids for atom selection.
+        :param grp list: global atom ids.
+        :param grps list of list: each sublist contains atom global ids to
+            compute distances with each atom in grp.
+        :param gt bool: only include the global atom ids greater than the gid
         :return list of float: the clash distances
         """
-        if gids is None:
-            gids = self.gids.values
-        return [y for x in gids for y in self.getClash(x)]
+        clashes = [self.getClash(x, gt=gt) for x in grp] if grps is None else \
+            [self.getClash(x, grp=y, gt=gt) for x, y in zip(grp, grps)]
+        return [y for x in clashes for y in x]
+
+    def getClash(self, gid, grp=None, gt=False):
+        """
+        Get the clashes between xyz and atoms in the frame.
+
+        :param gid int: the global atom id
+        :param grps list: atom global ids to compute distances with gid
+        :param gt bool: only include the global atom ids greater than the gid
+        :return list of floats: clash distances between atom pairs
+        """
+        if self.cell is not None and grp is None:
+            grp = self.cell.get(gid, gt=gt)
+        gids = self.gids.difference(self.excluded[gid], on=grp)
+        dists = self.box.norms(self[gids, :] - self[gid, :])
+        thresholds = self.radii.get(gid, gids)
+        return dists[np.nonzero(dists < thresholds)]
 
     def hasClash(self, gids):
         """
@@ -265,21 +297,6 @@ class Frame(frame.Base):
         except StopIteration:
             return False
         return True
-
-    def getClash(self, gid):
-        """
-        Get the clashes between xyz and atoms in the frame.
-
-        :param gid int: the global atom id
-        :return list of floats: clash distances between atom pairs
-        """
-        nbrs = self.gids if self.cell is None else numpyutils.IntArray(
-            self.cell.get(gid), mval=self.shape[0] - 1)
-
-        nbrs = nbrs.difference(self.excluded[gid])
-        dists = self.box.norms(self[nbrs, :] - self[gid, :])
-        thresholds = self.radii.get(gid, nbrs)
-        return dists[np.nonzero(dists < thresholds)]
 
     @methodtools.lru_cache()
     @property

@@ -30,8 +30,8 @@ class Traj(logutils.Base):
         super().__init__(logger=logger)
         self.options = options
         self.traj = None
-        self.gids = None
         self.rdf = None
+        self.gids = None
 
     def run(self):
         """

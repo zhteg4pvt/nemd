@@ -264,7 +264,7 @@ class TrajBase(Base):
     def __init__(self, traj=None, gids=None, **kwargs):
         """
         :param traj `traj.Traj`: traj frames
-        :param gids list of int: global ids for the selected atom
+        :param gids list of int: global ids for the selected atoms
         """
         super().__init__(**kwargs)
         self.traj = traj
@@ -364,10 +364,24 @@ class Clash(TrajBase):
     UNIT = 'count'
     LABEL = f'{NAME.capitalize()} ({UNIT})'
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, cut=None, **kwargs):
+        """
+        :param cut float: the cut-off for neighbor searching
+        """
         super().__init__(*args, **kwargs)
-        self.grp = self.gids[:-1]
-        self.grps = [self.gids[i:] for i in range(1, len(self.gids))]
+        self.cut = cut
+        if self.cut is None:
+            self.cut = dist.Radius(struct=self.rdf).max()
+        self.srch = any(
+            dist.Frame.useCell(self.cut, x.box.span) for x in self.traj.sel)
+        if self.srch:
+            self.grp = self.gids
+            self.grps = None
+            return
+        # The largest gid is included in grps (direct or from distance cell)
+        gids = sorted(self.gids)
+        self.grp = gids[:-1]
+        self.grps = [gids[i:] for i in range(1, len(gids))]
 
     def setData(self):
         """
@@ -381,8 +395,12 @@ class Clash(TrajBase):
             return
         data = []
         for frm in self.traj:
-            frm = dist.Frame(frm, gids=self.gids, struct=self.rdf)
-            data.append(len(frm.getClashes()))
+            dfrm = dist.Frame(frm,
+                              gids=self.gids,
+                              struct=self.rdf,
+                              srch=self.srch)
+            clashes = dfrm.getClashes(self.grp, grps=self.grps, gt=True)
+            data.append(len(clashes))
         self.data = pd.DataFrame(data={self.LABEL: data}, index=self.traj.time)
 
 
@@ -398,13 +416,16 @@ class RDF(Clash):
     INDEX_LB = f'r ({symbols.ANGSTROM})'
     PROP_NAME = f'{NAME} peak'
     POS_NAME = f"{PROP_NAME} position ({symbols.ANGSTROM})"
+    CUT = symbols.DEFAULT_CUT
 
-    def setData(self, res=0.02, cut=symbols.DEFAULT_CUT):
+    def __init__(self,*args, cut=symbols.DEFAULT_CUT, **kwargs):
+        super().__init__(*args, cut=cut, **kwargs)
+
+    def setData(self, res=0.02):
         """
         Set the radial distribution function.
 
         :param res float: the rdf minimum step size.
-        :param cut float: the cut off for neighbor search
         """
         if self.data is not None:
             return
@@ -417,9 +438,9 @@ class RDF(Clash):
         vol = span.prod(axis=1)
         self.log(f'The volume fluctuates: [{vol.min():.2f} {vol.max():.2f}] '
                  f'{symbols.ANGSTROM}^3')
-        use_cell = any(dist.Frame.useCell(cut, x) for x in span)
+
         # edge / 2 sets the maximum distance in that direction
-        max_dist = min(span.min() / 2, cut if use_cell else np.inf)
+        max_dist = min(span.min() / 2, self.cut if self.srch else np.inf)
         res = min(res, max_dist / 100)
         bins = round(max_dist / res)
         hist_range = [res / 2, res * bins + res / 2]
@@ -427,8 +448,11 @@ class RDF(Clash):
         tenth, threshold, = len(self.traj.sel) / 10., 0
         for idx, frm in enumerate(self.traj.sel, start=1):
             self.debug(f"Analyzing frame {idx} for RDF...")
-            dists = dist.Frame(frm, gids=self.gids,
-                               cut=cut).getDists(self.grp, self.grps)
+            dfrm = dist.Frame(frm,
+                              gids=self.gids,
+                              cut=self.cut,
+                              srch=self.srch)
+            dists = dfrm.getDists(grp=self.grp, grps=self.grps, gt=True)
             hist, edge = np.histogram(dists, range=hist_range, bins=bins)
             mid = np.array([x for x in zip(edge[:-1], edge[1:])]).mean(axis=1)
             # 4pi*r^2*dr*rho from Radial distribution function - Wikipedia

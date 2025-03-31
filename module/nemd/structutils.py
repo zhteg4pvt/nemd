@@ -320,7 +320,7 @@ class GrownConf(PackedConf):
         grp = self.id_map[self.init_aids]
         other = list(self.mol.struct.dist.gids.difference(grp))
         grps = [other for _ in grp]
-        min_dist = self.mol.struct.dist.getDists(grp, grps).min()
+        min_dist = self.mol.struct.dist.getDists(grp, grps=grps).min()
         logger.debug(f"Relocate the initiator of {self.gid} conformer "
                      f"(initiator: {idists.min():.2f}-{idists.max():.2f}; "
                      f"close contact: {min_dist:.2f}) ")
@@ -847,7 +847,7 @@ class Frame(dist.Frame):
         for idx in range(1, len(init_gids)):
             grp = init_gids[idx]
             grps = [list(itertools.chain(*init_gids[:idx]))]
-            dat.append(self.getDists(grp, grps))
+            dat.append(self.getDists(grp, grps=grps))
         return np.concatenate(dat)
 
     def getVoid(self):

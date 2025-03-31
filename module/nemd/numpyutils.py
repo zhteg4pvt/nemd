@@ -11,14 +11,16 @@ class IntArray(np.ndarray):
     Integers represented by the on values of a bool numpy.ndarray.
     """
 
-    def __new__(cls, values=None, mval=None):
+    def __new__(cls, values=None, mval=None, shape=None):
         """
         :param values list: the int array values
         :param mval int: The maximum value of the bit array.
         """
-        if mval is None:
-            mval = max(values) if len(values) else -1
-        array = np.zeros(mval + 1, dtype=bool)
+        if shape is None:
+            if mval is None:
+                mval = max(values) if len(values) else -1
+            shape = mval + 1
+        array = np.zeros(shape, dtype=bool)
         if values is not None and len(values):
             array[values] = True
         return np.asarray(array).view(cls)
@@ -44,13 +46,15 @@ class IntArray(np.ndarray):
         except KeyError:
             raise KeyError(f"{values} not in {self.values}")
 
-    def difference(self, other):
+    def difference(self, other, on=None):
         """
         Get the values that are on but not in the other array.
 
         :param other np.ndarray: another other array
         :return list of int: the difference
         """
-        copied = self.copy()
+        copied = self.copy() if on is None else IntArray(shape=self.shape)
+        if on is not None:
+            copied[on] = True
         copied[other] = False
         return copied.values
