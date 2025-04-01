@@ -79,8 +79,8 @@ class Cell(np.ndarray):
         obj.frm = frm
         obj.dims = np.array(dims)
         obj.grids = frm.box.span / dims
-        obj.nbrs = cls.getNbrs(dims,
-                               *[math.floor(x / frm.cut) for x in obj.grids])
+        nums = tuple(math.floor(x / frm.cut) for x in obj.grids)
+        obj.nbrs = cls.getNbrs(nums, dims)
         return obj
 
     def set(self, gids, state=True):
@@ -118,16 +118,16 @@ class Cell(np.ndarray):
 
     @methodtools.lru_cache()
     @classmethod
-    def getNbrs(cls, dims, *nums):
+    def getNbrs(cls, nums, dims):
         """
         The neighbor cells ids of all cells.
 
-        :param dims: number of grids per dimension
         :param nums: number of cutoffs per grid
+        :param dims: number of grids per dimension
         :return 3x3x3xNx3 numpy.ndarray: the query cell id is 3x3x3 tuple, and
             the return neighbor cell ids are Nx3 numpy.ndarray.
         """
-        orig = cls.getOrigNbrs(dims, nums)
+        orig = cls.getOrigNbrs(nums, dims)
         nbrs = np.zeros((*dims, *orig.shape), dtype=int)
         for cid in itertools.product(*[range(x) for x in dims]):
             nbrs[cid] = (orig + cid) % dims
@@ -135,12 +135,12 @@ class Cell(np.ndarray):
 
     @methodtools.lru_cache()
     @classmethod
-    def getOrigNbrs(cls, dims, nums):
+    def getOrigNbrs(cls, nums, dims):
         """
         The neighbor cells of the (0,0,0) cell without considering the PBC.
 
-        :param dims numpy.ndarray: the number of cells in three dimensions
         :param nums: number of cutoffs per grid
+        :param dims numpy.ndarray: the number of cells in three dimensions
         :return nx3 numpy.ndarray: the neighbor cell ids.
         """
         signs = list(itertools.product((-1, 1), (-1, 1), (-1, 1)))
@@ -177,11 +177,11 @@ class CellNumba(Cell):
 
     @methodtools.lru_cache()
     @classmethod
-    def getNbrs(cls, dims, *nums):
+    def getNbrs(cls, nums, dims):
         """
         See the parent.
         """
-        return numbautils.get_nbrs(np.array(dims), cls.getOrigNbrs(dims, nums))
+        return numbautils.get_nbrs(cls.getOrigNbrs(nums, dims), np.array(dims))
 
 
 class Frame(frame.Base):
