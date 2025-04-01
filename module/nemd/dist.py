@@ -74,14 +74,26 @@ class Cell(np.ndarray):
         """
         :param frm 'Frame': the distance frame
         """
-        dims = tuple(min(math.floor(x / frm.cut), 20) for x in frm.box.span)
+        dims = cls.getShape(frm.box.span, frm.cut, upper=20)
         obj = np.zeros([*dims, frm.shape[0]], dtype=bool).view(cls)
         obj.frm = frm
         obj.dims = np.array(dims)
         obj.grids = frm.box.span / dims
-        nums = tuple(math.floor(x / frm.cut) for x in obj.grids)
-        obj.nbrs = cls.getNbrs(nums, dims)
+        obj.nbrs = cls.getNbrs(cls.getShape(obj.grids, frm.cut), dims)
         return obj
+
+    @staticmethod
+    def getShape(data, cut, upper=None):
+        """
+        Get the shape of the data with respect to the frame cut-off.
+
+        :param data iterable: calcualte the shape of this data
+        :param cut float: the cut off
+        :param upper int: the upper limit of the shape
+        :return tuple: data shape
+        """
+        shape = tuple(math.floor(x / cut) for x in data)
+        return tuple(min(x, upper) for x in shape) if upper else shape
 
     def set(self, gids, state=True):
         """
@@ -118,16 +130,16 @@ class Cell(np.ndarray):
 
     @methodtools.lru_cache()
     @classmethod
-    def getNbrs(cls, nums, dims):
+    def getNbrs(cls, shape, dims):
         """
         The neighbor cells ids of all cells.
 
-        :param nums: number of cutoffs per grid
-        :param dims: number of grids per dimension
+        :param shape tuple: grid shape (number of cutoffs per grid)
+        :param dims tuple: dimension shape (number of grids per dimension)
         :return 3x3x3xNx3 numpy.ndarray: the query cell id is 3x3x3 tuple, and
             the return neighbor cell ids are Nx3 numpy.ndarray.
         """
-        orig = cls.getOrigNbrs(nums, dims)
+        orig = cls.getOrigNbrs(shape, dims)
         nbrs = np.zeros((*dims, *orig.shape), dtype=int)
         for cid in itertools.product(*[range(x) for x in dims]):
             nbrs[cid] = (orig + cid) % dims
@@ -135,18 +147,18 @@ class Cell(np.ndarray):
 
     @methodtools.lru_cache()
     @classmethod
-    def getOrigNbrs(cls, nums, dims):
+    def getOrigNbrs(cls, shape, dims):
         """
         The neighbor cells of the (0,0,0) cell without considering the PBC.
 
-        :param nums: number of cutoffs per grid
-        :param dims numpy.ndarray: the number of cells in three dimensions
+        :param shape tuple: grid shape (number of cutoffs per grid)
+        :param dims tuple: dimension shape (number of grids per dimension)
         :return nx3 numpy.ndarray: the neighbor cell ids.
         """
         signs = list(itertools.product((-1, 1), (-1, 1), (-1, 1)))
         # Neighbors are cells separation distance <= the cutoff. Adjacent cells
         # are 0 distance separated, and one cell may contain multiple atoms.
-        ijks = list(itertools.product(*[range(x + 1) for x in nums]))
+        ijks = list(itertools.product(*[range(x + 1) for x in shape]))
         nbrs = np.prod(list(itertools.product(signs, ijks)), axis=1)
         nbrs = np.unique(nbrs, axis=0)
         # Unique neighbor cell ids
@@ -177,11 +189,12 @@ class CellNumba(Cell):
 
     @methodtools.lru_cache()
     @classmethod
-    def getNbrs(cls, nums, dims):
+    def getNbrs(cls, shape, dims):
         """
         See the parent.
         """
-        return numbautils.get_nbrs(cls.getOrigNbrs(nums, dims), np.array(dims))
+        return numbautils.get_nbrs(cls.getOrigNbrs(shape, dims),
+                                   np.array(dims))
 
 
 class Frame(frame.Base):
@@ -209,28 +222,38 @@ class Frame(frame.Base):
         self.struct = struct
         self.srch = srch
         self.cell = None
-        if srch is False:
-            return
         if self.cut is None:
             self.cut = self.radii.max()
+        if srch is False or self.box is None:
+            return
         # Distance > the 1/2 diagonal is not in the first image
         # cut > edge / 2 includes all cells in that direction
         self.cut = min(self.cut, self.box.span.max() / 2)
-        if srch is None and not self.useCell(self.cut, self.box.span):
+        if srch is None and not self.useCell(self.box.span, self.cut):
             return
         self.cell = self.Cell(self)
         self.add(self.gids.values)
 
+    @methodtools.lru_cache()
+    @property
+    def radii(self):
+        """
+        Get the radii.
+
+        :return `Radius`: the radii
+        """
+        return Radius(struct=self.struct, num=self.shape[0])
+
     @staticmethod
-    def useCell(cut, span):
+    def useCell(span, cut):
         """
         Whether to use the distance cell.
 
-        :param cut float: the cut off
         :param span np.ndarray: the box span
+        :param cut float: the cut-off
         :return bool: whether to use the distance cell.
         """
-        return np.prod(span) / np.power(cut, 3) > 1000
+        return np.prod(span) / np.power(cut, 3) >= 1000
 
     def getDists(self, grp, grps=None, gt=False):
         """
@@ -239,7 +262,7 @@ class Frame(frame.Base):
         :param grp list: atom global ids
         :param grps list of list: each sublist contains atom global ids to
             compute distances with each atom in grp.
-        :param gt bool: only include the global atom ids greater than the gid
+        :param gt bool: grps only include the gids greater than the current gid
         :return numpy.ndarray: pair distances.
         """
         if self.cell is not None and grps is None:
@@ -254,7 +277,7 @@ class Frame(frame.Base):
         :param grp list: global atom ids.
         :param grps list of list: each sublist contains atom global ids to
             compute distances with each atom in grp.
-        :param gt bool: only include the global atom ids greater than the gid
+        :param gt bool: grps only include the gids greater than the current gid
         :return list of float: the clash distances
         """
         clashes = [self.getClash(x, gt=gt) for x in grp] if grps is None else \
@@ -290,16 +313,6 @@ class Frame(frame.Base):
         except StopIteration:
             return False
         return True
-
-    @methodtools.lru_cache()
-    @property
-    def radii(self):
-        """
-        Get the radii.
-
-        :return `Radius`: the radii
-        """
-        return Radius(struct=self.struct, num=self.shape[0])
 
     @methodtools.lru_cache()
     @property

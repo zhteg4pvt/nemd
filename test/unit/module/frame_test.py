@@ -23,13 +23,13 @@ class TestBase:
 
 class TestFrame:
 
-    AR_READER = lmpfull.Reader(envutils.test_data('ar', 'ar100.data'))
-    TWO_FRAMES = envutils.test_data('ar', 'two_frames.custom')
+    AR_RDR = lmpfull.Reader(envutils.test_data('ar', 'ar100.data'))
+    TWO_FRMS = envutils.test_data('ar', 'two_frames.custom')
     BROKEN_HEADER = envutils.test_data('ar', 'broken_header.custom')
     BROKEN_ATOMS = envutils.test_data('ar', 'broken_atoms.custom')
     HEX = envutils.test_data('hexane_liquid')
-    HEXANE_READER = lmpfull.Reader(os.path.join(HEX, 'polymer_builder.data'))
-    HEXANE_FRAME = os.path.join(HEX, 'dump.custom')
+    HEXANE_RDR = lmpfull.Reader(os.path.join(HEX, 'polymer_builder.data'))
+    HEXANE_FRM = os.path.join(HEX, 'dump.custom')
 
     @pytest.mark.parametrize('data,step,expected',
                              [(None, None, [(0, ), None]),
@@ -40,7 +40,7 @@ class TestFrame:
         assert expected == [frm.shape, frm.step]
 
     @pytest.mark.parametrize('file,start,expected',
-                             [(TWO_FRAMES, 0, True), (TWO_FRAMES, 1, False),
+                             [(TWO_FRMS, 0, True), (TWO_FRMS, 1, False),
                               (BROKEN_HEADER, 0, EOFError),
                               (BROKEN_ATOMS, 1, EOFError)])
     def testRead(self, file, start, expected, raises):
@@ -55,12 +55,12 @@ class TestFrame:
         assert 1000 == frms[1].step
         assert 100 == frms[1].shape[0]
 
-    @pytest.mark.parametrize('file', [TWO_FRAMES])
+    @pytest.mark.parametrize('file', [TWO_FRMS])
     def testGetCopy(self, frm):
         copied = frm.getCopy()
         assert hasattr(copied, 'box')
 
-    @pytest.mark.parametrize('file,dreader', [(HEXANE_FRAME, HEXANE_READER)])
+    @pytest.mark.parametrize('file,dreader', [(HEXANE_FRM, HEXANE_RDR)])
     @pytest.mark.parametrize('broken_bonds,expected', [(True, 0.0002537),
                                                        (False, -2.25869)])
     def testWrap(self, frm, broken_bonds, dreader, expected):
@@ -79,17 +79,16 @@ class TestFrame:
         inbox = (centers.max(axis=0) - centers.min(axis=0)) < frm.box.span
         assert inbox.all()
 
-    @pytest.mark.parametrize('file', [HEXANE_FRAME])
+    @pytest.mark.parametrize('file', [HEXANE_FRM])
     @pytest.mark.parametrize('expected', [-40.274934])
     def testCenter(self, frm, expected):
         frm.center()
         np.testing.assert_almost_equal(frm.min(), expected)
 
-    @pytest.mark.parametrize('file', [TWO_FRAMES])
-    @pytest.mark.parametrize(
-        'dreader,visible,points,expected',
-        [(None, [3, 4], None, [4, 'X', 'X']),
-         (AR_READER, None, [[1, 2, 3]], [103, 'Ar', 'X'])])
+    @pytest.mark.parametrize('file', [TWO_FRMS])
+    @pytest.mark.parametrize('dreader,visible,points,expected',
+                             [(None, [3, 4], None, [4, 'X', 'X']),
+                              (AR_RDR, None, [[1, 2, 3]], [103, 'Ar', 'X'])])
     def testWrite(self, frm, dreader, visible, points, expected, tmp_dir):
         with open('file', 'w') as fh:
             frm.write(fh, dreader=dreader, visible=visible, points=points)

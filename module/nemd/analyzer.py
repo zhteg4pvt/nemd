@@ -373,7 +373,7 @@ class Clash(TrajBase):
         if self.cut is None:
             self.cut = dist.Radius(struct=self.rdf).max()
         self.srch = any(
-            dist.Frame.useCell(self.cut, x.box.span) for x in self.traj.sel)
+            dist.Frame.useCell(x.box.span, self.cut) for x in self.traj.sel)
         if self.srch:
             self.grp = self.gids
             self.grps = None

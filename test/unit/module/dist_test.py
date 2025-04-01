@@ -1,4 +1,3 @@
-import math
 import os
 
 import numpy as np
@@ -61,6 +60,12 @@ class TestCell:
         assert expected == cell.shape
         np.testing.assert_almost_equal(span, cell.grids * cell.shape[:-1])
 
+    @pytest.mark.parametrize('data,cut,upper,expected',
+                             [([10, 20, 5], 0.3, None, (33, 66, 16)),
+                              ([10, 20, 5], 0.3, 20, (20, 20, 16))])
+    def testGetShape(self, data, cut, upper, expected):
+        assert expected == dist.Cell.getShape(data, cut, upper=upper)
+
     @pytest.mark.parametrize('xyzs,span,cut', [([[1, 4, 1]], [10, 9, 11], 2)])
     @pytest.mark.parametrize('gids', [0, [0]])
     def testSet(self, cell, gids, span):
@@ -88,19 +93,19 @@ class TestCell:
         cell.set(gids)
         assert expected == cell.get(gid, gt=gt)
 
-    @pytest.mark.parametrize('dims,nums,expected',
+    @pytest.mark.parametrize('dims,shape,expected',
                              [((2, 3, 4), (1, 1, 1), 18),
                               ((4, 3, 1), (2, 2, 2), 12)])
-    def testGetNbrs(self, dims, nums, expected):
-        nx, ny, nz, num, _ = dist.Cell.getNbrs(dims, *nums).shape
+    def testGetNbrs(self, dims, shape, expected):
+        nx, ny, nz, num, _ = dist.Cell.getNbrs(shape, dims).shape
         assert expected == num
         assert dims == (nx, ny, nz)
 
-    @pytest.mark.parametrize('dims,nums,expected',
+    @pytest.mark.parametrize('dims,shape,expected',
                              [((2, 3, 4), (1, 1, 1), 18),
                               ((4, 3, 1), (2, 2, 2), 12)])
-    def testGetOrigNbrs(self, dims, nums, expected):
-        assert expected == dist.Cell.getOrigNbrs(dims, nums).shape[0]
+    def testGetOrigNbrs(self, dims, shape, expected):
+        assert expected == dist.Cell.getOrigNbrs(shape, dims).shape[0]
 
     @pytest.mark.parametrize('span,cut', [([10, 9, 11], 2)])
     @pytest.mark.parametrize('xyzs',
@@ -143,18 +148,50 @@ class TestCellNumba:
         cell.set(gids)
         assert expected == cell.get(gid, gt=gt)
 
-    @pytest.mark.parametrize('dims,nums,expected',
+    @pytest.mark.parametrize('dims,shape,expected',
                              [((2, 3, 4), (1, 1, 1), 18),
                               ((4, 3, 1), (2, 2, 2), 12)])
-    def testGetNbrs(self, dims, nums, expected):
-        nx, ny, nz, num, _ = dist.Cell.getNbrs(dims, *nums).shape
+    def testGetNbrs(self, dims, shape, expected):
+        nx, ny, nz, num, _ = dist.Cell.getNbrs(shape, dims).shape
         assert expected == num
         assert dims == (nx, ny, nz)
 
-    # @pytest.mark.parametrize('file', [HEXANE_FRAME])
-    # @pytest.mark.parametrize('grp,grps', [(None, None), ([0, 1], None),
-    #                                       ([0], [[1]])])
-    # def testPairDists(self, frm, grp, grps):
-    #     dists = frm.getDists(grp=grp, grps=grps)
-    #     breakpoint()
-    #     # np.testing.assert_almost_equal(dists, expected)
+
+class TestFrame:
+
+    HEX = envutils.test_data('hexane_liquid')
+    RDR = lmpfull.Reader(os.path.join(HEX, 'polymer_builder.data'))
+    FRM = os.path.join(HEX, 'dump.custom')
+
+    @pytest.fixture
+    def fr(self, frm, gids, cut, struct, srch):
+        return dist.Frame(frm, gids=gids, cut=cut, struct=struct, srch=srch)
+
+    @pytest.mark.parametrize('file', [FRM])
+    @pytest.mark.parametrize('gids,cut,struct,srch,expected',
+                             [([1, 2], 1000, None, None, (2, 23.92, False)),
+                              (None, 1000, None, False, (0, 1000, False)),
+                              (None, 1000, None, True, (0, 23.92, True)),
+                              (None, None, RDR, None, (0, 1.97, True))])
+    def testInit(self, fr, expected):
+        assert expected[0] == len(fr.gids.values)
+        np.testing.assert_almost_equal(fr.cut, expected[1], decimal=2)
+        assert expected[2] == (fr.cell is not None)
+
+    @pytest.mark.parametrize('file,gids,cut,srch', [(FRM, None, None, None)])
+    @pytest.mark.parametrize('struct,expected', [(None, 1.4), (RDR, 1.97)])
+    def testRadii(self, fr, expected):
+        np.testing.assert_almost_equal(fr.radii.max(), expected, decimal=2)
+
+    @pytest.mark.parametrize('span,cut,expected', [([10, 10, 10], 1, True),
+                                                   ([10, 10, 9], 1, False)])
+    def testUseCell(self, span, cut, expected):
+        assert expected == dist.Frame.useCell(span, cut)
+
+    @pytest.mark.parametrize('file,gids,cut,struct,srch', [(FRM, None, None, None, None)])
+    @pytest.mark.parametrize('grp,grps', [(None, None), ([0, 1], None),
+                                          ([0], [[1]])])
+    def testGetDists(self, fr, grp, grps):
+        dists = fr.getDists(grp, grps=grps)
+        breakpoint()
+        # np.testing.assert_almost_equal(dists, expected)
