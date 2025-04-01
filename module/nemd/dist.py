@@ -114,7 +114,7 @@ class Cell(np.ndarray):
         """
         return (self.frm[gids] / self.grids).round().astype(int) % self.dims
 
-    def get(self, gid, gt=False):
+    def get(self, gid, less=False):
         """
         Get the global atom ids of neighbor (and self) cells.
 
@@ -124,8 +124,8 @@ class Cell(np.ndarray):
         """
         cids = self.nbrs[tuple(self.getCids(gid))]
         gids = [self[tuple(x)].nonzero()[0] for x in cids]
-        if gt:
-            gids = [x[x > gid] for x in gids]
+        if less:
+            gids = [x[x < gid] for x in gids]
         return [y for x in gids for y in x]
 
     @methodtools.lru_cache()
@@ -255,46 +255,59 @@ class Frame(frame.Base):
         """
         return np.prod(span) / np.power(cut, 3) >= 1000
 
-    def getDists(self, grp, grps=None, gt=False):
+    def getDists(self, grp, grps=None, less=True):
         """
         Get the distances between atom pairs.
 
         :param grp list: atom global ids
-        :param grps list of list: each sublist contains atom global ids to
-            compute distances with each atom in grp.
-        :param gt bool: grps only include the gids greater than the current gid
+        :param grps list: atom global ids to compute distances with grp
+        :param less bool: grps only include the gids less than the current gid
         :return numpy.ndarray: pair distances.
         """
-        if self.cell is not None and grps is None:
-            grps = [self.cell.get(x, gt=gt) for x in grp]
+        if grps is None:
+            grps = (self.getGrp(x, less=less) for x in grp)
         dists = [self.box.norms(self[x] - self[y]) for x, y in zip(grp, grps)]
         return np.concatenate(dists) if dists else np.array([])
 
-    def getClashes(self, grp, grps=None, gt=False):
+    def getGrp(self, gid, less=True):
+        """
+        Get the global atom id group.
+
+        :param gid int: the global atom id
+        :param less bool: only include the gids less than the current gid
+        :return list of floats: global atom id group
+        """
+        if self.cell is not None:
+            return self.cell.get(gid, less=less)
+        return self.gids.less(gid) if less else self.gids.values
+
+    def getClashes(self, grp, grps=None, less=True):
         """
         Get the clashes distances.
 
         :param grp list: global atom ids.
-        :param grps list of list: each sublist contains atom global ids to
-            compute distances with each atom in grp.
-        :param gt bool: grps only include the gids greater than the current gid
+        :param grps list: atom global ids to compute clashes with grp
+        :param less bool: grps only include the gids less than the current gid
         :return list of float: the clash distances
         """
-        clashes = [self.getClash(x, gt=gt) for x in grp] if grps is None else \
-            [self.getClash(x, grp=y, gt=gt) for x, y in zip(grp, grps)]
+        if grps is None:
+            grps = (self.getGrp(x, less=less) for x in grp)
+        clashes = [
+            self.getClash(x, grp=y, less=less) for x, y in zip(grp, grps)
+        ]
         return [y for x in clashes for y in x]
 
-    def getClash(self, gid, grp=None, gt=False):
+    def getClash(self, gid, grp=None, less=False):
         """
         Get the clashes between xyz and atoms in the frame.
 
         :param gid int: the global atom id
-        :param grps list: atom global ids to compute distances with gid
-        :param gt bool: only include the global atom ids greater than the gid
-        :return list of floats: clash distances between atom pairs
+        :param grps list: atom global ids to compute clashes with gid
+        :param less bool: grps only include the gids less than the current gid
+        :return list of floats: the clash distances
         """
-        if self.cell is not None and grp is None:
-            grp = self.cell.get(gid, gt=gt)
+        if grp is None:
+            grp = self.getGrp(gid, less=less)
         gids = self.gids.difference(self.excluded[gid], on=grp)
         dists = self.box.norms(self[gids, :] - self[gid, :])
         thresholds = self.radii.get(gid, gids)
@@ -304,7 +317,7 @@ class Frame(frame.Base):
         """
         Whether the selected atoms have clashes.
 
-        :param gids set: global atom ids for atom selection.
+        :param gids list: global atom ids for atom selection.
         :return bool: whether the selected atoms have clashes.
         """
         dists = (self.getClash(x) for x in gids)

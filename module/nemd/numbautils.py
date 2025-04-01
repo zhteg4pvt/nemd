@@ -86,7 +86,7 @@ def set(cell, grids, dims, xyzs, gids, state=True):
 
 
 @jit
-def get(cell, grids, dims, xyzs, nbrs, gid, gt=False):
+def get(cell, grids, dims, xyzs, nbrs, gid, less=False):
     """
     Get the neighbor atom ids from the neighbor cells (including the current
     cell itself) via Numba.
@@ -97,15 +97,15 @@ def get(cell, grids, dims, xyzs, nbrs, gid, gt=False):
     :param xyzs nx3 'numpy.ndarray': the coordinates
     :param nbr ixjxkxnx3 'numpy.ndarray': map from cell id to neighbor ids
     :param gid int: the global atom id
-    :param gt bool: only include the global atom ids greater than the gid
+    :param less bool: grps only include the gids less than the current gid
     :return list of int: the atom ids of the neighbor atoms
     """
     cid = get_ids(grids, dims, xyzs, gid)
     cids = nbrs[cid[0], cid[1], cid[2], :]
     # The atom ids from all neighbor cells
     gids = [cell[x[0], x[1], x[2], :].nonzero()[0] for x in cids]
-    if gt:
-        gids = [x[x > gid] for x in gids]
+    if less:
+        gids = [x[x < gid] for x in gids]
     return [y for x in gids for y in x]
 
 

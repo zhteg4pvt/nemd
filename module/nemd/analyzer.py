@@ -378,10 +378,10 @@ class Clash(TrajBase):
             self.grp = self.gids
             self.grps = None
             return
-        # The largest gid is included in grps (direct or from distance cell)
+        # The smallest gid is included in grps (direct or from distance cell)
         gids = sorted(self.gids)
-        self.grp = gids[:-1]
-        self.grps = [gids[i:] for i in range(1, len(gids))]
+        self.grp = gids[1:]
+        self.grps = [gids[:i] for i in range(1, len(gids))]
 
     def setData(self):
         """
@@ -399,7 +399,7 @@ class Clash(TrajBase):
                               gids=self.gids,
                               struct=self.rdf,
                               srch=self.srch)
-            clashes = dfrm.getClashes(self.grp, grps=self.grps, gt=True)
+            clashes = dfrm.getClashes(self.grp, grps=self.grps)
             data.append(len(clashes))
         self.data = pd.DataFrame(data={self.LABEL: data}, index=self.traj.time)
 
@@ -452,7 +452,7 @@ class RDF(Clash):
                               gids=self.gids,
                               cut=self.cut,
                               srch=self.srch)
-            dists = dfrm.getDists(grp=self.grp, grps=self.grps, gt=True)
+            dists = dfrm.getDists(grp=self.grp, grps=self.grps)
             hist, edge = np.histogram(dists, range=hist_range, bins=bins)
             mid = np.array([x for x in zip(edge[:-1], edge[1:])]).mean(axis=1)
             # 4pi*r^2*dr*rho from Radial distribution function - Wikipedia

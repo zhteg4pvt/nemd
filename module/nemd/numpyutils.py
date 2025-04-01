@@ -53,8 +53,18 @@ class IntArray(np.ndarray):
         :param other np.ndarray: another other array
         :return list of int: the difference
         """
-        copied = self.copy() if on is None else IntArray(shape=self.shape)
-        if on is not None:
-            copied[on] = True
+        copied = self.copy() if on is None else IntArray(values=on,
+                                                         shape=self.shape)
         copied[other] = False
+        return copied.values
+
+    def less(self, value):
+        """
+        Get the values that are less than the input.
+
+        :param value np.ndarray: values less than this one are returned
+        :return list of int: the less than values
+        """
+        copied = self.copy()
+        copied[value:] = False
         return copied.values
