@@ -49,7 +49,7 @@ class Radius(np.ndarray):
 
         https://stackoverflow.com/questions/19223926/numpy-ndarray-subclass-ufunc-dont-return-scalar-type
 
-        :return `Radius` or float: the wrapped array
+        :return `Radius` or float: the wrapped
         """
         return super().__array_wrap__(obj) if obj.shape else obj.item()
 
@@ -57,7 +57,7 @@ class Radius(np.ndarray):
         """
         Get radius of atom pairs.
 
-        :param args tuple of int, list, np.ndarray: the global atom ids
+        :param args iterable of int: the global atom ids
         :return np.ndarray: the radii of the atom pair(s)
         """
         return self[tuple(self.map[x] for x in args)]
@@ -80,7 +80,7 @@ class Cell(np.ndarray):
         obj.dims = np.array(dims)
         obj.grids = frm.box.span / dims
         obj.nbrs = cls.getNbrs(dims,
-                               *np.floor(obj.grids / frm.cut).astype(int))
+                               *[math.floor(x / frm.cut) for x in obj.grids])
         return obj
 
     def set(self, gids, state=True):
@@ -127,47 +127,40 @@ class Cell(np.ndarray):
         :return 3x3x3xNx3 numpy.ndarray: the query cell id is 3x3x3 tuple, and
             the return neighbor cell ids are Nx3 numpy.ndarray.
         """
-        nbr = cls.getNbr(nums, dims)
-        nbrs = np.zeros((*dims, *nbr.shape), dtype=int)
-        cids = list(itertools.product(*[range(x) for x in dims]))
-        for cid in cids:
-            nbrs[cid] = (nbr + cid) % dims
-        # Duplicated due to PBCs
-        uniques = [np.unique(nbrs[x], axis=0) for x in cids]
-        shape = np.array([x.shape for x in uniques]).max(axis=0)
-        nbrs = np.zeros((*dims, *shape), dtype=int)
-        for cid, unique in zip(cids, uniques):
-            nbrs[cid] = unique
+        orig = cls.getOrigNbrs(dims, nums)
+        nbrs = np.zeros((*dims, *orig.shape), dtype=int)
+        for cid in itertools.product(*[range(x) for x in dims]):
+            nbrs[cid] = (orig + cid) % dims
         return nbrs
 
     @methodtools.lru_cache()
     @classmethod
-    def getNbr(cls, nums, dims):
+    def getOrigNbrs(cls, dims, nums):
         """
         The neighbor cells of the (0,0,0) cell without considering the PBC.
 
-        :param nums: number of cutoffs per grid
         :param dims numpy.ndarray: the number of cells in three dimensions
+        :param nums: number of cutoffs per grid
         :return nx3 numpy.ndarray: the neighbor cell ids.
         """
-        signs = itertools.product((-1, 1), (-1, 1), (-1, 1))
-        signs = [np.array(x) for x in signs]
+        signs = list(itertools.product((-1, 1), (-1, 1), (-1, 1)))
         # Neighbors are cells separation distance <= the cutoff. Adjacent cells
         # are 0 distance separated, and one cell may contain multiple atoms.
         ijks = list(itertools.product(*[range(x + 1) for x in nums]))
-        nbr = np.prod(list(itertools.product(signs, ijks)), axis=1)
-        nbr = np.unique(nbr, axis=0)
+        nbrs = np.prod(list(itertools.product(signs, ijks)), axis=1)
+        nbrs = np.unique(nbrs, axis=0)
         # Unique neighbor cell ids
-        min_cid = np.min(nbr)
-        shifted = nbr - min_cid
-        wrapped = shifted % dims
-        uids = np.zeros([np.max(wrapped) + 1] * 3, dtype=bool)
-        for cid in wrapped:
-            uids[tuple(cid)] = True
-        return np.array([x for x in uids.nonzero()]).T + min_cid
+        min_cid = np.min(nbrs, axis=0)
+        wrapped = (nbrs - min_cid) % dims
+        cids = np.zeros([np.max(wrapped) + 1] * 3, dtype=bool)
+        cids[tuple(wrapped.transpose())] = True
+        return np.array(cids.nonzero()).T + min_cid
 
 
 class CellNumba(Cell):
+    """
+    See the parent. (accelerated by numba)
+    """
 
     def set(self, *args, **kwargs):
         """
@@ -188,7 +181,7 @@ class CellNumba(Cell):
         """
         See the parent.
         """
-        return numbautils.get_nbrs(np.array(dims), cls.getNbr(nums, dims))
+        return numbautils.get_nbrs(np.array(dims), cls.getOrigNbrs(dims, nums))
 
 
 class Frame(frame.Base):

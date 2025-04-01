@@ -110,19 +110,17 @@ def get(cell, grids, dims, xyzs, nbrs, gid, gt=False):
 
 
 @jit
-def get_nbrs(dims, nbr):
+def get_nbrs(dims, orig):
     """
     Get map from any cell id to neighbor ids.
 
     :param dims numpy.ndarray: the number of cells in three dimensions
-    :param nbr numpy.ndarray: Neighbors cells of the (0,0,0) cell
+    :param orig numpy.ndarray: Neighbors cells of the (0,0,0) cell
     :return numpy.ndarray: map from any cell id to neighbor ids
     """
-    shape = (dims[0], dims[1], dims[2], *nbr.shape)
-    nbrs = np.zeros(shape, dtype=np.int32)
-    for xid in numba.prange(dims[0]):
-        for yid in numba.prange(dims[1]):
-            for zid in numba.prange(dims[2]):
-                idx = np.array([xid, yid, zid])
-                nbrs[xid, yid, zid, :, :] = (nbr + idx) % dims
+    nbrs = np.zeros((dims[0], dims[1], dims[2], *orig.shape), dtype=np.int32)
+    for ix in numba.prange(dims[0]):
+        for iy in numba.prange(dims[1]):
+            for iz in numba.prange(dims[2]):
+                nbrs[ix, iy, iz, :, :] = (orig + np.array([ix, iy, iz])) % dims
     return nbrs

@@ -418,7 +418,7 @@ class RDF(Clash):
     POS_NAME = f"{PROP_NAME} position ({symbols.ANGSTROM})"
     CUT = symbols.DEFAULT_CUT
 
-    def __init__(self,*args, cut=symbols.DEFAULT_CUT, **kwargs):
+    def __init__(self, *args, cut=symbols.DEFAULT_CUT, **kwargs):
         super().__init__(*args, cut=cut, **kwargs)
 
     def setData(self, res=0.02):

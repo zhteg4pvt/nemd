@@ -42,55 +42,114 @@ class TestRadius:
     def testGet(self, radii, args, expected):
         np.testing.assert_almost_equal(radii.get(*args), expected, decimal=3)
 
+    @pytest.mark.parametrize('struct,args', [(HE_RDR, (0, 0))])
+    def testArrayWrap(self, radii, args):
+        isinstance(radii.max(), float)
+        isinstance(radii.ravel(), dist.Radius)
+
 
 class TestCell:
 
     @pytest.fixture
-    def cell(self, num, span, cut):
-        return dist.Cell(num, np.array(span), cut)
+    def cell(self, xyzs, span, cut):
+        box = pbc.Box.fromParams(*span)
+        return dist.Cell(dist.Frame(xyzs, box=box, cut=cut))
 
-    @pytest.mark.parametrize('num,span,cut,expected',
-                             [(4, [10, 9, 11], 2, (5, 4, 5, 4))])
+    @pytest.mark.parametrize('xyzs,span,cut,expected',
+                             [([[1, 4, 1]], [10, 9, 11], 2, (5, 4, 5, 1))])
     def testNew(self, span, cut, cell, expected):
         assert expected == cell.shape
         np.testing.assert_almost_equal(span, cell.grids * cell.shape[:-1])
 
-    @pytest.mark.parametrize('num,span,cut', [(4, [10, 9, 11], 2)])
-    @pytest.mark.parametrize('xyzs', [([1, 4, 1]), ([[1, 4, 1]])])
-    @pytest.mark.parametrize('gids', [(1), ([1])])
-    def testSet(self, cell, xyzs, gids, span):
-        cell.set(xyzs, gids)
+    @pytest.mark.parametrize('xyzs,span,cut', [([[1, 4, 1]], [10, 9, 11], 2)])
+    @pytest.mark.parametrize('gids', [0, [0]])
+    def testSet(self, cell, gids, span):
+        cell.set(gids)
         ixs, iys, izs, ids = cell.nonzero()
         assert (gids == ids).all()
-        cell.set(xyzs, gids, state=False)
+        cell.set(gids, state=False)
         assert 0 == len(cell.nonzero()[0])
 
-    @pytest.mark.parametrize('num,span,cut', [(4, [10, 9, 11], 2)])
-    @pytest.mark.parametrize('xyzs', [([1, 4, 1]), ([[1, 4, 1]])])
-    @pytest.mark.parametrize('ids', [([0, 2, 0]), ([[0, 2, 0]])])
-    def testGetIds(self, cell, xyzs, ids, span):
-        assert (ids == cell.getCids(xyzs)).all()
+    @pytest.mark.parametrize('xyzs,span,cut', [([[1, 4, 1]], [10, 9, 11], 2)])
+    @pytest.mark.parametrize('gids,shape', [(0, (3, )), ([0], (1, 3))])
+    def testGetCids(self, cell, gids, shape):
+        cids = cell.getCids(gids)
+        assert shape == cids.shape
+        assert ([0, 2, 0] == cids).all()
 
-    @pytest.mark.parametrize('num,span,cut,gids',
-                             [(4, [10, 9, 11], 2, [0, 1])])
-    @pytest.mark.parametrize('xyzs', [([1, 4, 1])])
-    @pytest.mark.parametrize('ids', [([0, 2, 1])])
-    def testGet(self, cell, xyzs, gids, ids, span):
-        cell.set(xyzs, gids)
-        cell.get(xyzs)
+    @pytest.mark.parametrize(
+        'xyzs,span,cut',
+        [([[5, 8.5, 5], [4.5, 0.5, 5.5], [4.5, 5, 5.5]], [10, 9, 11], 2)])
+    @pytest.mark.parametrize('gids,gid,gt,expected',
+                             [([0, 1], 0, False, [0, 1]),
+                              ([0, 1], 0, True, [1]), ([0, 1], 2, False, []),
+                              ([1], 0, False, [1])])
+    def testGet(self, cell, gids, gid, gt, expected):
+        cell.set(gids)
+        assert expected == cell.get(gid, gt=gt)
 
-    @pytest.mark.parametrize('num,span,cut,gid', [(4, [10, 9, 11], 2, 1)])
-    @pytest.mark.parametrize('xyz', [([1, 4, 1]), ([-1, -4, 0]),
-                                     ([8, 100, 11])])
-    def test(self, cell, xyz, gid, span):
-        cell.set(xyz, gid)
+    @pytest.mark.parametrize('dims,nums,expected',
+                             [((2, 3, 4), (1, 1, 1), 18),
+                              ((4, 3, 1), (2, 2, 2), 12)])
+    def testGetNbrs(self, dims, nums, expected):
+        nx, ny, nz, num, _ = dist.Cell.getNbrs(dims, *nums).shape
+        assert expected == num
+        assert dims == (nx, ny, nz)
+
+    @pytest.mark.parametrize('dims,nums,expected',
+                             [((2, 3, 4), (1, 1, 1), 18),
+                              ((4, 3, 1), (2, 2, 2), 12)])
+    def testGetOrigNbrs(self, dims, nums, expected):
+        assert expected == dist.Cell.getOrigNbrs(dims, nums).shape[0]
+
+    @pytest.mark.parametrize('span,cut', [([10, 9, 11], 2)])
+    @pytest.mark.parametrize('xyzs',
+                             [[[1, 4, 1]], [[-1, -4, 0]], [[8, 100, 11]]])
+    def test(self, cell, xyzs, span):
+        cell.set(0)
         center = np.array(cell.nonzero()[:-1]).transpose()[0] * cell.grids
         # Between 0 and the span
         assert (center < span).all()
         assert (center >= 0).all()
         # Near the original point
-        norm = pbc.Box.fromParams(*span).norm(xyz - center)
+        norm = pbc.Box.fromParams(*span).norm(xyzs - center)
         assert norm < np.linalg.norm(cell.grids / 2)
+
+
+class TestCellNumba:
+
+    @pytest.fixture
+    def cell(self, xyzs, span, cut):
+        box = pbc.Box.fromParams(*span)
+        return dist.CellNumba(dist.Frame(xyzs, box=box, cut=cut))
+
+    @pytest.mark.parametrize('xyzs,span,cut', [([[1, 4, 1]], [10, 9, 11], 2)])
+    @pytest.mark.parametrize('gids', [[0]])
+    def testSet(self, cell, gids, span):
+        cell.set(gids)
+        ixs, iys, izs, ids = cell.nonzero()
+        assert (gids == ids).all()
+        cell.set(gids, state=False)
+        assert 0 == len(cell.nonzero()[0])
+
+    @pytest.mark.parametrize(
+        'xyzs,span,cut',
+        [([[5, 8.5, 5], [4.5, 0.5, 5.5], [4.5, 5, 5.5]], [10, 9, 11], 2)])
+    @pytest.mark.parametrize('gids,gid,gt,expected',
+                             [([0, 1], 0, False, [0, 1]),
+                              ([0, 1], 0, True, [1]), ([0, 1], 2, False, []),
+                              ([1], 0, False, [1])])
+    def testGet(self, cell, gids, gid, gt, expected):
+        cell.set(gids)
+        assert expected == cell.get(gid, gt=gt)
+
+    @pytest.mark.parametrize('dims,nums,expected',
+                             [((2, 3, 4), (1, 1, 1), 18),
+                              ((4, 3, 1), (2, 2, 2), 12)])
+    def testGetNbrs(self, dims, nums, expected):
+        nx, ny, nz, num, _ = dist.Cell.getNbrs(dims, *nums).shape
+        assert expected == num
+        assert dims == (nx, ny, nz)
 
     # @pytest.mark.parametrize('file', [HEXANE_FRAME])
     # @pytest.mark.parametrize('grp,grps', [(None, None), ([0, 1], None),
