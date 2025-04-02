@@ -1,3 +1,4 @@
+import copy
 import os
 
 import numpy as np
@@ -15,8 +16,10 @@ NACL_RDR = lmpfull.Reader(NACL_DATA)
 HE_RDR = lmpfull.Reader(envutils.test_data('he', 'mol_bldr.data'))
 
 HEX = envutils.test_data('hexane_liquid')
-HEX_RDR = lmpfull.Reader(os.path.join(HEX, 'polymer_builder.data'))
 HEX_FRM = os.path.join(HEX, 'dump.custom')
+HEX_RDR = lmpfull.Reader(os.path.join(HEX, 'polymer_builder.data'))
+MODIFIED = copy.deepcopy(HEX_RDR)
+MODIFIED.pair_coeffs.dist = 18
 
 
 class TestRadius:
@@ -190,8 +193,8 @@ class TestFrame:
                              [(HEX_FRM, [0, 1, 11], None, None)])
     @pytest.mark.parametrize(
         'srch,grp,grps,less,expected',
-        [(True, [0], [[11]], True, [15.3781802]), (True, [0], None, True, []),
-         (True, [0], None, False, [0., 1.524349]),
+        [(True, [0, 1], [[11], [11]], True, [15.3781802, 15.8164904]),
+         (True, [0], None, True, []), (True, [0], None, False, [0., 1.524349]),
          (False, [0], None, False, [0., 1.524349, 15.3781802]),
          (True, [1], None, True, [1.52434905])])
     def testGetDists(self, fr, grp, grps, less, expected):
@@ -208,14 +211,25 @@ class TestFrame:
         np.testing.assert_almost_equal(fr.getGrp(gid, less=less), expected)
 
     @pytest.mark.parametrize('file,gids,cut,struct',
-                             [(HEX_FRM, [0, 1, 11], None, None)])
+                             [(HEX_FRM, [0, 1, 5, 203], 5.2, MODIFIED)])
     @pytest.mark.parametrize(
         'srch,grp,grps,less,expected',
-        [(True, [0], [[11]], True, [15.3781802]), (True, [0], None, True, []),
-         (True, [0], None, False, [0., 1.524349]),
-         (False, [0], None, False, [0., 1.524349, 15.3781802]),
-         (True, [1], None, True, [1.52434905])])
+        [(True, [0, 1], [[5], [5]], True, [6.2680227, 5.1520511]),
+         (True, [0, 1], None, True, []),
+         (True, [0, 1], None, False, [6.2680227, 5.1520511]),
+         (True, [5, 203], None, False, [6.2680227, 5.1520511]),
+         (False, [5, 203], None, False, [6.2680227, 5.1520511, 8.8596222])])
     def testGetClashes(self, fr, grp, grps, less, expected):
         clashes = fr.getClashes(grp, grps=grps, less=less)
-        print(clashes)
-        # np.testing.assert_almost_equal(dists, expected)
+        np.testing.assert_almost_equal(clashes, expected)
+
+    @pytest.mark.parametrize('file,gids,gid,cut,struct',
+                             [(HEX_FRM, [0, 1, 5, 203], 0, 5.2, MODIFIED)])
+    @pytest.mark.parametrize('srch,grp,less,expected',
+                             [(True, [[5]], True, [6.2680227]),
+                              (True, None, True, []),
+                              (True, None, False, [6.2680227]),
+                              (False, None, False, [6.2680227, 8.8596222])])
+    def testGetClash(self, fr, gid, grp, less, expected):
+        clash = fr.getClash(gid, grp=grp, less=less)
+        np.testing.assert_almost_equal(clash, expected)

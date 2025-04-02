@@ -60,7 +60,7 @@ class Radius(np.ndarray):
         """
         Get radius of atom pairs.
 
-        :param args iterable of int: the global atom id pairs
+        :param args iterable of int: the global atom id pair
         :return np.ndarray: the radii of the atom pair(s)
         """
         return self[tuple(self.map[x] for x in args)]
