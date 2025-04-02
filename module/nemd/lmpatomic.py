@@ -299,7 +299,7 @@ class Struct(structure.Struct):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Atomic number of Og element
-        self.atm_types = numpyutils.IntArray(mval=118)
+        self.atm_types = numpyutils.IntArray(shape=119)
 
     def addMol(self, mol):
         """
@@ -404,7 +404,7 @@ class Struct(structure.Struct):
 
         :return `Mass`: mass of each type of atom.
         """
-        return Mass.fromAtoms(table.TABLE.iloc[self.atm_types.values])
+        return Mass.fromAtoms(table.TABLE.iloc[self.atm_types.on])
 
     @property
     def pair_coeffs(self):
@@ -413,7 +413,7 @@ class Struct(structure.Struct):
 
         :return `PairCoeff`: the interaction between non-bond atoms.
         """
-        vdws = self.ff.vdws.loc[self.atm_types.values]
+        vdws = self.ff.vdws.loc[self.atm_types.on]
         return PairCoeff([[x.ene, x.dist] for x in vdws.itertuples()])
 
 

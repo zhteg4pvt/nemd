@@ -11,54 +11,50 @@ class IntArray(np.ndarray):
     Integers represented by the on values of a bool numpy.ndarray.
     """
 
-    def __new__(cls, values=None, mval=None, shape=None):
+    def __new__(cls, shape=None, on=None):
         """
-        :param values list: the int array values.
-        :param mval int: The maximum value of the bit array.
+        :param on list: the int array values to set on.
         :param shape tuple or int: shape of the bit array.
         """
         if shape is None:
-            if mval is None:
-                mval = max(values) if len(values) else -1
-            shape = mval + 1
+            shape = max(on) + 1 if len(on) else 0
         array = np.zeros(shape, dtype=bool)
-        if values is not None and len(values):
-            array[values] = True
+        if on is not None:
+            array[on] = True
         return np.asarray(array).view(cls)
 
     @property
-    def values(self):
+    def on(self):
         """
         Return the indexes of on values.
         """
         return self.nonzero()[0]
 
-    def index(self, values):
+    def index(self, on):
         """
-        Return the on indexes.
+        Return the indexes in on values.
 
-        :param values: the values to retrieve the on indexes.
+        :param on: the on values to retrieve the indexes.
         :return np.ndarray: the on indexes.
         :raise KeyError: if some values are not on.
         """
-        value_to_index = {x: i for i, x in enumerate(self.values)}
+        value_to_index = {x: i for i, x in enumerate(self.on)}
         try:
-            return np.array([value_to_index[x] for x in values])
+            return np.array([value_to_index[x] for x in on])
         except KeyError:
-            raise KeyError(f"{values} not in {self.values}")
+            raise KeyError(f"{on} not in {self.on}")
 
-    def difference(self, other, values=None):
+    def difference(self, other, on=None):
         """
         Get the values that are on but not in the other array.
 
         :param other np.ndarray: another other array
-        :param values np.ndarray: the values to compute difference with
+        :param on np.ndarray: the values to compute difference with
         :return list of int: the difference
         """
-        copied = self.copy() if values is None else IntArray(values=values,
-                                                             shape=self.shape)
-        copied[other] = False
-        return copied.values
+        cped = self.copy() if on is None else IntArray(on=on, shape=self.shape)
+        cped[other] = False
+        return cped.on
 
     def less(self, value):
         """
@@ -69,4 +65,4 @@ class IntArray(np.ndarray):
         """
         copied = self.copy()
         copied[value:] = False
-        return copied.values
+        return copied.on

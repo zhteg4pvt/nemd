@@ -856,7 +856,7 @@ class Frame(dist.Frame):
 
         :return `numpy.ndarray`: each value is one random point from the voids.
         """
-        self.box.rmGraphNodes(self[self.gids.values])
+        self.box.rmGraphNodes(self[self.gids.on])
         return (y for x in self.box.getVoid() for y in x)
 
     @property
@@ -866,7 +866,7 @@ class Frame(dist.Frame):
 
         :return str: the ratio of the existing gids with respect to the total.
         """
-        return f'{len(self.gids.values)} / {self.shape[0]}'
+        return f'{len(self.gids.on)} / {self.shape[0]}'
 
 
 class GrownStruct(PackedStruct):

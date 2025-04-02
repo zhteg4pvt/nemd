@@ -220,7 +220,7 @@ class Frame(frame.Base):
         :param srch: whether to use distance cell to search neighbors
         """
         super().__init__(*args, **kwargs)
-        self.gids = numpyutils.IntArray(gids, shape=self.shape[0])
+        self.gids = numpyutils.IntArray(shape=self.shape[0], on=gids)
         self.cut = cut
         self.struct = struct
         self.srch = srch
@@ -235,7 +235,7 @@ class Frame(frame.Base):
         if srch is None and not self.useCell(self.box.span, self.cut):
             return
         self.cell = self.Cell(self)
-        self.set(self.gids.values)
+        self.set(self.gids.on)
 
     @methodtools.lru_cache()
     @property
@@ -282,7 +282,7 @@ class Frame(frame.Base):
         """
         if self.cell is not None:
             return self.cell.get(gid, less=less)
-        return self.gids.less(gid) if less else self.gids.values
+        return self.gids.less(gid) if less else self.gids.on
 
     def getClashes(self, grp, grps=None, less=True):
         """
@@ -309,7 +309,7 @@ class Frame(frame.Base):
         """
         if grp is None:
             grp = self.getGrp(gid, less=less)
-        gids = self.gids.difference(self.excluded[gid], values=grp)
+        gids = self.gids.difference(self.excluded[gid], on=grp)
         dists = self.box.norms(self[gids, :] - self[gid, :])
         thresholds = self.radii.get(gid, gids)
         return dists[np.nonzero(dists < thresholds)]

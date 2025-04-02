@@ -174,7 +174,7 @@ class TestFrame:
                               (None, 1000, None, True, (0, 23.92, True)),
                               (None, None, HEX_RDR, None, (0, 1.97, True))])
     def testInit(self, fr, expected):
-        assert expected[0] == len(fr.gids.values)
+        assert expected[0] == len(fr.gids.on)
         np.testing.assert_almost_equal(fr.cut, expected[1], decimal=2)
         assert expected[2] == (fr.cell is not None)
 
@@ -261,10 +261,10 @@ class TestFrame:
     def testSet(self, fr):
         assert not fr.cell.any()
         fr.set([1, 12])
-        assert 2 == len(fr.gids.values)
+        assert 2 == len(fr.gids.on)
         assert 2 == len(fr.cell.nonzero()[0])
         fr.set([1, 12], state=False)
-        assert 0 == len(fr.gids.values)
+        assert 0 == len(fr.gids.on)
         assert 0 == len(fr.cell.nonzero()[0])
 
     @pytest.mark.parametrize('file,cut,gids,srch,struct',

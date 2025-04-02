@@ -899,11 +899,11 @@ class Struct(lmpatomic.Struct, In):
         """
         Initiate type map.
         """
-        self.atm_types = numpyutils.IntArray(mval=self.ff.atoms.index[-1])
-        self.bnd_types = numpyutils.IntArray(mval=self.ff.bonds.index[-1])
-        self.ang_types = numpyutils.IntArray(mval=self.ff.angles.index[-1])
-        self.dihe_types = numpyutils.IntArray(mval=self.ff.dihedrals.index[-1])
-        self.impr_types = numpyutils.IntArray(mval=self.ff.impropers.index[-1])
+        self.atm_types = numpyutils.IntArray(self.ff.atoms.index.size)
+        self.bnd_types = numpyutils.IntArray(self.ff.bonds.index.size)
+        self.ang_types = numpyutils.IntArray(self.ff.angles.index.size)
+        self.dihe_types = numpyutils.IntArray(self.ff.dihedrals.index.size)
+        self.impr_types = numpyutils.IntArray(self.ff.impropers.index.size)
 
     def setTypeMap(self, mol):
         """
@@ -1032,7 +1032,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return `Mass`: mass of each type of atom.
         """
-        return Mass.fromAtoms(self.ff.atoms.loc[self.atm_types.values])
+        return Mass.fromAtoms(self.ff.atoms.loc[self.atm_types.on])
 
     @property
     def bond_coeffs(self):
@@ -1041,7 +1041,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return `BondCoeff`: the interaction between bonded atoms.
         """
-        bonds = self.ff.bonds.loc[self.bnd_types.values]
+        bonds = self.ff.bonds.loc[self.bnd_types.on]
         return BondCoeff([[x.ene, x.dist] for x in bonds.itertuples()])
 
     @property
@@ -1051,7 +1051,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return `AngleCoeff`: the three-atom angle interaction coefficients
         """
-        angles = self.ff.angles.loc[self.ang_types.values]
+        angles = self.ff.angles.loc[self.ang_types.on]
         return AngleCoeff([[x.ene, x.deg] for x in angles.itertuples()])
 
     @property
@@ -1061,7 +1061,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return `DihedralCoeff`: the four-atom torsion interaction coefficients
         """
-        dihes = self.ff.dihedrals.loc[self.dihe_types.values]
+        dihes = self.ff.dihedrals.loc[self.dihe_types.on]
         return DihedralCoeff([[x.k1, x.k2, x.k3, x.k4]
                               for x in dihes.itertuples()])
 
@@ -1072,7 +1072,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return `ImproperCoeff`: the four-atom improper interaction coefficients
         """
-        imprps = self.ff.impropers.loc[self.impr_types.values]
+        imprps = self.ff.impropers.loc[self.impr_types.on]
         # LAMMPS: K in K[1+d*cos(nx)] vs OPLS: [1 + cos(nx-gama)]
         # due to cos (θ - 180°) = cos (180° - θ) = - cos θ
         imprps = [[x.ene, 1 if x.deg == 0. else -1, x.n_parm]

@@ -8,21 +8,22 @@ from nemd import pytestutils
 class TestFunc:
 
     @pytest.fixture
-    def array(self, values, mval):
-        return numpyutils.IntArray(values=values, mval=mval)
+    def array(self, shape, on):
+        return numpyutils.IntArray(shape=shape, on=on)
 
-    @pytest.mark.parametrize('values,mval,expected', [([2, 5], 0, 6),
-                                                      (None, 10, 11)])
-    def testNew(self, values, mval, array, expected):
+    @pytest.mark.parametrize('shape,on,expected', [(None, [2, 5], 6),
+                                                   (10, None, 10)])
+    def testNew(self, on, shape, array, expected):
         assert expected == array.shape[0]
+        assert (on is not None) == array.any()
 
-    @pytest.mark.parametrize('values,mval,expected',
-                             [([1, 2, 5], 0, [1, 2, 5]), (None, 2, [])])
-    def testValues(self, values, array, expected):
-        np.testing.assert_array_equal(array.values, expected)
+    @pytest.mark.parametrize('shape,on,expected',
+                             [(None, [1, 2, 5], [1, 2, 5]), (2, None, [])])
+    def testOn(self, on, array, expected):
+        np.testing.assert_array_equal(array.on, expected)
 
     @pytestutils.Raises
-    @pytest.mark.parametrize('values,mval', [([1, 2, 5], 0)])
+    @pytest.mark.parametrize('shape,on', [(None, [1, 2, 5])])
     @pytest.mark.parametrize("to_index,expected", [([2, 5], [1, 2]),
                                                    ([2, 3], KeyError)])
     def testIndex(self, array, to_index, expected):
