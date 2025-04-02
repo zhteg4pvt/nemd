@@ -233,3 +233,42 @@ class TestFrame:
     def testGetClash(self, fr, gid, grp, less, expected):
         clash = fr.getClash(gid, grp=grp, less=less)
         np.testing.assert_almost_equal(clash, expected)
+
+    @pytest.mark.parametrize('file,cut,struct', [(HEX_FRM, 5.2, MODIFIED)])
+    @pytest.mark.parametrize('srch,gids,grp,expected',
+                             [(True, [0, 1], [0, 1], False),
+                              (True, [0, 1, 5], [0, 1, 5], True),
+                              (True, [0, 1], [203], False),
+                              (False, [0, 1], [203], True)])
+    def testHasClash(self, fr, grp, expected):
+        assert expected == fr.hasClash(grp)
+
+    @pytest.mark.parametrize('file,cut,gids,srch',
+                             [(HEX_FRM, None, None, None)])
+    @pytest.mark.parametrize('struct,expected', [(None, 1), (HEX_RDR, 4)])
+    def testExcluded(self, fr, expected):
+        assert expected == len(fr.excluded[0])
+
+    @pytest.mark.parametrize('struct,num,incl14,expected',
+                             [(None, 3, True, 1), (HEX_RDR, 3, True, 4),
+                              (HEX_RDR, 3, False, 3)])
+    def testGetExcluded(self, struct, num, incl14, expected):
+        incl = dist.Frame.getExcluded(struct=struct, num=num, incl14=incl14)
+        assert expected == len(incl[0])
+
+    @pytest.mark.parametrize('file,cut,gids,srch,struct',
+                             [(HEX_FRM, None, [], None, None)])
+    def testSet(self, fr):
+        assert not fr.cell.any()
+        fr.set([1, 12])
+        assert 2 == len(fr.gids.values)
+        assert 2 == len(fr.cell.nonzero()[0])
+        fr.set([1, 12], state=False)
+        assert 0 == len(fr.gids.values)
+        assert 0 == len(fr.cell.nonzero()[0])
+
+    @pytest.mark.parametrize('file,cut,gids,srch,struct',
+                             [(HEX_FRM, None, [], None, None)])
+    def testRatio(self, fr):
+        fr.set([1, 12])
+        assert '2 / 3000' == fr.ratio

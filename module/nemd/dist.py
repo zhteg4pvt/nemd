@@ -235,7 +235,7 @@ class Frame(frame.Base):
         if srch is None and not self.useCell(self.box.span, self.cut):
             return
         self.cell = self.Cell(self)
-        self.add(self.gids.values)
+        self.set(self.gids.values)
 
     @methodtools.lru_cache()
     @property
@@ -316,7 +316,7 @@ class Frame(frame.Base):
 
     def hasClash(self, gids):
         """
-        Whether the selected atoms have clashes.
+        Whether the selected atoms have clashes with the existing atoms.
 
         :param gids list: global atom ids for atom selection.
         :return bool: whether the selected atoms have clashes.
@@ -330,27 +330,24 @@ class Frame(frame.Base):
 
     @methodtools.lru_cache()
     @property
-    def excluded(self, include14=True):
+    def excluded(self):
         """
         Set the pair exclusion.
 
-        :param include14 bool: count 1-4 interaction in a dihedral as exclusion.
         :return dict: global atom id -> excluded global atom ids array.
         """
-        return self.getExclusions(struct=self.struct,
-                                  num=self.shape[0],
-                                  include14=include14)
+        return self.getExcluded(struct=self.struct, num=self.shape[0])
 
     @methodtools.lru_cache()
     @classmethod
-    def getExclusions(cls, struct=None, num=1, include14=True):
+    def getExcluded(cls, struct=None, num=1, incl14=True):
         """
         Set the pair exclusion. Atoms in bonds and angles are in the exclusion.
-        The dihedral angles are in the exclusion if include14=True.
+        The dihedral angles are in the exclusion if incl14=True.
 
         :param struct `lmpatomic.Struct`: the structure
         :param num int: total number of atoms
-        :param include14 bool: count 1-4 interaction in a dihedral as exclusion.
+        :param incl14 bool: count 1-4 interaction in a dihedral as exclusion.
         :return dict: global atom id -> excluded global atom ids array.
         """
         if struct is None:
@@ -358,7 +355,7 @@ class Frame(frame.Base):
         pairs = set(struct.bonds.getPairs())
         pairs = pairs.union(struct.angles.getPairs())
         pairs = pairs.union(struct.impropers.getPairs())
-        if include14:
+        if incl14:
             pairs = pairs.union(struct.dihedrals.getPairs())
         excluded = {i: {i} for i in struct.atoms.atom1}
         for id1, id2 in pairs:
@@ -366,33 +363,13 @@ class Frame(frame.Base):
             excluded[id2].add(id1)
         return {x: np.array(list(y)) for x, y in excluded.items()}
 
-    def add(self, gids):
+    def set(self, gids, state=True):
         """
-        Add gids to atom cell and existing gids.
+        Add or remove gids.
 
         :param gids list: the global atom ids to be added.
+        :param state bool: add if True; remove if False
         """
-        self.gids[gids] = True
-        if self.cell is None:
-            return
-        self.cell.set(gids)
-
-    def remove(self, gids):
-        """
-        Remove gids from atom cell and existing gids.
-
-        :param gids list: the global atom ids to be removed.
-        """
-        self.gids[gids] = False
-        if self.cell is None:
-            return
-        self.cell.set(gids, state=False)
-
-    @property
-    def ratio(self):
-        """
-        The ratio of the existing atoms to the total atoms.
-
-        :return str: the ratio of the existing gids with respect to the total.
-        """
-        return f'{len(self.gids)} / {self.shape[0]}'
+        self.gids[gids] = state
+        if self.cell is not None:
+            self.cell.set(gids, state=state)

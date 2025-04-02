@@ -112,7 +112,7 @@ class PackedConf(GriddedConf):
             self.mol.struct.dist[self.gids, :] = self.GetPositions()
             if self.hasClash():
                 continue
-            self.mol.struct.dist.add(self.gids)
+            self.mol.struct.dist.set(self.gids)
             return
         raise ConfError
 
@@ -229,7 +229,7 @@ class GrownConf(PackedConf):
             self.mol.struct.dist[self.gids, :] = self.GetPositions()
             if self.hasClash(self.init_aids):
                 continue
-            self.mol.struct.dist.add(self.id_map[self.init_aids], init=True)
+            self.mol.struct.dist.set(self.id_map[self.init_aids], init=True)
             return
 
         # FIXME: Failed to fill the void with initiator too often
@@ -281,7 +281,7 @@ class GrownConf(PackedConf):
             self.mol.struct.dist[self.gids, :] = self.GetPositions()
             if self.hasClash(frag.aids):
                 continue
-            self.mol.struct.dist.add(self.id_map[frag.aids])
+            self.mol.struct.dist.set(self.id_map[frag.aids])
             self.frags += frag.nfrags
             return True
 
@@ -304,7 +304,7 @@ class GrownConf(PackedConf):
         ratom_aids = [y for x in nxt_frags for y in x.aids] + frag.aids
         if not found:
             ratom_aids += frag.conf.init_aids
-        self.mol.struct.dist.remove(self.id_map[ratom_aids])
+        self.mol.struct.dist.set(self.id_map[ratom_aids], state=False)
         # 3）The next fragments of the frag may have been added to the growing
         # self.frags before this backmove step. These added next fragments
         # may have never been growed even once.
@@ -316,7 +316,7 @@ class GrownConf(PackedConf):
         """
         Report the status after relocate an initiator fragment.
         """
-        idists = self.mol.struct.dist.initPairDists()
+        idists = self.mol.struct.dist.initDists()
         grp = self.id_map[self.init_aids]
         other = list(self.mol.struct.dist.gids.difference(grp))
         grps = [other for _ in grp]
@@ -823,19 +823,19 @@ class Frame(dist.Frame):
         super().__init__(*args, **kwargs)
         self.init_gids = []
 
-    def add(self, gids, init=False):
+    def set(self, gids, init=False, **kwargs):
         """
         Add a new atom to the distance cell.
 
         :param gids list: the global atom ids to be added.
         :param init bool: whether these atoms are from an initiator fragment.
         """
-        super().add(gids)
+        super().set(gids, **kwargs)
         if not init:
             return
         self.init_gids.append(gids)
 
-    def initPairDists(self):
+    def initDists(self):
         """
         Get the pair distances between existing atoms.
 
@@ -858,6 +858,15 @@ class Frame(dist.Frame):
         """
         self.box.rmGraphNodes(self[self.gids.values])
         return (y for x in self.box.getVoid() for y in x)
+
+    @property
+    def ratio(self):
+        """
+        The ratio of the existing atoms to the total atoms.
+
+        :return str: the ratio of the existing gids with respect to the total.
+        """
+        return f'{len(self.gids.values)} / {self.shape[0]}'
 
 
 class GrownStruct(PackedStruct):
@@ -908,7 +917,7 @@ class GrownStruct(PackedStruct):
         logger.debug(f'{self.conformer_total} initiators have been placed.')
         if self.conformer_total == 1:
             return
-        dist = self.dist.initPairDists().min()
+        dist = self.dist.initDists().min()
         logger.debug(f'({dist:.2f} as the minimum pair distance)')
 
     def setConformers(self, max_trial=MAX_TRIAL_PER_DENSITY):
