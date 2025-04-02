@@ -40,24 +40,27 @@ class Radius(np.ndarray):
         radii = scale * pow(2, 1 / 6) * np.sqrt(radii) / 2
         radii[radii < min_dist] = min_dist
         obj = np.asarray(radii).view(cls)
-        obj.map = struct.atoms.type_id.values if struct else np.zeros(num)
+        obj.map = struct.atoms.type_id.values if struct else np.zeros(
+            num, dtype=int)
         return obj
 
-    def __array_wrap__(self, obj):
+    @classmethod
+    def __array_ufunc__(cls, obj, ufunc, *args, **kwargs):
         """
-        Return scalar when no shape.
-
-        https://stackoverflow.com/questions/19223926/numpy-ndarray-subclass-ufunc-dont-return-scalar-type
-
-        :return `Radius` or float: the wrapped
+        :param obj: the ufunc object that was called
+        :param ufunc 'numpy.ufunc': the function
+        :param args: a tuple of the input arguments to the ufunc
+        :param kwargs: any optional or keyword arguments passed to the function
+        :return scalar or array: ufunc return
         """
-        return super().__array_wrap__(obj) if obj.shape else obj.item()
+        args = [x.view(np.ndarray) if isinstance(x, cls) else x for x in args]
+        return super().__array_ufunc__(obj, ufunc, *args, **kwargs)
 
     def get(self, *args):
         """
         Get radius of atom pairs.
 
-        :param args iterable of int: the global atom ids
+        :param args iterable of int: the global atom id pairs
         :return np.ndarray: the radii of the atom pair(s)
         """
         return self[tuple(self.map[x] for x in args)]
@@ -292,12 +295,10 @@ class Frame(frame.Base):
         """
         if grps is None:
             grps = (self.getGrp(x, less=less) for x in grp)
-        clashes = [
-            self.getClash(x, grp=y, less=less) for x, y in zip(grp, grps)
-        ]
-        return [y for x in clashes for y in x]
+        clshs = (self.getClash(x, grp=y, less=less) for x, y in zip(grp, grps))
+        return [y for x in clshs for y in x]
 
-    def getClash(self, gid, grp=None, less=False):
+    def getClash(self, gid, grp=None, less=True):
         """
         Get the clashes between xyz and atoms in the frame.
 
@@ -308,7 +309,7 @@ class Frame(frame.Base):
         """
         if grp is None:
             grp = self.getGrp(gid, less=less)
-        gids = self.gids.difference(self.excluded[gid], on=grp)
+        gids = self.gids.difference(self.excluded[gid], values=grp)
         dists = self.box.norms(self[gids, :] - self[gid, :])
         thresholds = self.radii.get(gid, gids)
         return dists[np.nonzero(dists < thresholds)]
@@ -320,7 +321,7 @@ class Frame(frame.Base):
         :param gids list: global atom ids for atom selection.
         :return bool: whether the selected atoms have clashes.
         """
-        dists = (self.getClash(x) for x in gids)
+        dists = (self.getClash(x, less=False) for x in gids)
         try:
             next(itertools.chain.from_iterable(dists))
         except StopIteration:
@@ -334,7 +335,7 @@ class Frame(frame.Base):
         Set the pair exclusion.
 
         :param include14 bool: count 1-4 interaction in a dihedral as exclusion.
-        :return dict: global atom id -> excluded global atom ids set.
+        :return dict: global atom id -> excluded global atom ids array.
         """
         return self.getExclusions(struct=self.struct,
                                   num=self.shape[0],
@@ -350,10 +351,10 @@ class Frame(frame.Base):
         :param struct `lmpatomic.Struct`: the structure
         :param num int: total number of atoms
         :param include14 bool: count 1-4 interaction in a dihedral as exclusion.
-        :return dict: global atom id -> excluded global atom ids list.
+        :return dict: global atom id -> excluded global atom ids array.
         """
         if struct is None:
-            return {i: {i} for i in range(num)}
+            return {i: np.array([i]) for i in range(num)}
         pairs = set(struct.bonds.getPairs())
         pairs = pairs.union(struct.angles.getPairs())
         pairs = pairs.union(struct.impropers.getPairs())
@@ -363,7 +364,7 @@ class Frame(frame.Base):
         for id1, id2 in pairs:
             excluded[id1].add(id2)
             excluded[id2].add(id1)
-        return {x: list(y) for x, y in excluded.items()}
+        return {x: np.array(list(y)) for x, y in excluded.items()}
 
     def add(self, gids):
         """

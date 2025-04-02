@@ -13,8 +13,9 @@ class IntArray(np.ndarray):
 
     def __new__(cls, values=None, mval=None, shape=None):
         """
-        :param values list: the int array values
+        :param values list: the int array values.
         :param mval int: The maximum value of the bit array.
+        :param shape tuple or int: shape of the bit array.
         """
         if shape is None:
             if mval is None:
@@ -46,15 +47,16 @@ class IntArray(np.ndarray):
         except KeyError:
             raise KeyError(f"{values} not in {self.values}")
 
-    def difference(self, other, on=None):
+    def difference(self, other, values=None):
         """
         Get the values that are on but not in the other array.
 
         :param other np.ndarray: another other array
+        :param values np.ndarray: the values to compute difference with
         :return list of int: the difference
         """
-        copied = self.copy() if on is None else IntArray(values=on,
-                                                         shape=self.shape)
+        copied = self.copy() if values is None else IntArray(values=values,
+                                                             shape=self.shape)
         copied[other] = False
         return copied.values
 

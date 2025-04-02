@@ -15,8 +15,8 @@ NACL_RDR = lmpfull.Reader(NACL_DATA)
 HE_RDR = lmpfull.Reader(envutils.test_data('he', 'mol_bldr.data'))
 
 HEX = envutils.test_data('hexane_liquid')
-HEXANE_READER = lmpfull.Reader(os.path.join(HEX, 'polymer_builder.data'))
-HEXANE_FRAME = os.path.join(HEX, 'dump.custom')
+HEX_RDR = lmpfull.Reader(os.path.join(HEX, 'polymer_builder.data'))
+HEX_FRM = os.path.join(HEX, 'dump.custom')
 
 
 class TestRadius:
@@ -30,13 +30,14 @@ class TestRadius:
 
     @pytest.fixture
     def radii(self, struct):
-        return dist.Radius(struct=struct)
+        return dist.Radius(struct=struct, num=15)
 
     @pytest.mark.parametrize('struct,args,expected',
                              [(HE_RDR, (0, 0), 1.4), (NACL_RDR, (0, 0), 2.231),
                               (NACL_RDR, (10, 10), 1.682),
                               (NACL_RDR, (9, 10), 1.937),
                               (NACL_RDR, (0, [1, 11]), [2.231, 1.937]),
+                              (None, (0, [1, 11]), [1.4, 1.4]),
                               (NACL_RDR, ([12, 19], [1, 11]), [1.937, 1.682])])
     def testGet(self, radii, args, expected):
         np.testing.assert_almost_equal(radii.get(*args), expected, decimal=3)
@@ -85,13 +86,13 @@ class TestCell:
     @pytest.mark.parametrize(
         'xyzs,span,cut',
         [([[5, 8.5, 5], [4.5, 0.5, 5.5], [4.5, 5, 5.5]], [10, 9, 11], 2)])
-    @pytest.mark.parametrize('gids,gid,gt,expected',
-                             [([0, 1], 0, False, [0, 1]),
-                              ([0, 1], 0, True, [1]), ([0, 1], 2, False, []),
+    @pytest.mark.parametrize('gids,gid,less,expected',
+                             [([0, 1], 1, False, [0, 1]),
+                              ([0, 1], 1, True, [0]), ([0, 1], 2, False, []),
                               ([1], 0, False, [1])])
-    def testGet(self, cell, gids, gid, gt, expected):
+    def testGet(self, cell, gids, gid, less, expected):
         cell.set(gids)
-        assert expected == cell.get(gid, gt=gt)
+        assert expected == cell.get(gid, less=less)
 
     @pytest.mark.parametrize('dims,shape,expected',
                              [((2, 3, 4), (1, 1, 1), 18),
@@ -140,13 +141,13 @@ class TestCellNumba:
     @pytest.mark.parametrize(
         'xyzs,span,cut',
         [([[5, 8.5, 5], [4.5, 0.5, 5.5], [4.5, 5, 5.5]], [10, 9, 11], 2)])
-    @pytest.mark.parametrize('gids,gid,gt,expected',
-                             [([0, 1], 0, False, [0, 1]),
-                              ([0, 1], 0, True, [1]), ([0, 1], 2, False, []),
+    @pytest.mark.parametrize('gids,gid,less,expected',
+                             [([0, 1], 1, False, [0, 1]),
+                              ([0, 1], 1, True, [0]), ([0, 1], 2, False, []),
                               ([1], 0, False, [1])])
-    def testGet(self, cell, gids, gid, gt, expected):
+    def testGet(self, cell, gids, gid, less, expected):
         cell.set(gids)
-        assert expected == cell.get(gid, gt=gt)
+        assert expected == cell.get(gid, less=less)
 
     @pytest.mark.parametrize('dims,shape,expected',
                              [((2, 3, 4), (1, 1, 1), 18),
@@ -159,27 +160,24 @@ class TestCellNumba:
 
 class TestFrame:
 
-    HEX = envutils.test_data('hexane_liquid')
-    RDR = lmpfull.Reader(os.path.join(HEX, 'polymer_builder.data'))
-    FRM = os.path.join(HEX, 'dump.custom')
-
     @pytest.fixture
     def fr(self, frm, gids, cut, struct, srch):
         return dist.Frame(frm, gids=gids, cut=cut, struct=struct, srch=srch)
 
-    @pytest.mark.parametrize('file', [FRM])
+    @pytest.mark.parametrize('file', [HEX_FRM])
     @pytest.mark.parametrize('gids,cut,struct,srch,expected',
                              [([1, 2], 1000, None, None, (2, 23.92, False)),
                               (None, 1000, None, False, (0, 1000, False)),
                               (None, 1000, None, True, (0, 23.92, True)),
-                              (None, None, RDR, None, (0, 1.97, True))])
+                              (None, None, HEX_RDR, None, (0, 1.97, True))])
     def testInit(self, fr, expected):
         assert expected[0] == len(fr.gids.values)
         np.testing.assert_almost_equal(fr.cut, expected[1], decimal=2)
         assert expected[2] == (fr.cell is not None)
 
-    @pytest.mark.parametrize('file,gids,cut,srch', [(FRM, None, None, None)])
-    @pytest.mark.parametrize('struct,expected', [(None, 1.4), (RDR, 1.97)])
+    @pytest.mark.parametrize('file,gids,cut,srch',
+                             [(HEX_FRM, None, None, None)])
+    @pytest.mark.parametrize('struct,expected', [(None, 1.4), (HEX_RDR, 1.97)])
     def testRadii(self, fr, expected):
         np.testing.assert_almost_equal(fr.radii.max(), expected, decimal=2)
 
@@ -188,10 +186,36 @@ class TestFrame:
     def testUseCell(self, span, cut, expected):
         assert expected == dist.Frame.useCell(span, cut)
 
-    @pytest.mark.parametrize('file,gids,cut,struct,srch', [(FRM, None, None, None, None)])
-    @pytest.mark.parametrize('grp,grps', [(None, None), ([0, 1], None),
-                                          ([0], [[1]])])
-    def testGetDists(self, fr, grp, grps):
-        dists = fr.getDists(grp, grps=grps)
-        breakpoint()
+    @pytest.mark.parametrize('file,gids,cut,struct',
+                             [(HEX_FRM, [0, 1, 11], None, None)])
+    @pytest.mark.parametrize(
+        'srch,grp,grps,less,expected',
+        [(True, [0], [[11]], True, [15.3781802]), (True, [0], None, True, []),
+         (True, [0], None, False, [0., 1.524349]),
+         (False, [0], None, False, [0., 1.524349, 15.3781802]),
+         (True, [1], None, True, [1.52434905])])
+    def testGetDists(self, fr, grp, grps, less, expected):
+        dists = fr.getDists(grp, grps=grps, less=less)
+        np.testing.assert_almost_equal(dists, expected)
+
+    @pytest.mark.parametrize('file,gids,cut,struct',
+                             [(HEX_FRM, [0, 1, 11], None, None)])
+    @pytest.mark.parametrize('srch,gid,less,expected',
+                             [(True, 11, True, []), (False, 11, True, [0, 1]),
+                              (True, 11, False, [11]),
+                              (False, 11, False, [0, 1, 11])])
+    def testGetGrp(self, fr, gid, less, expected):
+        np.testing.assert_almost_equal(fr.getGrp(gid, less=less), expected)
+
+    @pytest.mark.parametrize('file,gids,cut,struct',
+                             [(HEX_FRM, [0, 1, 11], None, None)])
+    @pytest.mark.parametrize(
+        'srch,grp,grps,less,expected',
+        [(True, [0], [[11]], True, [15.3781802]), (True, [0], None, True, []),
+         (True, [0], None, False, [0., 1.524349]),
+         (False, [0], None, False, [0., 1.524349, 15.3781802]),
+         (True, [1], None, True, [1.52434905])])
+    def testGetClashes(self, fr, grp, grps, less, expected):
+        clashes = fr.getClashes(grp, grps=grps, less=less)
+        print(clashes)
         # np.testing.assert_almost_equal(dists, expected)
