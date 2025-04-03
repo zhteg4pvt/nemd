@@ -342,7 +342,7 @@ class BoxNumba(Base):
         :param vecs `np.array`: the vectors
         :return `np.ndarray`: the PBC distances
         """
-        return np.array(numbautils.norm(vecs, self.span))
+        return np.array(numbautils.norms(vecs, self.span))
 
 
 class BoxOrig(BoxNumba):

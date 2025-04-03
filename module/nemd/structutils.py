@@ -24,7 +24,6 @@ import scipy
 
 from nemd import constants
 from nemd import dist
-from nemd import frame
 from nemd import lmpfull
 from nemd import logutils
 from nemd import pbc

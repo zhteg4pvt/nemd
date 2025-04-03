@@ -51,7 +51,7 @@ def is_original():
     return get_python_mode() == ORIGINAL_MODE
 
 
-def is_nopython():
+def nopython():
     """
     Whether the nopython mode is on.
 
@@ -60,7 +60,7 @@ def is_nopython():
     return get_python_mode() in NOPYTHON_MODES
 
 
-def get_jit_kwargs():
+def jit_kwargs():
     """
     Get the jit decorator kwargs.
 

@@ -8,8 +8,8 @@ import numpy as np
 
 from nemd import envutils
 
-IS_NOPYTHON = envutils.is_nopython()
-JIT_KWARGS = envutils.get_jit_kwargs()
+NOPYTHON = envutils.nopython()
+JIT_KWARGS = envutils.jit_kwargs()
 
 
 def jit(*args, **kwargs):
@@ -33,13 +33,13 @@ def jit(*args, **kwargs):
         :param func 'function': the function to be decorated.
         :return 'function': the (decorated) function.
         """
-        return numba.jit(func, **JIT_KWARGS, **kwargs) if IS_NOPYTHON else func
+        return numba.jit(func, **JIT_KWARGS, **kwargs) if NOPYTHON else func
 
     return _decorator(args[0]) if direct else _decorator
 
 
 @jit
-def norm(vecs, span):
+def norms(vecs, span):
     """
     Calculate IEEE 754 remainder (pbc distance) and norm (vector length).
 

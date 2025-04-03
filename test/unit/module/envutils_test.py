@@ -30,7 +30,7 @@ class TestFunc:
                                                  ('0', False), ('1', True),
                                                  ('2', True)])
     def testIsNopython(self, expected, env):
-        assert expected == envutils.is_nopython()
+        assert expected == envutils.nopython()
 
     @pytest.mark.parametrize("ekey", ['PYTHON'])
     @pytest.mark.parametrize("evalue,expected", [(None, [True, True]),
@@ -39,7 +39,7 @@ class TestFunc:
                                                  ('1', [True, False]),
                                                  ('2', [True, True])])
     def testGetJitKwargs(self, expected, env):
-        kwargs = envutils.get_jit_kwargs()
+        kwargs = envutils.jit_kwargs()
         assert expected == list(kwargs.values())
 
     @pytest.mark.parametrize("ekey", ['JOBNAME'])
