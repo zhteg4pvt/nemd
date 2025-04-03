@@ -318,7 +318,7 @@ class GrownConf(PackedConf):
         """
         idists = self.mol.struct.dist.initDists()
         grp = self.id_map[self.init_aids]
-        other = list(self.mol.struct.dist.gids.difference(grp))
+        other = list(self.mol.struct.dist.gids.diff(grp))
         grps = [other for _ in grp]
         min_dist = self.mol.struct.dist.getDists(grp, grps=grps).min()
         logger.debug(f"Relocate the initiator of {self.gid} conformer "

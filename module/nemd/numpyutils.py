@@ -13,14 +13,15 @@ class IntArray(np.ndarray):
 
     def __new__(cls, shape=None, on=None):
         """
-        :param on list: the int array values to set on.
         :param shape tuple or int: shape of the bit array.
+        :param on list: the int array values to set on.
         """
+        if on is None:
+            on = []
         if shape is None:
-            shape = max(on) + 1 if len(on) else 0
+            shape = max(on) + 1 if len(on) else 1
         array = np.zeros(shape, dtype=bool)
-        if on is not None:
-            array[on] = True
+        array[on] = True
         return np.asarray(array).view(cls)
 
     @property
@@ -38,13 +39,11 @@ class IntArray(np.ndarray):
         :return np.ndarray: the on indexes.
         :raise KeyError: if some values are not on.
         """
-        value_to_index = {x: i for i, x in enumerate(self.on)}
-        try:
-            return np.array([value_to_index[x] for x in on])
-        except KeyError:
-            raise KeyError(f"{on} not in {self.on}")
+        if not self[on].all():
+            raise KeyError('Not all values are on.')
+        return np.cumsum(self)[on] - 1
 
-    def difference(self, other, on=None):
+    def diff(self, other, on=None):
         """
         Get the values that are on but not in the other array.
 
@@ -52,7 +51,7 @@ class IntArray(np.ndarray):
         :param on np.ndarray: the values to compute difference with
         :return list of int: the difference
         """
-        cped = self.copy() if on is None else IntArray(on=on, shape=self.shape)
+        cped = self.copy() if on is None else IntArray(shape=self.shape, on=on)
         cped[other] = False
         return cped.on
 

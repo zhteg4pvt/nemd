@@ -309,7 +309,7 @@ class Frame(frame.Base):
         """
         if grp is None:
             grp = self.getGrp(gid, less=less)
-        gids = self.gids.difference(self.excluded[gid], on=grp)
+        gids = self.gids.diff(self.excluded[gid], on=grp)
         dists = self.box.norms(self[gids, :] - self[gid, :])
         thresholds = self.radii.get(gid, gids)
         return dists[np.nonzero(dists < thresholds)]
