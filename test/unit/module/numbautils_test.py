@@ -5,11 +5,18 @@ import numba
 import numpy as np
 import pytest
 
+from nemd import dist
 from nemd import envutils
 from nemd import numbautils
+from nemd import pbc
 
 
 class TestFunc:
+
+    @pytest.fixture
+    def cell(self, xyzs, span, cut):
+        box = pbc.Box.fromParams(*span)
+        return dist.Cell(dist.Frame(xyzs, box=box, cut=cut))
 
     @pytest.mark.parametrize('ekey', ['PYTHON'])
     @pytest.mark.parametrize('evalue,dtype,ctype', [
@@ -40,3 +47,22 @@ class TestFunc:
     def testNorms(self, dists, span, expected):
         norm = numbautils.norms(np.array(dists), np.array(span))
         np.testing.assert_almost_equal(norm, expected, decimal=4)
+
+    @pytest.mark.parametrize(
+        "arrays,gid,expected",
+        [([[2., 2.25, 2.2], [5, 4, 5], [[1, 4, 1]]], 0, [0, 2, 0])])
+    def testGetIds(self, arrays, gid, expected):
+        ids = numbautils.get_ids(*[np.array(x) for x in arrays], gid)
+        np.testing.assert_almost_equal(ids, expected)
+
+    @pytest.mark.parametrize('span,cut', [([10, 9, 11], 2)])
+    @pytest.mark.parametrize(
+        "xyzs,gids,expected",
+        [([[1, 4, 1]], [0], [[0, 2, 0, 0]]),
+         ([[1, 4, 1], [2, 3, 6]], [0, 1], [[0, 2, 0, 0], [1, 1, 3, 1]])])
+    def testSet(self, cell, xyzs, gids, expected):
+        args = [cell, cell.grids, cell.dims, cell.frm, np.array(gids)]
+        numbautils.set(*args)
+        np.testing.assert_almost_equal(np.array(cell.nonzero()).T, expected)
+        numbautils.set(*args, state=False)
+        assert not cell.nonzero()[0].size

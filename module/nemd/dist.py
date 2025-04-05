@@ -3,15 +3,16 @@
 """
 Distance cell module to search neighbors and check clashes.
 """
+import functools
 import itertools
 import math
 
 import methodtools
+import numba
 import numpy as np
 
 from nemd import envutils
 from nemd import frame
-from nemd import numbautils
 from nemd import numpyutils
 
 
@@ -66,37 +67,29 @@ class Radius(np.ndarray):
         return self[tuple(self.map[x] for x in args)]
 
 
-class Cell(np.ndarray):
+class Cell:
     """
     Grid box and track atoms.
 
     FIXME: triclinic support
     """
 
-    def __new__(cls, frm):
+    def __init__(self, frm, span, cut, upper=20):
         """
         :param frm 'Frame': the distance frame
-        """
-        dims = cls.getShape(frm.box.span, frm.cut, upper=20)
-        obj = np.zeros([*dims, frm.shape[0]], dtype=bool).view(cls)
-        obj.frm = frm
-        obj.dims = np.array(dims)
-        obj.grids = frm.box.span / dims
-        obj.nbrs = cls.getNbrs(cls.getShape(obj.grids, frm.cut), dims)
-        return obj
-
-    @staticmethod
-    def getShape(data, cut, upper=None):
-        """
-        Get the shape of the data with respect to the frame cut-off.
-
-        :param data iterable: calcualte the shape of this data
-        :param cut float: the cut off
+        :param span 'ndarray': the pbc span
+        :param cut float: the cut-off
         :param upper int: the upper limit of the shape
-        :return tuple: data shape
         """
-        shape = tuple(math.floor(x / cut) for x in data)
-        return tuple(min(x, upper) for x in shape) if upper else shape
+        self.frm = frm
+        self.span = span
+        self.cut = cut
+        self.dims = np.floor(self.span / self.cut).astype(np.int64)
+        self.dims[self.dims >= upper] = upper
+        self.grids = self.span / self.dims
+        shape = (self.dims[0], self.dims[1], self.dims[2], self.frm.shape[0])
+        self.cell = np.zeros(shape, dtype=np.bool_)
+        self.nbrs = self.getNbrs(*self.cell.shape[:3])
 
     def set(self, gids, state=True):
         """
@@ -106,7 +99,7 @@ class Cell(np.ndarray):
         :param state bool: the state to set
         """
         ixs, iys, izs = self.getCids(gids).transpose()
-        self[ixs, iys, izs, gids] = state
+        self.cell[ixs, iys, izs, gids] = state
 
     def getCids(self, gids):
         """
@@ -119,85 +112,106 @@ class Cell(np.ndarray):
 
     def get(self, gid, less=False):
         """
-        Get the global atom ids of neighbor (and self) cells.
+        Get the neighbor atom ids from the neighbor cells (including the current
+        cell itself)
 
         :param gid list of int: the global atom ids
         :param gt bool: only include the global atom ids greater than the gid
         :return list of ints: the neighbor atom ids around the coordinates
         """
         cids = self.nbrs[tuple(self.getCids(gid))]
-        gids = [self[tuple(x)].nonzero()[0] for x in cids]
+        gids = [self.cell[tuple(x)].nonzero()[0] for x in cids]
         if less:
             gids = [x[x < gid] for x in gids]
         return [y for x in gids for y in x]
 
-    @methodtools.lru_cache()
     @classmethod
-    def getNbrs(cls, shape, dims):
+    @functools.cache
+    def getNbrs(cls, *dims):
         """
         The neighbor cells ids of all cells.
 
-        :param shape tuple: grid shape (number of cutoffs per grid)
-        :param dims tuple: dimension shape (number of grids per dimension)
+        Neighbors are cells separation distance <= the cutoff. Adjacent cells
+        are 0 distance separated, and one cell may contain multiple atoms.
+
+        :param dims tuple: the dimensions (span over grid in x, y, and z)
         :return 3x3x3xNx3 numpy.ndarray: the query cell id is 3x3x3 tuple, and
             the return neighbor cell ids are Nx3 numpy.ndarray.
         """
-        orig = cls.getOrigNbrs(shape, dims)
+        wrapped = [[int(math.remainder(y, x)) for y in range(-1, 2)]
+                   for x in dims]
+        orig = np.array((list(itertools.product(*wrapped))))
         nbrs = np.zeros((*dims, *orig.shape), dtype=int)
         for cid in itertools.product(*[range(x) for x in dims]):
             nbrs[cid] = (orig + cid) % dims
         return nbrs
 
-    @methodtools.lru_cache()
-    @classmethod
-    def getOrigNbrs(cls, shape, dims):
-        """
-        The neighbor cells of the (0,0,0) cell without considering the PBC.
 
-        :param shape tuple: grid shape (number of cutoffs per grid)
-        :param dims tuple: dimension shape (number of grids per dimension)
-        :return nx3 numpy.ndarray: the neighbor cell ids.
-        """
-        signs = list(itertools.product((-1, 1), (-1, 1), (-1, 1)))
-        # Neighbors are cells separation distance <= the cutoff. Adjacent cells
-        # are 0 distance separated, and one cell may contain multiple atoms.
-        ijks = list(itertools.product(*[range(x + 1) for x in shape]))
-        nbrs = np.prod(list(itertools.product(signs, ijks)), axis=1)
-        nbrs = np.unique(nbrs, axis=0)
-        # Unique neighbor cell ids
-        min_cid = np.min(nbrs, axis=0)
-        wrapped = (nbrs - min_cid) % dims
-        cids = np.zeros([np.max(wrapped) + 1] * 3, dtype=bool)
-        cids[tuple(wrapped.transpose())] = True
-        return np.array(cids.nonzero()).T + min_cid
-
-
+@numba.experimental.jitclass([('frm', numba.float64[:, :]),
+                              ('span', numba.float64[:]),
+                              ('cut', numba.float64), ('dims', numba.int64[:]),
+                              ('grids', numba.float64[:]),
+                              ('nbrs', numba.int64[:, :, :, :, :]),
+                              ('cell', numba.boolean[:, :, :, :])])
 class CellNumba(Cell):
     """
     See the parent. (accelerated by numba)
     """
 
-    def set(self, *args, **kwargs):
+    def set(self, gids, state=True):
         """
-        See the parent.
+        See parent.
         """
-        numbautils.set(self, self.grids, self.dims, self.frm, *args, **kwargs)
+        for gid in gids:
+            cids = self.getCids(gid)
+            self.cell[cids[0], cids[1], cids[2], gid] = state
 
-    def get(self, *args, **kwargs):
+    def getCids(self, gid):
         """
-        See the parent.
+        See parent.
         """
-        return numbautils.get(self, self.grids, self.dims, self.frm, self.nbrs,
-                              *args, **kwargs)
+        return np.round(self.frm[gid] / self.grids).astype(
+            np.int32) % self.dims
 
-    @methodtools.lru_cache()
-    @classmethod
-    def getNbrs(cls, shape, dims):
+    def get(self, gid, less=False):
         """
-        See the parent.
+        See parent.
         """
-        return numbautils.get_nbrs(cls.getOrigNbrs(shape, dims),
-                                   np.array(dims))
+        cid = self.getCids(gid)
+        cids = self.nbrs[cid[0], cid[1], cid[2], :]
+        # The atom ids from all neighbor cells
+        gids = [self.cell[x[0], x[1], x[2], :].nonzero()[0] for x in cids]
+        if less:
+            gids = [x[x < gid] for x in gids]
+        return [y for x in gids for y in x]
+
+    @staticmethod
+    def getNbrs(nx, ny, nz):
+        """
+        See parent.
+        """
+        dims = np.array([nx, ny, nz], dtype=np.int64)
+        vecs = []
+        for dim in dims:
+            vec = np.arange(-1, 2, dtype=np.int64)
+            vecs.append(vec - np.round(vec / dim).astype(np.int64) * dim)
+
+        orig_shape = (np.prod(np.array([x.size for x in vecs])), len(vecs))
+        orig = np.zeros(orig_shape, dtype=np.int64)
+        idx = 0
+        for x in vecs[0]:
+            for y in vecs[1]:
+                for z in vecs[2]:
+                    orig[idx, :] = [x, y, z]
+                    idx += 1
+
+        nbrs = np.zeros((nx, ny, nz, *orig.shape), dtype=np.int64)
+        for x in numba.prange(nx):
+            for y in numba.prange(ny):
+                for z in numba.prange(nz):
+                    cids = (orig + np.array([x, y, z])) % dims
+                    nbrs[x, y, z, :, :] = cids
+        return nbrs
 
 
 class Frame(frame.Base):
@@ -212,6 +226,7 @@ class Frame(frame.Base):
                  cut=None,
                  struct=None,
                  srch=None,
+                 delay=False,
                  **kwargs):
         """
         :param gids list: global atom ids to analyze
@@ -225,16 +240,21 @@ class Frame(frame.Base):
         self.struct = struct
         self.srch = srch
         self.cell = None
+        if delay:
+            return
+        self.setUp()
+
+    def setUp(self):
         if self.cut is None:
             self.cut = self.radii.max()
-        if srch is False or self.box is None:
+        if self.srch is False or self.box is None:
             return
         # Distance > the 1/2 diagonal is not in the first image
         # cut > edge / 2 includes all cells in that direction
         self.cut = min(self.cut, self.box.span.max() / 2)
-        if srch is None and not self.useCell(self.box.span, self.cut):
+        if self.srch is None and not self.useCell(self.box.span, self.cut):
             return
-        self.cell = self.Cell(self)
+        self.cell = self.Cell(self, self.box.span, self.cut)
         self.set(self.gids.on)
 
     @methodtools.lru_cache()
@@ -281,7 +301,7 @@ class Frame(frame.Base):
         :return list of floats: global atom id group
         """
         if self.cell is not None:
-            return self.cell.get(gid, less=less)
+            return self.cell.get(gid, less)
         return self.gids.less(gid) if less else self.gids.on
 
     def getClashes(self, grp, grps=None, less=True):
@@ -372,4 +392,4 @@ class Frame(frame.Base):
         """
         self.gids[gids] = state
         if self.cell is not None:
-            self.cell.set(gids, state=state)
+            self.cell.set(gids, state)
