@@ -87,79 +87,53 @@ class TestCellOrig:
     def testGetNbrs(self, dims, expected):
         assert expected == dist.CellOrig.getNbrs(*dims).shape
 
-    # @pytest.mark.parametrize('dims,shape,expected',
-    #                          [((2, 3, 4), (1, 1, 1), 18),
-    #                           ((4, 3, 1), (2, 2, 2), 12)])
-    # def testGetOrigNbrs(self, dims, shape, expected):
-    #     assert expected == dist.Cell.getOrigNbrs(shape, dims).shape[0]
-    #
-    # @pytest.mark.parametrize('span,cut', [([10, 9, 11], 2)])
-    # @pytest.mark.parametrize('xyzs',
-    #                          [[[1, 4, 1]], [[-1, -4, 0]], [[8, 100, 11]]])
-    # def test(self, cell, xyzs, span):
-    #     cell.set(0)
-    #     center = np.array(cell.nonzero()[:-1]).transpose()[0] * cell.grids
-    #     # Between 0 and the span
-    #     assert (center < span).all()
-    #     assert (center >= 0).all()
-    #     # Near the original point
-    #     norm = pbc.Box.fromParams(*span).norm(xyzs - center)
-    #     assert norm < np.linalg.norm(cell.grids / 2)
-
-    # @pytest.mark.parametrize(
-    #     "arrays,gid,expected",
-    #     [([[2., 2.25, 2.2], [5, 4, 5], [[1, 4, 1]]], 0, [0, 2, 0])])
-    # def testGetIds(self, arrays, gid, expected):
-    #     ids = numbautils.get_ids(*[np.array(x) for x in arrays], gid)
-    #     np.testing.assert_almost_equal(ids, expected)
-    #
-    # @pytest.mark.parametrize('span,cut', [([10, 9, 11], 2)])
-    # @pytest.mark.parametrize(
-    #     "xyzs,gids,expected",
-    #     [([[1, 4, 1]], [0], [[0, 2, 0, 0]]),
-    #      ([[1, 4, 1], [2, 3, 6]], [0, 1], [[0, 2, 0, 0], [1, 1, 3, 1]])])
-    # def testSet(self, cell, xyzs, gids, expected):
-    #     args = [cell, cell.grids, cell.dims, cell.frm, np.array(gids)]
-    #     numbautils.set(*args)
-    #     np.testing.assert_almost_equal(np.array(cell.nonzero()).T, expected)
-    #     numbautils.set(*args, state=False)
-    #     assert not cell.nonzero()[0].size
+    @pytest.mark.parametrize('file,cut', [(HEX_FRM, 10)])
+    @pytest.mark.parametrize('gid', [0, 6, 24, 54, 100, 2777])
+    def test(self, cell, gid):
+        cell.set(gid)
+        center = np.array(cell.cell.nonzero())[:-1].transpose() * cell.grids
+        # Between 0 and the span
+        assert (center < cell.frm.box.span).all()
+        assert (center >= 0).all()
+        # Near the original point
+        norm = cell.frm.box.norms(cell.frm[gid] - center)
+        assert (norm < np.linalg.norm(cell.grids / 2)).all()
 
 
-# class TestCellNumba:
-#
-#     @pytest.fixture
-#     def cell(self, xyzs, span, cut):
-#         box = pbc.Box.fromParams(*span)
-#         return dist.CellNumba(dist.Frame(xyzs, box=box, cut=cut))
-#
-#     @pytest.mark.parametrize('xyzs,span,cut', [([[1, 4, 1]], [10, 9, 11], 2)])
-#     @pytest.mark.parametrize('gids', [[0]])
-#     def testSet(self, cell, gids, span):
-#         cell.set(gids)
-#         ixs, iys, izs, ids = cell.nonzero()
-#         assert (gids == ids).all()
-#         cell.set(gids, state=False)
-#         assert 0 == len(cell.nonzero()[0])
-#
-#     @pytest.mark.parametrize(
-#         'xyzs,span,cut',
-#         [([[5, 8.5, 5], [4.5, 0.5, 5.5], [4.5, 5, 5.5]], [10, 9, 11], 2)])
-#     @pytest.mark.parametrize('gids,gid,less,expected',
-#                              [([0, 1], 1, False, [0, 1]),
-#                               ([0, 1], 1, True, [0]), ([0, 1], 2, False, []),
-#                               ([1], 0, False, [1])])
-#     def testGet(self, cell, gids, gid, less, expected):
-#         cell.set(gids)
-#         assert expected == cell.get(gid, less=less)
-#
-#     @pytest.mark.parametrize('dims,shape,expected',
-#                              [((2, 3, 4), (1, 1, 1), 18),
-#                               ((4, 3, 1), (2, 2, 2), 12)])
-#     def testGetNbrs(self, dims, shape, expected):
-#         nx, ny, nz, num, _ = dist.Cell.getNbrs(shape, dims).shape
-#         assert expected == num
-#         assert dims == (nx, ny, nz)
+class TestCellNumba:
+
+    @pytest.fixture
+    def cell(self, frm, cut):
+        return dist.CellNumba(frm, frm.box.span, cut)
+
+    @pytest.mark.parametrize('file,cut,gids',
+                             [(HEX_FRM, 10, np.array([0, 6]))])
+    def testSet(self, cell, gids):
+        cell.set(gids)
+        assert set(gids) == set(cell.cell.nonzero()[-1])
+        cell.set(gids, False)
+        assert 0 == cell.cell.nonzero()[-1].size
+
+    @pytest.mark.parametrize(
+        'file,cut,gids,expected',
+        [(HEX_FRM, 10, [0, 6], np.array([[3, 2, 2], [2, 0, 2]]))])
+    def testGetCids(self, cell, gids, expected):
+        cid = cell.getCid(np.array(gids, dtype=np.int64))
+        np.testing.assert_almost_equal(cid, expected)
+
+    @pytest.mark.parametrize('file,cut,gids,gid',
+                             [(HEX_FRM, 10, np.array([0, 1, 2]), 1)])
+    @pytest.mark.parametrize('less,expected', [(False, [0, 1, 2]),
+                                               (True, [0])])
+    def testGet(self, cell, gids, gid, less, expected):
+        cell.set(gids)
+        assert expected == cell.get(gid, less)
+
+    @pytest.mark.parametrize('dims,expected',
+                             [((2, 2, 2), (2, 2, 2, 27, 3)),
+                              ((10, 10, 10), (10, 10, 10, 27, 3))])
+    def testGetNbrs(self, dims, expected):
+        assert expected == dist.CellOrig.getNbrs(*dims).shape
 
 
 class TestFrame:
