@@ -77,7 +77,7 @@ class TestBase:
         assert expected == base.allClose(other)
 
 
-class TestBoxOrig:
+class TestBoxNumba:
 
     @pytest.fixture
     def box(self, params, tilted):
@@ -145,7 +145,7 @@ class TestBoxOrig:
         np.testing.assert_almost_equal(box.norms(vecs), expected)
 
 
-class TestBoxNumba:
+class TestBoxOrig:
 
     @pytest.fixture
     def box(self, params, tilted):

@@ -37,3 +37,9 @@ class TestFunction:
         graph = structutils.getGraph(mol)
         assert nnode == len(graph.nodes)
         assert nedge == len(graph.edges)
+
+    # @pytest.mark.parametrize('file,cut,gids,srch,struct',
+    #                          [(HEX_FRM, None, [], None, None)])
+    # def testRatio(self, fr):
+    #     fr.set([1, 12])
+    #     assert '2 / 3000' == fr.ratio

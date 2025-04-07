@@ -67,7 +67,7 @@ class Radius(np.ndarray):
         return self[tuple(self.map[x] for x in args)]
 
 
-class Cell:
+class CellOrig:
     """
     Grid box and track atoms.
 
@@ -130,15 +130,15 @@ class Cell:
     @functools.cache
     def getNbrs(cls, *dims):
         """
-        The neighbor cells ids of all cells.
-
-        Neighbors are cells separation distance <= the cutoff. Adjacent cells
-        are 0 distance separated, and one cell may contain multiple atoms.
+        The neighbor cells ids of all cells. By definition, neighbors are cells
+        with separation distance <= the cutoff, and adjacent cells are 0 distance
+        separated. In addition, one cell may contain multiple atoms.
 
         :param dims tuple: the dimensions (span over grid in x, y, and z)
         :return 3x3x3xNx3 numpy.ndarray: the query cell id is 3x3x3 tuple, and
             the return neighbor cell ids are Nx3 numpy.ndarray.
         """
+        # As grid >= cut, neighbor cells are one grid away around the self cell
         wrapped = [[int(math.remainder(y, x)) for y in range(-1, 2)]
                    for x in dims]
         orig = np.array((list(itertools.product(*wrapped))))
@@ -154,7 +154,7 @@ class Cell:
                               ('grids', numba.float64[:]),
                               ('nbrs', numba.int64[:, :, :, :, :]),
                               ('cell', numba.boolean[:, :, :, :])])
-class CellNumba(Cell):
+class CellNumba(CellOrig):
     """
     See the parent. (accelerated by numba)
     """
@@ -208,11 +208,13 @@ class CellNumba(Cell):
         return nbrs
 
 
+Cell = CellOrig if envutils.is_original() else CellNumba
+
+
 class Frame(frame.Base):
     """
     Search neighbors and check clashes.
     """
-    Cell = Cell if envutils.is_original() else CellNumba
 
     def __init__(self,
                  *args,
@@ -252,7 +254,7 @@ class Frame(frame.Base):
         self.cut = min(self.cut, self.box.span.max() / 2)
         if self.srch is None and not self.useCell(self.box.span, self.cut):
             return
-        self.cell = self.Cell(self, self.box.span, self.cut)
+        self.cell = Cell(self, self.box.span, self.cut)
         self.set(self.gids.on)
 
     @methodtools.lru_cache()
