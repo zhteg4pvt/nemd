@@ -27,19 +27,18 @@ class Base(pd.DataFrame):
     TYPE_COL = None  # Atom type
     FMT = None  # when use np.savetxt to speed up
 
-    def __init__(self, data=None, index=None, columns=None, **kwargs):
+    def __init__(self, data=None, columns=None, **kwargs):
         """
         Initialize the Mass object.
 
-        :param data: `pandas.DataFrame` or int: the data or the row number.
-        :param index: `pandas.Index`: the index to initialize the object.
+        :param data `pandas.DataFrame` or int: the data or the row number.
         :param columns: `list`: the column labels to initialize the object.
         """
         if not isinstance(data, pd.DataFrame) and columns is None:
             columns = self.COLUMNS
         if isinstance(data, int):
             data = np.ones((data, len(columns)), dtype=np.int32)
-        super().__init__(data=data, index=index, columns=columns, **kwargs)
+        super().__init__(data=data, columns=columns, **kwargs)
 
     @classmethod
     @property
@@ -368,11 +367,11 @@ class BoxOrig(BoxNumba):
         """
         Get the functions to calculate the vectorized remainder.
 
-        :return 'func': function to calculate the remainder of one dimension.
+        :return list of 'func': functions to calculate the remainder.
         """
         return [
-            np.frompyfunc(lambda x: math.remainder(x, s), 1, 1)
-            for s in self.span
+            np.frompyfunc(lambda x, y=y: math.remainder(x, y), 1, 1)
+            for y in self.span
         ]
 
 

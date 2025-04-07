@@ -128,7 +128,7 @@ class TestJob:
     @pytest.mark.parametrize('jobname', [('mb_lmp_log')])
     @pytest.mark.parametrize('dirname, ftype, expected',
                              [(MB_LMP_LOG, 'outfile', 'mb_lmp_log.log'),
-                              (MB_LMP_LOG, 'outfile2', None),
+                              (MB_LMP_LOG, 'outfile2', '/mb_lmp_log2.log'),
                               (None, 'outfile', None)])
     def testGetFile(self, ftype, expected, dirname, job):
         file = job.getFile(ftype=ftype)

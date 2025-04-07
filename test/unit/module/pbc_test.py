@@ -140,7 +140,7 @@ class TestBoxOrig:
     @pytest.mark.parametrize('params,expected',
                              [([1, 2, 3, 90, 90, 90], 1.41421356),
                               ([3, 3, 5, 90, 90, 90], 1.73205081)])
-    def testNorm(self, box, vec, expected):
+    def testNorms(self, box, vec, expected):
         vecs = np.array([vec])
         np.testing.assert_almost_equal(box.norms(vecs), expected)
 
@@ -151,10 +151,10 @@ class TestBoxNumba:
     def box(self, params, tilted):
         return pbc.BoxNumba.fromParams(*params, tilted=tilted)
 
-    @pytest.mark.parametrize('tilted,vec', [(False, [1., 1, 1])])
+    @pytest.mark.parametrize('tilted,vec', [(False, [1, 1, 1])])
     @pytest.mark.parametrize('params,expected',
                              [([1, 2, 3, 90, 90, 90], 1.41421356),
                               ([3, 3, 5, 90, 90, 90], 1.73205081)])
-    def testNorm(self, box, vec, expected):
+    def testNorms(self, box, vec, expected):
         vecs = np.array([vec])
         np.testing.assert_almost_equal(box.norms(vecs), expected)

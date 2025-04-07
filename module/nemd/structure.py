@@ -142,7 +142,7 @@ class Mol(Chem.rdchem.Mol):
         :param gid int: the starting global id.
         """
         if self.struct:
-            cid, start = self.struct.getCids()
+            cid, start = self.struct.getCid()
         ConfClass = self.ConfClass
         if self.ConfWrapper is not None:
             ConfClass = self.ConfWrapper
@@ -354,7 +354,7 @@ class Struct:
         """
         pass
 
-    def getCids(self):
+    def getCid(self):
         """
         Get the global ids to start with.
 

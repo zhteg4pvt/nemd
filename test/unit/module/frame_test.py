@@ -15,7 +15,7 @@ class TestBase:
                              [(None, None, (0, )),
                               (np.array([[1, 2], [3, 4]]), pbc.Box(), None)])
     def testInit(self, data, box, shape):
-        base = frame.Base(data=data, box=box, shape=shape)
+        base = frame.Base(data, box=box, shape=shape)
         assert base.box is box
         expected = np.zeros(shape) == data if data is None else data
         np.testing.assert_almost_equal(base, expected)
@@ -32,11 +32,11 @@ class TestFrame:
     HEXANE_FRM = os.path.join(HEX, 'dump.custom')
 
     @pytest.mark.parametrize('data,step,expected',
-                             [(None, None, [(0, ), None]),
+                             [(None, None, [(), None]),
                               ([1, 2], 3, [(2, ), 3]),
                               (frame.Frame([4], step=2), None, [(1, ), 2])])
     def testInit(self, data, step, expected):
-        frm = frame.Frame(data=data, step=step)
+        frm = frame.Frame(data, step=step)
         assert expected == [frm.shape, frm.step]
 
     @pytest.mark.parametrize('file,start,expected',

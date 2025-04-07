@@ -98,17 +98,18 @@ class Cell:
         :param gids list of int: the global atom ids
         :param state bool: the state to set
         """
-        ixs, iys, izs = self.getCids(gids).transpose()
+        ixs, iys, izs = self.getCid(gids).transpose()
         self.cell[ixs, iys, izs, gids] = state
 
-    def getCids(self, gids):
+    def getCid(self, gids):
         """
         Get the cell id(s).
 
-        :param gids list of int: the global atom ids
+        :param gids int or list of int: the global atom id(s)
         :return `np.ndarray`: the cell id(s)
         """
-        return (self.frm[gids] / self.grids).round().astype(int) % self.dims
+        cid = np.round(self.frm[gids] / self.grids).astype(np.int32)
+        return cid % self.dims
 
     def get(self, gid, less=False):
         """
@@ -119,7 +120,7 @@ class Cell:
         :param gt bool: only include the global atom ids greater than the gid
         :return list of ints: the neighbor atom ids around the coordinates
         """
-        cids = self.nbrs[tuple(self.getCids(gid))]
+        cids = self.nbrs[tuple(self.getCid(gid))]
         gids = [self.cell[tuple(x)].nonzero()[0] for x in cids]
         if less:
             gids = [x[x < gid] for x in gids]
@@ -163,21 +164,14 @@ class CellNumba(Cell):
         See parent.
         """
         for gid in gids:
-            cids = self.getCids(gid)
-            self.cell[cids[0], cids[1], cids[2], gid] = state
-
-    def getCids(self, gid):
-        """
-        See parent.
-        """
-        return np.round(self.frm[gid] / self.grids).astype(
-            np.int32) % self.dims
+            cid = self.getCid(gid)
+            self.cell[cid[0], cid[1], cid[2], gid] = state
 
     def get(self, gid, less=False):
         """
         See parent.
         """
-        cid = self.getCids(gid)
+        cid = self.getCid(gid)
         cids = self.nbrs[cid[0], cid[1], cid[2], :]
         # The atom ids from all neighbor cells
         gids = [self.cell[x[0], x[1], x[2], :].nonzero()[0] for x in cids]
@@ -233,6 +227,7 @@ class Frame(frame.Base):
         :param cut float: the cutoff distance to search neighbors
         :param struct 'Struct' or 'Reader': radii and excluded pairs
         :param srch: whether to use distance cell to search neighbors
+        :param delay: delay the setup if True
         """
         super().__init__(*args, **kwargs)
         self.gids = numpyutils.IntArray(shape=self.shape[0], on=gids)
@@ -245,6 +240,9 @@ class Frame(frame.Base):
         self.setUp()
 
     def setUp(self):
+        """
+        Set up the distance cell.
+        """
         if self.cut is None:
             self.cut = self.radii.max()
         if self.srch is False or self.box is None:

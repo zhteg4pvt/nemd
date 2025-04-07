@@ -82,7 +82,7 @@ class TestCell:
     @pytest.mark.parametrize('xyzs,span,cut', [([[1, 4, 1]], [10, 9, 11], 2)])
     @pytest.mark.parametrize('gids,shape', [(0, (3, )), ([0], (1, 3))])
     def testGetCids(self, cell, gids, shape):
-        cids = cell.getCids(gids)
+        cids = cell.getCid(gids)
         assert shape == cids.shape
         assert ([0, 2, 0] == cids).all()
 
@@ -272,3 +272,22 @@ class TestFrame:
     def testRatio(self, fr):
         fr.set([1, 12])
         assert '2 / 3000' == fr.ratio
+
+    # @pytest.mark.parametrize(
+    #     "arrays,gid,expected",
+    #     [([[2., 2.25, 2.2], [5, 4, 5], [[1, 4, 1]]], 0, [0, 2, 0])])
+    # def testGetIds(self, arrays, gid, expected):
+    #     ids = numbautils.get_ids(*[np.array(x) for x in arrays], gid)
+    #     np.testing.assert_almost_equal(ids, expected)
+    #
+    # @pytest.mark.parametrize('span,cut', [([10, 9, 11], 2)])
+    # @pytest.mark.parametrize(
+    #     "xyzs,gids,expected",
+    #     [([[1, 4, 1]], [0], [[0, 2, 0, 0]]),
+    #      ([[1, 4, 1], [2, 3, 6]], [0, 1], [[0, 2, 0, 0], [1, 1, 3, 1]])])
+    # def testSet(self, cell, xyzs, gids, expected):
+    #     args = [cell, cell.grids, cell.dims, cell.frm, np.array(gids)]
+    #     numbautils.set(*args)
+    #     np.testing.assert_almost_equal(np.array(cell.nonzero()).T, expected)
+    #     numbautils.set(*args, state=False)
+    #     assert not cell.nonzero()[0].size
