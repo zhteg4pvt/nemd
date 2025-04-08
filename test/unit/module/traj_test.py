@@ -1,96 +1,67 @@
 import os
 
-import numpy as np
 import pytest
 
 from nemd import envutils
+from nemd import frame
+from nemd import parserutils
 from nemd import traj
 
-TRAJS = 'trajs'
-BASE_DIR = envutils.test_data(TRAJS)
-CC3COOH = os.path.join(BASE_DIR, 'CC3COOH.custom')
-CC3COOH_RANDOMIZED = os.path.join(BASE_DIR, 'CC3COOH_randomized.custom')
+
+@pytest.fixture
+def options(opts):
+    if opts is None:
+        return
+    parser = parserutils.LmpTraj(delay=True)
+    parser.add(parser)
+    return parser.parse_args(opts)
+
+
+class TestTime:
+
+    @pytest.mark.parametrize('args,opts,expected',
+                             [([], None, None), ([0, 1, 2], None, 0),
+                              ([0, 1, 2], ['-last_pct', '0.8'], 1)])
+    def testNew(self, args, options, expected):
+        time = traj.Time(args, options=options)
+        assert expected == time.start
 
 
 class TestTraj:
 
-    @pytest.fixture
-    def raw_frms(self, filename):
-        return traj.Frame.read(filename)
-
-    @pytest.mark.parametrize(('filename', 'same'),
-                             [(CC3COOH, False), (CC3COOH_RANDOMIZED, True)])
-    def testRead(self, raw_frms, same):
-        frms = list(raw_frms)
-        assert 2 == len(frms)
-        frm1, frm2 = frms
-        assert same == all((frm1 == frm2).all())
+    HEX = envutils.test_data('hexane_liquid')
+    FRM = os.path.join(HEX, 'dump.custom')
+    GZ = os.path.join(HEX, 'dump.custom.gz')
 
     @pytest.fixture
-    def frm(self, filename):
-        return next(traj.Frame.read(filename))
+    def trj(self, file, options, start):
+        return traj.Traj(file, options=options, start=start)
 
-    @pytest.mark.parametrize(('filename'), [(CC3COOH)])
-    def testInit(self, frm):
-        array = frm.values
-        nfrm = traj.Frame(array)
-        assert all((frm == nfrm).all())
+    @pytest.mark.parametrize('file,opts,start,expected',
+                             [(FRM, None, 0, 1),
+                              (GZ, ['-last_pct', '0.8'], 0, 46),
+                              (GZ, ['-last_pct', '0.8'], None, 38)])
+    def testLoad(self, trj, expected):
+        trj.load()
+        assert expected == len([x for x in trj if isinstance(x, frame.Frame)])
 
+    @pytest.mark.parametrize('file,opts,start,expected',
+                             [(FRM, None, 0, 0), (FRM, None, None, 0),
+                              (GZ, ['-last_pct', '0.8'], None, 7000)])
+    def testSetStart(self, trj, expected):
+        trj.setStart()
+        assert expected == trj.start
 
-class TestCell:
+    @pytest.mark.parametrize('file,opts,start,expected',
+                             [(FRM, None, 105000, True),
+                              (FRM, None, 105001, False)])
+    def testFrame(self, trj, expected):
+        frm = next(trj.frame)
+        assert expected == isinstance(frm, frame.Frame)
 
-    @pytest.fixture
-    def frm(self, filename):
-        frm = next(traj.Frame.read(filename))
-        return traj.Cell(frm, cut=3., res=1.)
-
-    @pytest.mark.parametrize(('filename'), [(CC3COOH)])
-    def testSetSpan(self, frm):
-        frm.setSpan()
-        assert (frm.span == 48).all()
-
-    @pytest.mark.parametrize(('filename'), [(CC3COOH)])
-    def testSetgrids(self, frm):
-        frm.setSpan()
-        frm.setgrids()
-        assert (frm.grids == 1).all()
-
-    @pytest.mark.parametrize(('filename'), [(CC3COOH)])
-    def testSetNeighborIds(self, frm):
-        frm.setSpan()
-        frm.setgrids()
-        frm.setNeighborIds()
-        assert 311 == len(frm.neigh_ids)
-
-    @pytest.mark.parametrize(('filename'), [(CC3COOH)])
-    def testSetAtomCell(self, frm):
-        frm.setSpan()
-        frm.setgrids()
-        frm.setNeighborIds()
-        frm.setAtomCell()
-        assert (48, 48, 48, 19) == frm.atom_cell.shape
-
-    @pytest.mark.parametrize(('filename'), [(CC3COOH)])
-    def testGetNeighbors(self, frm):
-        frm.cut = 3
-        frm.res = 1
-        frm.setSpan()
-        frm.setgrids()
-        frm.setNeighborIds()
-        frm.setNeighborMap()
-        frm.setAtomCell()
-        xyzs = [frm.frm.getXYZ(x) for x in frm.getNeighbors((0, 0, 0))]
-        dists = [np.linalg.norm(x) for x in xyzs]
-        assert 16 == len(dists)
-
-    @pytest.mark.parametrize(('filename'), [(CC3COOH)])
-    def testGetNeighbors(self, frm):
-        frm.cut = 3
-        frm.res = 1
-        frm.setSpan()
-        frm.setgrids()
-        frm.setNeighborIds()
-        frm.setNeighborMap()
-        frm.setAtomCell()
-        row = frm.frm.getXYZ(1)
-        assert not frm.getClashes(row)
+    @pytest.mark.parametrize('file,opts,start,expected',
+                             [(GZ, None, None, 46),
+                              (GZ, ['-last_pct', '0.8'], None, 37)])
+    def testSel(self, trj, expected):
+        trj.load()
+        assert expected == len(trj.sel)

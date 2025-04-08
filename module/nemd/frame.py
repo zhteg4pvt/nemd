@@ -50,8 +50,8 @@ class Frame(Base):
     @classmethod
     def read(cls, fh, start=0):
         """
-        Read a custom dumpy file with id, xu, yu, zu. Full coordinate
-        information is available with step number >= start.
+        Read a custom dumpy file with id, xu, yu, zu. Full coordinates
+        information are available when step number >= start.
 
         :param fh '_io.TextIOWrapper': the file handle to read the frame from.
         :param start int: frames with step number < this value are fully read.

@@ -955,6 +955,7 @@ class LmpLog(Lammps):
             cls.FLAG_SLICE,
             metavar='START END STEP',
             type=type_nonnegative_int,
+            default=[None],
             action=SliceAction,
             nargs='+',
             help="SliceAction the input data before the analysis by "

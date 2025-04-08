@@ -32,6 +32,8 @@ class Traj(logutils.Base):
         self.traj = None
         self.rdf = None
         self.gids = None
+        self.tasks = [x for x in self.options.task if x in analyzer.ALL_FRM]
+        self.start = 0 if self.tasks else None
 
     def run(self):
         """
@@ -68,15 +70,17 @@ class Traj(logutils.Base):
         """
         Read and set trajectory frames.
         """
-        self.traj = traj.Traj(self.options.traj, options=self.options)
+        self.traj = traj.Traj(self.options.traj,
+                              options=self.options,
+                              start=self.start)
         self.traj.load()
         if len(self.traj) == 0:
             self.error(f'{self.options.traj} contains no frames.')
         # Report the number of frames, (starting time), and ending time
         self.log(f"{len(self.traj)} trajectory frames found.")
-        if self.traj.tasks:
+        if self.tasks:
             self.log(
-                f"{', '.join(self.traj.tasks)} analyze all frames and save per "
+                f"{', '.join(self.tasks)} analyze all frames and save per "
                 f"frame results {symbols.ELEMENT_OF} [{self.traj.time[0]:.3f}, "
                 f"{self.traj.time[-1]:.3f}] ps")
         lf_tasks = [
