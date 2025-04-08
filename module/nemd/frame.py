@@ -100,20 +100,20 @@ class Frame(Base):
         center = np.arctan2(sin_ave, cos_ave) * self.box.span / 2 / np.pi
         self[:] += center - self.box.center
 
-    def wrap(self, broken_bonds=False, molecules=None):
+    def wrap(self, broken_bonds=False, dreader=None):
         """
         Wrap atoms or molecule centers into the PBC first image.
 
         :param broken_bonds bool: allow bonds broken by PBC boundaries.
-        :param molecules 'dict': molecule ids -> global atom ids
+        :param dreader 'oplsua.Reader': datafile reader
         """
         if broken_bonds:
             self[:] = self % self.box.span
             return
-        if molecules is None:
+        if dreader is None:
             return
         # The unwrapped xyz can directly perform molecule center operation
-        for gids in molecules.values():
+        for gids in dreader.molecules.values():
             center = self[gids, :].mean(axis=0)
             self[gids, :] += (center % self.box.span) - center
 
@@ -122,7 +122,7 @@ class Frame(Base):
         Write XYZ to a file.
 
         :param fh '_io.TextIOWrapper': file handdle to write out xyz.
-        :param dreader 'oplsua.Reader': datafile reader for element info
+        :param dreader 'oplsua.Reader': datafile reader
         :param visible list: visible atom gids.
         :param points list: additional point to visualize.
         """

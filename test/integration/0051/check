@@ -1,0 +1,1 @@
+cmp('lmp_traj_rdf.csv', 'lmp_traj_rdf.csv') && cmp('lmp_traj_clash.csv', 'lmp_traj_clash.csv') && cmp('lmp_traj_msd.csv', 'lmp_traj_msd.csv')  && cmp('lmp_traj_xyz.xyz','lmp_traj_xyz.xyz')

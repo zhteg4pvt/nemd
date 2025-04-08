@@ -7,7 +7,6 @@ import functools
 import math
 import os
 import re
-import sys
 import types
 
 import numpy as np
@@ -272,6 +271,8 @@ class TrajBase(Base):
         self.gids = gids
         if not self.traj:
             return
+        if self.gids is None:
+            self.gids = list(range(self.traj[0].shape[0]))
         self.sidx = self.traj.time.sidx
 
 
@@ -305,7 +306,7 @@ class XYZ(TrajBase):
                 if center:
                     frm.center()
                 if wrapped:
-                    frm.wrap(broken_bonds, molecules=self.rdf.molecules)
+                    frm.wrap(broken_bonds, dreader=self.rdf)
                 frm.write(self.out_fh, dreader=self.rdf)
         self.log(f"{self.DESCR} coordinates are written into {self.outfile}")
 
@@ -323,13 +324,13 @@ class View(TrajBase):
         """
         Main method to run the visualization.
         """
-        frm_vw = molview.FrameView(rdf=self.rdf)
-        frm_vw.setData(self.traj[0])
-        frm_vw.setElements()
-        frm_vw.addTraces()
-        frm_vw.setFrames(self.traj)
-        frm_vw.updateLayout()
-        frm_vw.show(outfile=self.outfile, inav=self.options.INTERAC)
+        view = molview.View(rdf=self.rdf)
+        view.setData(self.traj[0])
+        view.setElements()
+        view.addTraces()
+        view.setFrames(self.traj)
+        view.updateLayout()
+        view.show(outfile=self.outfile, inav=self.options.INTERAC)
         self.log(f'{self.DESCR.capitalize()} data written into {self.outfile}')
 
 
@@ -527,7 +528,8 @@ class MSD(RDF):
             self.data = pd.DataFrame({self.LABEL: []})
             return
         gids = list(self.gids)
-        masses = self.rdf.masses.mass[self.rdf.atoms.type_id[gids]]
+        masses = self.rdf.masses.mass[
+            self.rdf.atoms.type_id[gids]] if self.rdf else None
         msd, num = [0], len(self.traj.sel)
         for idx in range(1, num):
             disp = [
@@ -579,7 +581,7 @@ class MSD(RDF):
 
 
 ALL_FRM = [x.NAME for x in [Density, Clash, View, XYZ]]
-DATA_RQD = [x.NAME for x in [Density, MSD, RDF, Clash]]
+DATA_RQD = [x.NAME for x in [Density]]
 TRAJ = {x.NAME: x for x in [Density, RDF, MSD, Clash, View, XYZ]}
 
 

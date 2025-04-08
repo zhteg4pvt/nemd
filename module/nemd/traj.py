@@ -74,7 +74,7 @@ class Traj(list):
         """
         if self.start is not None:
             return
-        if self.options is None:
+        if self.options is None or self.options.slice is not None:
             self.start = 0
             return
         # No all-frame tasks found, fully read the last frames.

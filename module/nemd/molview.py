@@ -16,15 +16,14 @@ class Frame(pd.DataFrame):
     Frame data with coordinates, elements, marker sizes, and color info.
     """
 
-    # https://pandas.pydata.org/docs/development/extending.html
     _metadata = ['box']
 
-    def __init__(self, data=None, box=None):
+    def __init__(self, data, box=None):
         """
         :param data nx3 'numpy.ndarray' or 'DataFrame': xyz data
         :param box str: xlo, xhi, ylo, yhi, zlo, zhi boundaries
         """
-        super().__init__(data=data)
+        super().__init__(data)
         self.box = box
 
     def update(self, other):
@@ -37,25 +36,24 @@ class Frame(pd.DataFrame):
         self.box = other.box
 
 
-class FrameView:
+class View:
     """
     Viewer datafile and trajectory frame
     """
 
-    XYZU = symbols.XYZU
     ELEMENT = 'element'
     SIZE = 'size'
     COLOR = 'color'
     X_ELE = 'X'
     X_SIZE = 20
-    # Color from https://webmail.life.nthu.edu.tw/~fmhsu/rasframe/CPKCLRS.HTM
+    # https://webmail.life.nthu.edu.tw/~fmhsu/rasframe/CPKCLRS.HTM
     X_COLOR = '#FF1493'
     ELE_SZ_CLR = {ELEMENT: X_ELE, SIZE: X_SIZE, COLOR: X_COLOR}
 
     def __init__(self, rdf=None):
         """
-        :param rdf `nemd.oplsua.Reader`: datafile reader with
-            atom, bond, element and other info.
+        :param rdf `nemd.oplsua.Reader`: datafile reader with atom, bond,
+            element and other info.
         """
         self.rdf = rdf
         self.fig = graph_objects.Figure()
@@ -69,7 +67,7 @@ class FrameView:
         :param frm 'nemd.traj.Frame': the frame to create the data from.
         """
         if not self.rdf:
-            data = pd.DataFrame(frm, columns=self.XYZU)
+            data = pd.DataFrame(frm, columns=symbols.XYZU)
             self.data = Frame(data.assign(**self.ELE_SZ_CLR), box=frm.box)
             return
 
@@ -134,7 +132,7 @@ class FrameView:
 
         data = []
         for _, _, atom_id1, atom_id2 in self.rdf.bonds.itertuples():
-            pnts = self.data.loc[[atom_id1, atom_id2]][self.XYZU]
+            pnts = self.data.loc[[atom_id1, atom_id2]][symbols.XYZU]
             pnts = pd.concat([pnts, pnts.mean().to_frame().transpose()])
             data.append(self.getLine(pnts[::2], atom_id1))
             data.append(self.getLine(pnts[1::], atom_id2))

@@ -958,8 +958,7 @@ class LmpLog(Lammps):
             default=[None],
             action=SliceAction,
             nargs='+',
-            help="SliceAction the input data before the analysis by "
-            "END, START END, or START END STEP.")
+            help="Slice the input data by END, START END, or START END STEP.")
 
 
 class LmpTraj(LmpLog):
