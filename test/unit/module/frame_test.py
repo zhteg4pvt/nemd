@@ -64,7 +64,7 @@ class TestFrame:
     @pytest.mark.parametrize('broken_bonds,expected', [(True, 0.0002537),
                                                        (False, -2.25869)])
     def testWrap(self, frm, broken_bonds, dreader, expected):
-        frm.wrap(broken_bonds=broken_bonds, molecules=dreader.molecules)
+        frm.wrap(broken_bonds=broken_bonds, dreader=dreader)
         np.testing.assert_almost_equal(frm.min(), expected)
         # Scientific test: bond length; atom or molecule centroid within box
         inbox = (frm.max(axis=0) - frm.min(axis=0)) < frm.box.span

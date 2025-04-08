@@ -324,13 +324,8 @@ class View(TrajBase):
         """
         Main method to run the visualization.
         """
-        view = molview.View(rdf=self.rdf)
-        view.setData(self.traj[0])
-        view.setElements()
-        view.addTraces()
-        view.setFrames(self.traj)
-        view.updateLayout()
-        view.show(outfile=self.outfile, inav=self.options.INTERAC)
+        view = molview.View(trj=self.traj, rdf=self.rdf, outfile=self.outfile)
+        view.run()
         self.log(f'{self.DESCR.capitalize()} data written into {self.outfile}')
 
 
@@ -514,12 +509,13 @@ class MSD(RDF):
     PROP_NAME = 'Diffusion Coefficient'
     ERR_LB = f'Standard Error'
 
-    def setData(self, spct=0.1, epct=0.2):
+    def setData(self, spct=0.1, epct=0.2, weights=None):
         """
         Set the mean squared displacement and diffusion coefficient.
 
         :param spct float: exclude the frames of this percentage at head
         :param epct float: exclude the frames of this percentage at tail
+        :param weights list: the weights on averaging the msd
         """
         if self.data is not None:
             return
@@ -527,18 +523,17 @@ class MSD(RDF):
             self.warning("No atoms selected for MSD.")
             self.data = pd.DataFrame({self.LABEL: []})
             return
-        gids = list(self.gids)
-        masses = self.rdf.masses.mass[
-            self.rdf.atoms.type_id[gids]] if self.rdf else None
+
+        if self.rdf:
+            weights = self.rdf.masses.mass[self.rdf.atoms.type_id[self.gids]]
         msd, num = [0], len(self.traj.sel)
         for idx in range(1, num):
             disp = [
-                x[gids, :] - y[gids, :]
+                x[self.gids, :] - y[self.gids, :]
                 for x, y in zip(self.traj.sel[idx:], self.traj.sel[:-idx])
             ]
-            data = np.array([np.linalg.norm(x, axis=1) for x in disp])
-            sdata = np.square(data)
-            msd.append(np.average(sdata.mean(axis=0), weights=masses))
+            squared = np.square([np.linalg.norm(x, axis=1) for x in disp])
+            msd.append(np.average(squared.mean(axis=0), weights=weights))
         ps_time = self.traj.time[:num]
         self.sidx = math.floor(num * spct)
         self.eidx = math.ceil(num * (1 - epct))
