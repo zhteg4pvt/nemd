@@ -151,10 +151,8 @@ class Bond(Atom):
         """
         Get the atom pairs from each topology connectivity.
 
-        :param step: the step when slicing the atom ids
-        :type step: int
-        :return: the atom pairs
-        :rtype: list of tuple
+        :param step int: the step when slicing the atom ids
+        :return list of tuple: the atom pairs
         """
         slices = slice(None, None, step)
         return [tuple(sorted(x[slices])) for x in self[self.ID_COLS].values]
@@ -188,6 +186,9 @@ class Angle(Bond):
         self.id_map = None
 
     def getPairs(self, step=2):
+        """
+        Set parent.
+        """
         return super(Angle, self).getPairs(step=step)
 
     def select(self, atom_ids):

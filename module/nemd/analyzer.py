@@ -39,10 +39,8 @@ class Base(logutils.Base):
 
     def __init__(self, rdf=None, options=None, logger=None):
         """
-        :param rdf: data file reader containing structural information
-        :type rdf: 'nemd.oplsua.Reader'
-        :param options: the options from command line
-        :type options: 'argparse.Namespace'
+        :param rdf `oplsua.Reader`: data file reader
+        :param options `argparse.Namespace`: the options from command line
         :param logger 'logging.Logger': the logger to log messages
         """
         super().__init__(logger=logger)
@@ -324,7 +322,7 @@ class View(TrajBase):
         """
         Main method to run the visualization.
         """
-        view = molview.View(trj=self.traj, rdf=self.rdf, outfile=self.outfile)
+        view = molview.View(self.traj, rdf=self.rdf, outfile=self.outfile)
         view.run()
         self.log(f'{self.DESCR.capitalize()} data written into {self.outfile}')
 
