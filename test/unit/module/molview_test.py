@@ -1,82 +1,52 @@
-import os
-
+import numpy as np
 import pytest
 
 from nemd import envutils
+from nemd import lmpfull
 from nemd import molview
-from nemd import oplsua
 from nemd import traj
 
-COOH123 = envutils.test_data(os.path.join('polym_builder', 'cooh123.data'))
-NACL_DATA = envutils.test_data(os.path.join('trajs', 'NaCl.data'))
-NACL_CUSTOM = envutils.test_data(os.path.join('trajs', 'NaCl.custom'))
-CC_DATA = envutils.test_data(os.path.join('trajs', 'CC.data'))
-CC_CUSTOM = envutils.test_data(os.path.join('trajs', 'CC.custom'))
+FRM = envutils.test_data('water', 'three.custom')
+RDR = lmpfull.Reader(envutils.test_data('water', 'polymer_builder.data'))
 
 
-class TestTransConformer(object):
+@pytest.mark.parametrize('file', [FRM])
+class TestFrame:
 
-    @pytest.fixture
-    def frm_vw(self, datafile):
-        rdf = oplsua.Reader(datafile)
-        rdf.run()
-        frm_vw = molview.FrameView(rdf)
-        return frm_vw
+    @pytest.fixture()
+    def frm(self, file, rdf):
+        return molview.Frame(traj.Traj(file), rdf=rdf)
 
-    @pytest.fixture
-    def frm_df(self, datafile, traj_path):
-        rdf = oplsua.Reader(datafile)
-        rdf.run()
-        frm_df = molview.FrameView(rdf)
-        frm_df.setData()
-        frm_df.setEleSz()
-        frm_df.setScatters()
-        frm_df.setLines()
-        frm_df.addTraces()
-        frms = traj.get_frames(traj_path)
-        frm_df.setFrames(frms)
-        frm_df.updateLayout()
-        return frm_df
+    @pytest.mark.parametrize('rdf,expected', [(None, [9, 9, 9, 1, 1, 1]),
+                                              (RDR, [9, 9, 9, 2, 2, 2])])
+    def testSetUp(self, frm, expected):
+        np.testing.assert_almost_equal(frm.nunique(), expected)
 
-    @pytest.fixture
-    def frm_trj(self, traj_path):
-        frm_df = molview.FrameView()
-        frms = traj.get_frames(traj_path)
-        frm_df.setFrames(frms)
-        frm_df.updateLayout()
-        return frm_df
+    @pytest.mark.parametrize('rdf,expected', [(None, (1000, 56.409))])
+    def testUpdate(self, frm, expected):
+        copied = frm.copy()
+        frm.update(frm.trj[-1])
+        assert not (copied == frm)[['xu', 'yu', 'zu']].any().any()
+        assert expected == (frm.step, frm.box.max().max())
 
-    @pytest.mark.parametrize(('datafile'), [(COOH123)])
-    def testSetData(self, frm_vw):
-        frm_vw.setData()
-        assert (30, 6) == frm_vw.data.shape
+    @pytest.mark.parametrize('rdf,expected',
+                             [(None, ['X', 20, '#FF1493', 9, 3]),
+                              (RDR, ['O', 3.1507, '#f00000', 3, 3])])
+    def testGetCoords(self, frm, expected):
+        info, coords = next(frm.getCoords())
+        assert expected == [*info, *coords.shape]
 
-    @pytest.mark.parametrize(('datafile'), [(COOH123)])
-    def testSetScatters(self, frm_vw):
-        frm_vw.setData()
-        frm_vw.setEleSz()
-        frm_vw.setScatters()
-        assert 7 == len(frm_vw.markers)
+    @pytest.mark.parametrize('rdf,expected', [(None, ['X']),
+                                              (RDR, ['O', 'H'])])
+    def testElements(self, frm, expected):
+        assert (expected == frm.elements).all()
 
-    @pytest.mark.parametrize(('datafile'), [(COOH123)])
-    def testSetLines(self, frm_vw):
-        frm_vw.setData()
-        frm_vw.setEleSz()
-        frm_vw.setScatters()
-        frm_vw.setLines()
-        assert 54 == len(frm_vw.lines)
+    @pytest.mark.parametrize('rdf,expected', [(None, 0), (RDR, 12)])
+    def testBonds(self, frm, expected):
+        assert expected == len(list(frm.getBonds()))
 
-    @pytest.mark.parametrize(('datafile', 'traj_path', 'data_num', 'frm_num'),
-                             [(NACL_DATA, NACL_CUSTOM, 2, 4),
-                              (CC_DATA, CC_CUSTOM, 3, 4)])
-    def testAll_DataAndTraj(self, frm_df, data_num, frm_num):
-        # frm_df.show(); pdb.set_trace(); to view in the browser
-        assert data_num == len(frm_df.fig.data)
-        assert frm_num == len(frm_df.fig.frames)
-
-    @pytest.mark.parametrize(('traj_path', 'data_num', 'frm_num'),
-                             [(NACL_CUSTOM, 13, 4), (CC_CUSTOM, 13, 4)])
-    def testAll_Traj(self, frm_trj, data_num, frm_num):
-        # frm_df.show(); pdb.set_trace(); to view in the browser
-        assert data_num == len(frm_trj.fig.data)
-        assert frm_num == len(frm_trj.fig.frames)
+    @pytest.mark.parametrize(
+        'rdf,expected', [(None, [[-7.670475, 6.367965], [-3.896735, 10.141705],
+                                 [-6.89382, 7.14462]])])
+    def testGetRanges(self, frm, expected):
+        np.testing.assert_almost_equal(frm.getRanges(), expected)

@@ -44,7 +44,7 @@ class Traj(list):
     STEP_MK = 'ITEM: TIMESTEP'
     STEP_CMD = f"zgrep -A1 '{STEP_MK}' {{file}} | sed '/{STEP_MK}/d;/^--$/d'"
 
-    def __init__(self, file=None, options=None, start=0):
+    def __init__(self, file=None, options=None, start=0, delay=False):
         """
         :param file str: the trajectory file
         :param options 'argparse.Namespace': command line options
@@ -56,10 +56,13 @@ class Traj(list):
         self.start = start
         self.time = None
         self.open = gzip.open if file.endswith('.gz') else open
+        if delay:
+            return
+        self.setUp()
 
-    def load(self):
+    def setUp(self):
         """
-        Read, parse, and set the trajectory frames.
+        Set up.
         """
         self.setStart()
         sliced = getattr(self.options, 'slice', [None])

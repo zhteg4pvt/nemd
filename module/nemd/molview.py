@@ -1,7 +1,7 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
-This module visualizes the trajectory and the LAMMPS data file.
+This module visualizes the trajectory.
 """
 import methodtools
 import numpy as np
@@ -60,7 +60,7 @@ class Frame(pd.DataFrame):
         """
         self[symbols.XYZU] = other
         self.box = other.box
-        self.step = str(other.step)
+        self.step = other.step
 
     def getCoords(self):
         """
@@ -80,9 +80,8 @@ class Frame(pd.DataFrame):
 
         :return list of str: elements sorted by size
         """
-        elements = self[[self.ELEMENT, self.SIZE]].drop_duplicates()
-        elements.sort_values(by=self.SIZE, ascending=False, inplace=True)
-        return elements.element
+        to_sort = self[[self.ELEMENT, self.SIZE]].drop_duplicates()
+        return to_sort.sort_values(by=self.SIZE, ascending=False).element
 
     def getBonds(self):
         """
@@ -90,21 +89,25 @@ class Frame(pd.DataFrame):
 
         :return DataFrame, dict: bond points, bond style
         """
-        for aids in map(list, self.rdf.bonds.getPairs()):
-            pnts = self.loc[aids][symbols.XYZU]
+        if self.rdf is None:
+            return
+        for aids in self.rdf.bonds.getPairs():
+            pnts = self.loc[list(aids)][symbols.XYZU]
             pnts = pd.concat([pnts, pnts.mean().to_frame().transpose()])
             for pnts, idx in zip([pnts[::2], pnts[1::]], aids):
                 yield pnts, dict(width=8, color=self.xs(idx).color)
 
-    def getFrames(self):
+    def getRanges(self):
         """
-        Update the frame and return the new step.
+        Get the ranges.
 
-        :return `str` iterator: the step
+        :return list: xyz ranges.
         """
-        for frm in self.trj:
-            self.update(frm)
-            yield self.step
+        dmin = np.min([x.min(axis=0) for x in self.trj], axis=0)
+        dmax = np.max([x.max(axis=0) for x in self.trj], axis=0)
+        center = (dmin + dmax / 2)
+        span = (dmax - dmin).max()
+        return [[x, y] for x, y in zip((center - span), (center + span))]
 
 
 class View(Frame):
@@ -175,8 +178,7 @@ class View(Frame):
 
         :return list of `Scatter3d`: the traces
         """
-        traces = list(self.scatters) + list(self.edges)
-        return traces + list(self.lines) if self.rdf else traces
+        return list(self.scatters) + list(self.lines) + list(self.edges)
 
     @property
     def scatters(self):
@@ -231,8 +233,9 @@ class View(Frame):
 
         :return Frame iterator: the frames
         """
-        for step in self.getFrames():
-            yield plotly.graph_objects.Frame(data=self.traces, name=step)
+        for frm in self.trj:
+            self.update(frm)
+            yield plotly.graph_objects.Frame(data=self.traces, name=self.step)
 
     @property
     def layout(self):
@@ -241,31 +244,21 @@ class View(Frame):
 
         :return dict: keyword arguments for layout.
         """
-        sliders, menu = [], self.MENU
-        if self.trj:
-            step = [str(x.step) for x in self.trj]
-            steps = [dict(label=x, method='animate', args=[[x]]) for x in step]
-            sliders = [{**self.SLIDER, **dict(steps=steps)}]
-            menu = {**menu, **dict(buttons=[self.PLAY, self.PAUSE])}
+        names = [x['name'] for x in self.fig.frames]
+        steps = [dict(label=x, method='animate', args=[[x]]) for x in names]
+        sliders = [{**self.SLIDER, **dict(steps=steps)}]
+        menu = {**self.MENU, **dict(buttons=[self.PLAY, self.PAUSE])}
         return dict(scene=self.scene,
                     sliders=sliders,
                     updatemenus=[menu],
                     **self.LAYOUT)
 
     @property
-    def scene(self, autorange=False, aspectmode='cube'):
+    def scene(self):
         """
         Return the scene with axis range and styles.
 
-        :param autorange bool: whether to let the axis range be adjusted
-            automatically.
-        :param aspectmode str: how the 3D scene's axes are scaled
         :return dict: keyword arguments for scene.
         """
-        dmin = np.min([x.min(axis=0) for x in self.trj], axis=0)
-        dmax = np.max([x.max(axis=0) for x in self.trj], axis=0)
-        center = (dmin + dmax / 2)
-        span = (dmax - dmin).max()
-        ranges = [[x, y] for x, y in zip((center - span), (center + span))]
-        ranges = [dict(range=x, autorange=autorange) for x in ranges]
-        return dict(**dict(zip(self.AXES, ranges)), aspectmode=aspectmode)
+        ranges = [dict(range=x, autorange=False) for x in self.getRanges()]
+        return dict(**dict(zip(self.AXES, ranges)), aspectmode='cube')
