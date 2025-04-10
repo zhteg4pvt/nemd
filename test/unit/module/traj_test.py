@@ -35,14 +35,14 @@ class TestTraj:
 
     @pytest.fixture
     def trj(self, file, options, start):
-        return traj.Traj(file, options=options, start=start)
+        return traj.Traj(file, options=options, start=start, delay=True)
 
     @pytest.mark.parametrize('file,opts,start,expected',
                              [(FRM, None, 0, 1),
                               (GZ, ['-last_pct', '0.8'], 0, 46),
                               (GZ, ['-last_pct', '0.8'], None, 38)])
-    def testLoad(self, trj, expected):
-        trj.load()
+    def testSetup(self, trj, expected):
+        trj.setUp()
         assert expected == len([x for x in trj if isinstance(x, frame.Frame)])
 
     @pytest.mark.parametrize('file,opts,start,expected',
@@ -63,5 +63,5 @@ class TestTraj:
                              [(GZ, None, None, 46),
                               (GZ, ['-last_pct', '0.8'], None, 37)])
     def testSel(self, trj, expected):
-        trj.load()
+        trj.setUp()
         assert expected == len(trj.sel)
