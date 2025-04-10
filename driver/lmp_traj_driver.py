@@ -30,7 +30,7 @@ class Traj(logutils.Base):
         super().__init__(logger=logger)
         self.options = options
         self.traj = None
-        self.rdf = None
+        self.rdr = None
         self.gids = None
         self.tasks = [x for x in self.options.task if x in analyzer.ALL_FRM]
         self.start = 0 if self.tasks else None
@@ -50,20 +50,20 @@ class Traj(logutils.Base):
         """
         if not self.options.data_file:
             return
-        self.rdf = lammpsdata.read(self.options.data_file)
+        self.rdr = lammpsdata.read(self.options.data_file)
 
     def setAtoms(self):
         """
         set the atom selection for analysis.
         """
-        if not self.rdf:
+        if not self.rdr:
             return
         if self.options.sel is None:
-            self.gids = self.rdf.elements.index.tolist()
+            self.gids = self.rdr.elements.index.tolist()
             self.log(f"{len(self.gids)} atoms selected.")
             return
-        selected = self.rdf.elements.element.isin([self.options.sel])
-        self.gids = self.rdf.elements.index[selected].tolist()
+        selected = self.rdr.elements.element.isin([self.options.sel])
+        self.gids = self.rdr.elements.index[selected].tolist()
         self.log(f"{len(self.gids)} atoms selected.")
 
     def setFrames(self):
@@ -99,7 +99,7 @@ class Traj(logutils.Base):
         for name in self.options.task:
             Analyzer = analyzer.ANLZ[name]
             anl = Analyzer(self.traj,
-                           rdf=self.rdf,
+                           rdr=self.rdr,
                            gids=self.gids,
                            options=self.options,
                            logger=self.logger)

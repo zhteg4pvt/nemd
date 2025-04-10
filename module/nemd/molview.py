@@ -3,6 +3,8 @@
 """
 This module visualizes the trajectory.
 """
+import warnings
+
 import methodtools
 import numpy as np
 import pandas as pd
@@ -24,16 +26,16 @@ class Frame(pd.DataFrame):
     COLUMNS = symbols.XYZU + ELE_SIZE_CLR
     # https://webmail.life.nthu.edu.tw/~fmhsu/rasframe/CPKCLRS.HTM
     X_LINE = [0., 0., 0.0, 'X', 20, '#FF1493']
-    _metadata = ['trj', 'rdf', 'box', 'elements']
+    _metadata = ['trj', 'rdr', 'box', 'elements']
 
-    def __init__(self, trj, rdf=None):
+    def __init__(self, trj, rdr=None):
         """
         :param trj 'traj.Traj': the trajectory
-        :param rdf `oplsua.Reader`: data file reader
+        :param rdr `oplsua.Reader`: data file reader
         """
         super().__init__([self.X_LINE] * trj[0].shape[0], columns=self.COLUMNS)
         self.trj = trj
-        self.rdf = rdf
+        self.rdr = rdr
         self.box = None
         self.step = None
         self.setUp()
@@ -43,24 +45,26 @@ class Frame(pd.DataFrame):
         Set up.
         """
         self.update(self.trj[0])
-        if self.rdf is None:
+        if self.rdr is None:
             return
-        self[self.ELEMENT] = self.rdf.elements.element
-        size_map = dict(self.rdf.pair_coeffs.dist.items())
-        self[self.SIZE] = self.rdf.atoms.type_id.map(size_map)
-        elements = set(self.rdf.masses.element)
+        self[self.ELEMENT] = self.rdr.elements.element
+        size_map = dict(self.rdr.pair_coeffs.dist.items())
+        self[self.SIZE] = self.rdr.atoms.type_id.map(size_map)
+        elements = set(self.rdr.masses.element)
         color_map = {x: table.TABLE.loc[x].cpk_color for x in elements}
-        self[self.COLOR] = self.rdf.elements.element.map(color_map)
+        self[self.COLOR] = self.rdr.elements.element.map(color_map)
 
     def update(self, other):
         """
         Update the frame.
 
         :param other traj.Frame: DataFrame, or object coercible into a DataFrame
+        :return Frame: the updated frame
         """
         self[symbols.XYZU] = other
         self.box = other.box
         self.step = other.step
+        return self
 
     def getCoords(self):
         """
@@ -89,9 +93,9 @@ class Frame(pd.DataFrame):
 
         :return DataFrame, dict: bond points, bond style
         """
-        if self.rdf is None:
+        if self.rdr is None:
             return
-        for aids in self.rdf.bonds.getPairs():
+        for aids in self.rdr.bonds.getPairs():
             pnts = self.loc[list(aids)][symbols.XYZU]
             pnts = pd.concat([pnts, pnts.mean().to_frame().transpose()])
             for pnts, idx in zip([pnts[::2], pnts[1::]], aids):
@@ -101,18 +105,26 @@ class Frame(pd.DataFrame):
         """
         Get the ranges.
 
-        :return list: xyz ranges.
+        :return ndarray: xyz ranges.
         """
         dmin = np.min([x.min(axis=0) for x in self.trj], axis=0)
         dmax = np.max([x.max(axis=0) for x in self.trj], axis=0)
         center = (dmin + dmax / 2)
         span = (dmax - dmin).max()
-        return [[x, y] for x, y in zip((center - span), (center + span))]
+        return np.array([(center - span), (center + span)]).transpose()
+
+    def iter(self):
+        """
+        Update self to every trajectory frame during the iteration.
+
+        :return generator: the updated frames
+        """
+        return (self.update(x) for x in self.trj)
 
 
-class View(Frame):
+class Figure(plotly.graph_objects.Figure):
     """
-    Viewer datafile and trajectory frame
+    Figure of trajectory frame(s).
     """
     LINE = dict(opacity=0.8, mode='lines', showlegend=False, hoverinfo='skip')
     EDGE = dict(opacity=0.5,
@@ -150,26 +162,29 @@ class View(Frame):
     LAYOUT = dict(template='plotly_dark', overwrite=True, uirevision=True)
     _metadata = Frame._metadata + ['outfile', 'fig']
 
-    def __init__(self, trj, rdf=None, outfile=None):
+    def __init__(self, *arg, delay=False, **kwargs):
         """
         :param trj `traj.Traj`: the trajectory
-        :param rdf `oplsua.Reader`: data file reader
-        :param outfile `str`: the trajectory
+        :param rdr `oplsua.Reader`: data file reader
+        :param delay bool: delay the setup if True
         """
-        super().__init__(trj, rdf=rdf)
-        self.outfile = outfile
-        self.fig = plotly.graph_objects.Figure()
+        super().__init__()
+        self._frm = Frame(*arg, **kwargs)
+        if delay:
+            return
+        self.setUp()
 
-    def run(self):
+    def setUp(self):
         """
         Main method.
         """
-        self.fig.add_traces(self.traces)
-        self.fig.update(frames=list(self.frames))
-        self.fig.update_layout(**self.layout)
-        self.fig.write_html(self.outfile)
+        self.add_traces(self.traces)
+        self.update(frames=self.getFrames())
+        with warnings.catch_warnings(record=True):
+            # *scattermapbox* is deprecated! Use *scattermap* due to plotly_dark
+            self.update_layout(**self.getLayout())
         if envutils.is_interac():
-            self.fig.show()
+            self.show()
 
     @property
     def traces(self):
@@ -187,7 +202,7 @@ class View(Frame):
 
         :return Scatter3d iterator: the scattered markers to represent atoms.
         """
-        for (element, size, color), coords in self.getCoords():
+        for (element, size, color), coords in self._frm.getCoords():
             yield plotly.graph_objects.Scatter3d(
                 x=coords.xu,
                 y=coords.yu,
@@ -206,7 +221,7 @@ class View(Frame):
 
         :return Scatter3d iterator: the line traces to represent bonds.
         """
-        for points, line in self.getBonds():
+        for points, line in self._frm.getBonds():
             yield plotly.graph_objects.Scatter3d(x=points.xu,
                                                  y=points.yu,
                                                  z=points.zu,
@@ -220,37 +235,36 @@ class View(Frame):
 
         :return Scatter3d iterator: the box edges markers.
         """
-        for edges in self.box.edges:
+        for edges in self._frm.box.edges:
             yield plotly.graph_objects.Scatter3d(x=edges[:, 0],
                                                  y=edges[:, 1],
                                                  z=edges[:, 2],
                                                  **self.EDGE)
 
-    @property
-    def frames(self):
+    def getFrames(self):
         """
-        Set animation from trajectory frames.
+        Get animation frames.
 
-        :return Frame iterator: the frames
+        :return list of Frame: the frames
         """
-        for frm in self.trj:
-            self.update(frm)
-            yield plotly.graph_objects.Frame(data=self.traces, name=self.step)
+        return [
+            plotly.graph_objects.Frame(data=self.traces, name=x.step)
+            for x in self._frm.iter()
+        ]
 
-    @property
-    def layout(self):
+    def getLayout(self):
         """
         Update the figure layout.
 
         :return dict: keyword arguments for layout.
         """
-        names = [x['name'] for x in self.fig.frames]
+        names = [x['name'] for x in self.frames]
         steps = [dict(label=x, method='animate', args=[[x]]) for x in names]
         sliders = [{**self.SLIDER, **dict(steps=steps)}]
-        menu = {**self.MENU, **dict(buttons=[self.PLAY, self.PAUSE])}
+        updatemenus = [{**self.MENU, **dict(buttons=[self.PLAY, self.PAUSE])}]
         return dict(scene=self.scene,
                     sliders=sliders,
-                    updatemenus=[menu],
+                    updatemenus=updatemenus,
                     **self.LAYOUT)
 
     @property
@@ -260,5 +274,5 @@ class View(Frame):
 
         :return dict: keyword arguments for scene.
         """
-        ranges = [dict(range=x, autorange=False) for x in self.getRanges()]
-        return dict(**dict(zip(self.AXES, ranges)), aspectmode='cube')
+        rngs = [dict(range=x, autorange=False) for x in self._frm.getRanges()]
+        return dict(**dict(zip(self.AXES, rngs)), aspectmode='cube')

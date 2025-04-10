@@ -37,14 +37,14 @@ class Base(logutils.Base):
     FIG_EXT = '.png'
     FLOAT_FMT = '%.4g'
 
-    def __init__(self, rdf=None, options=None, logger=None):
+    def __init__(self, rdr=None, options=None, logger=None):
         """
-        :param rdf `oplsua.Reader`: data file reader
+        :param rdr `oplsua.Reader`: data file reader
         :param options `argparse.Namespace`: the options from command line
         :param logger 'logging.Logger': the logger to log messages
         """
         super().__init__(logger=logger)
-        self.rdf = rdf
+        self.rdr = rdr
         self.options = options
         self.data = None
         self.sidx = 0
@@ -298,14 +298,14 @@ class XYZ(TrajBase):
         """
         with open(self.outfile, 'w') as self.out_fh:
             for frm in self.traj:
-                if any([center, wrapped]) and self.rdf:
+                if any([center, wrapped]) and self.rdr:
                     # wrapped and glue change the coordinates
                     frm = frm.getCopy()
                 if center:
                     frm.center()
                 if wrapped:
-                    frm.wrap(broken_bonds, dreader=self.rdf)
-                frm.write(self.out_fh, dreader=self.rdf)
+                    frm.wrap(broken_bonds, dreader=self.rdr)
+                frm.write(self.out_fh, dreader=self.rdr)
         self.log(f"{self.DESCR} coordinates are written into {self.outfile}")
 
 
@@ -322,8 +322,8 @@ class View(TrajBase):
         """
         Main method to run the visualization.
         """
-        view = molview.View(self.traj, rdf=self.rdf, outfile=self.outfile)
-        view.run()
+        fig = molview.Figure(self.traj, rdr=self.rdr)
+        fig.write_html(self.outfile)
         self.log(f'{self.DESCR.capitalize()} data written into {self.outfile}')
 
 
@@ -343,7 +343,7 @@ class Density(TrajBase):
         """
         if self.data is not None:
             return
-        mass = self.rdf.molecular_weight / scipy.constants.Avogadro
+        mass = self.rdr.molecular_weight / scipy.constants.Avogadro
         mass_scaled = mass / constants.ANG_TO_CM**3
         data = [mass_scaled / x.box.volume for x in self.traj]
         self.data = pd.DataFrame({self.LABEL: data}, index=self.traj.time)
@@ -366,7 +366,7 @@ class Clash(TrajBase):
         super().__init__(*args, **kwargs)
         self.cut = cut
         if self.cut is None:
-            self.cut = dist.Radius(struct=self.rdf).max()
+            self.cut = dist.Radius(struct=self.rdr).max()
         self.srch = any(
             dist.Frame.useCell(x.box.span, self.cut) for x in self.traj.sel)
         if self.srch:
@@ -392,7 +392,7 @@ class Clash(TrajBase):
         for frm in self.traj:
             dfrm = dist.Frame(frm,
                               gids=self.gids,
-                              struct=self.rdf,
+                              struct=self.rdr,
                               srch=self.srch)
             clashes = dfrm.getClashes(self.grp, grps=self.grps)
             data.append(len(clashes))
@@ -522,8 +522,8 @@ class MSD(RDF):
             self.data = pd.DataFrame({self.LABEL: []})
             return
 
-        if self.rdf:
-            weights = self.rdf.masses.mass[self.rdf.atoms.type_id[self.gids]]
+        if self.rdr:
+            weights = self.rdr.masses.mass[self.rdr.atoms.type_id[self.gids]]
         msd, num = [0], len(self.traj.sel)
         for idx in range(1, num):
             disp = [
