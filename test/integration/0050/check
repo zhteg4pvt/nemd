@@ -1,1 +1,5 @@
 cmp(ab_lmp_traj_density.csv, ab_lmp_traj_density.csv)
+in(Empty Result for density, Empty Result for msd, Empty Result for rdf, Empty Result for clash, ab_lmp_traj.log)
+glob(*/*/lmp_traj_xyz.xyz, num=2)
+glob(*/*/lmp_traj_view.html, num=2)
+

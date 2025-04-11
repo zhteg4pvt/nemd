@@ -255,6 +255,7 @@ class LmpLogAgg(taskbase.Agg):
     """
     The aggregator job for analyzers.
     """
+    AnalyzerAgg = analyzer.Agg
 
     def run(self):
         """
@@ -264,10 +265,10 @@ class LmpLogAgg(taskbase.Agg):
         options = dict(NAME=self.jobname.removesuffix('_agg'))
         options = types.SimpleNamespace(**{**vars(self.options), **options})
         for task in self.options.task:
-            anlz = analyzer.Agg(task=task,
-                                groups=self.groups,
-                                options=options,
-                                logger=self)
+            anlz = self.AnalyzerAgg(task=task,
+                                    groups=self.groups,
+                                    options=options,
+                                    logger=self)
             anlz.run()
 
     @property

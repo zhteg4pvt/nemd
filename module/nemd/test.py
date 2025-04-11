@@ -185,8 +185,6 @@ class Exist:
     def run(self):
         """
         The main method to check the existence of files.
-
-        :self.error: if file doesn't exist
         """
         for target in self.args:
             if os.path.isfile(target):

@@ -26,11 +26,11 @@ class Base(logutils.Base):
     The base class subclassed by analyzers.
     """
 
-    NAME = 'base'
-    DESCR = NAME
+    NAME = 'base'  # Name abbreviation
+    DESCR = NAME  # Full name
     UNIT = None
     LABEL = f'{NAME.capitalize()} ({UNIT})'
-    LABEL_RE = re.compile('(.*) +\((.*)\)')
+    PROP_NAME = None
     ERR_LB = 'St Dev'
     DATA_EXT = '.csv'
     FIG_EXT = '.png'
@@ -58,7 +58,7 @@ class Base(logutils.Base):
     @functools.cache
     def outfile(self):
         """
-        Get the filename based on the command line options.
+        Get the output pathname.
 
         :return str: the outfile pathname
         """
@@ -87,6 +87,11 @@ class Base(logutils.Base):
 
         name = f"{self.options.NAME}_{self.NAME}{self.DATA_EXT}"
         files = [x.fn(name) for x in self.jobs]
+        files = [x for x in files if os.path.exists(x)]
+        if not files:
+            self.data = pd.DataFrame({self.LABEL: []})
+            return
+
         datas = [pd.read_csv(x, index_col=0) for x in files]
         # 'Time (ps)': None; 'Time (ps) (0)': '0'; 'Time (ps) (0, 1)': '0, 1'
         names = [self.parseIndex(x.index.name) for x in datas]
@@ -96,7 +101,8 @@ class Base(logutils.Base):
             self.data = datas[0]
             self.sidx, self.eidx = sidx, eidx
             return
-        # Runs with different randomized seeds are truncated backwards
+
+        # Backwardly truncate the runs with different randomized seeds
         num = min([x.shape[0] for x in datas])
         datas = [x.iloc[-num:] for x in datas]
         # Averaged index
@@ -114,6 +120,41 @@ class Base(logutils.Base):
             f"{self.ERR_LB} of {name}": vals.std(axis=1)
         }
         self.data = pd.DataFrame(data, index=index)
+
+    def parseIndex(self, name, sidx=0, eidx=None):
+        """
+        Parse the index name to get the label, unit, start index and end index.
+
+        :param name: the column name
+        :param sidx int: the start index
+        :param eidx int: the end index
+        return str, str, int, int: label, unit, start index, and end index.
+        """
+        label, unit, other = self.parse(name)
+        if other is None:
+            return label, unit, sidx, eidx
+        splitted = list(map(int, other.split()))
+        sidx = splitted[0]
+        if len(splitted) >= 2:
+            eidx = splitted[1]
+        return label, unit, sidx, eidx
+
+    @classmethod
+    def parse(cls, name, rex=re.compile('(.*) +\((.*)\)')):
+        """
+        Parse the column label.
+
+        :param name: the column name
+        :param rex: the regular expression to match words followed by brackets.
+        :return str, str, str: the label, unit, and other information.
+        """
+        # e.g., 'Density (g/cm^3)
+        (label, unit), other = rex.match(name).groups(), None
+        match = rex.match(label)
+        if match:
+            # e.g., 'Density (g/cm^3) (num=4)', 'Time (ps) (0)'
+            (label, unit), other = match.groups(), unit
+        return label, unit, other
 
     def setData(self):
         """
@@ -140,50 +181,15 @@ class Base(logutils.Base):
             return
         sel = self.data.iloc[self.sidx:self.eidx]
         name, ave = sel.columns[0], sel.iloc[:, 0].mean()
-        if sel.shape[1] == 1:
-            err = sel.iloc[:, 0].std()
-        else:
-            err = sel.iloc[:, 1].mean()
+        err = sel.iloc[:,
+                       0].std() if sel.shape[1] == 1 else sel.iloc[:,
+                                                                   1].mean()
         self.result = pd.Series({name: ave, f"{self.ERR_LB} of {name}": err})
         self.result.index.name = sel.index.name
         label, unit, _ = self.parse(self.data.columns[0])
         stime, etime = sel.index[0], sel.index[-1]
         self.log(f'{label}: {ave:.4g} {symbols.PLUS_MIN} {err:.4g} {unit} '
                  f'{symbols.ELEMENT_OF} [{stime:.4f}, {etime:.4f}] ps')
-
-    def parseIndex(self, name, sidx=0, eidx=None):
-        """
-        Parse the index name to get the label, unit, start index and end index.
-
-        :param name: the column name
-        :param sidx int: the start index
-        :param eidx int: the end index
-        return str, str, int, int: label, unit, start index, and end index.
-        """
-        label, unit, other = self.parse(name)
-        if other is None:
-            return label, unit, sidx, eidx
-        splitted = list(map(int, other.split()))
-        sidx = splitted[0]
-        if len(splitted) >= 2:
-            eidx = splitted[1]
-        return label, unit, sidx, eidx
-
-    @classmethod
-    def parse(cls, name):
-        """
-        Parse the column label.
-
-        :param name: the column name
-        return str, str, str: the label, unit, and other information.
-        """
-        # 'Density (g/cm^3)
-        (label, unit), other = cls.LABEL_RE.match(name).groups(), None
-        match = cls.LABEL_RE.match(label)
-        if match:
-            # 'Density (g/cm^3) (num=4)' as data.columns[0]
-            (label, unit), other = match.groups(), unit
-        return label, unit, other
 
     def plot(self, marker_num=10):
         """
@@ -240,19 +246,21 @@ class Base(logutils.Base):
         :raise ValueError: if name cannot be determined.
         """
         if name is None:
-            name = cls.NAME
+            name = cls.PROP_NAME if cls.PROP_NAME else cls.NAME
         if unit is None:
             unit = cls.UNIT
-        if names is not None:
-            # Get name from names
-            try:
-                return next(x for x in names if re.match(name, x, re.I))
-            except StopIteration:
-                raise ValueError(f"{name} not in {names}.")
-        # Build name from name, unit, and num
-        name = f"{name} ({unit})" if unit else name
-        num = cls.parse(label)[2] if label else None
-        return name if num is None else f"{cls.PROP_NAME} ({num})"
+
+        if names is None:
+            # Build name from name, unit, and num
+            name = f"{name} ({unit})" if unit else name
+            num = cls.parse(label)[2] if label else None
+            return name if num is None else f"{name} ({num})"
+
+        # Get name from names
+        try:
+            return next(x for x in names if re.match(name, x, re.I))
+        except StopIteration:
+            raise ValueError(f"{name} not in {names}.")
 
 
 class TrajBase(Base):
@@ -368,6 +376,8 @@ class Clash(TrajBase):
         self.cut = cut
         if self.cut is None:
             self.cut = dist.Radius(struct=self.rdr).max()
+        if self.traj is None:
+            return
         self.srch = any(
             dist.Frame.useCell(x.box.span, self.cut) for x in self.traj.sel)
         if self.srch:
@@ -387,7 +397,6 @@ class Clash(TrajBase):
             return
         if not self.gids:
             self.warning("No atoms selected for clash counting.")
-            self.data = pd.DataFrame({self.LABEL: []})
             return
         data = []
         for frm in self.traj:
@@ -425,9 +434,10 @@ class RDF(Clash):
         """
         if self.data is not None:
             return
+
+        self.data = pd.DataFrame(data={self.LABEL: []})
         if len(self.gids) < 2:
             self.warning("RDF requires least two atoms selected.")
-            self.data = pd.DataFrame(data={self.LABEL: []})
             return
 
         span = np.array([x.box.span for x in self.traj.sel])
@@ -484,16 +494,6 @@ class RDF(Clash):
             f"{self.ERR_LB} of {name}": err
         })
 
-    @classmethod
-    def getName(cls, name=None, **kwargs):
-        """
-        Get the property name and the error name.
-
-        :param names str: the available names to choose from.
-        :return str: the property name
-        """
-        return super().getName(name=cls.PROP_NAME, **kwargs)
-
 
 class MSD(RDF):
     """
@@ -518,9 +518,15 @@ class MSD(RDF):
         """
         if self.data is not None:
             return
+
+        self.data = pd.DataFrame(data={self.LABEL: []})
         if not self.gids:
             self.warning("No atoms selected for MSD.")
             self.data = pd.DataFrame({self.LABEL: []})
+            return
+
+        if len(self.traj.sel) == 1:
+            self.warning("Only one trajectory frame selected for MSD.")
             return
 
         if self.rdr:
@@ -533,6 +539,7 @@ class MSD(RDF):
             ]
             squared = np.square([np.linalg.norm(x, axis=1) for x in disp])
             msd.append(np.average(squared.mean(axis=0), weights=weights))
+
         ps_time = self.traj.time[:num]
         self.sidx = math.floor(num * spct)
         self.eidx = math.ceil(num * (1 - epct))
@@ -557,21 +564,12 @@ class MSD(RDF):
         self.log(f'{value:.4g} {symbols.PLUS_MIN} {std_err:.4g} cm^2/s'
                  f' (R-squared: {rval**2:.4f}) linear fit of'
                  f' [{sel.index[0]:.4f} {sel.index[-1]:.4f}] ps')
-        propname = self.getName()
-        errname = f"{self.ERR_LB} of {propname}"
-        self.result = pd.Series({propname: value, errname: std_err})
+        name = self.getName(unit='cm^2/s')
+        self.result = pd.Series({
+            name: value,
+            f"{self.ERR_LB} of {name}": std_err
+        })
         self.result.index.name = sel.index.name
-
-    @classmethod
-    def getName(cls, unit=None, **kwargs):
-        """
-        Get the property name and the error name.
-
-        :param names str: the available names to choose from.
-        :param unit str: the unit of the property
-        :return str: the property name
-        """
-        return super().getName(unit='cm^2/s', **kwargs)
 
 
 ALL_FRM = [x.NAME for x in [Density, Clash, View, XYZ]]
@@ -587,14 +585,13 @@ class Thermo(Base):
 
     def __init__(self, thermo=None, **kwargs):
         """
-        :param thermo: the thermodynamic data
-        :type thermo: 'pandas.core.frame.DataFrame'
+        :param thermo 'pandas.core.frame.DataFrame': the thermodynamic data
         """
         super().__init__(**kwargs)
         self.thermo = thermo
         if self.thermo is None:
             return
-        self.sidx = int(self.LABEL_RE.match(self.thermo.index.name).group(2))
+        self.sidx = self.parseIndex(self.thermo.index.name)[2]
 
     def setData(self):
         """
@@ -688,6 +685,7 @@ class Agg(logutils.Base):
         Save the results to a file.
         """
         if self.result.empty:
+            self.warning(f"Empty Result for {self.task}")
             return
         self.result.to_csv(self.outfile, index=False)
         task = self.task.capitalize()
@@ -698,8 +696,9 @@ class Agg(logutils.Base):
         """
         Set the x, y, and y standard deviation from the results.
         """
+        if self.result.empty:
+            return
         name = self.Anlz.getName(names=self.result.columns)
-        self.Anlz.getName(names=self.result.columns)
         self.yvals = self.result[name]
         err_lb_name = f"{self.Anlz.ERR_LB} of {name}"
         self.ydevs = self.result[err_lb_name]
@@ -715,7 +714,7 @@ class Agg(logutils.Base):
         """
         Fit the data and report.
         """
-        if self.xvals.empty or self.xvals.size == 1:
+        if self.xvals is None or self.xvals.empty or self.xvals.size == 1:
             return
         index = self.yvals.argmin()
         self.log(f"The minimum {self.yvals.name} of {self.yvals.iloc[index]} "
@@ -728,7 +727,7 @@ class Agg(logutils.Base):
 
         :param xtick_num int: the maximum number of xticks to show
         """
-        if self.xvals.empty:
+        if self.xvals is None or self.xvals.empty:
             return
         with plotutils.get_pyplot(inav=self.options.INTERAC,
                                   name=self.task.upper()) as plt:
