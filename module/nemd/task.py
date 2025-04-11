@@ -255,22 +255,19 @@ class LmpLogAgg(taskbase.Agg):
     """
     The aggregator job for analyzers.
     """
-    AnalyzerAgg = analyzer.Agg
 
     def run(self):
         """
         Main method to run the aggregator job.
         """
-        options = types.SimpleNamespace(JOBNAME=self.options.JOBNAME,
-                                        INTERAC=self.options.INTERAC,
-                                        name=self.jobname.removesuffix('_agg'),
-                                        dir=jobutils.WORKSPACE)
         self.log(f"{len(self.jobs)} jobs found for aggregation.")
+        options = dict(NAME=self.jobname.removesuffix('_agg'))
+        options = types.SimpleNamespace(**{**vars(self.options), **options})
         for task in self.options.task:
-            anlz = self.AnalyzerAgg(task=task,
-                                    groups=self.groups,
-                                    options=options,
-                                    logger=self)
+            anlz = analyzer.Agg(task=task,
+                                groups=self.groups,
+                                options=options,
+                                logger=self)
             anlz.run()
 
     @property

@@ -7,7 +7,6 @@ import functools
 import math
 import os
 import re
-import types
 
 import numpy as np
 import pandas as pd
@@ -37,36 +36,37 @@ class Base(logutils.Base):
     FIG_EXT = '.png'
     FLOAT_FMT = '%.4g'
 
-    def __init__(self, rdr=None, options=None, logger=None):
+    def __init__(self, rdr=None, options=None, parm=None, jobs=None, **kwargs):
         """
         :param rdr `oplsua.Reader`: data file reader
         :param options `argparse.Namespace`: the options from command line
-        :param logger 'logging.Logger': the logger to log messages
+        :param parm `pd.Dataframe`: the group parameters
+        :param jobs list: a group of signac jobs
         """
-        super().__init__(logger=logger)
+        super().__init__(**kwargs)
         self.rdr = rdr
         self.options = options
+        self.parm = parm
+        self.jobs = jobs
         self.data = None
         self.sidx = 0
         self.eidx = None
         self.result = None
-        self.outfile = self.getFilename(self.options)
         jobutils.add_outfile(self.outfile)
 
-    @classmethod
-    def getFilename(cls, options):
+    @property
+    @functools.cache
+    def outfile(self):
         """
         Get the filename based on the command line options.
 
-        :param options 'argparse.Namespace' or str: command line options
-        :return str: the filename of the data file.
+        :return str: the outfile pathname
         """
-        if isinstance(options, str):
-            return f"{options}_{cls.NAME}{cls.DATA_EXT}"
-        if not hasattr(options, 'jobs'):
-            return f"{options.JOBNAME}_{cls.NAME}{cls.DATA_EXT}"
-        filename = f"{options.JOBNAME}_{cls.NAME}_{options.id}{cls.DATA_EXT}"
-        return os.path.join(options.dir, filename)
+        name = f"{self.options.JOBNAME}_{self.NAME}"
+        if self.parm is None:
+            return name + self.DATA_EXT
+        name = f"{name}_{self.parm.index.name}{self.DATA_EXT}"
+        return os.path.join(jobutils.WORKSPACE, name)
 
     def run(self):
         """
@@ -82,10 +82,11 @@ class Base(logutils.Base):
         """
         Read the output files from independent runs to set the data.
         """
-        if not hasattr(self.options, 'jobs'):
+        if self.jobs is None:
             return
-        filename = self.getFilename(self.options.name)
-        files = [x.fn(filename) for x in self.options.jobs]
+
+        name = f"{self.options.NAME}_{self.NAME}{self.DATA_EXT}"
+        files = [x.fn(name) for x in self.jobs]
         datas = [pd.read_csv(x, index_col=0) for x in files]
         # 'Time (ps)': None; 'Time (ps) (0)': '0'; 'Time (ps) (0, 1)': '0, 1'
         names = [self.parseIndex(x.index.name) for x in datas]
@@ -667,18 +668,14 @@ class Agg(logutils.Base):
         Set the result for the given task over grouped jobs.
         """
         self.log(f"Aggregation Task: {self.task}")
-        shared = vars(self.options)
-        if self.options.INTERAC:
-            shared = shared.copy()
-            shared['interactive'] = len(self.jobs) > 1
         for parm, jobs in self.groups:
             if not parm.empty:
                 pstr = parm.to_csv(lineterminator=' ', sep='=', header=False)
                 self.log(f"Aggregation Parameters (num={len(jobs)}): {pstr}")
-            options = types.SimpleNamespace(**shared,
-                                            id=parm.index.name,
-                                            jobs=jobs)
-            anlz = self.Anlz(options=options, logger=self.logger)
+            anlz = self.Anlz(options=self.options,
+                             logger=self.logger,
+                             parm=parm,
+                             jobs=jobs)
             anlz.run()
             if anlz.result is None:
                 continue
