@@ -30,7 +30,7 @@ class Base(logutils.Base):
     DESCR = NAME  # Full name
     UNIT = None
     LABEL = f'{NAME.capitalize()} ({UNIT})'
-    PROP_NAME = None
+    PROP = None
     ERR_LB = 'St Dev'
     DATA_EXT = '.csv'
     FIG_EXT = '.png'
@@ -65,6 +65,7 @@ class Base(logutils.Base):
         name = f"{self.options.JOBNAME}_{self.NAME}"
         if self.parm is None:
             return name + self.DATA_EXT
+        # LmpLogAgg.groups -> tuple(parm, jobs) with parm.index.name being index
         name = f"{name}_{self.parm.index.name}{self.DATA_EXT}"
         return os.path.join(jobutils.WORKSPACE, name)
 
@@ -114,12 +115,10 @@ class Base(logutils.Base):
         # Averaged value and standard deviation
         vals = [x.iloc[:, 0].to_numpy().reshape(-1, 1) for x in datas]
         vals = np.concatenate(vals, axis=1)
+        data = np.array((vals.mean(axis=1), vals.std(axis=1))).transpose()
         name = f'{datas[0].columns[0]} (num={vals.shape[-1]})'
-        data = {
-            name: vals.mean(axis=1),
-            f"{self.ERR_LB} of {name}": vals.std(axis=1)
-        }
-        self.data = pd.DataFrame(data, index=index)
+        columns = [name, f"{self.ERR_LB} of {name}"]
+        self.data = pd.DataFrame(data, columns=columns, index=index)
 
     def parseIndex(self, name, sidx=0, eidx=None):
         """
@@ -168,17 +167,17 @@ class Base(logutils.Base):
         """
         if self.data.empty:
             return
+
         self.data.to_csv(self.outfile, float_format=self.FLOAT_FMT)
         self.log(f'{self.DESCR.capitalize()} data written into {self.outfile}')
 
     def fit(self):
         """
         Select the data and report average with std.
-
-        :return int, int: the start and end index for the selected data
         """
         if self.data.empty:
             return
+
         sel = self.data.iloc[self.sidx:self.eidx]
         name, ave = sel.columns[0], sel.iloc[:, 0].mean()
         err = sel.iloc[:,
@@ -195,12 +194,12 @@ class Base(logutils.Base):
         """
         Plot and save the data (interactively).
 
-        :param marker_num: add markers when the number of points equals or is
-            less than this value
-        :type marker_num: int
+        :param marker_num int: add markers when the number of points equals or
+            is less than this value
         """
         if self.data.empty:
             return
+
         with plotutils.get_pyplot(inav=self.options.INTERAC,
                                   name=self.DESCR.upper()) as plt:
             fig = plt.figure(figsize=(10, 6))
@@ -246,7 +245,7 @@ class Base(logutils.Base):
         :raise ValueError: if name cannot be determined.
         """
         if name is None:
-            name = cls.PROP_NAME if cls.PROP_NAME else cls.NAME
+            name = cls.PROP if cls.PROP else cls.NAME
         if unit is None:
             unit = cls.UNIT
 
@@ -419,8 +418,8 @@ class RDF(Clash):
     UNIT = 'r'
     LABEL = f'g ({UNIT})'
     INDEX_LB = f'r ({symbols.ANGSTROM})'
-    PROP_NAME = f'{NAME} peak'
-    POS_NAME = f"{PROP_NAME} position ({symbols.ANGSTROM})"
+    PROP = f'{NAME} peak'
+    POS_NAME = f"{PROP} position ({symbols.ANGSTROM})"
     CUT = symbols.DEFAULT_CUT
 
     def __init__(self, *args, cut=symbols.DEFAULT_CUT, **kwargs):
@@ -505,7 +504,7 @@ class MSD(RDF):
     UNIT = f'{symbols.ANGSTROM}^2'
     LABEL = f'{NAME.upper()} ({UNIT})'
     INDEX_LB = 'Tau (ps)'
-    PROP_NAME = 'Diffusion Coefficient'
+    PROP = 'Diffusion Coefficient'
     ERR_LB = f'Standard Error'
 
     def setData(self, spct=0.1, epct=0.2, weights=None):
