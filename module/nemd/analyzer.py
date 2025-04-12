@@ -34,6 +34,91 @@ class Base(logutils.Base):
         """
         super().__init__(**kwargs)
         self.options = options
+        self.data = None
+        self.sidx = 0
+        self.eidx = None
+        self.outfile = f"{self.options.JOBNAME}_{self.name}{self.DATA_EXT}"
+        jobutils.add_outfile(self.outfile)
+
+    def plot(self, marker_num=10):
+        """
+        Plot and save the data (interactively).
+
+        :param marker_num int: add markers when the number of points equals or
+            is less than this value
+        """
+        if self.data.index.name is None:
+            return
+
+        with plotutils.get_pyplot(inav=self.options.INTERAC,
+                                  name=self.name.upper()) as plt:
+            fig = plt.figure(figsize=(10, 6))
+            ax = fig.add_axes([0.13, 0.1, 0.8, 0.8])
+            line_style = '--' if any([self.sidx, self.eidx]) else '-'
+            if len(self.data) < marker_num:
+                line_style += '*'
+            ax.plot(self.data.index,
+                    self.data.iloc[:, 0],
+                    line_style,
+                    label='average')
+            if self.data.shape[-1] == 2 and self.data.iloc[:, 1].any():
+                # Data has non-zero standard deviation column
+                vals, errors = self.data.iloc[:, 0], self.data.iloc[:, 1]
+                ax.fill_between(self.data.index,
+                                vals - errors,
+                                vals + errors,
+                                color='y',
+                                label='stdev',
+                                alpha=0.3)
+                ax.legend()
+            if any([self.sidx, self.eidx]):
+                gdata = self.data.iloc[self.sidx:self.eidx]
+                ax.plot(gdata.index, gdata.iloc[:, 0], '.-g')
+
+            label, unit, _ = self.parse(self.data.index.name)
+            ax.set_xlabel(f"{label} ({unit})")
+            ax.set_ylabel(self.data.columns.values.tolist()[0])
+            pathname = self.outfile[:-len(self.DATA_EXT)] + self.FIG_EXT
+            fig.savefig(pathname)
+            jobutils.add_outfile(pathname)
+        self.log(f'{self.name.capitalize()} figure saved as {pathname}')
+
+    @classmethod
+    def parse(cls, name, rex=re.compile('(.*) +\((.*)\)')):
+        """
+        Parse the column label.
+
+        :param name: the column name
+        :param rex: the regular expression to match words followed by brackets.
+        :return str, str, str: the label, unit, and other information.
+        """
+        # e.g., 'Density (g/cm^3)
+        (label, unit), other = rex.match(name).groups(), None
+        match = rex.match(label)
+        if match:
+            # e.g., 'Density (g/cm^3) (num=4)', 'Time (ps) (0)'
+            (label, unit), other = match.groups(), unit
+        return label, unit, other
+
+    @classmethod
+    @property
+    def name(cls):
+        """
+        The name of the analyzer.
+
+        :return str: analyzer name
+        """
+        return cls.__name__.lower()
+
+    @classmethod
+    @property
+    def descr(cls):
+        """
+        The description of the analyzer.
+
+        :return str: analyzer description
+        """
+        return cls.name
 
 
 class Job(Base):
@@ -55,26 +140,12 @@ class Job(Base):
         self.rdr = rdr
         self.parm = parm
         self.jobs = jobs
-        self.data = None
-        self.sidx = 0
-        self.eidx = None
         self.result = None
-        jobutils.add_outfile(self.outfile)
-
-    @property
-    @functools.cache
-    def outfile(self):
-        """
-        Get the output pathname.
-
-        :return str: the outfile pathname
-        """
-        name = f"{self.options.JOBNAME}_{self.name}"
         if self.parm is None:
-            return name + self.DATA_EXT
+            return
         # LmpLogAgg.groups -> tuple(parm, jobs) with parm.index.name being index
-        name = f"{name}_{self.parm.index.name}{self.DATA_EXT}"
-        return os.path.join(jobutils.WORKSPACE, name)
+        name = f"{self.options.JOBNAME}_{self.name}_{self.parm.index.name}{self.DATA_EXT}"
+        self.outfile = os.path.join(jobutils.WORKSPACE, name)
 
     def run(self):
         """
@@ -155,23 +226,6 @@ class Job(Base):
             eidx = splitted[1]
         return label, unit, sidx, eidx
 
-    @classmethod
-    def parse(cls, name, rex=re.compile('(.*) +\((.*)\)')):
-        """
-        Parse the column label.
-
-        :param name: the column name
-        :param rex: the regular expression to match words followed by brackets.
-        :return str, str, str: the label, unit, and other information.
-        """
-        # e.g., 'Density (g/cm^3)
-        (label, unit), other = rex.match(name).groups(), None
-        match = rex.match(label)
-        if match:
-            # e.g., 'Density (g/cm^3) (num=4)', 'Time (ps) (0)'
-            (label, unit), other = match.groups(), unit
-        return label, unit, other
-
     def set(self):
         """
         Set the data.
@@ -207,48 +261,6 @@ class Job(Base):
         self.log(f'{label}: {ave:.4g} {symbols.PLUS_MIN} {err:.4g} {unit} '
                  f'{symbols.ELEMENT_OF} [{stime:.4f}, {etime:.4f}] ps')
 
-    def plot(self, marker_num=10):
-        """
-        Plot and save the data (interactively).
-
-        :param marker_num int: add markers when the number of points equals or
-            is less than this value
-        """
-        if self.data.empty:
-            return
-
-        with plotutils.get_pyplot(inav=self.options.INTERAC,
-                                  name=self.descr.upper()) as plt:
-            fig = plt.figure(figsize=(10, 6))
-            ax = fig.add_axes([0.13, 0.1, 0.8, 0.8])
-            line_style = '--' if any([self.sidx, self.eidx]) else '-'
-            if len(self.data) < marker_num:
-                line_style += '*'
-            ax.plot(self.data.index,
-                    self.data.iloc[:, 0],
-                    line_style,
-                    label='average')
-            if self.data.shape[-1] == 2 and self.data.iloc[:, 1].any():
-                # Data has non-zero standard deviation column
-                vals, errors = self.data.iloc[:, 0], self.data.iloc[:, 1]
-                ax.fill_between(self.data.index,
-                                vals - errors,
-                                vals + errors,
-                                color='y',
-                                label='stdev',
-                                alpha=0.3)
-                ax.legend()
-            if any([self.sidx, self.eidx]):
-                gdata = self.data.iloc[self.sidx:self.eidx]
-                ax.plot(gdata.index, gdata.iloc[:, 0], '.-g')
-            label, unit, _ = self.parse(self.data.index.name)
-            ax.set_xlabel(f"{label} ({unit})")
-            ax.set_ylabel(self.data.columns.values.tolist()[0])
-            pathname = self.outfile[:-len(self.DATA_EXT)] + self.FIG_EXT
-            fig.savefig(pathname)
-            jobutils.add_outfile(pathname)
-        self.log(f'{self.descr.capitalize()} figure saved as {pathname}')
-
     @classmethod
     def getName(cls, name=None, unit=None, label=None, names=None, err=False):
         """
@@ -280,26 +292,6 @@ class Job(Base):
         except StopIteration:
             raise ValueError(f"{name} not in {names}.")
 
-    @classmethod
-    @property
-    def name(cls):
-        """
-        The name of the analyzer.
-
-        :return str: analyzer name
-        """
-        return cls.__name__.lower()
-
-    @classmethod
-    @property
-    def descr(cls):
-        """
-        The description of the analyzer.
-
-        :return str: analyzer description
-        """
-        return cls.name
-
 
 class TrajJob(Job):
     """
@@ -323,7 +315,7 @@ class TrajJob(Job):
 
 class XYZ(TrajJob):
     """
-    xyz file writer
+    xyz file writer.
     """
 
     DATA_EXT = '.xyz'
@@ -364,7 +356,7 @@ class XYZ(TrajJob):
 
 class View(TrajJob):
     """
-    Coordinates visualization
+    Coordinates visualization.
     """
 
     DATA_EXT = '.html'
@@ -388,7 +380,7 @@ class View(TrajJob):
 
 class Density(TrajJob):
     """
-    Structural density
+    Structural density.
     """
 
     UNIT = 'g/cm^3'
@@ -407,7 +399,7 @@ class Density(TrajJob):
 
 class Clash(TrajJob):
     """
-    Clashes between atoms
+    Clashes between atoms.
     """
 
     UNIT = 'count'
@@ -455,7 +447,7 @@ class Clash(TrajJob):
 
 class RDF(Clash):
     """
-    Radial distribution function
+    Radial distribution function.
     """
 
     UNIT = 'r'
@@ -554,7 +546,7 @@ class RDF(Clash):
 
 class MSD(RDF):
     """
-    Mean squared displacement & diffusion coefficient
+    Mean squared displacement & diffusion coefficient.
     """
 
     UNIT = f'{symbols.ANGSTROM}^2'
@@ -646,6 +638,9 @@ TRAJ = {x.name: x for x in [Density, RDF, MSD, Clash, View, XYZ]}
 
 
 class TotEng(Job):
+    """
+    Thermodynamic analyzer.
+    """
 
     FLOAT_FMT = '%.8g'
 
@@ -672,6 +667,9 @@ class TotEng(Job):
     @classmethod
     @property
     def descr(cls):
+        """
+        See parent.
+        """
         return 'Thermodynamic information'
 
     @classmethod
@@ -694,6 +692,9 @@ ANLZ = {**TRAJ, **THERMO}
 
 
 class Agg(Base):
+    """
+    The analyzer aggregator.
+    """
 
     TO_SKIP = {XYZ.name, View.name}
 
@@ -704,22 +705,16 @@ class Agg(Base):
             (pandas.Series), grouped jobs (signac.job.Job)
         :type jobs: list of (pandas.Series, 'signac.job.Job') tuples
         """
-        super().__init__(**kwargs)
         self.task = task
+        super().__init__(**kwargs)
+
         self.groups = groups
-        self.yvals = None
-        self.ydevs = None
-        self.xvals = None
-        self.result = pd.DataFrame()
-        self.outfile = f"{self.options.JOBNAME}_{self.task}{self.DATA_EXT}"
-        self.Anlz = None if self.task in self.TO_SKIP else ANLZ[self.task]
+        self.data = pd.DataFrame()
 
     def run(self):
         """
         Main method to aggregate the analyzer output files over all parameters.
         """
-        if self.Anlz is None:
-            return
         self.read()
         self.set()
         self.save()
@@ -730,92 +725,69 @@ class Agg(Base):
         """
         Set the result for the given task over grouped jobs.
         """
+        if self.task in self.TO_SKIP:
+            return
+
         self.log(f"Aggregation Task: {self.task}")
         for parm, jobs in self.groups:
             if not parm.empty:
                 pstr = parm.to_csv(lineterminator=' ', sep='=', header=False)
                 self.log(f"Aggregation Parameters (num={len(jobs)}): {pstr}")
-            anlz = self.Anlz(options=self.options,
-                             logger=self.logger,
-                             parm=parm,
-                             jobs=jobs)
+            anlz = ANLZ[self.task](options=self.options,
+                                   logger=self.logger,
+                                   parm=parm,
+                                   jobs=jobs)
             anlz.run()
             if anlz.result is None:
                 continue
             result = [anlz.result] if parm.empty else [parm, anlz.result]
             result = pd.concat(result).to_frame().transpose()
-            self.result = pd.concat([self.result, result])
+            self.data = pd.concat([self.data, result])
 
     def set(self):
         """
         Set the x, y, and y standard deviation from the results.
         """
-        if self.result.empty:
+        if self.data.empty:
             return
-        name = self.Anlz.getName(names=self.result.columns)
-        self.yvals = self.result[name]
-        err_name = self.Anlz.getName(names=self.result.columns, err=True)
-        self.ydevs = self.result[err_name]
-        x_lbs = list(set(self.result.columns).difference([name, err_name]))
-        self.xvals = self.result[x_lbs]
+
+        val = ANLZ[self.task].getName(names=self.data.columns)
+        err = ANLZ[self.task].getName(names=self.data.columns, err=True)
+        index = self.data[list(set(self.data.columns).difference([val, err]))]
+        if index.empty:
+            return
         rename = {
             x: ' '.join([y.capitalize() for y in x.split('_')])
-            for x in self.xvals.columns
+            for x in index.columns
         }
-        self.xvals = self.xvals.rename(columns=rename)
+        self.data.index = index.rename(columns=rename).values[:, 0]
+        self.data = self.data[[val, err]]
 
     def save(self):
         """
         Save the results to a file.
         """
-        if self.result.empty:
+        if self.data.empty:
             self.warning(f"Empty Result for {self.task}")
             return
-        self.result.to_csv(self.outfile, index=False)
+
+        self.data.to_csv(self.outfile)
         self.log(
             f"{self.task.capitalize()} of all parameters saved to {self.outfile}"
         )
-        jobutils.add_outfile(self.outfile)
 
     def fit(self):
         """
         Fit the data and report.
         """
-        if self.xvals is None or self.xvals.empty or self.xvals.size == 1:
+        if self.data.index.name is None:
             return
-        index = self.yvals.argmin()
-        self.log(f"The minimum {self.yvals.name} of {self.yvals.iloc[index]} "
-                 f"is found with the {self.xvals.columns[0].replace('_',' ')} "
-                 f"being {self.xvals.iloc[index, 0]}")
 
-    def plot(self, xtick_num=12):
-        """
-        Plot the results.
+        row = self.data[self.data.iloc[:, 0] == self.data.iloc[:, 0].min()]
+        self.log(f"The minimum {row.columns[0]} of {self.data.iloc[0,0]} "
+                 f"is found with the {row.index.name.replace('_',' ')} "
+                 f"being {row.index[0]}")
 
-        :param xtick_num int: the maximum number of xticks to show
-        """
-        if self.xvals is None or self.xvals.empty:
-            return
-        with plotutils.get_pyplot(inav=self.options.INTERAC,
-                                  name=self.task.upper()) as plt:
-            fig = plt.figure(figsize=(10, 6))
-            ax = fig.add_axes([0.13, 0.1, 0.8, 0.8])
-            ax.plot(self.xvals.iloc[:, 0], self.yvals, '--*', label='average')
-            if not self.ydevs.isnull().any():
-                # Data has non-zero standard deviation column
-                ax.fill_between(self.xvals.values,
-                                self.yvals - self.ydevs,
-                                self.yvals + self.ydevs,
-                                color='y',
-                                label='stdev',
-                                alpha=0.3)
-                ax.legend()
-            ax.set_xlabel(self.xvals.columns[0])
-            if self.xvals.iloc[:, 0].size > xtick_num:
-                intvl = round(self.xvals.iloc[:, 0].size / xtick_num)
-                ax.set_xticks(self.xvals.iloc[:, 0].values[::intvl])
-            ax.set_ylabel(self.yvals.name)
-            pathname = self.outfile[:-len(self.DATA_EXT)] + self.FIG_EXT
-            fig.savefig(pathname)
-            jobutils.add_outfile(pathname)
-        self.log(f'{self.task.upper()} figure saved as {pathname}')
+    @property
+    def name(self):
+        return self.task

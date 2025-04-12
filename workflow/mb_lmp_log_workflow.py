@@ -6,6 +6,8 @@ This workflow runs molecule builder, lammps simulation, and log analyzer.
 import argparse
 import sys
 
+import pandas as pd
+
 from nemd import analyzer
 from nemd import jobcontrol
 from nemd import jobutils
@@ -49,9 +51,13 @@ class AnalyzerAgg(analyzer.Agg):
         structure smiles and geometry type.
         """
         super().set()
+
         if len(self.groups) == 1 and self.groups[0][0].empty:
             return
-        smiles = self.extractSmiles()
+
+        substruct = self.data.index.str.split(expand=True)
+        has_value = self.data.index[0] != substruct[0]
+        smiles = substruct[0][0] if has_value else substruct[0]
         # Set the name of the substructure column (e.g. CC Bond (Angstrom))
         match rdkitutils.MolFromSmiles(smiles).GetNumAtoms():
             case 2:
@@ -60,30 +66,19 @@ class AnalyzerAgg(analyzer.Agg):
                 name = f"{smiles} Angle (Degree)"
             case 4:
                 name = f"{smiles} Dihedral Angle (Degree)"
-        self.result.rename(columns={self.result.substruct.name: name},
-                           inplace=True)
-
-    def extractSmiles(self):
-        """
-        Extract the smiles with the substructure set with values only.
-
-        :return str: the smiles str of the substructure
-        :raises ValueError: if the smiles cannot be extracted from the log file
-        """
-        substruct = self.result.substruct.str.split(expand=True)
-        smiles = substruct.iloc[0, 0]
-        if substruct.shape[1] > 1:
+        if has_value:
             # result.substruct contains the values  (e.g. CC: 2)
-            self.result.substruct = substruct.iloc[:, 1]
-            return smiles
+            self.data.index = pd.Index([x[1] for x in substruct], name=name)
+            return
         # result.substruct contains the smiles (e.g. CCCC)
         # Read the reported value from the log (e.g. dihedral angle: 73.50 deg)
         for job in jobutils.Job(job=self.groups[0][1][0]).getJobs():
             reader = Reader(job.logfile)
             if reader.options.NAME != task.MolBldr.default:
                 continue
-            self.result.substruct = reader.getSubstruct(smiles)
-            return smiles
+            values = reader.getSubstruct(smiles)
+            self.data.index = pd.Index([values], name=name)
+            return
         raise ValueError("Cannot extract the smiles from the log file.")
 
 

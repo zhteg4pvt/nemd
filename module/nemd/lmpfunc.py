@@ -35,10 +35,10 @@ class Base:
         """
         Main method to run.
         """
-        self.set()
+        self.read()
         self.setAve()
 
-    def set(self):
+    def read(self):
         """
         Load data from the file.
         """
