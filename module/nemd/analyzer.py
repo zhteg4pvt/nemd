@@ -22,30 +22,37 @@ from nemd import symbols
 
 
 class Base(logutils.Base):
+
+    DATA_EXT = '.csv'
+    FIG_EXT = '.png'
+    ST_DEV = 'St Dev'
+    ST_ERR = 'St Err'
+
+    def __init__(self, options=None, **kwargs):
+        """
+        :param options `argparse.Namespace`: the options from command line
+        """
+        super().__init__(**kwargs)
+        self.options = options
+
+
+class Job(Base):
     """
     The base class subclassed by analyzers.
     """
 
-    NAME = 'base'  # Name abbreviation
-    DESCR = NAME  # Full name
     UNIT = None
-    LABEL = f'{NAME.capitalize()} ({UNIT})'
     PROP = None
-    ERR_LB = 'St Dev'
-    DATA_EXT = '.csv'
-    FIG_EXT = '.png'
     FLOAT_FMT = '%.4g'
 
-    def __init__(self, rdr=None, options=None, parm=None, jobs=None, **kwargs):
+    def __init__(self, rdr=None, parm=None, jobs=None, **kwargs):
         """
         :param rdr `oplsua.Reader`: data file reader
-        :param options `argparse.Namespace`: the options from command line
         :param parm `pd.Dataframe`: the group parameters
         :param jobs list: a group of signac jobs
         """
         super().__init__(**kwargs)
         self.rdr = rdr
-        self.options = options
         self.parm = parm
         self.jobs = jobs
         self.data = None
@@ -62,7 +69,7 @@ class Base(logutils.Base):
 
         :return str: the outfile pathname
         """
-        name = f"{self.options.JOBNAME}_{self.NAME}"
+        name = f"{self.options.JOBNAME}_{self.name}"
         if self.parm is None:
             return name + self.DATA_EXT
         # LmpLogAgg.groups -> tuple(parm, jobs) with parm.index.name being index
@@ -73,24 +80,24 @@ class Base(logutils.Base):
         """
         Main method to run the analyzer.
         """
-        self.readData()
-        self.setData()
-        self.saveData()
+        self.read()
+        self.set()
+        self.save()
         self.fit()
         self.plot()
 
-    def readData(self):
+    def read(self):
         """
         Read the output files from independent runs to set the data.
         """
         if self.jobs is None:
             return
 
-        name = f"{self.options.NAME}_{self.NAME}{self.DATA_EXT}"
+        name = f"{self.options.NAME}_{self.name}{self.DATA_EXT}"
         files = [x.fn(name) for x in self.jobs]
         files = [x for x in files if os.path.exists(x)]
         if not files:
-            self.data = pd.DataFrame({self.LABEL: []})
+            self.data = pd.DataFrame()
             return
 
         datas = [pd.read_csv(x, index_col=0) for x in files]
@@ -117,8 +124,18 @@ class Base(logutils.Base):
         vals = np.concatenate(vals, axis=1)
         data = np.array((vals.mean(axis=1), vals.std(axis=1))).transpose()
         name = f'{datas[0].columns[0]} (num={vals.shape[-1]})'
-        columns = [name, f"{self.ERR_LB} of {name}"]
+        columns = [name, f"{self.ST_DEV} of {name}"]
         self.data = pd.DataFrame(data, columns=columns, index=index)
+
+    @classmethod
+    @property
+    def label(cls):
+        """
+        The label name with unit.
+
+        :return str: name with unit
+        """
+        return f'{cls.__name__} ({cls.UNIT})'
 
     def parseIndex(self, name, sidx=0, eidx=None):
         """
@@ -155,13 +172,13 @@ class Base(logutils.Base):
             (label, unit), other = match.groups(), unit
         return label, unit, other
 
-    def setData(self):
+    def set(self):
         """
         Set the data.
         """
         pass
 
-    def saveData(self):
+    def save(self):
         """
         Save the data.
         """
@@ -169,7 +186,7 @@ class Base(logutils.Base):
             return
 
         self.data.to_csv(self.outfile, float_format=self.FLOAT_FMT)
-        self.log(f'{self.DESCR.capitalize()} data written into {self.outfile}')
+        self.log(f'{self.descr.capitalize()} data written into {self.outfile}')
 
     def fit(self):
         """
@@ -183,7 +200,7 @@ class Base(logutils.Base):
         err = sel.iloc[:,
                        0].std() if sel.shape[1] == 1 else sel.iloc[:,
                                                                    1].mean()
-        self.result = pd.Series({name: ave, f"{self.ERR_LB} of {name}": err})
+        self.result = pd.Series({name: ave, f"{self.ST_DEV} of {name}": err})
         self.result.index.name = sel.index.name
         label, unit, _ = self.parse(self.data.columns[0])
         stime, etime = sel.index[0], sel.index[-1]
@@ -201,7 +218,7 @@ class Base(logutils.Base):
             return
 
         with plotutils.get_pyplot(inav=self.options.INTERAC,
-                                  name=self.DESCR.upper()) as plt:
+                                  name=self.descr.upper()) as plt:
             fig = plt.figure(figsize=(10, 6))
             ax = fig.add_axes([0.13, 0.1, 0.8, 0.8])
             line_style = '--' if any([self.sidx, self.eidx]) else '-'
@@ -230,10 +247,10 @@ class Base(logutils.Base):
             pathname = self.outfile[:-len(self.DATA_EXT)] + self.FIG_EXT
             fig.savefig(pathname)
             jobutils.add_outfile(pathname)
-        self.log(f'{self.DESCR.capitalize()} figure saved as {pathname}')
+        self.log(f'{self.descr.capitalize()} figure saved as {pathname}')
 
     @classmethod
-    def getName(cls, name=None, unit=None, label=None, names=None):
+    def getName(cls, name=None, unit=None, label=None, names=None, err=False):
         """
         Get the property name.
 
@@ -241,11 +258,12 @@ class Base(logutils.Base):
         :param unit str: the unit of the property
         :param label str: get additional information from this label.
         :param names str: the available names to choose from.
+        :param err bool: search the error name if True
         :return str: the property name
         :raise ValueError: if name cannot be determined.
         """
         if name is None:
-            name = cls.PROP if cls.PROP else cls.NAME
+            name = cls.PROP if cls.PROP else cls.name
         if unit is None:
             unit = cls.UNIT
 
@@ -255,14 +273,35 @@ class Base(logutils.Base):
             num = cls.parse(label)[2] if label else None
             return name if num is None else f"{name} ({num})"
 
+        rex = f'St (Dev|Err) of {name}' if err else name
         # Get name from names
         try:
-            return next(x for x in names if re.match(name, x, re.I))
+            return next(x for x in names if re.match(rex, x, re.I))
         except StopIteration:
             raise ValueError(f"{name} not in {names}.")
 
+    @classmethod
+    @property
+    def name(cls):
+        """
+        The name of the analyzer.
 
-class TrajBase(Base):
+        :return str: analyzer name
+        """
+        return cls.__name__.lower()
+
+    @classmethod
+    @property
+    def descr(cls):
+        """
+        The description of the analyzer.
+
+        :return str: analyzer description
+        """
+        return cls.name
+
+
+class TrajJob(Job):
     """
     The base class for trajectory analyzers.
     """
@@ -282,13 +321,11 @@ class TrajBase(Base):
         self.sidx = self.traj.time.sidx
 
 
-class XYZ(TrajBase):
+class XYZ(TrajJob):
     """
     xyz file writer
     """
 
-    NAME = 'xyz'
-    DESCR = NAME.upper()
     DATA_EXT = '.xyz'
 
     def run(self, center=False, wrapped=True, broken_bonds=False):
@@ -314,16 +351,22 @@ class XYZ(TrajBase):
                 if wrapped:
                     frm.wrap(broken_bonds, dreader=self.rdr)
                 frm.write(self.out_fh, dreader=self.rdr)
-        self.log(f"{self.DESCR} coordinates are written into {self.outfile}")
+        self.log(f"{self.descr} coordinates are written into {self.outfile}")
+
+    @classmethod
+    @property
+    def descr(cls):
+        """
+        See parent.
+        """
+        return cls.name.upper()
 
 
-class View(TrajBase):
+class View(TrajJob):
     """
     Coordinates visualization
     """
 
-    NAME = 'view'
-    DESCR = 'trajectory visualization'
     DATA_EXT = '.html'
 
     def run(self):
@@ -332,20 +375,25 @@ class View(TrajBase):
         """
         fig = molview.Figure(self.traj, rdr=self.rdr)
         fig.write_html(self.outfile)
-        self.log(f'{self.DESCR.capitalize()} data written into {self.outfile}')
+        self.log(f'{self.descr.capitalize()} data written into {self.outfile}')
+
+    @classmethod
+    @property
+    def descr(cls):
+        """
+        See parent.
+        """
+        return 'trajectory visualization'
 
 
-class Density(TrajBase):
+class Density(TrajJob):
     """
     Structural density
     """
 
-    NAME = 'density'
-    DESCR = NAME
     UNIT = 'g/cm^3'
-    LABEL = f'{NAME.capitalize()} ({UNIT})'
 
-    def setData(self):
+    def set(self):
         """
         Set the time vs density data.
         """
@@ -354,18 +402,15 @@ class Density(TrajBase):
         mass = self.rdr.molecular_weight / scipy.constants.Avogadro
         mass_scaled = mass / constants.ANG_TO_CM**3
         data = [mass_scaled / x.box.volume for x in self.traj]
-        self.data = pd.DataFrame({self.LABEL: data}, index=self.traj.time)
+        self.data = pd.DataFrame({self.label: data}, index=self.traj.time)
 
 
-class Clash(TrajBase):
+class Clash(TrajJob):
     """
     Clashes between atoms
     """
 
-    NAME = 'clash'
-    DESCR = 'clash count'
     UNIT = 'count'
-    LABEL = f'{NAME.capitalize()} ({UNIT})'
 
     def __init__(self, *args, cut=None, **kwargs):
         """
@@ -388,7 +433,7 @@ class Clash(TrajBase):
         self.grp = gids[1:]
         self.grps = [gids[:i] for i in range(1, len(gids))]
 
-    def setData(self):
+    def set(self):
         """
         Set the time vs clash number.
         """
@@ -405,7 +450,7 @@ class Clash(TrajBase):
                               srch=self.srch)
             clashes = dfrm.getClashes(self.grp, grps=self.grps)
             data.append(len(clashes))
-        self.data = pd.DataFrame(data={self.LABEL: data}, index=self.traj.time)
+        self.data = pd.DataFrame(data={self.label: data}, index=self.traj.time)
 
 
 class RDF(Clash):
@@ -413,19 +458,16 @@ class RDF(Clash):
     Radial distribution function
     """
 
-    NAME = 'rdf'
-    DESCR = 'radial distribution function'
     UNIT = 'r'
-    LABEL = f'g ({UNIT})'
     INDEX_LB = f'r ({symbols.ANGSTROM})'
-    PROP = f'{NAME} peak'
+    PROP = f'peak'
     POS_NAME = f"{PROP} position ({symbols.ANGSTROM})"
     CUT = symbols.DEFAULT_CUT
 
     def __init__(self, *args, cut=symbols.DEFAULT_CUT, **kwargs):
         super().__init__(*args, cut=cut, **kwargs)
 
-    def setData(self, res=0.02):
+    def set(self, res=0.02):
         """
         Set the radial distribution function.
 
@@ -434,7 +476,7 @@ class RDF(Clash):
         if self.data is not None:
             return
 
-        self.data = pd.DataFrame(data={self.LABEL: []})
+        self.data = pd.DataFrame()
         if len(self.gids) < 2:
             self.warning("RDF requires least two atoms selected.")
             return
@@ -471,7 +513,7 @@ class RDF(Clash):
         rdf /= len(self.traj.sel)
         mid, rdf = np.concatenate(([0], mid)), np.concatenate(([0], rdf))
         index = pd.Index(data=mid, name=self.INDEX_LB)
-        self.data = pd.DataFrame(data={self.LABEL: rdf}, index=index)
+        self.data = pd.DataFrame(data={self.label: rdf}, index=index)
 
     def fit(self):
         """
@@ -490,8 +532,24 @@ class RDF(Clash):
         err = row.values[1] if len(row.values) > 1 else None
         self.result = pd.Series({
             name: row.values[0],
-            f"{self.ERR_LB} of {name}": err
+            f"{self.ST_DEV} of {name}": err
         })
+
+    @classmethod
+    @property
+    def label(cls):
+        """
+        See parent.
+        """
+        return f'g ({cls.UNIT})'
+
+    @classmethod
+    @property
+    def descr(cls):
+        """
+        See parent.
+        """
+        return 'radial distribution function'
 
 
 class MSD(RDF):
@@ -499,15 +557,11 @@ class MSD(RDF):
     Mean squared displacement & diffusion coefficient
     """
 
-    NAME = 'msd'
-    DESCR = 'mean squared displacement'
     UNIT = f'{symbols.ANGSTROM}^2'
-    LABEL = f'{NAME.upper()} ({UNIT})'
     INDEX_LB = 'Tau (ps)'
     PROP = 'Diffusion Coefficient'
-    ERR_LB = f'Standard Error'
 
-    def setData(self, spct=0.1, epct=0.2, weights=None):
+    def set(self, spct=0.1, epct=0.2, weights=None):
         """
         Set the mean squared displacement and diffusion coefficient.
 
@@ -518,10 +572,9 @@ class MSD(RDF):
         if self.data is not None:
             return
 
-        self.data = pd.DataFrame(data={self.LABEL: []})
+        self.data = pd.DataFrame()
         if not self.gids:
             self.warning("No atoms selected for MSD.")
-            self.data = pd.DataFrame({self.LABEL: []})
             return
 
         if len(self.traj.sel) == 1:
@@ -544,7 +597,7 @@ class MSD(RDF):
         self.eidx = math.ceil(num * (1 - epct))
         name = f"{self.INDEX_LB} ({self.sidx} {self.eidx})"
         tau_idx = pd.Index(data=ps_time - ps_time[0], name=name)
-        self.data = pd.DataFrame({self.LABEL: msd}, index=tau_idx)
+        self.data = pd.DataFrame({self.label: msd}, index=tau_idx)
 
     def fit(self):
         """
@@ -563,23 +616,37 @@ class MSD(RDF):
         self.log(f'{value:.4g} {symbols.PLUS_MIN} {std_err:.4g} cm^2/s'
                  f' (R-squared: {rval**2:.4f}) linear fit of'
                  f' [{sel.index[0]:.4f} {sel.index[-1]:.4f}] ps')
-        name = self.getName(unit='cm^2/s')
+        name = self.getName(unit='cm^2/s', label=self.data.columns[0])
         self.result = pd.Series({
             name: value,
-            f"{self.ERR_LB} of {name}": std_err
+            f"{self.ST_ERR} of {name}": std_err
         })
         self.result.index.name = sel.index.name
 
+    @classmethod
+    @property
+    def label(cls):
+        """
+        See parent.
+        """
+        return f'{cls.name.upper()} ({cls.UNIT})'
 
-ALL_FRM = [x.NAME for x in [Density, Clash, View, XYZ]]
-DATA_RQD = [x.NAME for x in [Density]]
-TRAJ = {x.NAME: x for x in [Density, RDF, MSD, Clash, View, XYZ]}
+    @classmethod
+    @property
+    def descr(cls):
+        """
+        See parent.
+        """
+        return 'mean squared displacement'
 
 
-class Thermo(Base):
+ALL_FRM = [x.name for x in [Density, Clash, View, XYZ]]
+DATA_RQD = [x.name for x in [Density]]
+TRAJ = {x.name: x for x in [Density, RDF, MSD, Clash, View, XYZ]}
 
-    NAME = 'toteng'
-    DESCR = 'Thermodynamic information'
+
+class TotEng(Job):
+
     FLOAT_FMT = '%.8g'
 
     def __init__(self, thermo=None, **kwargs):
@@ -592,15 +659,20 @@ class Thermo(Base):
             return
         self.sidx = self.parseIndex(self.thermo.index.name)[2]
 
-    def setData(self):
+    def set(self):
         """
         Select data by the thermo task name.
         """
         if self.data is not None:
             return
-        column_re = re.compile(f"{self.NAME} +\((.*)\)", re.IGNORECASE)
+        column_re = re.compile(f"{self.name} +\((.*)\)", re.IGNORECASE)
         column = [x for x in self.thermo.columns if column_re.match(x)][0]
         self.data = self.thermo[column].to_frame()
+
+    @classmethod
+    @property
+    def descr(cls):
+        return 'Thermodynamic information'
 
     @classmethod
     @property
@@ -612,34 +684,29 @@ class Thermo(Base):
         :return subclass of 'Thermo': the therma analyzer classes
         """
         return [
-            type(x, (cls, ), dict(NAME=x, DESCR=x.capitalize())) for x in
-            ['temp', 'e_pair', 'e_mol', symbols.TOTENG, 'press', 'volume']
+            type(x, (cls, ), dict(NAME=x, DESCR=x.capitalize()))
+            for x in ['temp', 'e_pair', 'e_mol', 'toteng', 'press', 'volume']
         ]
 
 
-THERMO = {x.NAME: x for x in Thermo.Analyzers}
+THERMO = {x.name: x for x in TotEng.Analyzers}
 ANLZ = {**TRAJ, **THERMO}
 
 
-class Agg(logutils.Base):
+class Agg(Base):
 
-    DATA_EXT = '.csv'
-    FIG_EXT = '.png'
-    TO_SKIP = {XYZ.NAME, View.NAME}
+    TO_SKIP = {XYZ.name, View.name}
 
-    def __init__(self, task, groups=None, options=None, logger=None):
+    def __init__(self, task, groups=None, **kwargs):
         """
         :param task str: the task name to analyze
         :param groups list of tuples: each tuple contains parameters
             (pandas.Series), grouped jobs (signac.job.Job)
         :type jobs: list of (pandas.Series, 'signac.job.Job') tuples
-        :param options 'argparse.Namespace': the options from command line
-        :param logger 'logging.Logger': the logger to log messages
         """
-        super().__init__(logger=logger)
+        super().__init__(**kwargs)
         self.task = task
         self.groups = groups
-        self.options = options
         self.yvals = None
         self.ydevs = None
         self.xvals = None
@@ -653,13 +720,13 @@ class Agg(logutils.Base):
         """
         if self.Anlz is None:
             return
-        self.setResult()
+        self.read()
+        self.set()
         self.save()
-        self.setVals()
         self.fit()
         self.plot()
 
-    def setResult(self):
+    def read(self):
         """
         Set the result for the given task over grouped jobs.
         """
@@ -679,6 +746,24 @@ class Agg(logutils.Base):
             result = pd.concat(result).to_frame().transpose()
             self.result = pd.concat([self.result, result])
 
+    def set(self):
+        """
+        Set the x, y, and y standard deviation from the results.
+        """
+        if self.result.empty:
+            return
+        name = self.Anlz.getName(names=self.result.columns)
+        self.yvals = self.result[name]
+        err_name = self.Anlz.getName(names=self.result.columns, err=True)
+        self.ydevs = self.result[err_name]
+        x_lbs = list(set(self.result.columns).difference([name, err_name]))
+        self.xvals = self.result[x_lbs]
+        rename = {
+            x: ' '.join([y.capitalize() for y in x.split('_')])
+            for x in self.xvals.columns
+        }
+        self.xvals = self.xvals.rename(columns=rename)
+
     def save(self):
         """
         Save the results to a file.
@@ -687,27 +772,10 @@ class Agg(logutils.Base):
             self.warning(f"Empty Result for {self.task}")
             return
         self.result.to_csv(self.outfile, index=False)
-        task = self.task.capitalize()
-        self.log(f"{task} of all parameters saved to {self.outfile}")
+        self.log(
+            f"{self.task.capitalize()} of all parameters saved to {self.outfile}"
+        )
         jobutils.add_outfile(self.outfile)
-
-    def setVals(self):
-        """
-        Set the x, y, and y standard deviation from the results.
-        """
-        if self.result.empty:
-            return
-        name = self.Anlz.getName(names=self.result.columns)
-        self.yvals = self.result[name]
-        err_lb_name = f"{self.Anlz.ERR_LB} of {name}"
-        self.ydevs = self.result[err_lb_name]
-        x_lbs = list(set(self.result.columns).difference([name, err_lb_name]))
-        self.xvals = self.result[x_lbs]
-        rename = {
-            x: ' '.join([y.capitalize() for y in x.split('_')])
-            for x in self.xvals.columns
-        }
-        self.xvals = self.xvals.rename(columns=rename)
 
     def fit(self):
         """
@@ -735,7 +803,6 @@ class Agg(logutils.Base):
             ax.plot(self.xvals.iloc[:, 0], self.yvals, '--*', label='average')
             if not self.ydevs.isnull().any():
                 # Data has non-zero standard deviation column
-
                 ax.fill_between(self.xvals.values,
                                 self.yvals - self.ydevs,
                                 self.yvals + self.ydevs,

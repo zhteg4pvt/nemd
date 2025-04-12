@@ -158,7 +158,7 @@ class App(dash.Dash):
             # Accidentally load xyz into the datafile holder
             return self.frm_vw.fig
         self.frm_vw.rdf = rdf
-        self.frm_vw.setData()
+        self.frm_vw.set()
         self.frm_vw.setEdges()
         self.frm_vw.setEleSz()
         self.frm_vw.setScatters()

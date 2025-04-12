@@ -62,7 +62,7 @@ class Log(logutils.Base):
         """
         Set the tasks to be performed.
         """
-        parsed = [analyzer.Base.parse(x) for x in self.thermo.columns]
+        parsed = [analyzer.Job.parse(x) for x in self.thermo.columns]
         avail = [name.lower() for name, unit, _ in parsed]
         if symbols.ALL in self.options.task:
             self.options.task = [x for x in avail if x in analyzer.THERMO]

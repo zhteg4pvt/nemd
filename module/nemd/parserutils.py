@@ -923,7 +923,7 @@ class LmpLog(Lammps):
     LAST_FRM = analyzer.THERMO.keys()
 
     @classmethod
-    def add(cls, parser, positional=False, task=symbols.TOTENG):
+    def add(cls, parser, positional=False, task=analyzer.TotEng.name):
         """
         Add job specific arguments to the parser.
 
@@ -969,10 +969,10 @@ class LmpTraj(LmpLog):
     TASKS = analyzer.TRAJ.keys()
     TASK_HELP = ', '.join(x.__doc__.strip().lower()
                           for x in analyzer.TRAJ.values())
-    LAST_FRM = [x.NAME for x in [analyzer.MSD, analyzer.RDF]]
+    LAST_FRM = [x.name for x in [analyzer.MSD, analyzer.RDF]]
 
     @classmethod
-    def add(cls, parser, positional=False, task=analyzer.Density.NAME):
+    def add(cls, parser, positional=False, task=analyzer.Density.name):
         """
         Add job specific arguments to the parser.
 

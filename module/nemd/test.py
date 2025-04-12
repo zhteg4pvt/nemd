@@ -407,10 +407,10 @@ class CollectLog(Exist):
         """
         Main method to run.
         """
-        self.setData()
+        self.set()
         self.plotData()
 
-    def setData(self):
+    def set(self):
         """
         Set the time and memory data from the log files.
         """

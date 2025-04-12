@@ -86,7 +86,7 @@ class Traj(logutils.Base):
             x for x in self.options.task if x in parserutils.LmpTraj.LAST_FRM
         ]
         if lf_tasks:
-            label, unit, _ = analyzer.Base.parse(self.traj.time.name)
+            label, unit, _ = analyzer.Job.parse(self.traj.time.name)
             self.log(
                 f"{', '.join(lf_tasks)} average results from last "
                 f"{self.options.last_pct * 100}% frames {symbols.ELEMENT_OF} "

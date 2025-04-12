@@ -43,12 +43,12 @@ class AnalyzerAgg(analyzer.Agg):
     An analyzer Agg customized for substructure.
     """
 
-    def setResult(self):
+    def set(self):
         """
         Modify the result substructure column so that the name includes the
         structure smiles and geometry type.
         """
-        super().setResult()
+        super().set()
         if len(self.groups) == 1 and self.groups[0][0].empty:
             return
         smiles = self.extractSmiles()
