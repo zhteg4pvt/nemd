@@ -252,7 +252,7 @@ class Frame(frame.Base):
         # Distance > the 1/2 diagonal is not in the first image
         # cut > edge / 2 includes all cells in that direction
         self.cut = min(self.cut, self.box.span.max() / 2)
-        if self.srch is None and not self.useCell(self.box.span, self.cut):
+        if self.srch is None and not self.large(self.cut):
             return
         self.cell = Cell(self, self.box.span, self.cut)
         self.set(self.gids.on)
@@ -266,17 +266,6 @@ class Frame(frame.Base):
         :return `Radius`: the radii
         """
         return Radius(struct=self.struct, num=self.shape[0])
-
-    @staticmethod
-    def useCell(span, cut):
-        """
-        Whether to use the distance cell.
-
-        :param span np.ndarray: the box span
-        :param cut float: the cut-off
-        :return bool: whether to use the distance cell.
-        """
-        return np.prod(span) / np.power(cut, 3) >= 1000
 
     def getDists(self, grp, grps=None, less=True):
         """

@@ -42,7 +42,7 @@ class Base(logutils.Base):
 
     def run(self):
         """
-        Main method to aggregate the analyzer output files over all parameters.
+        Main method.
         """
         self.read()
         self.set()
@@ -62,8 +62,20 @@ class Base(logutils.Base):
         """
         pass
 
+    def save(self):
+        """
+        Save the data.
+        """
+        if self.data.empty:
+            self.warning(f"Empty Result for {self.name}")
+            return
+
+        self.data.to_csv(self.outfile, float_format=self.FLOAT_FMT)
+        jobutils.add_outfile(self.outfile)
+        self.log(f'{self.full.capitalize()} data written into {self.outfile}')
+
     @property
-    def full_name(self):
+    def full(self):
         """
         The full name of the analyzer.
 
@@ -81,18 +93,6 @@ class Base(logutils.Base):
         """
         return cls.__name__.lower()
 
-    def save(self):
-        """
-        Save the data.
-        """
-        if self.data.empty:
-            self.warning(f"Empty Result for {self.name}")
-            return
-
-        self.data.to_csv(self.outfile, float_format=self.FLOAT_FMT)
-        jobutils.add_outfile(self.outfile)
-        self.log(f'{self.full_name} data written into {self.outfile}')
-
     @property
     def outfile(self):
         """
@@ -104,15 +104,21 @@ class Base(logutils.Base):
 
     def fit(self):
         """
-        Fit the data.
+        Fit the data and report.
         """
-        pass
+        if self.data.index.name is None:
+            return
 
-    def plot(self, line_style='-', marker=None, selected=None):
+        row = self.data[self.data.iloc[:, 0] == self.data.iloc[:, 0].min()]
+        self.log(f"The minimum {row.columns[0]} of {self.data.iloc[0,0]} "
+                 f"is found with the {row.index.name.replace('_',' ')} "
+                 f"being {row.index[0]}")
+
+    def plot(self, line=None, marker=None, selected=None):
         """
         Plot and save the data (interactively).
 
-        :param line_style str: the line style
+        :param line str: the line style
         :param marker str: the marker symbol
         """
         if self.data.index.name is None:
@@ -123,13 +129,12 @@ class Base(logutils.Base):
 
             fig = plt.figure(figsize=(10, 6))
             ax = fig.add_axes([0.13, 0.1, 0.8, 0.8])
-            if selected is not None:
-                line_style = '--'
+            line = '-' if selected is None else '--'
             if marker is None and len(self.data) < 10:
                 marker = '*'
             ax.plot(self.data.index,
                     self.data.iloc[:, 0],
-                    line_style,
+                    line,
                     marker=marker,
                     label='average')
 
@@ -148,7 +153,7 @@ class Base(logutils.Base):
                 ax.plot(selected.index, selected.iloc[:, 0], '.-g')
 
             label, unit, _ = self.parse(self.data.index.name)
-            ax.set_xlabel(f"{label} ({unit})")
+            ax.set_xlabel(f"{label} ({unit})" if unit else label)
             ax.set_ylabel(self.data.columns.values.tolist()[0])
             pathname = self.outfile[:-len(self.DATA_EXT)] + self.FIG_EXT
             fig.savefig(pathname)
@@ -157,7 +162,7 @@ class Base(logutils.Base):
         self.log(f'{self.name.capitalize()} figure saved as {pathname}')
 
     @classmethod
-    def parse(cls, name, rex=re.compile('(.*) +\((.*)\)')):
+    def parse(cls, name, rex=re.compile(r'(.*) +\((.*)\)')):
         """
         Parse the column label.
 
@@ -165,8 +170,11 @@ class Base(logutils.Base):
         :param rex: the regular expression to match words followed by brackets.
         :return str, str, str: the label, unit, and other information.
         """
+        matched = rex.match(name)
+        if matched is None:
+            return name, None, None
         # e.g., 'Density (g/cm^3)
-        (label, unit), other = rex.match(name).groups(), None
+        (label, unit), other = matched.groups(), None
         match = rex.match(label)
         if match:
             # e.g., 'Density (g/cm^3) (num=4)', 'Time (ps) (0)'
@@ -179,7 +187,7 @@ class Job(Base):
     The analyzer base class.
     """
 
-    UNIT = None
+    UNIT = 'a.u.'
     PROP = None
 
     def __init__(self, rdr=None, parm=None, jobs=None, **kwargs):
@@ -439,8 +447,7 @@ class Clash(TrajJob):
             self.cut = dist.Radius(struct=self.rdr).max()
         if self.traj is None:
             return
-        self.srch = any(
-            dist.Frame.useCell(x.box.span, self.cut) for x in self.traj.sel)
+        self.srch = any(x.large(self.cut) for x in self.traj.sel)
         if self.srch:
             self.grp = self.gids
             self.grps = None
@@ -563,11 +570,11 @@ class RDF(Clash):
         return f'g ({self.UNIT})'
 
     @property
-    def full_name(self):
+    def full(self):
         """
         See parent.
         """
-        return 'Radial distribution function'
+        return 'radial distribution function'
 
 
 class MSD(RDF):
@@ -649,11 +656,11 @@ class MSD(RDF):
         return f'{self.name.upper()} ({self.UNIT})'
 
     @property
-    def full_name(self):
+    def full(self):
         """
         See parent.
         """
-        return 'Mean squared displacement'
+        return 'mean squared displacement'
 
 
 ALL_FRM = [x.name for x in [Density, Clash, View, XYZ]]
@@ -684,16 +691,16 @@ class TotEng(Job):
         """
         if self.data is not None:
             return
-        column_re = re.compile(f"{self.name} +\((.*)\)", re.IGNORECASE)
+        column_re = re.compile(rf"{self.name} +\((.*)\)", re.IGNORECASE)
         column = [x for x in self.thermo.columns if column_re.match(x)][0]
         self.data = self.thermo[column].to_frame()
 
     @property
-    def full_name(self):
+    def full(self):
         """
         See parent.
         """
-        return 'Thermodynamic information'
+        return 'thermodynamic information'
 
     @classmethod
     @property
@@ -705,7 +712,7 @@ class TotEng(Job):
         :return subclass of 'Thermo': the therma analyzer classes
         """
         return [
-            type(x, (cls, ), dict(NAME=x, DESCR=x.capitalize()))
+            type(x, (cls, ), {})
             for x in ['temp', 'e_pair', 'e_mol', 'toteng', 'press', 'volume']
         ]
 
@@ -775,18 +782,6 @@ class Agg(Base):
         }
         self.data.index = parm.rename(columns=columns).values[:, 0]
         self.data = self.data[[val, err]]
-
-    def fit(self):
-        """
-        Fit the data and report.
-        """
-        if self.data.index.name is None:
-            return
-
-        row = self.data[self.data.iloc[:, 0] == self.data.iloc[:, 0].min()]
-        self.log(f"The minimum {row.columns[0]} of {self.data.iloc[0,0]} "
-                 f"is found with the {row.index.name.replace('_',' ')} "
-                 f"being {row.index[0]}")
 
     @property
     def name(self):

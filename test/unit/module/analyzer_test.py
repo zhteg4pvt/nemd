@@ -1,3 +1,6 @@
+import os
+from unittest import mock
+
 import pandas as pd
 import pytest
 
@@ -11,32 +14,79 @@ TEST0037 = envutils.test_data('itest', '0037_test')
 
 class TestBase:
 
-    @pytest.fixture
-    def base(self, NAME, UNIT, LABEL, PROP, DATA_EXT, args, parm):
-        Base = type(
-            'Base', (analyzer.Base, ),
-            dict(NAME=NAME,
-                 UNIT=UNIT,
-                 LABEL=LABEL,
-                 PROP=PROP,
-                 DATA_EXT=DATA_EXT))
-        options = parserutils.Workflow().parse_args(args)
-        if parm is not None:
-            parm = pd.Series(index=pd.Index([], name=parm))
-        return Base(options=options, parm=parm)
+    EMPTY = pd.DataFrame()
+    DATA = pd.DataFrame({'density': [1, 0, 2]},
+                        index=pd.Index([5, 2, 6], name='time'))
 
-    @pytest.mark.parametrize('UNIT,LABEL,PROP', [(None, ) * 3])
+    @pytest.fixture
+    def base(self, args, data):
+        options = parserutils.Driver().parse_args(args) if args else None
+        base = analyzer.Base(options=options, logger=mock.Mock())
+        base.data = data
+        return base
+
+    @pytest.mark.parametrize('args', [(['-JOBNAME', 'name'])])
     @pytest.mark.parametrize(
-        'NAME,DATA_EXT,args,parm,expected',
-        [('base', '.csv', ['-JOBNAME', 'name'], None, 'name_base.csv'),
-         ('anal', '.npy', ['-JOBNAME', 'job'], 0, 'workspace/job_anal_0.npy')])
+        'data,expected,exist',
+        [(EMPTY, 'WARNING: Empty Result for base', False),
+         (DATA, 'Base data written into name_base.csv', True)])
+    def testSave(self, base, expected, exist, tmp_dir):
+        base.save()
+        base.logger.log.assert_called_with(expected)
+        assert exist == os.path.exists('name_base.csv')
+
+    def testFull(self):
+        assert 'base' == analyzer.Base().full
+
+    def testName(self):
+        assert 'base' == analyzer.Base.name
+
+    @pytest.mark.parametrize('data', [None])
+    @pytest.mark.parametrize('args,expected',
+                             [(['-JOBNAME', 'name'], 'name_base.csv'),
+                              (['-JOBNAME', 'job'], 'job_base.csv')])
     def testOutfile(self, base, expected):
         assert expected == base.outfile
 
-    @pytest.mark.parametrize('UNIT,PROP', [(None, None)])
-    @pytest.mark.parametrize('dirname', [TEST0037])
+    @pytest.mark.parametrize('args', [None])
     @pytest.mark.parametrize(
-        'NAME,DATA_EXT,LABEL,args,parm,expected',
-        [('xyz', '.xyz', ['-JOBNAME', 'name'], None, 'name_base.csv')])
-    def testReadData(self, jobs):
-        breakpoint()
+        'data,expected',
+        [(EMPTY, False),
+         (DATA, 'The minimum density of 1 is found with the time being 2')])
+    def testFit(self, base, expected):
+        base.fit()
+        assert bool(expected) == base.logger.log.called
+        if expected:
+            base.logger.log.assert_called_with(expected)
+
+    @pytest.mark.parametrize('args', [(['-JOBNAME', 'name'])])
+    @pytest.mark.parametrize('data,expected', [(EMPTY, False), (DATA, True)])
+    @pytest.mark.parametrize('line,marker,selected',
+                             [(None, None, None),
+                              (DATA, '*', pd.DataFrame([[1], [2]]))])
+    def testPlot(self, base, line, marker, selected, expected, tmp_dir):
+        base.plot(line=line, marker=marker, selected=selected)
+        assert expected == os.path.exists('name_base.png')
+
+    @pytest.mark.parametrize('name,expected',
+                             [('r', ('r', None, None)),
+                              ('r (g/m^3)', ('r', 'g/m^3', None)),
+                              ('r (g/m^3) (num=3)', ('r', 'g/m^3', 'num=3'))])
+    def testParse(self, name, expected):
+        assert expected == analyzer.Base.parse(name)
+
+
+class TestJob:
+
+    @pytest.fixture
+    def job(self, args, parm):
+        options = parserutils.Driver().parse_args(args)
+        return analyzer.Job(options=options, parm=parm)
+
+    @pytest.mark.parametrize('args', [(['-JOBNAME', 'name'])])
+    @pytest.mark.parametrize(
+        'parm,expected',
+        [(None, 'name_job.csv'),
+         (pd.Series(index=pd.Index([], name=0)), 'workspace/name_job_0.csv')])
+    def testOutfile(self, job, expected):
+        assert expected == job.outfile

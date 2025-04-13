@@ -33,6 +33,15 @@ class Base(np.ndarray):
         """
         self.box = getattr(frm, 'box', None) if box is None else box
 
+    def large(self, cut):
+        """
+        Whether the cell is considered as large with respect to the cut.
+
+        :param cut float: the cut-off
+        :return bool: whether to use the distance cell.
+        """
+        return np.prod(self.box.span) / np.power(cut, 3) >= 1000
+
 
 class Frame(Base):
     """
