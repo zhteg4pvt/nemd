@@ -26,7 +26,7 @@ class TestReciprocal:
 
     @pytest.fixture
     def recip(self, miller):
-        with plotutils.get_pyplot() as plt:
+        with plotutils.pyplot() as plt:
             ax = plt.figure().add_subplot(111)
             vecs = [[1.5, 0.8660254], [1.5, -0.8660254]]
             vecs = pd.DataFrame(vecs, index=['x', 'y'], columns=['a1', 'a2'])
@@ -77,7 +77,7 @@ class TestReciprocal:
     def testAnnotate(self, recip):
         recip.setMiller()
         recip.annotate(recip.m_vecs.a2)
-        with plotutils.get_pyplot() as plt:
+        with plotutils.pyplot() as plt:
             assert isinstance(recip.ax.get_children()[0], plt.Annotation)
 
     @pytest.mark.parametrize(('miller'), [([0, 1])])
@@ -91,7 +91,7 @@ class TestReal:
 
     @pytest.fixture
     def real(self, miller):
-        with plotutils.get_pyplot() as plt:
+        with plotutils.pyplot() as plt:
             ax = plt.figure().add_subplot(111)
             vecs = np.array([[1.5, 0.8660254], [1.5, -0.8660254]]).T
             vecs = pd.DataFrame(vecs, index=['x', 'y'], columns=['a1', 'a2'])

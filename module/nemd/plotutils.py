@@ -10,7 +10,7 @@ import contextlib
 
 
 @contextlib.contextmanager
-def get_pyplot(inav=False, name='the plot'):
+def pyplot(inav=False, name='the plot'):
     """
     Get the pyplot with requested backend and restoration after usage.
 

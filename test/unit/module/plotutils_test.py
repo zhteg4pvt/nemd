@@ -12,7 +12,7 @@ class TestFunc:
         import matplotlib
         obackend = matplotlib.get_backend()
         with mock.patch('nemd.plotutils.print'):
-            with plotutils.get_pyplot(inav=inav) as plt:
+            with plotutils.pyplot(inav=inav) as plt:
                 plt.show = mock.Mock()
         assert inav == plt.show.called
         assert obackend == matplotlib.get_backend()

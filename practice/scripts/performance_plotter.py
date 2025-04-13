@@ -11,7 +11,7 @@ ubuntu = pd.read_csv('~/git/nemd/test/performance/0001/0001_ubuntu.csv',
 mac.rename(columns={ylabel: "Ubuntu"}, inplace=True)
 data = pd.concat((mac, ubuntu), axis=1)
 data.sort_index(inplace=True)
-with plotutils.get_pyplot() as plt:
+with plotutils.pyplot() as plt:
     fig = plt.figure(figsize=(10, 6))
     ax = fig.add_subplot(1, 1, 1)
     ax.set_xscale('log')  # Log scaling on x-axis

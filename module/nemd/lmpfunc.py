@@ -112,7 +112,7 @@ class Length(Base):
         """
         To be overwritten.
         """
-        with plotutils.get_pyplot(inav=False) as plt:
+        with plotutils.pyplot(inav=False) as plt:
             fig, ax = plt.subplots(1, 1, figsize=(8, 6))
             column = self.getColumn(self.ending)
             ax.plot(self.data.index, column, label=self.DATA)
@@ -207,7 +207,7 @@ class Modulus(Press):
         """
         Plot the data and save the figure.
         """
-        with plotutils.get_pyplot(inav=False) as plt:
+        with plotutils.pyplot(inav=False) as plt:
             fig, axes = plt.subplots(2, 1, sharex=True, figsize=(8, 6))
             for idx, (axis, column) in enumerate(zip(axes, self.data.columns)):
                 self.subplot(axis, column)
@@ -302,7 +302,7 @@ class Vol(Press):
         """
         Plot the data and save the figure.
         """
-        with plotutils.get_pyplot(inav=False) as plt:
+        with plotutils.pyplot(inav=False) as plt:
             fig, ax = plt.subplots(1, 1, figsize=(8, 6))
             ax.plot(self.getColumn(self.VOL),
                     self.getColumn(self.PRESS),

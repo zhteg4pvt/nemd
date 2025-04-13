@@ -113,7 +113,7 @@ class TestModulus:
     def testSubplot(self, label, expected, modulus):
         modulus.setData()
         modulus.setAve()
-        with plotutils.get_pyplot(inav=False) as plt:
+        with plotutils.pyplot(inav=False) as plt:
             ax = plt.subplot()
             modulus.subplot(ax, label)
             assert 2 == len(ax.lines)

@@ -79,7 +79,7 @@ class Plotter:
         """
         Plot the frequency vs wave vector with k-point vertical lines.
         """
-        with plotutils.get_pyplot(inav=self.options.INTERAC) as plt:
+        with plotutils.pyplot(inav=self.options.INTERAC) as plt:
             fig = plt.figure(figsize=(10, 6))
             ax = fig.add_subplot(1, 1, 1)
             for col in self.data.columns:

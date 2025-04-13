@@ -139,8 +139,8 @@ class Runner(logutils.Base):
         """
         if not self.options.DEBUG:
             return
-        with plotutils.get_pyplot(inav=self.options.INTERAC,
-                                  name='workflow') as plt:
+        with plotutils.pyplot(inav=self.options.INTERAC,
+                              name='workflow') as plt:
             fig = plt.figure()
             ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
             opr_graph = self.proj.detect_operation_graph()

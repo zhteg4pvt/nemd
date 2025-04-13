@@ -22,11 +22,15 @@ from nemd import symbols
 
 
 class Base(logutils.Base):
+    """
+    Base class for job and aggregator.
+    """
 
     DATA_EXT = '.csv'
     FIG_EXT = '.png'
     ST_DEV = 'St Dev'
     ST_ERR = 'St Err'
+    FLOAT_FMT = '%.4g'
 
     def __init__(self, options=None, **kwargs):
         """
@@ -35,32 +39,100 @@ class Base(logutils.Base):
         super().__init__(**kwargs)
         self.options = options
         self.data = None
-        self.sidx = 0
-        self.eidx = None
-        self.outfile = f"{self.options.JOBNAME}_{self.name}{self.DATA_EXT}"
-        jobutils.add_outfile(self.outfile)
 
-    def plot(self, marker_num=10):
+    def run(self):
+        """
+        Main method to aggregate the analyzer output files over all parameters.
+        """
+        self.read()
+        self.set()
+        self.save()
+        self.fit()
+        self.plot()
+
+    def read(self):
+        """
+        Read the data.
+        """
+        pass
+
+    def set(self):
+        """
+        Set the data.
+        """
+        pass
+
+    @property
+    def full_name(self):
+        """
+        The full name of the analyzer.
+
+        :return str: analyzer full name.
+        """
+        return self.name
+
+    @classmethod
+    @property
+    def name(cls):
+        """
+        The name of the analyzer.
+
+        :return str: analyzer name
+        """
+        return cls.__name__.lower()
+
+    def save(self):
+        """
+        Save the data.
+        """
+        if self.data.empty:
+            self.warning(f"Empty Result for {self.name}")
+            return
+
+        self.data.to_csv(self.outfile, float_format=self.FLOAT_FMT)
+        jobutils.add_outfile(self.outfile)
+        self.log(f'{self.full_name} data written into {self.outfile}')
+
+    @property
+    def outfile(self):
+        """
+        The outfile to save data.
+
+        :return str: the outfile
+        """
+        return f"{self.options.JOBNAME}_{self.name}{self.DATA_EXT}"
+
+    def fit(self):
+        """
+        Fit the data.
+        """
+        pass
+
+    def plot(self, line_style='-', marker=None, selected=None):
         """
         Plot and save the data (interactively).
 
-        :param marker_num int: add markers when the number of points equals or
-            is less than this value
+        :param line_style str: the line style
+        :param marker str: the marker symbol
         """
         if self.data.index.name is None:
             return
 
-        with plotutils.get_pyplot(inav=self.options.INTERAC,
-                                  name=self.name.upper()) as plt:
+        with plotutils.pyplot(inav=self.options.INTERAC,
+                              name=self.name) as plt:
+
             fig = plt.figure(figsize=(10, 6))
             ax = fig.add_axes([0.13, 0.1, 0.8, 0.8])
-            line_style = '--' if any([self.sidx, self.eidx]) else '-'
-            if len(self.data) < marker_num:
-                line_style += '*'
+            if selected is not None:
+                line_style = '--'
+            if marker is None and len(self.data) < 10:
+                marker = '*'
             ax.plot(self.data.index,
                     self.data.iloc[:, 0],
                     line_style,
+                    marker=marker,
                     label='average')
+
             if self.data.shape[-1] == 2 and self.data.iloc[:, 1].any():
                 # Data has non-zero standard deviation column
                 vals, errors = self.data.iloc[:, 0], self.data.iloc[:, 1]
@@ -71,9 +143,9 @@ class Base(logutils.Base):
                                 label='stdev',
                                 alpha=0.3)
                 ax.legend()
-            if any([self.sidx, self.eidx]):
-                gdata = self.data.iloc[self.sidx:self.eidx]
-                ax.plot(gdata.index, gdata.iloc[:, 0], '.-g')
+
+            if selected is not None:
+                ax.plot(selected.index, selected.iloc[:, 0], '.-g')
 
             label, unit, _ = self.parse(self.data.index.name)
             ax.set_xlabel(f"{label} ({unit})")
@@ -81,6 +153,7 @@ class Base(logutils.Base):
             pathname = self.outfile[:-len(self.DATA_EXT)] + self.FIG_EXT
             fig.savefig(pathname)
             jobutils.add_outfile(pathname)
+
         self.log(f'{self.name.capitalize()} figure saved as {pathname}')
 
     @classmethod
@@ -100,35 +173,14 @@ class Base(logutils.Base):
             (label, unit), other = match.groups(), unit
         return label, unit, other
 
-    @classmethod
-    @property
-    def name(cls):
-        """
-        The name of the analyzer.
-
-        :return str: analyzer name
-        """
-        return cls.__name__.lower()
-
-    @classmethod
-    @property
-    def descr(cls):
-        """
-        The description of the analyzer.
-
-        :return str: analyzer description
-        """
-        return cls.name
-
 
 class Job(Base):
     """
-    The base class subclassed by analyzers.
+    The analyzer base class.
     """
 
     UNIT = None
     PROP = None
-    FLOAT_FMT = '%.4g'
 
     def __init__(self, rdr=None, parm=None, jobs=None, **kwargs):
         """
@@ -140,22 +192,20 @@ class Job(Base):
         self.rdr = rdr
         self.parm = parm
         self.jobs = jobs
+        self.sidx = 0
+        self.eidx = None
         self.result = None
+
+    @property
+    def outfile(self):
+        """
+        See parent.
+        """
         if self.parm is None:
-            return
+            return super().outfile
         # LmpLogAgg.groups -> tuple(parm, jobs) with parm.index.name being index
         name = f"{self.options.JOBNAME}_{self.name}_{self.parm.index.name}{self.DATA_EXT}"
-        self.outfile = os.path.join(jobutils.WORKSPACE, name)
-
-    def run(self):
-        """
-        Main method to run the analyzer.
-        """
-        self.read()
-        self.set()
-        self.save()
-        self.fit()
-        self.plot()
+        return os.path.join(jobutils.WORKSPACE, name)
 
     def read(self):
         """
@@ -198,22 +248,12 @@ class Job(Base):
         columns = [name, f"{self.ST_DEV} of {name}"]
         self.data = pd.DataFrame(data, columns=columns, index=index)
 
-    @classmethod
-    @property
-    def label(cls):
-        """
-        The label name with unit.
-
-        :return str: name with unit
-        """
-        return f'{cls.__name__} ({cls.UNIT})'
-
     def parseIndex(self, name, sidx=0, eidx=None):
         """
         Parse the index name to get the label, unit, start index and end index.
 
         :param name: the column name
-        :param sidx int: the start index
+        :param sidx int: the start indexf
         :param eidx int: the end index
         return str, str, int, int: label, unit, start index, and end index.
         """
@@ -226,21 +266,14 @@ class Job(Base):
             eidx = splitted[1]
         return label, unit, sidx, eidx
 
-    def set(self):
+    @property
+    def label(self):
         """
-        Set the data.
-        """
-        pass
+        The label name with unit.
 
-    def save(self):
+        :return str: name with unit
         """
-        Save the data.
-        """
-        if self.data.empty:
-            return
-
-        self.data.to_csv(self.outfile, float_format=self.FLOAT_FMT)
-        self.log(f'{self.descr.capitalize()} data written into {self.outfile}')
+        return f'{self.__class__.__name__} ({self.UNIT})'
 
     def fit(self):
         """
@@ -251,15 +284,21 @@ class Job(Base):
 
         sel = self.data.iloc[self.sidx:self.eidx]
         name, ave = sel.columns[0], sel.iloc[:, 0].mean()
-        err = sel.iloc[:,
-                       0].std() if sel.shape[1] == 1 else sel.iloc[:,
-                                                                   1].mean()
+        err = sel.iloc[:, 0].std() if sel.shape[1] else sel.iloc[:, 1].mean()
         self.result = pd.Series({name: ave, f"{self.ST_DEV} of {name}": err})
         self.result.index.name = sel.index.name
         label, unit, _ = self.parse(self.data.columns[0])
         stime, etime = sel.index[0], sel.index[-1]
         self.log(f'{label}: {ave:.4g} {symbols.PLUS_MIN} {err:.4g} {unit} '
                  f'{symbols.ELEMENT_OF} [{stime:.4f}, {etime:.4f}] ps')
+
+    def plot(self, selected=None, **kwargs):
+        """
+        See parent.
+        """
+        if any([self.sidx, self.eidx]):
+            selected = self.data.iloc[self.sidx:self.eidx]
+        super().plot(selected=selected, **kwargs)
 
     @classmethod
     def getName(cls, name=None, unit=None, label=None, names=None, err=False):
@@ -343,15 +382,8 @@ class XYZ(TrajJob):
                 if wrapped:
                     frm.wrap(broken_bonds, dreader=self.rdr)
                 frm.write(self.out_fh, dreader=self.rdr)
-        self.log(f"{self.descr} coordinates are written into {self.outfile}")
-
-    @classmethod
-    @property
-    def descr(cls):
-        """
-        See parent.
-        """
-        return cls.name.upper()
+        self.log(
+            f"{self.name.upper()} coordinates are written into {self.outfile}")
 
 
 class View(TrajJob):
@@ -367,15 +399,7 @@ class View(TrajJob):
         """
         fig = molview.Figure(self.traj, rdr=self.rdr)
         fig.write_html(self.outfile)
-        self.log(f'{self.descr.capitalize()} data written into {self.outfile}')
-
-    @classmethod
-    @property
-    def descr(cls):
-        """
-        See parent.
-        """
-        return 'trajectory visualization'
+        self.log(f'Trajectory visualization data written into {self.outfile}')
 
 
 class Density(TrajJob):
@@ -391,6 +415,7 @@ class Density(TrajJob):
         """
         if self.data is not None:
             return
+
         mass = self.rdr.molecular_weight / scipy.constants.Avogadro
         mass_scaled = mass / constants.ANG_TO_CM**3
         data = [mass_scaled / x.box.volume for x in self.traj]
@@ -457,6 +482,9 @@ class RDF(Clash):
     CUT = symbols.DEFAULT_CUT
 
     def __init__(self, *args, cut=symbols.DEFAULT_CUT, **kwargs):
+        """
+        See parent.
+        """
         super().__init__(*args, cut=cut, **kwargs)
 
     def set(self, res=0.02):
@@ -527,21 +555,19 @@ class RDF(Clash):
             f"{self.ST_DEV} of {name}": err
         })
 
-    @classmethod
     @property
-    def label(cls):
+    def label(self):
         """
         See parent.
         """
-        return f'g ({cls.UNIT})'
+        return f'g ({self.UNIT})'
 
-    @classmethod
     @property
-    def descr(cls):
+    def full_name(self):
         """
         See parent.
         """
-        return 'radial distribution function'
+        return 'Radial distribution function'
 
 
 class MSD(RDF):
@@ -615,21 +641,19 @@ class MSD(RDF):
         })
         self.result.index.name = sel.index.name
 
-    @classmethod
     @property
-    def label(cls):
+    def label(self):
         """
         See parent.
         """
-        return f'{cls.name.upper()} ({cls.UNIT})'
+        return f'{self.name.upper()} ({self.UNIT})'
 
-    @classmethod
     @property
-    def descr(cls):
+    def full_name(self):
         """
         See parent.
         """
-        return 'mean squared displacement'
+        return 'Mean squared displacement'
 
 
 ALL_FRM = [x.name for x in [Density, Clash, View, XYZ]]
@@ -664,9 +688,8 @@ class TotEng(Job):
         column = [x for x in self.thermo.columns if column_re.match(x)][0]
         self.data = self.thermo[column].to_frame()
 
-    @classmethod
     @property
-    def descr(cls):
+    def full_name(self):
         """
         See parent.
         """
@@ -705,21 +728,9 @@ class Agg(Base):
             (pandas.Series), grouped jobs (signac.job.Job)
         :type jobs: list of (pandas.Series, 'signac.job.Job') tuples
         """
-        self.task = task
         super().__init__(**kwargs)
-
+        self.task = task
         self.groups = groups
-        self.data = pd.DataFrame()
-
-    def run(self):
-        """
-        Main method to aggregate the analyzer output files over all parameters.
-        """
-        self.read()
-        self.set()
-        self.save()
-        self.fit()
-        self.plot()
 
     def read(self):
         """
@@ -733,6 +744,7 @@ class Agg(Base):
             if not parm.empty:
                 pstr = parm.to_csv(lineterminator=' ', sep='=', header=False)
                 self.log(f"Aggregation Parameters (num={len(jobs)}): {pstr}")
+            # Read, combine, and fit
             anlz = ANLZ[self.task](options=self.options,
                                    logger=self.logger,
                                    parm=parm,
@@ -748,33 +760,21 @@ class Agg(Base):
         """
         Set the x, y, and y standard deviation from the results.
         """
-        if self.data.empty:
+        if self.data is None:
+            self.data = pd.DataFrame()
             return
 
         val = ANLZ[self.task].getName(names=self.data.columns)
         err = ANLZ[self.task].getName(names=self.data.columns, err=True)
-        index = self.data[list(set(self.data.columns).difference([val, err]))]
-        if index.empty:
+        parm = self.data[list(set(self.data.columns).difference([val, err]))]
+        if parm.empty:
             return
-        rename = {
+        columns = {
             x: ' '.join([y.capitalize() for y in x.split('_')])
-            for x in index.columns
+            for x in parm.columns
         }
-        self.data.index = index.rename(columns=rename).values[:, 0]
+        self.data.index = parm.rename(columns=columns).values[:, 0]
         self.data = self.data[[val, err]]
-
-    def save(self):
-        """
-        Save the results to a file.
-        """
-        if self.data.empty:
-            self.warning(f"Empty Result for {self.task}")
-            return
-
-        self.data.to_csv(self.outfile)
-        self.log(
-            f"{self.task.capitalize()} of all parameters saved to {self.outfile}"
-        )
 
     def fit(self):
         """
@@ -790,4 +790,7 @@ class Agg(Base):
 
     @property
     def name(self):
+        """
+        See parent.
+        """
         return self.task

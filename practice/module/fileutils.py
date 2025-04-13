@@ -487,7 +487,7 @@ class LammpsLogReader(object):
         names.remove(self.STEP)
         fig_ncols = 2
         fig_nrows = math.ceil(len(names) / fig_ncols)
-        with plotutils.get_pyplot() as plt:
+        with plotutils.pyplot() as plt:
             self.fig = plt.figure(figsize=(12, 7))
             self.axises = []
             data = self.all_data[-1]

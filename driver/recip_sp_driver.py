@@ -320,7 +320,7 @@ class RecipSp(logutils.Base):
         """
         Plot the real and reciprocal paces.
         """
-        with plotutils.get_pyplot(inav=self.options.INTERAC) as plt:
+        with plotutils.pyplot(inav=self.options.INTERAC) as plt:
             fig = plt.figure(figsize=(15, 9))
             ax1 = fig.add_subplot(1, 2, 1)
             ax2 = fig.add_subplot(1, 2, 2)
