@@ -93,14 +93,13 @@ class TestJob:
     def testOutfile(self, job, expected):
         assert expected == job.outfile
 
-    @pytest.mark.parametrize('args,parm,name',
-                             [(['-NAME', 'lmp_traj'], None, 'density')])
+    @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
     @pytest.mark.parametrize('dirname,expected',
                              [(TEST0027, (0, 0, 0, None)),
                               (TEST0037, (3, 1, 1, None)),
                               (TEST0045, (145, 2, 116, None))])
-    def testRead(self, job, name, expected):
-        with mock.patch.object(job, 'name', name):
+    def testRead(self, job, expected):
+        with mock.patch.object(job, 'name', 'density'):
             job.read()
         assert expected == (*job.data.shape, job.sidx, job.eidx)
 

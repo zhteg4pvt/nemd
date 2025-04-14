@@ -78,7 +78,7 @@ RECORD_BDRY = f"""
 variable xl equal "xhi - xlo"
 variable yl equal "yhi - ylo"
 variable zl equal "zhi - zlo"
-fix %s all ave/time 1 1000 1000 v_xl v_yl v_zl file {XYZL_FILE}
+fix %s all ave/time 1 {{num}} {{num}} v_xl v_yl v_zl file {XYZL_FILE}
 """
 
 DEL_VAR = "variable {var} delete"

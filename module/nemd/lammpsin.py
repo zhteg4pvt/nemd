@@ -301,8 +301,10 @@ class FixWriter:
         self.press = self.options.press
         self.pdamp = self.options.timestep * self.options.pdamp
         timestep = self.options.timestep / constants.NANO_TO_FEMTO
-        self.relax_step = round(self.relax_time / timestep)
-        self.prod_step = round(self.prod_time / timestep)
+        self.prod_step = int(self.prod_time / timestep)
+        self.relax_step = int(self.relax_time / timestep)
+        if self.relax_step:
+            self.relax_step = min(round(self.relax_time / 1E3), 1) * 1E3
 
     def run(self):
         """
@@ -453,7 +455,7 @@ class FixWriter:
         :param record_num int: each sinusoidal wave records this number of data.
         :param defm_id str: Deformation id loop from 0 to max_loop - 1
         :param defm_start str: Each deformation loop starts with this label
-        :param defm_break str: Terminate the loop by go to the this label
+        :param defm_break str: Terminate the loop by go to this label
         """
         nstep = int(self.relax_step * 10 / max_loop / (num + 1))
         # One sinusoidal cycle that yields at least 10 records
@@ -538,7 +540,7 @@ class FixWriter:
                      modulus=self.MODULUS_VAR)
             return
         # NVE and NVT production runs use averaged cell
-        pre = self.getBdryPre()
+        pre = self.RECORD_BDRY.format(num=self.relax_step / 1E1)
         self.npt(nstep=self.relax_step,
                  stemp=self.temp,
                  temp=self.temp,
@@ -576,17 +578,6 @@ class FixWriter:
         # NVT on single molecule gives nan coords (guess due to translation)
         cmd = self.FIX_NVE + self.RUN_STEP % nstep + self.UNFIX
         self.cmd.append(cmd)
-
-    def getBdryPre(self, start_pct=0.2):
-        """
-        Record the boundary during the time integration before unset.
-
-        :param start_pct float: exclude the first this percentage from average
-        return str: the prefix str to get the box boundary.
-        """
-        start = math.floor(start_pct * self.relax_step)
-        every = self.relax_step - start
-        return self.RECORD_BDRY.format(start=start, every=every)
 
     def write(self):
         """

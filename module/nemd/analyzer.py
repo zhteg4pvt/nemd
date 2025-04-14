@@ -268,11 +268,8 @@ class Job(Base):
         label, unit, other = self.parse(name)
         if other is None:
             return label, unit, sidx, eidx
-        splitted = list(map(int, other.split()))
-        sidx = splitted[0]
-        if len(splitted) >= 2:
-            eidx = splitted[1]
-        return label, unit, sidx, eidx
+        split = list(map(int, other.split()))
+        return label, unit, split[0], split[1] if len(split) >= 2 else eidx
 
     @property
     def label(self):
