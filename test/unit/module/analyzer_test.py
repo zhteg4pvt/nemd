@@ -18,6 +18,8 @@ class TestBase:
     EMPTY = pd.DataFrame()
     DATA = pd.DataFrame({'density': [1, 0, 2]})
     DATA.index = pd.Index([5, 2, 6], name='time')
+    TWO_COLS = DATA.copy()
+    TWO_COLS['std'] = 1
 
     @pytest.fixture
     def base(self, args, data):
@@ -61,13 +63,17 @@ class TestBase:
             base.logger.log.assert_called_with(expected)
 
     @pytest.mark.parametrize('args', [(['-JOBNAME', 'name'])])
-    @pytest.mark.parametrize('data,expected', [(EMPTY, False), (DATA, True)])
-    @pytest.mark.parametrize('line,marker,selected',
-                             [(None, None, None),
-                              (DATA, '*', pd.DataFrame([[1], [2]]))])
+    @pytest.mark.parametrize('data,line,marker,selected,expected',
+                             [(EMPTY, None, None, None, (0, 0, False)),
+                              (DATA, '-', '*', None, (1, 0, True)),
+                              (TWO_COLS, '-', '*', None, (1, 1, True)),
+                              (DATA, '--', '*', pd.DataFrame([[1], [2]]),
+                               (2, 0, True))])
     def testPlot(self, base, line, marker, selected, expected, tmp_dir):
         base.plot(line=line, marker=marker, selected=selected)
-        assert expected == os.path.exists('name_base.png')
+        line_num = len(base.fig.axes[0].lines) if base.fig else 0
+        col_num = len(base.fig.axes[0].collections) if base.fig else 0
+        assert expected == (line_num, col_num, os.path.exists('name_base.png'))
 
     @pytest.mark.parametrize('name,expected',
                              [('r', ('r', None, None)),
@@ -86,6 +92,15 @@ class TestJob:
         options = parserutils.Driver().parse_args(args)
         return analyzer.Job(options=options, parm=parm, jobs=jobs)
 
+    @pytest.fixture
+    def density(self, args, parm, jobs):
+        options = parserutils.Driver().parse_args(args)
+        Density = type('density', (analyzer.Job, ), {})
+        return Density(options=options,
+                       parm=parm,
+                       jobs=jobs,
+                       logger=mock.Mock())
+
     @pytest.mark.parametrize('args,dirname', [(['-JOBNAME', 'name'], None)])
     @pytest.mark.parametrize('parm,expected',
                              [(None, 'name_job.csv'),
@@ -98,10 +113,9 @@ class TestJob:
                              [(TEST0027, (0, 0, 0, None)),
                               (TEST0037, (3, 1, 1, None)),
                               (TEST0045, (145, 2, 116, None))])
-    def testRead(self, job, expected):
-        with mock.patch.object(job, 'name', 'density'):
-            job.read()
-        assert expected == (*job.data.shape, job.sidx, job.eidx)
+    def testRead(self, density, expected):
+        density.read()
+        assert expected == (*density.data.shape, density.sidx, density.eidx)
 
     @pytest.mark.parametrize('args,parm,dirname', [([], None, None)])
     @pytest.mark.parametrize('name,expected',
@@ -110,3 +124,36 @@ class TestJob:
                               ('Tau (ps) (0 2)', ('Tau', 'ps', 0, 2))])
     def testParseIndex(self, job, name, expected):
         assert expected == job.parseIndex(name)
+
+    @pytest.mark.parametrize('args,parm,dirname', [([], None, None)])
+    def testLabel(self, job):
+        assert 'Job (a.u.)' == job.label
+
+    @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
+    @pytest.mark.parametrize('dirname,expected',
+                             [(TEST0045, (145, 2, 116, None))])
+    def testFit(self, density, expected):
+        density.read()
+        density.fit()
+
+    @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
+    @pytest.mark.parametrize('dirname,expected',
+                             [(TEST0045, (145, 2, 116, None))])
+    def testPlot(self, density, expected, tmp_dir):
+        density.read()
+        density.plot()
+        assert 2 == len(density.fig.axes[0].lines)
+
+    @pytest.mark.parametrize(
+        'name,unit,label,names,err,expected',
+        [(None, None, None, None, False, 'job (a.u.)'),
+         ('name', 'm', 'r (g/m^3) (num=3)', None, False, 'name (m) (num=3)'),
+         ('r', None, None, ['r', 'St Dev of r'], False, 'r'),
+         ('r', None, None, ['r', 'St Dev of r'], True, 'St Dev of r'),
+         ('r', None, None, ['r', 'St Err of r'], True, 'St Err of r')])
+    def testGetName(self, name, unit, label, names, err, expected):
+        assert expected == analyzer.Job.getName(name=name,
+                                                unit=unit,
+                                                label=label,
+                                                names=names,
+                                                err=err)

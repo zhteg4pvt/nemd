@@ -39,6 +39,7 @@ class Base(logutils.Base):
         super().__init__(**kwargs)
         self.options = options
         self.data = None
+        self.fig = None
 
     def run(self):
         """
@@ -127,8 +128,8 @@ class Base(logutils.Base):
         with plotutils.pyplot(inav=self.options.INTERAC,
                               name=self.name) as plt:
 
-            fig = plt.figure(figsize=(10, 6))
-            ax = fig.add_axes([0.13, 0.1, 0.8, 0.8])
+            self.fig = plt.figure(figsize=(10, 6))
+            ax = self.fig.add_axes([0.13, 0.1, 0.8, 0.8])
             line = '-' if selected is None else '--'
             if marker is None and len(self.data) < 10:
                 marker = '*'
@@ -156,7 +157,7 @@ class Base(logutils.Base):
             ax.set_xlabel(f"{label} ({unit})" if unit else label)
             ax.set_ylabel(self.data.columns.values.tolist()[0])
             pathname = self.outfile[:-len(self.DATA_EXT)] + self.FIG_EXT
-            fig.savefig(pathname)
+            self.fig.savefig(pathname)
             jobutils.add_outfile(pathname)
 
         self.log(f'{self.name.capitalize()} figure saved as {pathname}')
