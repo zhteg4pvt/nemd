@@ -1,0 +1,17 @@
+
+Overview: 2 jobs/aggregates, 0 jobs/aggregates with eligible operations.
+
+operation/group
+-----------------
+
+
+Detailed View:
+
+job id                            operation/group    labels
+--------------------------------  -----------------  --------
+3e1866ded1c2eea09dfe0a34482ecca2  [ ]
+cef003f36a986b0500678c1c2580e936  [ ]
+
+[U]:unknown [R]:registered [I]:inactive [S]:submitted [H]:held [Q]:queued [A]:active [E]:error [GR]:group_registered [GI]:group_inactive [GS]:group_submitted [GH]:group_held [GQ]:group_queued [GA]:group_active [GE]:group_error
+
+

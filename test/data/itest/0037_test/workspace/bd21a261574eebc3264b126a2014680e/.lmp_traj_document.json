@@ -1,0 +1,1 @@
+{"outfiles": ["lmp_traj.log", "lmp_traj_view.html", "lmp_traj_rdf.csv", "lmp_traj_rdf.png", "lmp_traj_density.csv", "lmp_traj_density.png", "lmp_traj_clash.csv", "lmp_traj_clash.png", "lmp_traj_xyz.xyz", "lmp_traj_msd.csv", "lmp_traj_msd.png"], "outfile": "lmp_traj.log", "logfile": "lmp_traj.log"}

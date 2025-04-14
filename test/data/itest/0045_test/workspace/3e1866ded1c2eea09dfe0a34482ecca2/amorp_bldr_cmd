@@ -1,0 +1,1 @@
+nemd_run amorp_bldr_driver.py "[Ar]" -mol_num 100 -density 0.00164 -relax_time 0.1 -prod_time 0.01 -prod_ens NVT -CPU 1 -DEBUG False -seed 85397850 -JOBNAME amorp_bldr

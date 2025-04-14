@@ -8,6 +8,7 @@ from nemd import analyzer
 from nemd import envutils
 from nemd import parserutils
 
+TEST0027 = envutils.test_data('itest', '0027_test')
 TEST0045 = envutils.test_data('itest', '0045_test')
 TEST0037 = envutils.test_data('itest', '0037_test')
 
@@ -15,8 +16,8 @@ TEST0037 = envutils.test_data('itest', '0037_test')
 class TestBase:
 
     EMPTY = pd.DataFrame()
-    DATA = pd.DataFrame({'density': [1, 0, 2]},
-                        index=pd.Index([5, 2, 6], name='time'))
+    DATA = pd.DataFrame({'density': [1, 0, 2]})
+    DATA.index = pd.Index([5, 2, 6], name='time')
 
     @pytest.fixture
     def base(self, args, data):
@@ -78,15 +79,35 @@ class TestBase:
 
 class TestJob:
 
-    @pytest.fixture
-    def job(self, args, parm):
-        options = parserutils.Driver().parse_args(args)
-        return analyzer.Job(options=options, parm=parm)
+    PARM = pd.Series(['CCCC 5.0'], index=pd.Index(['substruct'], name=1))
 
-    @pytest.mark.parametrize('args', [(['-JOBNAME', 'name'])])
-    @pytest.mark.parametrize(
-        'parm,expected',
-        [(None, 'name_job.csv'),
-         (pd.Series(index=pd.Index([], name=0)), 'workspace/name_job_0.csv')])
+    @pytest.fixture
+    def job(self, args, parm, jobs):
+        options = parserutils.Driver().parse_args(args)
+        return analyzer.Job(options=options, parm=parm, jobs=jobs)
+
+    @pytest.mark.parametrize('args,dirname', [(['-JOBNAME', 'name'], None)])
+    @pytest.mark.parametrize('parm,expected',
+                             [(None, 'name_job.csv'),
+                              (PARM, 'workspace/name_job_1.csv')])
     def testOutfile(self, job, expected):
         assert expected == job.outfile
+
+    @pytest.mark.parametrize('args,parm,name',
+                             [(['-NAME', 'lmp_traj'], None, 'density')])
+    @pytest.mark.parametrize('dirname,expected',
+                             [(TEST0027, (0, 0, 0, None)),
+                              (TEST0037, (3, 1, 1, None)),
+                              (TEST0045, (145, 2, 116, None))])
+    def testRead(self, job, name, expected):
+        with mock.patch.object(job, 'name', name):
+            job.read()
+        assert expected == (*job.data.shape, job.sidx, job.eidx)
+
+    @pytest.mark.parametrize('args,parm,dirname', [([], None, None)])
+    @pytest.mark.parametrize('name,expected',
+                             [('r (Å)', ('r', 'Å', 0, None)),
+                              ('Time (ps) (1)', ('Time', 'ps', 1, None)),
+                              ('Tau (ps) (0 2)', ('Tau', 'ps', 0, 2))])
+    def testParseIndex(self, job, name, expected):
+        assert expected == job.parseIndex(name)

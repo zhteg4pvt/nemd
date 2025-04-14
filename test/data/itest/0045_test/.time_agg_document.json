@@ -1,0 +1,1 @@
+{"status": "Task Total Timing: 00:00:26\n| amorp_bl    | lammps      | lmp_traj    |\n|:------------|:------------|:------------|\n| 00:08 (ave) | 00:03 (ave) | 00:01 (ave) |\n| 00:09 cef   | 00:04 cef   | 00:01 cef   |\n| 00:08 3e1   | 00:03 3e1   | 00:01 3e1   |"}

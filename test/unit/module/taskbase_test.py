@@ -22,6 +22,8 @@ class TestJob:
 
     @pytest.fixture
     def job(self, jobs, status, jobname, tmp_dir):
+        if jobs is None:
+            jobs = []
         return taskbase.Job(*jobs,
                             jobname=jobname,
                             status=status,
