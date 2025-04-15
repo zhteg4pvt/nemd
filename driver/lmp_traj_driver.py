@@ -29,7 +29,7 @@ class Traj(logutils.Base):
         """
         super().__init__(logger=logger)
         self.options = options
-        self.traj = None
+        self.trj = None
         self.rdr = None
         self.gids = None
         self.tasks = [x for x in self.options.task if x in analyzer.ALL_FRM]
@@ -70,27 +70,27 @@ class Traj(logutils.Base):
         """
         Read and set trajectory frames.
         """
-        self.traj = traj.Traj(self.options.traj,
-                              options=self.options,
-                              start=self.start)
-        if len(self.traj) == 0:
-            self.error(f'{self.options.traj} contains no frames.')
+        self.trj = traj.Traj(self.options.trj,
+                             options=self.options,
+                             start=self.start)
+        if len(self.trj) == 0:
+            self.error(f'{self.options.trj} contains no frames.')
         # Report the number of frames, (starting time), and ending time
-        self.log(f"{len(self.traj)} trajectory frames found.")
+        self.log(f"{len(self.trj)} trajectory frames found.")
         if self.tasks:
             self.log(
                 f"{', '.join(self.tasks)} analyze all frames and save per "
-                f"frame results {symbols.ELEMENT_OF} [{self.traj.time[0]:.3f}, "
-                f"{self.traj.time[-1]:.3f}] ps")
+                f"frame results {symbols.ELEMENT_OF} [{self.trj.time[0]:.3f}, "
+                f"{self.trj.time[-1]:.3f}] ps")
         lf_tasks = [
             x for x in self.options.task if x in parserutils.LmpTraj.LAST_FRM
         ]
         if lf_tasks:
-            label, unit, _ = analyzer.Job.parse(self.traj.time.name)
+            label, unit, _ = analyzer.Job.parse(self.trj.time.name)
             self.log(
                 f"{', '.join(lf_tasks)} average results from last "
                 f"{self.options.last_pct * 100}% frames {symbols.ELEMENT_OF} "
-                f"[{self.traj.time.start: .3f}, {self.traj.time[-1]: .3f}] ps")
+                f"[{self.trj.time.start: .3f}, {self.trj.time[-1]: .3f}] ps")
 
     def analyze(self):
         """
@@ -98,7 +98,7 @@ class Traj(logutils.Base):
         """
         for name in self.options.task:
             Analyzer = analyzer.ANLZ[name]
-            anl = Analyzer(self.traj,
+            anl = Analyzer(self.trj,
                            rdr=self.rdr,
                            gids=self.gids,
                            options=self.options,

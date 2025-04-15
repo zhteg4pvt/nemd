@@ -343,19 +343,19 @@ class TrajJob(Job):
     The base class for trajectory analyzers.
     """
 
-    def __init__(self, traj=None, gids=None, **kwargs):
+    def __init__(self, trj=None, gids=None, **kwargs):
         """
         :param traj `traj.Traj`: traj frames
         :param gids list of int: global ids for the selected atoms
         """
         super().__init__(**kwargs)
-        self.traj = traj
+        self.trj = trj
         self.gids = gids
-        if not self.traj:
+        if self.trj is None:
             return
+        self.sidx = self.trj.time.sidx
         if self.gids is None:
-            self.gids = list(range(self.traj[0].shape[0]))
-        self.sidx = self.traj.time.sidx
+            self.gids = list(range(self.trj[0].shape[0]))
 
 
 class XYZ(TrajJob):
@@ -379,7 +379,7 @@ class XYZ(TrajJob):
         broken_bonds=True: infinite structures
         """
         with open(self.outfile, 'w') as self.out_fh:
-            for frm in self.traj:
+            for frm in self.trj:
                 if any([center, wrapped]) and self.rdr:
                     # wrapped and glue change the coordinates
                     frm = frm.getCopy()
@@ -403,7 +403,7 @@ class View(TrajJob):
         """
         Main method to run the visualization.
         """
-        fig = molview.Figure(self.traj, rdr=self.rdr)
+        fig = molview.Figure(self.trj, rdr=self.rdr)
         fig.write_html(self.outfile)
         self.log(f'Trajectory visualization data written into {self.outfile}')
 
@@ -424,8 +424,8 @@ class Density(TrajJob):
 
         mass = self.rdr.molecular_weight / scipy.constants.Avogadro
         mass_scaled = mass / constants.ANG_TO_CM**3
-        data = [mass_scaled / x.box.volume for x in self.traj]
-        self.data = pd.DataFrame({self.label: data}, index=self.traj.time)
+        data = [mass_scaled / x.box.volume for x in self.trj]
+        self.data = pd.DataFrame({self.label: data}, index=self.trj.time)
 
 
 class Clash(TrajJob):
@@ -443,9 +443,9 @@ class Clash(TrajJob):
         self.cut = cut
         if self.cut is None:
             self.cut = dist.Radius(struct=self.rdr).max()
-        if self.traj is None:
+        if self.trj is None:
             return
-        self.srch = any(x.large(self.cut) for x in self.traj.sel)
+        self.srch = any(x.large(self.cut) for x in self.trj.sel)
         if self.srch:
             self.grp = self.gids
             self.grps = None
@@ -465,14 +465,14 @@ class Clash(TrajJob):
             self.warning("No atoms selected for clash counting.")
             return
         data = []
-        for frm in self.traj:
+        for frm in self.trj:
             dfrm = dist.Frame(frm,
                               gids=self.gids,
                               struct=self.rdr,
                               srch=self.srch)
             clashes = dfrm.getClashes(self.grp, grps=self.grps)
             data.append(len(clashes))
-        self.data = pd.DataFrame(data={self.label: data}, index=self.traj.time)
+        self.data = pd.DataFrame(data={self.label: data}, index=self.trj.time)
 
 
 class RDF(Clash):
@@ -506,7 +506,7 @@ class RDF(Clash):
             self.warning("RDF requires least two atoms selected.")
             return
 
-        span = np.array([x.box.span for x in self.traj.sel])
+        span = np.array([x.box.span for x in self.trj.sel])
         vol = span.prod(axis=1)
         self.log(f'The volume fluctuates: [{vol.min():.2f} {vol.max():.2f}] '
                  f'{symbols.ANGSTROM}^3')
@@ -517,8 +517,8 @@ class RDF(Clash):
         bins = round(max_dist / res)
         hist_range = [res / 2, res * bins + res / 2]
         rdf, num = np.zeros((bins)), len(self.gids)
-        tenth, threshold, = len(self.traj.sel) / 10., 0
-        for idx, frm in enumerate(self.traj.sel, start=1):
+        tenth, threshold, = len(self.trj.sel) / 10., 0
+        for idx, frm in enumerate(self.trj.sel, start=1):
             self.debug(f"Analyzing frame {idx} for RDF...")
             dfrm = dist.Frame(frm,
                               gids=self.gids,
@@ -532,10 +532,10 @@ class RDF(Clash):
             # Stands at every id but either (1->2) or (2->1) is computed
             rdf += (hist * 2 / num / norm_factor)
             if idx >= threshold:
-                new_line = "" if idx == len(self.traj.sel) else ", [!n]"
-                self.log(f"{int(idx / len(self.traj.sel) * 100)}%{new_line}")
+                new_line = "" if idx == len(self.trj.sel) else ", [!n]"
+                self.log(f"{int(idx / len(self.trj.sel) * 100)}%{new_line}")
                 threshold = round(threshold + tenth, 1)
-        rdf /= len(self.traj.sel)
+        rdf /= len(self.trj.sel)
         mid, rdf = np.concatenate(([0], mid)), np.concatenate(([0], rdf))
         index = pd.Index(data=mid, name=self.INDEX_LB)
         self.data = pd.DataFrame(data={self.label: rdf}, index=index)
@@ -600,22 +600,22 @@ class MSD(RDF):
             self.warning("No atoms selected for MSD.")
             return
 
-        if len(self.traj.sel) == 1:
+        if len(self.trj.sel) == 1:
             self.warning("Only one trajectory frame selected for MSD.")
             return
 
         if self.rdr:
             weights = self.rdr.masses.mass[self.rdr.atoms.type_id[self.gids]]
-        msd, num = [0], len(self.traj.sel)
+        msd, num = [0], len(self.trj.sel)
         for idx in range(1, num):
             disp = [
                 x[self.gids, :] - y[self.gids, :]
-                for x, y in zip(self.traj.sel[idx:], self.traj.sel[:-idx])
+                for x, y in zip(self.trj.sel[idx:], self.trj.sel[:-idx])
             ]
             squared = np.square([np.linalg.norm(x, axis=1) for x in disp])
             msd.append(np.average(squared.mean(axis=0), weights=weights))
 
-        ps_time = self.traj.time[:num]
+        ps_time = self.trj.time[:num]
         self.sidx = math.floor(num * spct)
         self.eidx = math.ceil(num * (1 - epct))
         name = f"{self.INDEX_LB} ({self.sidx} {self.eidx})"

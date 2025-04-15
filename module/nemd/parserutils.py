@@ -965,7 +965,7 @@ class LmpTraj(LmpLog):
     """
     Parser with lammps-trajectory arguments.
     """
-    FLAG = 'traj'
+    FLAG = 'trj'
     TASKS = analyzer.TRAJ.keys()
     TASK_HELP = ', '.join(x.__doc__.strip().lower()
                           for x in analyzer.TRAJ.values())
