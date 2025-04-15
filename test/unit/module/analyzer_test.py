@@ -240,14 +240,11 @@ class TestView:
 class TestClash:
 
     @pytest.fixture
-    def clash(self, trj, gids, cut, srch, rdr):
-        options = trj and parserutils.LmpTraj().parse_args(
+    def clash(self, trj, gids, rdr):
+        options = parserutils.LmpTraj().parse_args(
             [trj, '-last_pct', '0.8', '-task', 'clash'])
-        trj = trj and traj.Traj(trj, options=options)
-        return analyzer.Clash(trj=trj,
+        return analyzer.Clash(trj=traj.Traj(trj, options=options),
                               gids=gids,
-                              cut=cut,
-                              srch=srch,
                               rdr=rdr,
                               logger=mock.Mock())
 
@@ -258,16 +255,52 @@ class TestClash:
          (HEX_TRJ, [3, 1, 6, 2], 1, None, None, (1, 3, 3)),
          (HEX_TRJ, [3, 1, 6, 2], 20, None, None, (20, 4, None)),
          (HEX_TRJ, [3, 1, 6, 2], 20, True, None, (20, 3, 3))])
-    def testInit(self, clash, expected):
+    def testInit(self, trj, gids, cut, srch, rdr, expected):
+        options = trj and parserutils.LmpTraj().parse_args(
+            [trj, '-last_pct', '0.8', '-task', 'clash'])
+        trj = trj and traj.Traj(trj, options=options)
+        clash = analyzer.Clash(trj=trj,
+                               gids=gids,
+                               cut=cut,
+                               srch=srch,
+                               rdr=rdr,
+                               logger=mock.Mock())
         np.testing.assert_almost_equal(clash.cut, expected[0])
         assert expected[1] == (None if clash.grp is None else len(clash.grp))
         assert expected[2] == (None if clash.grps is None else len(clash.grps))
 
-    @pytest.mark.parametrize('trj,gids,cut,srch,rdr,expected',
-                             [(None, None, None, None, None, None),
-                              (HEX_TRJ, [5, 0, 1], 20, True, MODIFIED, 2),
-                              (HEX_TRJ, [5, 0, 1], 20, False, MODIFIED, 2)])
+    @pytest.mark.parametrize('trj,rdr', [(HEX_TRJ, MODIFIED)])
+    @pytest.mark.parametrize('gids,expected', [([1], None), ([5, 0, 1], 2),
+                                               ([5, 0], 1)])
     def testSet(self, clash, expected):
         clash.set()
-        assert expected == (None
-                            if clash.data is None else clash.data.max().max())
+        if expected is None:
+            clash.logger.log.assert_called_with(
+                'WARNING: Clash requires least two atoms selected.')
+            return
+        assert not clash.logger.log.called
+        assert expected == clash.data.max().max()
+
+
+class TestRDF:
+
+    @pytest.fixture
+    def rdf(self, trj, gids, rdr):
+        options = parserutils.LmpTraj().parse_args(
+            [trj, '-last_pct', '0.8', '-task', 'rdf'])
+        return analyzer.RDF(trj=traj.Traj(trj, options=options),
+                            gids=gids,
+                            rdr=rdr,
+                            logger=mock.Mock())
+
+    @pytest.mark.parametrize('trj,rdr', [(HEX_TRJ, HEX_RDR)])
+    @pytest.mark.parametrize('gids,expected', [([1], None),
+                                               ([5, 0, 1], 41913.204277),
+                                               ([5, 0], 5559.9628738)])
+    def testSet(self, rdf, expected):
+        rdf.set()
+        if expected is None:
+            rdf.logger.log.assert_called_with(
+                'WARNING: RDF requires least two atoms selected.')
+            return
+        np.testing.assert_almost_equal(rdf.data.max().max(), expected)

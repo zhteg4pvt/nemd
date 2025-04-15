@@ -454,8 +454,9 @@ class Clash(Density):
         """
         if self.data is not None:
             return
-        if not self.gids:
-            self.warning("No atoms selected for clash counting.")
+        self.data = pd.DataFrame()
+        if self.gids is None or len(self.gids) < 2:
+            self.warning("Clash requires least two atoms selected.")
             return
         data = []
         for frm in self.trj:
@@ -474,10 +475,7 @@ class RDF(Clash):
     """
 
     UNIT = 'r'
-    INDEX_LB = f'r ({symbols.ANGSTROM})'
     PROP = f'peak'
-    POS_NAME = f"{PROP} position ({symbols.ANGSTROM})"
-    CUT = symbols.DEFAULT_CUT
 
     def __init__(self, *args, cut=symbols.DEFAULT_CUT, **kwargs):
         """
@@ -495,7 +493,7 @@ class RDF(Clash):
             return
 
         self.data = pd.DataFrame()
-        if len(self.gids) < 2:
+        if self.gids is None or len(self.gids) < 2:
             self.warning("RDF requires least two atoms selected.")
             return
 
@@ -530,7 +528,7 @@ class RDF(Clash):
                 threshold = round(threshold + tenth, 1)
         rdf /= len(self.trj.sel)
         mid, rdf = np.concatenate(([0], mid)), np.concatenate(([0], rdf))
-        index = pd.Index(data=mid, name=self.INDEX_LB)
+        index = pd.Index(data=mid, name=f'r ({symbols.ANGSTROM})')
         self.data = pd.DataFrame(data={self.label: rdf}, index=index)
 
     def fit(self):
@@ -545,7 +543,10 @@ class RDF(Clash):
                                               polyorder=2)
         row = self.data.iloc[smoothed.argmax()]
         name = self.getName(label=self.data.columns[0])
-        data = {name: row.values[0], self.POS_NAME: row.name}
+        data = {
+            name: row.values[0],
+            f"{self.PROP} position ({symbols.ANGSTROM})": row.name
+        }
         self.log('; '.join([f"{x}: {y}" for x, y in data.items()]))
         err = row.values[1] if len(row.values) > 1 else None
         self.result = pd.Series({
@@ -574,7 +575,6 @@ class MSD(RDF):
     """
 
     UNIT = f'{symbols.ANGSTROM}^2'
-    INDEX_LB = 'Tau (ps)'
     PROP = 'Diffusion Coefficient'
 
     def set(self, spct=0.1, epct=0.2, weights=None):
@@ -589,8 +589,8 @@ class MSD(RDF):
             return
 
         self.data = pd.DataFrame()
-        if not self.gids:
-            self.warning("No atoms selected for MSD.")
+        if self.gids is None or len(self.gids) < 1:
+            self.warning("MSD requires least one atom selected.")
             return
 
         if len(self.trj.sel) == 1:
@@ -611,7 +611,7 @@ class MSD(RDF):
         ps_time = self.trj.time[:num]
         self.sidx = math.floor(num * spct)
         self.eidx = math.ceil(num * (1 - epct))
-        name = f"{self.INDEX_LB} ({self.sidx} {self.eidx})"
+        name = f"Tau (ps) ({self.sidx} {self.eidx})"
         tau_idx = pd.Index(data=ps_time - ps_time[0], name=name)
         self.data = pd.DataFrame({self.label: msd}, index=tau_idx)
 
