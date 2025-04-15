@@ -18,18 +18,17 @@ class TestFunc:
                               env=env)
         assert not proc.returncode
 
-    @pytest.mark.parametrize('debug', [(''), ('1')])
-    def testLazyImport(self, debug):
+    @pytest.mark.parametrize('ekey', ['DEBUG'])
+    @pytest.mark.parametrize('evalue', [(''), ('1')])
+    def testLazyImport(self, evalue, env):
         cmd = "nemd_run -c 'from nemd import constants; print(repr(constants))'"
-        env = os.environ | {'DEBUG': debug}
         proc = subprocess.run(cmd,
                               stdout=subprocess.PIPE,
                               text=True,
-                              shell=True,
-                              env=env)
-        if debug:
-            assert not proc.stdout.startswith('Lazily-loaded')
+                              shell=True)
+        if not evalue:
+            assert 'Lazily-loaded' not in proc.stdout
             return
-        assert proc.stdout.startswith('Lazily-loaded')
+        assert 'Lazily-loaded' in proc.stdout
         assert 1e-08 == constants.ANG_TO_CM
         assert not repr(constants).startswith('Lazily-loaded')

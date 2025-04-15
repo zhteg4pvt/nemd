@@ -449,7 +449,7 @@ class TestAdd:
     @pytest.mark.parametrize(
         'args,positional,expected',
         [([], False, [['toteng'], None,
-                      parserutils.LastPct(0.2), None]),
+                      parserutils.LastPct(0.2), [None]]),
          ([
              LOG_FILE, '-task', 'temp', 'e_mol', '-data_file', DATA_FILE,
              '-last_pct', '0.66', '-slice', '1', '8', '3'
@@ -466,7 +466,7 @@ class TestAdd:
     @pytest.mark.parametrize(
         'args,positional,expected',
         [([], False, [['density'], None,
-                      parserutils.LastPct(0.2), None]),
+                      parserutils.LastPct(0.2), [None]]),
          ([
              TRAJ_FILE, '-task', 'rdf', 'msd', '-data_file', DATA_FILE,
              '-last_pct', '0.66', '-slice', '1', '8', '3'
@@ -474,7 +474,7 @@ class TestAdd:
     def testTraj(self, args, expected, positional, parser):
         parserutils.LmpTraj.add(parser, positional=positional)
         options = parser.parse_args(args)
-        assert positional == hasattr(options, 'traj')
+        assert positional == hasattr(options, 'trj')
         assert expected == [
             options.task, options.data_file, options.last_pct, options.slice
         ]

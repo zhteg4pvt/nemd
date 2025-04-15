@@ -19,7 +19,7 @@ def is_debug():
     return bool(os.environ.get('DEBUG'))
 
 
-if is_debug():
+if not is_debug():
     # lazy_import creates faked module objects which are expected to be
     # materialized by accessing their attributes.
     # FIXME: StreamHandler added by basicConfig() in lazy_import/__init__.py

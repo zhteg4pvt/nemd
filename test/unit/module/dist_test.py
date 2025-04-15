@@ -163,11 +163,6 @@ class TestFrame:
     def testRadii(self, fr, expected):
         np.testing.assert_almost_equal(fr.radii.max(), expected, decimal=2)
 
-    @pytest.mark.parametrize('span,cut,expected', [([10, 10, 10], 1, True),
-                                                   ([10, 10, 9], 1, False)])
-    def testUseCell(self, span, cut, expected):
-        assert expected == dist.Frame.large(span, cut)
-
     @pytest.mark.parametrize('file,gids,cut,struct',
                              [(HEX_FRM, [0, 1, 11], None, None)])
     @pytest.mark.parametrize(

@@ -20,6 +20,12 @@ class TestBase:
         expected = np.zeros(shape) == data if data is None else data
         np.testing.assert_almost_equal(base, expected)
 
+    @pytest.mark.parametrize('span,cut,expected', [([10, 10, 10], 1, True),
+                                                   ([10, 10, 9], 1, False)])
+    def testLarge(self, span, cut, expected):
+        base = frame.Base(None, box=pbc.Box.fromParams(*span))
+        assert expected == base.large(cut)
+
 
 class TestFrame:
 

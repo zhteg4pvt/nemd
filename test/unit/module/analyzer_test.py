@@ -16,7 +16,7 @@ TEST0027 = envutils.test_data('itest', '0027_test')
 TEST0045 = envutils.test_data('itest', '0045_test')
 TEST0037 = envutils.test_data('itest', '0037_test')
 AR_DIR = os.path.join(TEST0045, 'workspace',
-                      '3e1866ded1c2eea09dfe0a34482ecca2')
+                      '6fd1b87409fbb60c6612569e187f59fc')
 AR_TRJ = os.path.join(AR_DIR, 'amorp_bldr.custom.gz')
 AR_DAT = os.path.join(AR_DIR, 'amorp_bldr.data')
 AR_RDR = lmpfull.Reader(AR_DAT)
@@ -124,10 +124,9 @@ class TestJob:
         assert expected == job.outfile
 
     @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
-    @pytest.mark.parametrize('dirname,expected',
-                             [(TEST0027, (0, 0, 0, None)),
-                              (TEST0037, (3, 1, 1, None)),
-                              (TEST0045, (145, 2, 116, None))])
+    @pytest.mark.parametrize('dirname,expected', [(TEST0027, (0, 0, 0, None)),
+                                                  (TEST0037, (3, 1, 1, None)),
+                                                  (TEST0045, (7, 2, 6, None))])
     def testRead(self, density, expected):
         density.read()
         assert expected == (*density.data.shape, density.sidx, density.eidx)
@@ -177,8 +176,8 @@ class TestJob:
 class TestDensity:
 
     @pytest.mark.parametrize('trj,gids,expected', [(None, None, (0, None)),
-                                                   (AR_TRJ, None, (29, 100)),
-                                                   (AR_TRJ, [0, 1], (29, 2))])
+                                                   (AR_TRJ, None, (1, 10)),
+                                                   (AR_TRJ, [0, 1], (1, 2))])
     def testInit(self, trj, gids, expected):
         options = trj and parserutils.LmpTraj().parse_args(
             [trj, '-last_pct', '0.8', '-task', 'xyz'])
@@ -187,7 +186,7 @@ class TestDensity:
         job = analyzer.Density(trj=trj, gids=gids)
         assert expected == (job.sidx, job.gids and len(job.gids))
 
-    @pytest.mark.parametrize('trj,rdr,expected', [(AR_TRJ, AR_RDR, 0.0016524)])
+    @pytest.mark.parametrize('trj,rdr,expected', [(AR_TRJ, AR_RDR, 0.00164)])
     def testSet(self, trj, rdr, expected):
         job = analyzer.Density(trj=traj.Traj(trj), rdr=rdr)
         job.set()
@@ -285,15 +284,17 @@ class TestClash:
 class TestRDF:
 
     @pytest.fixture
-    def rdf(self, trj, gids, rdr):
+    def rdf(self, trj, gids, rdr, jobs):
         options = parserutils.LmpTraj().parse_args(
-            [trj, '-last_pct', '0.8', '-task', 'rdf'])
+            [trj, '-last_pct', '0.8', '-task', 'rdf', '-NAME', 'lmp_traj'])
         return analyzer.RDF(trj=traj.Traj(trj, options=options),
+                            options=options,
                             gids=gids,
                             rdr=rdr,
+                            jobs=jobs,
                             logger=mock.Mock())
 
-    @pytest.mark.parametrize('trj,rdr', [(HEX_TRJ, HEX_RDR)])
+    @pytest.mark.parametrize('trj,rdr,jobs', [(HEX_TRJ, HEX_RDR, None)])
     @pytest.mark.parametrize('gids,expected', [([1], None),
                                                ([5, 0, 1], 41913.204277),
                                                ([5, 0], 5559.9628738)])
@@ -304,3 +305,20 @@ class TestRDF:
                 'WARNING: RDF requires least two atoms selected.')
             return
         np.testing.assert_almost_equal(rdf.data.max().max(), expected)
+
+    @pytest.mark.parametrize(
+        'trj,rdr,gids,dirname,msg,expected',
+        [(HEX_TRJ, HEX_RDR, [5, 0, 1], None,
+          'peak (r): 41913.20427687251; peak position (Å): 1.52',
+          (41913.204277, np.nan)),
+         (HEX_TRJ, None, None, TEST0045,
+          'peak (r) (num=2): 930.0; peak position (Å): 4.16', (930, 930))])
+    def testFit(self, rdf, msg, expected):
+        rdf.read()
+        rdf.set()
+        rdf.fit()
+        rdf.logger.log.assert_called_with(msg)
+        np.testing.assert_almost_equal(rdf.result, expected)
+
+    def testLabel(self):
+        assert 'g (r)' == analyzer.RDF().label

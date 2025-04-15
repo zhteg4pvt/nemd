@@ -1,0 +1,1 @@
+nemd_run lammps_driver.py /Users/zhteg4/git/nemd/test/data/itest/0045_test/workspace/d155c80c11f724eb5c1e6fd9e6fa5f4e/amorp_bldr.in -JOBNAME lammps
