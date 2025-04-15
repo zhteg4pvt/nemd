@@ -18,6 +18,10 @@ AR_DIR = os.path.join(TEST0045, 'workspace',
                       '3e1866ded1c2eea09dfe0a34482ecca2')
 AR_TRJ = os.path.join(AR_DIR, 'amorp_bldr.custom.gz')
 AR_DAT = os.path.join(AR_DIR, 'amorp_bldr.data')
+AR_RDR = lmpfull.Reader(AR_DAT)
+HEX = envutils.test_data('hexane_liquid')
+HEXANE_RDR = lmpfull.Reader(os.path.join(HEX, 'polymer_builder.data'))
+HEXANE_FRM = os.path.join(HEX, 'dump.custom')
 
 
 class TestBase:
@@ -179,21 +183,28 @@ class TestDensity:
         job = analyzer.Density(trj=trj, gids=gids)
         assert expected == (job.sidx, job.gids and len(job.gids))
 
-    @pytest.mark.parametrize('trj,dat,expected', [(AR_TRJ, AR_DAT, 0.0016524)])
-    def testSet(self, trj, dat, expected):
-        job = analyzer.Density(trj=traj.Traj(trj), rdr=lmpfull.Reader(dat))
+    @pytest.mark.parametrize('trj,rdr,expected', [(AR_TRJ, AR_RDR, 0.0016524)])
+    def testSet(self, trj, rdr, expected):
+        job = analyzer.Density(trj=traj.Traj(trj), rdr=rdr)
         job.set()
         np.testing.assert_almost_equal(job.data.max(), [expected])
 
 
-# class TestXYZ:
-#
-#     @pytest.mark.parametrize('trj,gids,expected', [(None, None, (0, None)),
-#                                                    (AR_TRJ, None, (29, 100)),
-#                                                    (AR_TRJ, [0, 1], (29, 2))])
-#     def testInit(self, trj, gids, expected):
-#         options = trj and parserutils.LmpTraj().parse_args([trj, '-last_pct', '0.8', '-task', 'xyz'])
-#         if trj is not None:
-#             trj = traj.Traj(trj, options=options)
-#         job = analyzer.TrajJob(trj=trj, gids=gids)
-#         assert expected == (job.sidx, job.gids and len(job.gids))
+class TestXYZ:
+
+    @pytest.mark.parametrize('trj,rdr', [(HEXANE_FRM, HEXANE_RDR)])
+    @pytest.mark.parametrize('center,wrapped,broken_bonds,expected',
+                             [(False, True, False, (-2.2587, 50.6048)),
+                              (True, True, True, (0.0055, 47.839))])
+    def testRun(self, trj, rdr, center, wrapped, broken_bonds, expected,
+                tmp_dir):
+        options = parserutils.LmpTraj().parse_args(
+            [trj, '-JOBNAME', 'xyz', '-task', 'xyz'])
+        job = analyzer.XYZ(trj=traj.Traj(trj),
+                           rdr=rdr,
+                           options=options,
+                           logger=mock.Mock())
+        job.run(center=center, wrapped=wrapped, broken_bonds=broken_bonds)
+        xyzs = np.loadtxt('xyz_xyz.xyz', skiprows=2, usecols=(1, 2, 3))
+        np.testing.assert_almost_equal([xyzs.min(), xyzs.max()], expected)
+        assert job.logger.log.called

@@ -402,8 +402,7 @@ class XYZ(Density):
                 if wrapped:
                     frm.wrap(broken_bonds, dreader=self.rdr)
                 frm.write(self.out_fh, dreader=self.rdr)
-        self.log(
-            f"{self.name.upper()} coordinates are written into {self.outfile}")
+        self.log(f"XYZ coordinates are written into {self.outfile}")
 
 
 class View(Density):
