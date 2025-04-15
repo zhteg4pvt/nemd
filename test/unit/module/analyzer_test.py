@@ -20,8 +20,9 @@ AR_TRJ = os.path.join(AR_DIR, 'amorp_bldr.custom.gz')
 AR_DAT = os.path.join(AR_DIR, 'amorp_bldr.data')
 AR_RDR = lmpfull.Reader(AR_DAT)
 HEX = envutils.test_data('hexane_liquid')
-HEXANE_RDR = lmpfull.Reader(os.path.join(HEX, 'polymer_builder.data'))
-HEXANE_FRM = os.path.join(HEX, 'dump.custom')
+HEX_TRJ = os.path.join(HEX, 'dump.custom')
+HEX_DAT = os.path.join(HEX, 'polymer_builder.data')
+HEX_RDR = lmpfull.Reader(HEX_DAT)
 
 
 class TestBase:
@@ -192,10 +193,13 @@ class TestDensity:
 
 class TestXYZ:
 
-    @pytest.mark.parametrize('trj,rdr', [(HEXANE_FRM, HEXANE_RDR)])
-    @pytest.mark.parametrize('center,wrapped,broken_bonds,expected',
-                             [(False, True, False, (-2.2587, 50.6048)),
-                              (True, True, True, (0.0055, 47.839))])
+    @pytest.mark.parametrize('trj', [HEX_TRJ])
+    @pytest.mark.parametrize('rdr,center,wrapped,broken_bonds,expected',
+                             [(HEX_RDR, False, True, False,
+                               (-2.2587, 50.6048)),
+                              (None, False, True, False, (-37.6929, 67.0373)),
+                              (HEX_RDR, True, True, True, (0.0055, 47.839)),
+                              (None, True, True, True, (0.0055, 47.839))])
     def testRun(self, trj, rdr, center, wrapped, broken_bonds, expected,
                 tmp_dir):
         options = parserutils.LmpTraj().parse_args(
@@ -207,4 +211,24 @@ class TestXYZ:
         job.run(center=center, wrapped=wrapped, broken_bonds=broken_bonds)
         xyzs = np.loadtxt('xyz_xyz.xyz', skiprows=2, usecols=(1, 2, 3))
         np.testing.assert_almost_equal([xyzs.min(), xyzs.max()], expected)
-        assert job.logger.log.called
+        job.logger.log.assert_called_with(
+            'XYZ coordinates are written into xyz_xyz.xyz')
+
+
+class TestView:
+    TRJ = envutils.test_data('water', 'three.custom')
+    RDR = lmpfull.Reader(envutils.test_data('water', 'polymer_builder.data'))
+
+    @pytest.mark.parametrize('trj', [TRJ])
+    @pytest.mark.parametrize('rdr', [(None), (RDR)])
+    def testRun(self, trj, rdr, tmp_dir):
+        options = parserutils.LmpTraj().parse_args(
+            [trj, '-JOBNAME', 'view', '-task', 'view'])
+        job = analyzer.View(trj=traj.Traj(trj),
+                            rdr=rdr,
+                            options=options,
+                            logger=mock.Mock())
+        job.run()
+        assert os.path.isfile('view_view.html')
+        job.logger.log.assert_called_with(
+            'Trajectory visualization are written into view_view.html')

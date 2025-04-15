@@ -28,8 +28,8 @@ class TestFrame:
     BROKEN_HEADER = envutils.test_data('ar', 'broken_header.custom')
     BROKEN_ATOMS = envutils.test_data('ar', 'broken_atoms.custom')
     HEX = envutils.test_data('hexane_liquid')
-    HEXANE_RDR = lmpfull.Reader(os.path.join(HEX, 'polymer_builder.data'))
-    HEXANE_FRM = os.path.join(HEX, 'dump.custom')
+    HEX_RDR = lmpfull.Reader(os.path.join(HEX, 'polymer_builder.data'))
+    HEX_FRM = os.path.join(HEX, 'dump.custom')
 
     @pytest.mark.parametrize('data,step,expected',
                              [(None, None, [(), None]),
@@ -60,7 +60,7 @@ class TestFrame:
         copied = frm.getCopy()
         assert hasattr(copied, 'box')
 
-    @pytest.mark.parametrize('file,dreader', [(HEXANE_FRM, HEXANE_RDR)])
+    @pytest.mark.parametrize('file,dreader', [(HEX_FRM, HEX_RDR)])
     @pytest.mark.parametrize('broken_bonds,expected', [(True, 0.0002537),
                                                        (False, -2.25869)])
     def testWrap(self, frm, broken_bonds, dreader, expected):
@@ -79,7 +79,7 @@ class TestFrame:
         inbox = (centers.max(axis=0) - centers.min(axis=0)) < frm.box.span
         assert inbox.all()
 
-    @pytest.mark.parametrize('file', [HEXANE_FRM])
+    @pytest.mark.parametrize('file', [HEX_FRM])
     @pytest.mark.parametrize('expected', [-40.274934])
     def testCenter(self, frm, expected):
         frm.center()

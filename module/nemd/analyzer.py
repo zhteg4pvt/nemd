@@ -418,7 +418,7 @@ class View(Density):
         """
         fig = molview.Figure(self.trj, rdr=self.rdr)
         fig.write_html(self.outfile)
-        self.log(f'Trajectory visualization data written into {self.outfile}')
+        self.log(f'Trajectory visualization are written into {self.outfile}')
 
 
 class Clash(Density):
