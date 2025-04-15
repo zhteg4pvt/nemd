@@ -338,10 +338,12 @@ class Job(Base):
             raise ValueError(f"{name} not in {names}.")
 
 
-class TrajJob(Job):
+class Density(Job):
     """
-    The base class for trajectory analyzers.
+    Structural density.
     """
+
+    UNIT = 'g/cm^3'
 
     def __init__(self, trj=None, gids=None, **kwargs):
         """
@@ -357,8 +359,20 @@ class TrajJob(Job):
         if self.gids is None:
             self.gids = list(range(self.trj[0].shape[0]))
 
+    def set(self):
+        """
+        Set the time vs density data.
+        """
+        if self.data is not None:
+            return
 
-class XYZ(TrajJob):
+        mass = self.rdr.molecular_weight / scipy.constants.Avogadro
+        mass_scaled = mass / constants.ANG_TO_CM**3
+        data = [mass_scaled / x.box.volume for x in self.trj]
+        self.data = pd.DataFrame({self.label: data}, index=self.trj.time)
+
+
+class XYZ(Density):
     """
     xyz file writer.
     """
@@ -392,7 +406,7 @@ class XYZ(TrajJob):
             f"{self.name.upper()} coordinates are written into {self.outfile}")
 
 
-class View(TrajJob):
+class View(Density):
     """
     Coordinates visualization.
     """
@@ -408,27 +422,7 @@ class View(TrajJob):
         self.log(f'Trajectory visualization data written into {self.outfile}')
 
 
-class Density(TrajJob):
-    """
-    Structural density.
-    """
-
-    UNIT = 'g/cm^3'
-
-    def set(self):
-        """
-        Set the time vs density data.
-        """
-        if self.data is not None:
-            return
-
-        mass = self.rdr.molecular_weight / scipy.constants.Avogadro
-        mass_scaled = mass / constants.ANG_TO_CM**3
-        data = [mass_scaled / x.box.volume for x in self.trj]
-        self.data = pd.DataFrame({self.label: data}, index=self.trj.time)
-
-
-class Clash(TrajJob):
+class Clash(Density):
     """
     Clashes between atoms.
     """

@@ -1,20 +1,23 @@
 import os
 from unittest import mock
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from nemd import analyzer
 from nemd import envutils
+from nemd import lmpfull
 from nemd import parserutils
 from nemd import traj
 
 TEST0027 = envutils.test_data('itest', '0027_test')
 TEST0045 = envutils.test_data('itest', '0045_test')
 TEST0037 = envutils.test_data('itest', '0037_test')
-AR_TRJ = os.path.join(TEST0045, 'workspace',
-                      '3e1866ded1c2eea09dfe0a34482ecca2',
-                      'amorp_bldr.custom.gz')
+AR_DIR = os.path.join(TEST0045, 'workspace',
+                      '3e1866ded1c2eea09dfe0a34482ecca2')
+AR_TRJ = os.path.join(AR_DIR, 'amorp_bldr.custom.gz')
+AR_DAT = os.path.join(AR_DIR, 'amorp_bldr.data')
 
 
 class TestBase:
@@ -163,15 +166,34 @@ class TestJob:
                                                 err=err)
 
 
-class TestTrajJob:
+class TestDensity:
 
     @pytest.mark.parametrize('trj,gids,expected', [(None, None, (0, None)),
                                                    (AR_TRJ, None, (29, 100)),
                                                    (AR_TRJ, [0, 1], (29, 2))])
     def testInit(self, trj, gids, expected):
-        options = None if trj is None else parserutils.LmpTraj().parse_args(
+        options = trj and parserutils.LmpTraj().parse_args(
             [trj, '-last_pct', '0.8', '-task', 'xyz'])
         if trj is not None:
             trj = traj.Traj(trj, options=options)
-        job = analyzer.TrajJob(trj=trj, gids=gids)
+        job = analyzer.Density(trj=trj, gids=gids)
         assert expected == (job.sidx, job.gids and len(job.gids))
+
+    @pytest.mark.parametrize('trj,dat,expected', [(AR_TRJ, AR_DAT, 0.0016524)])
+    def testSet(self, trj, dat, expected):
+        job = analyzer.Density(trj=traj.Traj(trj), rdr=lmpfull.Reader(dat))
+        job.set()
+        np.testing.assert_almost_equal(job.data.max(), [expected])
+
+
+# class TestXYZ:
+#
+#     @pytest.mark.parametrize('trj,gids,expected', [(None, None, (0, None)),
+#                                                    (AR_TRJ, None, (29, 100)),
+#                                                    (AR_TRJ, [0, 1], (29, 2))])
+#     def testInit(self, trj, gids, expected):
+#         options = trj and parserutils.LmpTraj().parse_args([trj, '-last_pct', '0.8', '-task', 'xyz'])
+#         if trj is not None:
+#             trj = traj.Traj(trj, options=options)
+#         job = analyzer.TrajJob(trj=trj, gids=gids)
+#         assert expected == (job.sidx, job.gids and len(job.gids))
