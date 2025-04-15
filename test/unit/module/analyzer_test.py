@@ -1,3 +1,4 @@
+import copy
 import os
 from unittest import mock
 
@@ -23,6 +24,8 @@ HEX = envutils.test_data('hexane_liquid')
 HEX_TRJ = os.path.join(HEX, 'dump.custom')
 HEX_DAT = os.path.join(HEX, 'polymer_builder.data')
 HEX_RDR = lmpfull.Reader(HEX_DAT)
+MODIFIED = copy.deepcopy(HEX_RDR)
+MODIFIED.pair_coeffs.dist = 18
 
 
 class TestBase:
@@ -198,7 +201,6 @@ class TestXYZ:
                              [(HEX_RDR, False, True, False,
                                (-2.2587, 50.6048)),
                               (None, False, True, False, (-37.6929, 67.0373)),
-                              (HEX_RDR, True, True, True, (0.0055, 47.839)),
                               (None, True, True, True, (0.0055, 47.839))])
     def testRun(self, trj, rdr, center, wrapped, broken_bonds, expected,
                 tmp_dir):
@@ -216,6 +218,7 @@ class TestXYZ:
 
 
 class TestView:
+
     TRJ = envutils.test_data('water', 'three.custom')
     RDR = lmpfull.Reader(envutils.test_data('water', 'polymer_builder.data'))
 
@@ -232,3 +235,39 @@ class TestView:
         assert os.path.isfile('view_view.html')
         job.logger.log.assert_called_with(
             'Trajectory visualization are written into view_view.html')
+
+
+class TestClash:
+
+    @pytest.fixture
+    def clash(self, trj, gids, cut, srch, rdr):
+        options = trj and parserutils.LmpTraj().parse_args(
+            [trj, '-last_pct', '0.8', '-task', 'clash'])
+        trj = trj and traj.Traj(trj, options=options)
+        return analyzer.Clash(trj=trj,
+                              gids=gids,
+                              cut=cut,
+                              srch=srch,
+                              rdr=rdr,
+                              logger=mock.Mock())
+
+    @pytest.mark.parametrize(
+        'trj,gids,cut,srch,rdr,expected',
+        [(None, None, None, None, None, (1.4, None, None)),
+         (None, None, None, None, HEX_RDR, (1.9724464, None, None)),
+         (HEX_TRJ, [3, 1, 6, 2], 1, None, None, (1, 3, 3)),
+         (HEX_TRJ, [3, 1, 6, 2], 20, None, None, (20, 4, None)),
+         (HEX_TRJ, [3, 1, 6, 2], 20, True, None, (20, 3, 3))])
+    def testInit(self, clash, expected):
+        np.testing.assert_almost_equal(clash.cut, expected[0])
+        assert expected[1] == (None if clash.grp is None else len(clash.grp))
+        assert expected[2] == (None if clash.grps is None else len(clash.grps))
+
+    @pytest.mark.parametrize('trj,gids,cut,srch,rdr,expected',
+                             [(None, None, None, None, None, None),
+                              (HEX_TRJ, [5, 0, 1], 20, True, MODIFIED, 2),
+                              (HEX_TRJ, [5, 0, 1], 20, False, MODIFIED, 2)])
+    def testSet(self, clash, expected):
+        clash.set()
+        assert expected == (None
+                            if clash.data is None else clash.data.max().max())

@@ -428,25 +428,25 @@ class Clash(Density):
 
     UNIT = 'count'
 
-    def __init__(self, *args, cut=None, **kwargs):
+    def __init__(self, *args, cut=None, srch=None, **kwargs):
         """
         :param cut float: the cut-off for neighbor searching
+        :param srch bool: use distance cell to search neighbors if True
         """
         super().__init__(*args, **kwargs)
         self.cut = cut
+        self.srch = srch
+        self.grp = self.gids
+        self.grps = None
         if self.cut is None:
             self.cut = dist.Radius(struct=self.rdr).max()
-        if self.trj is None:
-            return
-        self.srch = any(x.large(self.cut) for x in self.trj.sel)
-        if self.srch:
-            self.grp = self.gids
-            self.grps = None
-            return
-        # The smallest gid is included in grps (direct or from distance cell)
-        gids = sorted(self.gids)
-        self.grp = gids[1:]
-        self.grps = [gids[:i] for i in range(1, len(gids))]
+        if self.srch is None and self.trj is not None:
+            self.srch = any(x.large(self.cut) for x in self.trj.sel)
+        if self.srch and self.grp is not None:
+            # The smallest gid included in grps (direct or from distance cell)
+            gids = sorted(self.grp)
+            self.grp = gids[1:]
+            self.grps = [gids[:i] for i in range(1, len(gids))]
 
     def set(self):
         """
