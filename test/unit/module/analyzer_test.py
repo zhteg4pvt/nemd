@@ -26,6 +26,7 @@ HEX_DAT = os.path.join(HEX, 'polymer_builder.data')
 HEX_RDR = lmpfull.Reader(HEX_DAT)
 MODIFIED = copy.deepcopy(HEX_RDR)
 MODIFIED.pair_coeffs.dist = 18
+FOUR_TRJ = os.path.join(HEX, 'four_frames.custom')
 
 
 class TestBase:
@@ -309,10 +310,9 @@ class TestRDF:
     @pytest.mark.parametrize(
         'trj,rdr,gids,dirname,msg,expected',
         [(HEX_TRJ, HEX_RDR, [5, 0, 1], None,
-          'peak (r): 41913.20427687251; peak position (Å): 1.52',
-          (41913.204277, np.nan)),
-         (HEX_TRJ, None, None, TEST0045,
-          'peak (r) (num=2): 930.0; peak position (Å): 4.16', (930, 930))])
+          'Peak of 4.191e+04 ± nan found at 1.52 Å', (41913.204277, np.nan)),
+         (HEX_TRJ, None, None, TEST0045, 'Peak of 930 ± 930 found at 4.16 Å',
+          (930, 930))])
     def testFit(self, rdf, msg, expected):
         rdf.read()
         rdf.set()
@@ -322,3 +322,43 @@ class TestRDF:
 
     def testLabel(self):
         assert 'g (r)' == analyzer.RDF().label
+
+
+class TestMSD:
+
+    @pytest.fixture
+    def msd(self, trj, gids, rdr):
+        options = parserutils.LmpTraj().parse_args(
+            [trj, '-last_pct', '0.8', '-task', 'msd'])
+        return analyzer.MSD(trj=traj.Traj(trj, options=options),
+                            options=options,
+                            gids=gids,
+                            rdr=rdr,
+                            logger=mock.Mock())
+
+    @pytest.mark.parametrize(
+        'trj,rdr,gids,spct,epct,expected,name',
+        [(FOUR_TRJ, HEX_RDR, None, 0.1, 0.2, 0.4820988, 'Tau (ps) (0 3)'),
+         (FOUR_TRJ, None, None, 0.1, 0.2, 0.4803063, 'Tau (ps) (0 3)'),
+         (FOUR_TRJ, HEX_RDR, [0, 1], 0.1, 0.2, 0.9921599, 'Tau (ps) (0 3)'),
+         (FOUR_TRJ, HEX_RDR, [0, 1], 0.4, 0.2, 0.9921599, 'Tau (ps) (1 3)'),
+         (AR_TRJ, None, [], 0.1, 0.2, np.nan, None),
+         (HEX_TRJ, None, None, 0.1, 0.2, np.nan, None)])
+    def testSet(self, msd, spct, epct, expected, name):
+        msd.set(spct=spct, epct=epct)
+        np.testing.assert_almost_equal(msd.data.max().max(), expected)
+        assert name == msd.data.index.name
+
+    @pytest.mark.parametrize(
+        'trj,rdr,gids,spct,epct,expected',
+        [(FOUR_TRJ, HEX_RDR, None, 0.1, 0.2, [4.01749017e-06, 8.75353197e-07]),
+         (FOUR_TRJ, None, None, 0.1, 0.2, [4.00255214e-06, 8.72030195e-07]),
+         (FOUR_TRJ, HEX_RDR, [0, 1], 0.1, 0.2, [8.2679990e-06, 1.5476629e-06]),
+         (FOUR_TRJ, HEX_RDR, [0, 1], 0.4, 0.2, [1.09486298e-05, 0.00000e+00])])
+    def testFit(self, msd, spct, epct, expected):
+        msd.set(spct=spct, epct=epct)
+        msd.fit()
+        np.testing.assert_almost_equal(msd.result.values, expected)
+
+    def testLabel(self):
+        assert 'MSD (Å^2)' == analyzer.MSD().label

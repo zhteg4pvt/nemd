@@ -531,28 +531,28 @@ class RDF(Clash):
         index = pd.Index(data=mid, name=f'r ({symbols.ANGSTROM})')
         self.data = pd.DataFrame(data={self.label: rdf}, index=index)
 
-    def fit(self):
+    def fit(self, window_length=31):
         """
         Smooth the rdf data and report peaks.
+
+        :param window_length int: the window length when smoothing
         """
         if self.data.empty:
             return
         smoothed = scipy.signal.savgol_filter(np.ravel(self.data.iloc[:, 0]),
-                                              window_length=31,
+                                              window_length=window_length,
                                               polyorder=2)
-        arg_max = smoothed.argmax()
-        indexes = [y for x in range(1, 31) for y in [arg_max - x, arg_max + x]]
-        indexes = [arg_max] + indexes
-        select = next(x for x in indexes if self.data.iloc[x, 0])
-        row = self.data.iloc[select]
+        idx = smoothed.argmax()
+        idxs = [y for x in range(1, window_length) for y in [idx - x, idx + x]]
+        try:
+            idx = next(x for x in [idx] + idxs if self.data.iloc[x, 0])
+        except StopIteration:
+            pass
+        row = self.data.iloc[idx]
+        err = row.values[1] if len(row.values) > 1 else np.nan
         name = self.getName(label=self.data.columns[0])
-        data = {
-            name: row.values[0],
-            f"{self.PROP} position ({symbols.ANGSTROM})": row.name
-        }
-        self.log('; '.join([f"{x}: {y}" for x, y in data.items()]))
-        print('; '.join([f"{x}: {y}" for x, y in data.items()]))
-        err = row.values[1] if len(row.values) > 1 else None
+        self.log(f'Peak of {row.values[0]:.4g} {symbols.PLUS_MIN} {err:.4g} '
+                 f'found at {row.name} {symbols.ANGSTROM}')
         self.result = pd.Series({
             name: row.values[0],
             f"{self.ST_DEV} of {name}": err
@@ -593,7 +593,7 @@ class MSD(RDF):
             return
 
         self.data = pd.DataFrame()
-        if len(self.gids) < 1:
+        if not self.gids:
             self.warning("MSD requires least one atom selected.")
             return
 
