@@ -62,12 +62,13 @@ class Log(logutils.Base):
         Set the tasks to be performed.
         """
         parsed = [analyzer.Job.parse(x) for x in self.thermo.columns]
-        avail = [name.lower() for name, unit, _ in parsed]
+        avail = set([name.lower() for name, unit, _ in parsed])
         if symbols.ALL in self.options.task:
-            self.options.task = [x for x in avail if x in analyzer.THERMO]
+            self.options.task = avail.intersection(
+                [x.name for x in analyzer.THERMO])
             return
         tasks = set(self.options.task)
-        self.options.task = tasks.intersection(avail)
+        self.options.task = avail.intersection(tasks)
         missed = symbols.COMMA_SEP.join(tasks.difference(self.options.task))
         self.warning(f"{missed} tasks cannot be found out of "
                      f"{symbols.COMMA_SEP.join(avail)}.")
@@ -76,11 +77,13 @@ class Log(logutils.Base):
         """
         Run analyzers.
         """
-        for task in self.options.task:
-            anl = analyzer.ANLZ[task](self.thermo,
-                                      options=self.options,
-                                      logger=self.logger,
-                                      rdr=self.rdr)
+        for Anlz in analyzer.THERMO:
+            if Anlz.name not in self.options.task:
+                continue
+            anl = Anlz(self.thermo,
+                       options=self.options,
+                       logger=self.logger,
+                       rdr=self.rdr)
             anl.run()
 
 

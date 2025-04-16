@@ -32,7 +32,8 @@ class Traj(logutils.Base):
         self.trj = None
         self.rdr = None
         self.gids = None
-        self.tasks = [x for x in self.options.task if x in analyzer.ALL_FRM]
+        self.tasks = {x.name
+                      for x in analyzer.ALL_FRM}.intersection(options.task)
         self.start = 0 if self.tasks else None
 
     def run(self):
@@ -96,13 +97,14 @@ class Traj(logutils.Base):
         """
         Run analyzers.
         """
-        for name in self.options.task:
-            Analyzer = analyzer.ANLZ[name]
-            anl = Analyzer(self.trj,
-                           rdr=self.rdr,
-                           gids=self.gids,
-                           options=self.options,
-                           logger=self.logger)
+        for Anlz in analyzer.TRAJ:
+            if Anlz.name not in self.options.task:
+                continue
+            anl = Anlz(self.trj,
+                       rdr=self.rdr,
+                       gids=self.gids,
+                       options=self.options,
+                       logger=self.logger)
             anl.run()
 
 

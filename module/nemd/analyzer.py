@@ -663,9 +663,9 @@ class MSD(RDF):
         return 'mean squared displacement'
 
 
-ALL_FRM = [x.name for x in [Density, Clash, View, XYZ]]
-DATA_RQD = [x.name for x in [Density]]
-TRAJ = {x.name: x for x in [Density, RDF, MSD, Clash, View, XYZ]}
+ALL_FRM = [Density, Clash, View, XYZ]
+DATA_RQD = [Density]
+TRAJ = [Density, RDF, MSD, Clash, View, XYZ]
 
 
 class TotEng(Job):
@@ -702,31 +702,18 @@ class TotEng(Job):
         """
         return 'thermodynamic information'
 
-    @classmethod
-    @property
-    @functools.cache
-    def Analyzers(cls):
-        """
-        The list of thermo analyzer classes.
 
-        :return subclass of 'Thermo': the therma analyzer classes
-        """
-        return [
-            type(x, (cls, ), {})
-            for x in ['temp', 'e_pair', 'e_mol', 'toteng', 'press', 'volume']
-        ]
-
-
-THERMO = {x.name: x for x in TotEng.Analyzers}
-ANLZ = {**TRAJ, **THERMO}
+THERMO = [
+    type(x, (TotEng, ), {})
+    for x in ['temp', 'e_pair', 'e_mol', 'toteng', 'press', 'volume']
+]
 
 
 class Agg(Base):
     """
     The analyzer aggregator.
     """
-
-    TO_SKIP = {XYZ.name, View.name}
+    ANLZ = [Density, RDF, MSD, Clash] + THERMO
 
     def __init__(self, task, groups=None, **kwargs):
         """
@@ -738,24 +725,29 @@ class Agg(Base):
         super().__init__(**kwargs)
         self.task = task
         self.groups = groups
+        try:
+            self.Anlz = next(x for x in self.ANLZ if x.name == self.task)
+        except StopIteration:
+            self.Anlz = None
 
     def read(self):
         """
         Set the result for the given task over grouped jobs.
         """
-        if self.task in self.TO_SKIP:
+
+        if self.Anlz is None:
             return
 
-        self.log(f"Aggregation Task: {self.task}")
+        self.log(f"Aggregation Task: {self.Anlz.name}")
         for parm, jobs in self.groups:
             if not parm.empty:
                 pstr = parm.to_csv(lineterminator=' ', sep='=', header=False)
                 self.log(f"Aggregation Parameters (num={len(jobs)}): {pstr}")
             # Read, combine, and fit
-            anlz = ANLZ[self.task](options=self.options,
-                                   logger=self.logger,
-                                   parm=parm,
-                                   jobs=jobs)
+            anlz = self.Anlz(options=self.options,
+                             logger=self.logger,
+                             parm=parm,
+                             jobs=jobs)
             anlz.run()
             if anlz.result is None:
                 continue
@@ -771,8 +763,8 @@ class Agg(Base):
             self.data = pd.DataFrame()
             return
 
-        val = ANLZ[self.task].getName(names=self.data.columns)
-        err = ANLZ[self.task].getName(names=self.data.columns, err=True)
+        val = self.Anlz.getName(names=self.data.columns)
+        err = self.Anlz.getName(names=self.data.columns, err=True)
         parm = self.data[list(set(self.data.columns).difference([val, err]))]
         if parm.empty:
             return

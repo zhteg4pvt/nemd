@@ -474,10 +474,10 @@ class TrajValid(Valid):
         :raise ValueError: tasks request data file but not provided.
         """
         tasks = set(self.options.task)
-        data_rqd_tasks = tasks.intersection(analyzer.DATA_RQD)
-        if data_rqd_tasks and not self.options.data_file:
+        rqd_data = tasks.intersection([x.name for x in analyzer.DATA_RQD])
+        if rqd_data and not self.options.data_file:
             raise ValueError(f"Please specify {Lammps.FLAG_DATA_FILE} to"
-                             f" run {', '.join(data_rqd_tasks)} tasks.")
+                             f" run {', '.join(rqd_data)} tasks.")
 
 
 class Driver(argparse.ArgumentParser):
@@ -918,9 +918,9 @@ class LmpLog(Lammps):
     FLAG = 'log'
     FLAG_LAST_PCT = '-last_pct'
     FLAG_SLICE = '-slice'
-    TASKS = [*analyzer.THERMO.keys(), symbols.ALL]
+    LAST_FRM = [x.name for x in analyzer.THERMO]
+    TASKS = LAST_FRM + [symbols.ALL]
     TASK_HELP = 'Searches, combines and averages thermodynamic info.'
-    LAST_FRM = analyzer.THERMO.keys()
 
     @classmethod
     def add(cls, parser, positional=False, task=analyzer.TotEng.name):
@@ -966,9 +966,8 @@ class LmpTraj(LmpLog):
     Parser with lammps-trajectory arguments.
     """
     FLAG = 'trj'
-    TASKS = analyzer.TRAJ.keys()
-    TASK_HELP = ', '.join(x.__doc__.strip().lower()
-                          for x in analyzer.TRAJ.values())
+    TASKS = [x.name for x in analyzer.TRAJ]
+    TASK_HELP = ', '.join(x.__doc__.strip().lower() for x in analyzer.TRAJ)
     LAST_FRM = [x.name for x in [analyzer.MSD, analyzer.RDF]]
 
     @classmethod

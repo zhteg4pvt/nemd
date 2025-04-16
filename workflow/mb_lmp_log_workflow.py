@@ -51,10 +51,8 @@ class AnalyzerAgg(analyzer.Agg):
         structure smiles and geometry type.
         """
         super().set()
-
         if len(self.groups) == 1 and self.groups[0][0].empty:
             return
-
         substruct = self.data.index.str.split(expand=True)
         has_value = self.data.index[0] != substruct[0]
         smiles = substruct[0][0] if has_value else substruct[0]

@@ -395,6 +395,3 @@ class TestTotEng:
     def testSet(self, tot_eng, expected):
         tot_eng.set()
         np.testing.assert_almost_equal(tot_eng.data.max().max(), expected)
-
-    def testAnalyzers(self):
-        assert 6 == len(analyzer.TotEng.Analyzers)
