@@ -22,7 +22,7 @@ rigid_bond: None
 rigid_angle: None
 task: density rdf msd clash view xyz
 data_file: None
-last_pct: 0.2
+last_pct: 0.6
 slice: None
 sel: None
 NAME: ab_lmp_traj
@@ -34,39 +34,39 @@ DEBUG: False
 state_num: 2
 jtype: task aggregator
 prj_path: None
-clean: True
+clean: False
 screen: off
-JobStart: 11:42:48 04/14/2025
+JobStart: 11:57:19 04/16/2025
 ...........................
 2 / 2 completed jobs.
-Task Total Timing: 00:00:53
+Task Total Timing: 00:00:42
 | amorp_bl    | lammps      | lmp_traj    |
 |:------------|:------------|:------------|
-| 00:09 (ave) | 00:06 (ave) | 00:11 (ave) |
-| 00:09 d15   | 00:08 d15   | 00:11 d15   |
-| 00:09 6fd   | 00:05 6fd   | 00:11 6fd   |
+| 00:10 (ave) | 00:00 (ave) | 00:11 (ave) |
+| 00:10 d15   | 00:00 d15   | 00:11 d15   |
+| 00:10 6fd   | 00:00 6fd   | 00:11 6fd   |
 2 jobs found for aggregation.
 Aggregation Task: density
 Density data written into workspace/ab_lmp_traj_density_None.csv
-Density: 0.001789 ± 0 g/cm^3 ∈ [34.5000, 35.5000] ps
+Density: 0.00164 ± 0 g/cm^3 ∈ [2.0000, 5.0000] ps
 Density figure saved as workspace/ab_lmp_traj_density_None.png
 Density data written into ab_lmp_traj_density.csv
 Aggregation Task: rdf
 Radial distribution function data written into workspace/ab_lmp_traj_rdf_None.csv
-peak (r) (num=2): 117.9; peak position (Å): 5.56
+RDF peak 237.1 ± 237.1 found at 4.12 Å
 Rdf figure saved as workspace/ab_lmp_traj_rdf_None.png
 Rdf data written into ab_lmp_traj_rdf.csv
 Aggregation Task: msd
 Mean squared displacement data written into workspace/ab_lmp_traj_msd_None.csv
-0.0005616 ± 0 cm^2/s (R-squared: 1.0000) linear fit of [0.5000 2.0005] ps
+Diffusion Coefficient 0.00131 ± 0.0001312 cm^2/s calculated by fitting MSD in the range of [0 2] ps. (R-squared: 0.98)
 Msd figure saved as workspace/ab_lmp_traj_msd_None.png
 Msd data written into ab_lmp_traj_msd.csv
 Aggregation Task: clash
 Clash data written into workspace/ab_lmp_traj_clash_None.csv
-Clash: 0 ± 0 count ∈ [34.5000, 35.5000] ps
+Clash: 0 ± 0 count ∈ [2.0000, 5.0000] ps
 Clash figure saved as workspace/ab_lmp_traj_clash_None.png
 Clash data written into ab_lmp_traj_clash.csv
 WARNING: Empty Result for view
 WARNING: Empty Result for xyz
 Finished.
-11:43:33 04/14/2025
+11:57:47 04/16/2025

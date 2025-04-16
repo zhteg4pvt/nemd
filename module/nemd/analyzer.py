@@ -110,10 +110,14 @@ class Base(logutils.Base):
         if self.data.index.name is None:
             return
 
-        row = self.data[self.data.iloc[:, 0] == self.data.iloc[:, 0].min()]
-        self.log(f"The minimum {row.columns[0]} of {self.data.iloc[0,0]} "
-                 f"is found with the {row.index.name.replace('_',' ')} "
-                 f"being {row.index[0]}")
+        row = self.data.iloc[self.data.iloc[:, 0].argmin()]
+        label, unit, _ = self.parse(self.data.columns[0])
+        value = f"The minimum {label} of {row.iloc[0]}"
+        if unit:
+            value += f' {unit}'
+        label, unit, _ = self.parse(self.data.index.name)
+        pos = f'{row.name} {unit}' if unit else f"{label} {row.name}"
+        self.log(f"{value} found at {pos}.")
 
     def plot(self, line=None, marker=None, selected=None):
         """
@@ -121,6 +125,7 @@ class Base(logutils.Base):
 
         :param line str: the line style
         :param marker str: the marker symbol
+        :param selected pd.DataFrame: the selected data
         """
         if self.data.index.name is None:
             return
@@ -549,14 +554,12 @@ class RDF(Clash):
         except StopIteration:
             pass
         row = self.data.iloc[idx]
+        peak = row.values[0]
         err = row.values[1] if len(row.values) > 1 else np.nan
+        self.log(f'RDF peak {peak:.4g} {symbols.PLUS_MIN} {err:.4g} found '
+                 f'at {row.name} {symbols.ANGSTROM}')
         name = self.getName(label=self.data.columns[0])
-        self.log(f'Peak of {row.values[0]:.4g} {symbols.PLUS_MIN} {err:.4g} '
-                 f'found at {row.name} {symbols.ANGSTROM}')
-        self.result = pd.Series({
-            name: row.values[0],
-            f"{self.ST_DEV} of {name}": err
-        })
+        self.result = pd.Series({name: peak, f"{self.ST_DEV} of {name}": err})
 
     @property
     def label(self):
@@ -633,9 +636,11 @@ class MSD(RDF):
         slope, intcp, rval, pval, stderr = scipy.stats.linregress(xvals, yvals)
         # MSD=2nDt https://en.wikipedia.org/wiki/Mean_squared_displacement
         value, std_err = slope / 6, stderr / 6
-        self.log(f'{value:.4g} {symbols.PLUS_MIN} {std_err:.4g} cm^2/s'
-                 f' (R-squared: {rval**2:.4f}) linear fit of'
-                 f' [{sel.index[0]:.4f} {sel.index[-1]:.4f}] ps')
+        self.log(
+            f'{self.PROP} {value:.4g} {symbols.PLUS_MIN} {std_err:.4g} cm^2/s '
+            f'calculated by fitting {self.name.upper()} {symbols.ELEMENT_OF} '
+            f'[{sel.index[0]:.3g} {sel.index[-1]:.3g}] ps. '
+            f'(R-squared: {rval**2:.3g})')
         name = self.getName(unit='cm^2/s', label=self.data.columns[0])
         self.result = pd.Series({
             name: value,

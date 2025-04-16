@@ -33,7 +33,7 @@ class TestBase:
 
     EMPTY = pd.DataFrame()
     DATA = pd.DataFrame({'density': [1, 0, 2]})
-    DATA.index = pd.Index([5, 2, 6], name='time')
+    DATA.index = pd.Index([5, 2, 6], name='time (ps)')
     TWO_COLS = DATA.copy()
     TWO_COLS['std'] = 1
 
@@ -69,9 +69,8 @@ class TestBase:
 
     @pytest.mark.parametrize('args', [None])
     @pytest.mark.parametrize(
-        'data,expected',
-        [(EMPTY, False),
-         (DATA, 'The minimum density of 1 is found with the time being 2')])
+        'data,expected', [(EMPTY, False),
+                          (DATA, 'The minimum density of 0 found at 2 ps.')])
     def testFit(self, base, expected):
         base.fit()
         assert bool(expected) == base.logger.log.called
@@ -127,7 +126,7 @@ class TestJob:
     @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
     @pytest.mark.parametrize('dirname,expected', [(TEST0027, (0, 0, 0, None)),
                                                   (TEST0037, (3, 1, 1, None)),
-                                                  (TEST0045, (7, 2, 6, None))])
+                                                  (TEST0045, (7, 2, 3, None))])
     def testRead(self, density, expected):
         density.read()
         assert expected == (*density.data.shape, density.sidx, density.eidx)
@@ -145,11 +144,13 @@ class TestJob:
         assert 'Job (a.u.)' == job.label
 
     @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
-    @pytest.mark.parametrize('dirname,expected',
-                             [(TEST0045, (145, 2, 116, None))])
+    @pytest.mark.parametrize(
+        'dirname,expected',
+        [(TEST0045, 'Density: 0.00164 ± 0 g/cm^3 ∈ [2.0000, 5.0000] ps')])
     def testFit(self, density, expected):
         density.read()
         density.fit()
+        density.logger.log.assert_called_with(expected)
 
     @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
     @pytest.mark.parametrize('dirname,expected',
@@ -307,12 +308,13 @@ class TestRDF:
             return
         np.testing.assert_almost_equal(rdf.data.max().max(), expected)
 
-    @pytest.mark.parametrize(
-        'trj,rdr,gids,dirname,msg,expected',
-        [(HEX_TRJ, HEX_RDR, [5, 0, 1], None,
-          'Peak of 4.191e+04 ± nan found at 1.52 Å', (41913.204277, np.nan)),
-         (HEX_TRJ, None, None, TEST0045, 'Peak of 930 ± 930 found at 4.16 Å',
-          (930, 930))])
+    @pytest.mark.parametrize('trj,rdr,gids,dirname,msg,expected',
+                             [(HEX_TRJ, HEX_RDR, [5, 0, 1], None,
+                               'RDF peak 4.191e+04 ± nan found at 1.52 Å',
+                               (41913.204277, np.nan)),
+                              (HEX_TRJ, None, None, TEST0045,
+                               'RDF peak 237.1 ± 237.1 found at 4.12 Å',
+                               (237.05, 237.05))])
     def testFit(self, rdf, msg, expected):
         rdf.read()
         rdf.set()
@@ -349,16 +351,25 @@ class TestMSD:
         np.testing.assert_almost_equal(msd.data.max().max(), expected)
         assert name == msd.data.index.name
 
-    @pytest.mark.parametrize(
-        'trj,rdr,gids,spct,epct,expected',
-        [(FOUR_TRJ, HEX_RDR, None, 0.1, 0.2, [4.01749017e-06, 8.75353197e-07]),
-         (FOUR_TRJ, None, None, 0.1, 0.2, [4.00255214e-06, 8.72030195e-07]),
-         (FOUR_TRJ, HEX_RDR, [0, 1], 0.1, 0.2, [8.2679990e-06, 1.5476629e-06]),
-         (FOUR_TRJ, HEX_RDR, [0, 1], 0.4, 0.2, [1.09486298e-05, 0.00000e+00])])
-    def testFit(self, msd, spct, epct, expected):
+    @pytest.mark.parametrize('trj,rdr,gids,spct,epct,expected,msg', [
+        (FOUR_TRJ, HEX_RDR, None, 0.1, 0.2, [4.01749017e-06, 8.75353197e-07],
+         'Diffusion Coefficient 4.017e-06 ± 8.754e-07 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.955)'
+         ),
+        (FOUR_TRJ, None, None, 0.1, 0.2, [4.00255214e-06, 8.72030195e-07],
+         'Diffusion Coefficient 4.003e-06 ± 8.72e-07 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.955)'
+         ),
+        (FOUR_TRJ, HEX_RDR, [0, 1], 0.1, 0.2, [8.2679990e-06, 1.5476629e-06],
+         'Diffusion Coefficient 8.268e-06 ± 1.548e-06 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.966)'
+         ),
+        (FOUR_TRJ, HEX_RDR, [0, 1], 0.4, 0.2, [1.09486298e-05, 0.00000e+00],
+         'Diffusion Coefficient 1.095e-05 ± 0 cm^2/s calculated by fitting MSD ∈ [1 2] ps. (R-squared: 1)'
+         )
+    ])
+    def testFit(self, msd, spct, epct, expected, msg):
         msd.set(spct=spct, epct=epct)
         msd.fit()
         np.testing.assert_almost_equal(msd.result.values, expected)
+        msd.logger.log.assert_called_with(msg)
 
     def testLabel(self):
         assert 'MSD (Å^2)' == analyzer.MSD().label

@@ -26,10 +26,10 @@ INTERAC: False
 PYTHON: 2
 CPU: None
 DEBUG: False
-JobStart: 13:09:07 04/15/2025
+JobStart: 11:56:27 04/16/2025
 ...........................
-[13:09:07] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
+[11:56:27] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
 Data file written into amorp_bldr.data
 In script written into amorp_bldr.in
 Finished.
-13:09:15 04/15/2025
+11:56:36 04/16/2025

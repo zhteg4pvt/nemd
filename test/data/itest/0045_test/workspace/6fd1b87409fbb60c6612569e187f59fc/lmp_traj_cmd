@@ -1,1 +1,1 @@
-nemd_run lmp_traj_driver.py amorp_bldr.custom.gz -task density rdf msd clash view xyz -data_file amorp_bldr.data -JOBNAME lmp_traj
+nemd_run lmp_traj_driver.py amorp_bldr.custom.gz -task density rdf msd clash view xyz -last_pct 0.6 -data_file amorp_bldr.data -JOBNAME lmp_traj
