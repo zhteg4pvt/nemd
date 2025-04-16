@@ -90,7 +90,7 @@ class Log(lammpsin.In):
 
     DEFAULT_TIMESTEP = {LJ: 0.005, REAL: 1., METAL: 0.001}
 
-    def __init__(self, filename, options=None):
+    def __init__(self, filename, options=None, delay=False):
         """
         :param filenamestr: LAMMPS log file name
         :param options namedtuple: command line options
@@ -102,10 +102,13 @@ class Log(lammpsin.In):
         self.unit = self.REAL
         self.idx = 0
         self.thermo = pd.DataFrame()
+        if delay:
+            return
+        self.setUp()
 
-    def run(self):
+    def setUp(self):
         """
-        Main method to parse the LAMMPS log file.
+        Set up by reading and parsing the log file.
         """
         self.read()
         self.setThermo()

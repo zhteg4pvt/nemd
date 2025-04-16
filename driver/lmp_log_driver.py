@@ -50,7 +50,6 @@ class Log(logutils.Base):
         Grep thermo output information.
         """
         lmp_log = lmplog.Log(self.options.log, options=self.options)
-        lmp_log.run()
         self.thermo = lmp_log.thermo
         if self.thermo.empty:
             self.error(f"No thermo output found in {self.options.log}.")

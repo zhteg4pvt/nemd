@@ -9,6 +9,7 @@ import pytest
 from nemd import analyzer
 from nemd import envutils
 from nemd import lmpfull
+from nemd import lmplog
 from nemd import parserutils
 from nemd import traj
 
@@ -20,6 +21,7 @@ AR_DIR = os.path.join(TEST0045, 'workspace',
 AR_TRJ = os.path.join(AR_DIR, 'amorp_bldr.custom.gz')
 AR_DAT = os.path.join(AR_DIR, 'amorp_bldr.data')
 AR_RDR = lmpfull.Reader(AR_DAT)
+AR_LOG = os.path.join(AR_DIR, 'lammps_lmp.log')
 HEX = envutils.test_data('hexane_liquid')
 HEX_TRJ = os.path.join(HEX, 'dump.custom')
 HEX_DAT = os.path.join(HEX, 'polymer_builder.data')
@@ -373,3 +375,26 @@ class TestMSD:
 
     def testLabel(self):
         assert 'MSD (Å^2)' == analyzer.MSD().label
+
+
+class TestTotEng:
+
+    @pytest.fixture
+    def tot_eng(self, logfile):
+        if logfile is None:
+            return analyzer.TotEng()
+        options = parserutils.LmpLog().parse_args([AR_LOG])
+        lmp_log = lmplog.Log(logfile, options=options)
+        return analyzer.TotEng(thermo=lmp_log.thermo)
+
+    @pytest.mark.parametrize('logfile,expected', [(None, 0), (AR_LOG, 7)])
+    def testInit(self, tot_eng, expected):
+        assert expected == tot_eng.sidx
+
+    @pytest.mark.parametrize('logfile,expected', [(AR_LOG, 8.0481871)])
+    def testSet(self, tot_eng, expected):
+        tot_eng.set()
+        np.testing.assert_almost_equal(tot_eng.data.max().max(), expected)
+
+    def testAnalyzers(self):
+        assert 6 == len(analyzer.TotEng.Analyzers)

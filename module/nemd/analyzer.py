@@ -112,7 +112,7 @@ class Base(logutils.Base):
 
         row = self.data.iloc[self.data.iloc[:, 0].argmin()]
         label, unit, _ = self.parse(self.data.columns[0])
-        value = f"The minimum {label} of {row.iloc[0]}"
+        value = f"The minimum {label} of {row.iloc[0]:.4g}"
         if unit:
             value += f' {unit}'
         label, unit, _ = self.parse(self.data.index.name)
