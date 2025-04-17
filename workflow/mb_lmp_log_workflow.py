@@ -119,7 +119,7 @@ class Runner(jobcontrol.Runner):
         """
         Aggregate the log analysis jobs.
         """
-        self.add(LmpAgg)
+        self.add(LmpAgg, jobname='lmp_log_agg')
         super().setAggs()
 
 

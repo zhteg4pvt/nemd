@@ -230,7 +230,6 @@ class Job(Base):
 
         name = f"{self.options.NAME}_{self.name}{self.DATA_EXT}"
         files = [x.fn(name) for x in self.jobs]
-
         files = [x for x in files if os.path.exists(x)]
         if not files:
             self.data = pd.DataFrame()
