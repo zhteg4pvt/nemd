@@ -27,7 +27,7 @@ class Runner(jobcontrol.Runner):
         """
         Aggregate post analysis jobs.
         """
-        self.add(task.LmpLogAgg, jobname='lmp_traj_agg')
+        self.add(task.LmpAgg, jobname='lmp_traj_agg')
         super().setAggs()
 
 

@@ -11,11 +11,13 @@ from nemd import envutils
 from nemd import lmpfull
 from nemd import lmplog
 from nemd import parserutils
+from nemd import task
 from nemd import traj
 
 TEST0027 = envutils.test_data('itest', '0027_test')
-TEST0045 = envutils.test_data('itest', '0045_test')
 TEST0037 = envutils.test_data('itest', '0037_test')
+TEST0045 = envutils.test_data('itest', '0045_test')
+TEST0046 = envutils.test_data('itest', '0046_test')
 AR_DIR = os.path.join(TEST0045, 'workspace',
                       '6fd1b87409fbb60c6612569e187f59fc')
 AR_TRJ = os.path.join(AR_DIR, 'amorp_bldr.custom.gz')
@@ -395,3 +397,40 @@ class TestTotEng:
     def testSet(self, tot_eng, expected):
         tot_eng.set()
         np.testing.assert_almost_equal(tot_eng.data.max().max(), expected)
+
+
+class TestAgg:
+
+    @pytest.fixture
+    def agg(self, jobs, tsk, args):
+        options = parserutils.Workflow().parse_args(args) if args else None
+        groups = None if jobs is None else task.LmpAgg(*jobs).groups
+        return analyzer.Agg(task=tsk,
+                            options=options,
+                            groups=groups,
+                            logger=mock.Mock())
+
+    @pytest.mark.parametrize('args,dirname,tsk,expected',
+                             [(['-NAME', 'lmp_traj'], TEST0045, 'rdf', (1, 2)),
+                              (['-NAME', 'lmp_log'], TEST0046, 'toteng',
+                               (2, 3))])
+    def testRead(self, agg, expected):
+        agg.read()
+        assert expected == agg.data.shape
+
+    @pytest.mark.parametrize(
+        'args,dirname,tsk,expected',
+        [(['-NAME', 'lmp_log'], TEST0046, 'toteng', [[10.624343, 0],
+                                                     [10.522627, 0]]),
+         (['-NAME', 'lmp_traj'], TEST0045, 'rdf', [[237.05, 237.05]])])
+    def testSet(self, agg, expected):
+        agg.read()
+        agg.set()
+        np.testing.assert_almost_equal(
+            agg.data.astype(float).fillna(0), expected)
+
+    @pytest.mark.parametrize('args,dirname', [(None, None)])
+    @pytest.mark.parametrize('tsk,expected', [('rdf', 'rdf'),
+                                              ('toteng', 'toteng')])
+    def testName(self, agg, expected):
+        assert expected == agg.name

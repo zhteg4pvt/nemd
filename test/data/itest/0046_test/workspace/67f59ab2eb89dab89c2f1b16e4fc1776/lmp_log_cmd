@@ -1,0 +1,1 @@
+nemd_run lmp_log_driver.py /Users/zhteg4/git/nemd/test/data/itest/0046/workspace/67f59ab2eb89dab89c2f1b16e4fc1776/lammps_lmp.log -data_file mol_bldr.data -JOBNAME lmp_log

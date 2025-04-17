@@ -72,7 +72,7 @@ class TestTrajJob:
         assert traj_file == 'dump.custom.gz'
 
 
-class TestLmpLogAgg:
+class TestLmpAgg:
 
     @pytest.fixture
     def agg(self, tmp_dir):
@@ -80,11 +80,11 @@ class TestLmpLogAgg:
         options = types.SimpleNamespace(jobname='cb_lmp_log',
                                         task=['toteng'],
                                         interactive=False)
-        return task.LmpLogAgg(*jobs,
-                              logger=mock.Mock(),
-                              name='lmp_log_#_agg',
-                              driver=task.LmpLog.DRIVER,
-                              options=options)
+        return task.LmpAgg(*jobs,
+                           logger=mock.Mock(),
+                           name='lmp_log_#_agg',
+                           driver=task.LmpLog.DRIVER,
+                           options=options)
 
     def testRun(self, agg):
         assert agg.post() is False

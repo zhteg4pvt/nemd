@@ -217,7 +217,7 @@ class Job(Base):
         """
         if self.parm is None:
             return super().outfile
-        # LmpLogAgg.groups -> tuple(parm, jobs) with parm.index.name being index
+        # LmpAgg.groups -> tuple(parm, jobs) with parm.index.name being index
         name = f"{self.options.JOBNAME}_{self.name}_{self.parm.index.name}{self.DATA_EXT}"
         return os.path.join(jobutils.WORKSPACE, name)
 
@@ -230,6 +230,7 @@ class Job(Base):
 
         name = f"{self.options.NAME}_{self.name}{self.DATA_EXT}"
         files = [x.fn(name) for x in self.jobs]
+
         files = [x for x in files if os.path.exists(x)]
         if not files:
             self.data = pd.DataFrame()
@@ -725,16 +726,12 @@ class Agg(Base):
         super().__init__(**kwargs)
         self.task = task
         self.groups = groups
-        try:
-            self.Anlz = next(x for x in self.ANLZ if x.name == self.task)
-        except StopIteration:
-            self.Anlz = None
+        self.Anlz = next((x for x in self.ANLZ if x.name == self.task), None)
 
     def read(self):
         """
         Set the result for the given task over grouped jobs.
         """
-
         if self.Anlz is None:
             return
 

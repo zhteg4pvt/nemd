@@ -1,0 +1,1 @@
+{"args": ["CCCC", "-struct_rg", "CCCC", "0", "10", "5", "-seed", "123"], "prereq": {"lammps": ["mol_bldr"], "lmp_log": ["lammps"]}, "_status": {}}

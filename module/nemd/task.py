@@ -114,7 +114,7 @@ class Cmd(taskbase.Cmd):
     the cmd line.
     """
     NAME = 'cmd'
-    CPU_RE = re.compile(f"{jobutils.FLAG_CPU} +\d*")
+    CPU_RE = re.compile(fr"{jobutils.FLAG_CPU} +\d*")
     DEBUG_RE = re.compile(f"{jobutils.FLAG_DEBUG}( +(True|False))?")
     SEP = f"{symbols.RETURN}"
 
@@ -251,7 +251,7 @@ class Tag(Check):
         test.Tag(job=self.job, options=self.options).run()
 
 
-class LmpLogAgg(taskbase.Agg):
+class LmpAgg(taskbase.Agg):
     """
     The aggregator job for analyzers.
     """

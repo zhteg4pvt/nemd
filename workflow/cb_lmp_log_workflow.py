@@ -36,7 +36,7 @@ class Runner(jobcontrol.Runner):
         """
         Set aggregators over all parameter sets.
         """
-        self.add(task.LmpLogAgg)
+        self.add(task.LmpAgg)
         super().setAggs()
 
 
