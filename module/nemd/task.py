@@ -120,7 +120,8 @@ class Cmd(taskbase.Cmd):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cmd = test.Cmd(job=self.job)
+        self.dir = self.job.statepoint[jobutils.FLAG_DIR]
+        self.cmd = test.Cmd(dir=self.dir)
         self.args = self.param.getCmds()
 
     def getCmd(self, **kwargs):
@@ -129,10 +130,7 @@ class Cmd(taskbase.Cmd):
 
         :return str: the command as str
         """
-        msg = f"# {os.path.basename(self.job.statepoint[jobutils.FLAG_DIR])}"
-        if self.cmd.comment:
-            msg += f": {self.cmd.comment}"
-        return super().getCmd(prefix=f'echo "{msg}"', **kwargs)
+        return super().getCmd(prefix=f'echo "{self.cmd.header}"', **kwargs)
 
     def run(self):
         """
@@ -208,7 +206,7 @@ class Cmd(taskbase.Cmd):
 
         :return `test.Param`: the parameters.
         """
-        return test.Param(job=self.job, cmd=self.cmd, options=self.options)
+        return test.Param(dir=self.dir, cmd=self.cmd, options=self.options)
 
     def clean(self):
         """
@@ -229,12 +227,16 @@ class Check(taskbase.Job):
     message.
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dir = self.job.statepoint[jobutils.FLAG_DIR]
+
     def run(self):
         """
         Main method to execute.
         """
         try:
-            test.Check(job=self.job, options=self.options).run()
+            test.Check(dir=self.dir, options=self.options).run()
         except test.CheckError as err:
             self.out = str(err)
 
@@ -248,7 +250,7 @@ class Tag(Check):
         """
         Main method to execute.
         """
-        test.Tag(job=self.job, options=self.options).run()
+        test.Tag(dir=self.dir, options=self.options).run()
 
 
 class LmpAgg(taskbase.Agg):

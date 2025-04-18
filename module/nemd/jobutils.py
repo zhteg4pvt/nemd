@@ -149,12 +149,14 @@ class Job:
     OUT = OUTFILE
     JOB_DOCUMENT = f'.{{jobname}}_document{JSON_EXT}'
 
-    def __init__(self, jobname=None, job=None):
+    def __init__(self, jobname=None, dir=os.curdir, job=None):
         """
         :param jobname str: the jobname
+        :param dir str: the job dirname
         :param job 'signac.job.Job': the signac job instance for json path
         """
         self.jobname = jobname if jobname else self.default
+        self.dir = dir
         self.job = job
 
     @classmethod
@@ -198,7 +200,7 @@ class Job:
         :return str: the pathname of the json file
         """
         file = self.JOB_DOCUMENT.format(jobname=self.jobname)
-        return self.job.fn(file) if self.job else file
+        return self.job.fn(file) if self.job else os.path.join(self.dir, file)
 
     def add(self, file, ftype=OUTFILES):
         """

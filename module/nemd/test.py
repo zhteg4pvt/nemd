@@ -31,7 +31,7 @@ DIR = 'DIR'
 
 FILE_RE = re.compile('.* +(.*)_(driver|workflow).py( +.*)?$')
 NAME_BRKT_RE = re.compile('(?:;|&&|\|\|)?(\w+)\\((.*?)\\)')
-KWARGS_RE = re.compile(r"(.*)=(.*)")
+KWARGS_RE = re.compile(r'(.*)=(.*)')
 
 
 class Cmd:
@@ -39,27 +39,32 @@ class Cmd:
     The class to parse a cmd test file.
     """
 
-    NAME = 'cmd'
     POUND = symbols.POUND
 
-    def __init__(self, dir=None, job=None, options=None):
+    def __init__(self, dir=None, options=None):
         """
         :param dir str: the path containing the file
-        :param job 'signac.contrib.job.Job': the signac job instance
         :param options 'argparse.ArgumentParser':  Parsed command-line options
         """
         self.dir = dir
-        self.job = job
         self.options = options
-        if self.dir is None:
-            self.dir = self.job.statepoint[jobutils.FLAG_DIR]
-        self.pathname = os.path.join(self.dir, self.NAME)
+        self.pathname = os.path.join(self.dir, self.name)
+
+    @classmethod
+    @property
+    def name(cls):
+        """
+        The name of the class.
+
+        :return str: class name
+        """
+        return cls.__name__.lower()
 
     @property
     @functools.cache
-    def raw_args(self):
+    def raw(self):
         """
-        Set arguments by reading the file.
+        The raw string by reading the file.
         """
         if not os.path.isfile(self.pathname):
             return
@@ -70,30 +75,39 @@ class Cmd:
     @functools.cache
     def args(self):
         """
-        Return arguments out of the raw_args.
+        Return arguments out of the raw.
 
         :return list of str: each str is a command
         """
-        if self.raw_args is None:
+        if self.raw is None:
             return
-        return [x for x in self.raw_args if not x.startswith(self.POUND)]
+        return [x for x in self.raw if not x.startswith(self.POUND)]
 
     @property
     @functools.cache
-    def comment(self):
+    def header(self):
         """
-        Return the comment out of the raw_args.
+        Return the header out of the raw.
 
-        :return str: the comment
+        :return str: the header
         """
-        if self.raw_args is None:
+        header = f"# {os.path.basename(self.dir)}"
+        cmts = symbols.SPACE.join(self.cmts)
+        return f"{header}: {cmts}" if cmts else header
+
+    @property
+    def cmts(self):
+        """
+        Return the comment out of the raw.
+
+        :return generator: the comments
+        """
+        if self.raw is None:
             return
-        comments = []
-        for line in self.raw_args:
+        for line in self.raw:
             if not line.startswith(self.POUND):
-                break
-            comments.append(line.strip(self.POUND).strip())
-        return symbols.SPACE.join(comments)
+                return
+            yield line.strip(self.POUND).strip()
 
 
 class Param(Cmd):
@@ -101,8 +115,7 @@ class Param(Cmd):
     The class to parse the parameter file.
     """
 
-    NAME = 'param'
-    PARAM = f'${NAME}'
+    PARAM = f'$param'
     JOBNAME_RE = re.compile(f'{jobutils.FLAG_JOBNAME} +(\w+)')
 
     def __init__(self, *args, cmd=None, **kwargs):
@@ -120,16 +133,13 @@ class Param(Cmd):
 
         :return str: The xlabel.
         """
-        header = self.raw_args[0]
-        if header.startswith(symbols.POUND):
-            return header.strip(symbols.POUND).strip()
-        if not self.cmd:
-            return
-        match = re.search(f'-(\w*) \{self.PARAM}', self.cmd.args[0])
-        name = match.group(1).replace('_', ' ') if match else self.NAME
-        label = ' '.join([x.capitalize() for x in name.split()])
-        with open(self.pathname, 'w') as fh:
-            fh.write('\n'.join([f"# {label}"] + self.args))
+        label = next(self.cmts, None)
+        if not label and self.cmd:
+            match = re.search(f'-(\w*) \{self.PARAM}', self.cmd.args[0])
+            name = match.group(1).replace('_', ' ') if match else self.name
+            label = ' '.join([x.capitalize() for x in name.split()])
+            with open(self.pathname, 'w') as fh:
+                fh.write('\n'.join([f"# {label}"] + self.args))
         return label
 
     @property
@@ -145,7 +155,7 @@ class Param(Cmd):
             return
         if self.options.slow is None:
             return args
-        params = Tag(job=self.job).slowParams(slow=self.options.slow)
+        params = Tag(dir=self.dir).slowParams(slow=self.options.slow)
         return [x for x in args if x in params]
 
     def getCmds(self):
@@ -378,7 +388,7 @@ class CollectLog(Exist):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.data = None
-        self.name = os.path.basename(self.dir)
+        self.dirname = os.path.basename(self.dir)
         self.logs = {
             x.jobname: x.logfile
             for x in jobutils.Job().getJobs() if x.logfile
@@ -409,7 +419,7 @@ class CollectLog(Exist):
         self.data.set_index(self.data.index.astype(float), inplace=True)
         func = lambda x: x.total_seconds() / 60. if x is not None else None
         self.data[self.TIME_LB] = self.data[self.TIME_LB].map(func)
-        out_csv = f"{self.name}{self.CSV_EXT}"
+        out_csv = f"{self.dirname}{self.CSV_EXT}"
         self.data.to_csv(out_csv)
         jobutils.add_outfile(out_csv)
 
@@ -446,7 +456,7 @@ class CollectLog(Exist):
                     ax2.spines['right'].set_color('b')
                     key = f"{self.TIME}_{self.MEMORY}"
                 fig.tight_layout()
-                out_png = f"{self.name}_{key}{self.PNG_EXT}"
+                out_png = f"{self.dirname}_{key}{self.PNG_EXT}"
                 fig.savefig(out_png)
                 jobutils.add_outfile(out_png)
 
@@ -463,7 +473,6 @@ class Check(Cmd):
     The class to execute the operators in addition to the parsing a file.
     """
 
-    NAME = 'check'
     Class = {
         'exist': Exist,
         'glob': Glob,
@@ -494,7 +503,7 @@ class Process(process.Base):
     Sub process to run check cmd.
     """
 
-    NAME = Check.NAME
+    NAME = Check.name
     SEP = ';\n'
 
 
@@ -504,7 +513,6 @@ class Tag(Cmd):
     tag file (or update existing one).
     """
 
-    NAME = 'tag'
     SLOW = 'slow'
     LABEL = 'label'
 
@@ -544,7 +552,7 @@ class Tag(Cmd):
         """
         Set the log readers.
         """
-        for job in jobutils.Job(job=self.job).getJobs():
+        for job in jobutils.Job(dir=self.dir).getJobs():
             if not job.logfile:
                 continue
             self.logs.append(logutils.Reader(job.logfile))
@@ -580,7 +588,7 @@ class Tag(Cmd):
 
         :return list: the parameters from the parameter file.
         """
-        return Param(job=self.job, options=self.options).args
+        return Param(dir=self.dir, options=self.options).args
 
     def set(self, key, *value):
         """
