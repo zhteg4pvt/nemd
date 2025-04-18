@@ -10,7 +10,6 @@ import functools
 import glob
 import os
 import re
-import shlex
 import sys
 
 import numpy as np
@@ -28,9 +27,11 @@ from nemd import timeutils
 CMD = 'cmd'
 CHECK = 'check'
 TAG = 'tag'
+DIR = 'DIR'
 
 FILE_RE = re.compile('.* +(.*)_(driver|workflow).py( +.*)?$')
 NAME_BRKT_RE = re.compile('(?:;|&&|\|\|)?(\w+)\\((.*?)\\)')
+KWARGS_RE = re.compile(r"(.*)=(.*)")
 
 
 class Cmd:
@@ -181,6 +182,8 @@ class Exist:
         :param args str: the target filenames
         """
         self.args = args
+        self.dir = None
+        self.setUp()
 
     def run(self):
         """
@@ -191,15 +194,12 @@ class Exist:
                 continue
             self.error(f"{target} not found")
 
-    @classmethod
-    def getTokens(cls, values, **kwargs):
+    def setUp(self):
         """
         Get the cmd tokens.
-
-        :param values str: generate token from the input values.
-        :return list: token list
         """
-        return [x.strip('\'\" ') for x in values.split(',')]
+        self.args = [x.strip() for x in self.args]
+        self.dir = os.environ[DIR]
 
     def error(self, msg):
         """
@@ -276,18 +276,12 @@ class Cmp(Exist):
         self.rtol = rtol
         self.equal_nan = equal_nan
 
-    @classmethod
-    def getTokens(cls, values, job=None):
+    def setUp(self):
         """
         Get the cmd tokens.
-
-        :param values str: generate token from the input values.
-        :param job `signac.job.Job`: the check job.
-        :return list: token list
         """
-        params = super().getTokens(values)
-        pathname = os.path.join(job.statepoint[jobutils.FLAG_DIR], params[0])
-        return [pathname] + params[1:]
+        super().setUp()
+        self.args[0] = os.path.join(self.dir, self.args[0])
 
     def run(self):
         """
@@ -382,26 +376,13 @@ class CollectLog(Exist):
     LABELS = {TIME: TIME_LB, MEMORY: MEMORY_LB}
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args)
-        self.kwargs = kwargs
+        super().__init__(*args, **kwargs)
         self.data = None
-        self.name = os.path.basename(self.args[-1])
-
-    @classmethod
-    def getTokens(cls, values, job=None):
-        """
-        Get the cmd tokens.
-
-        :param values str: generate token from the input values.
-        :param job `signac.job.Job`: the check job.
-        :return list: token list
-        """
-        tokens = [x.strip('\'\" ') for x in values.split(',')]
-        if not tokens:
-            tokens = [cls.TIME]
-        jobs = jobutils.Job(job).getJobs()
-        files = [f"{x.jobname}={x.logfile}" for x in jobs]
-        return tokens + [job.statepoint[jobutils.FLAG_DIR]] + files
+        self.name = os.path.basename(self.dir)
+        self.logs = {
+            x.jobname: x.logfile
+            for x in jobutils.Job().getJobs() if x.logfile
+        }
 
     def run(self):
         """
@@ -414,11 +395,11 @@ class CollectLog(Exist):
         """
         Set the time and memory data from the log files.
         """
-        files = {x: y for x, y in self.kwargs.items() if os.path.exists(y)}
+        files = {x: y for x, y in self.logs.items() if os.path.exists(y)}
         rdrs = [logutils.Reader(x) for x in files.values()]
         names = [x.options.NAME for x in rdrs]
         params = [x.removeprefix(y)[1:] for x, y in zip(files.keys(), names)]
-        index = pd.Index(params, name=Param(dir=self.args[-1]).label)
+        index = pd.Index(params, name=Param(dir=self.dir).label)
         data = {}
         if self.TIME in self.args:
             data[self.TIME_LB] = [x.task_time for x in rdrs]
@@ -436,7 +417,7 @@ class CollectLog(Exist):
         """
         Plot the data. Time and memory are plotted together if possible.
         """
-        for key in self.args[:-1]:
+        for key in self.args:
             if key == self.MEMORY and self.TIME in self.args:
                 # memory and time are plotted together when key == self.TIME
                 continue
@@ -499,29 +480,13 @@ class Check(Cmd):
         """
         jobname = os.path.basename(self.dir)
         print(f"{jobname}: {'; '.join(self.args)}")
-        proc = Process(tokens=list(self.tokens), jobname=jobname)
+        export_dir = f'export {DIR}={self.dir}'
+        proc = Process(tokens=[export_dir] + self.args, jobname=jobname)
         completed = proc.run()
         if not completed.returncode:
             return
         with open(proc.logfile) as fh:
             raise CheckError(fh.read())
-
-    @property
-    def tokens(self):
-        """
-        The args to build the command from.
-
-        :return list: each value is a one-line command
-        """
-        for line in self.args:
-            token = line
-            for match in NAME_BRKT_RE.finditer(line):
-                name, values = match.groups()
-                params = Check.Class[name].getTokens(values, job=self.job)
-                shell_cmd = shlex.join(['nemd_check', name] + params)
-                python_cmd = line[match.span(1)[0]:match.span()[-1]]
-                token = token.replace(python_cmd, shell_cmd)
-            yield token
 
 
 class Process(process.Base):
@@ -728,11 +693,7 @@ class Tag(Cmd):
 
 
 if __name__ == "__main__":
-    args, kwargs = [], {}
-    for val in sys.argv[2:]:
-        match = re.match("(.*)=(.*)", val)
-        if match:
-            kwargs[match.group(1).strip()] = match.group(2).strip()
-        else:
-            args.append(val)
-    Check.Class[sys.argv[1]](*args, **kwargs).run()
+    matches = [KWARGS_RE.match(x) for x in sys.argv[2:]]
+    args = [x for x, y in zip(sys.argv[2:], matches) if y is None]
+    kwargs = [[y.strip() for y in x.groups()] for x in matches if x]
+    Check.Class[sys.argv[1]](*args, **dict(kwargs)).run()

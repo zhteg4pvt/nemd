@@ -1,2 +1,2 @@
-cmp(lmp_log_toteng.csv, lmp_log_toteng.csv, rtol=1e-6)
-( grep 'CPU 2' cmd_cmd ) && in('2 OpenMP thread', lammps_lmp.log)
+nemd_check cmp lmp_log_toteng.csv lmp_log_toteng.csv rtol=1e-6
+( grep 'CPU 2' cmd_cmd ) && ( nemd_check in '2 OpenMP thread' lammps_lmp.log )

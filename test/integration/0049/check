@@ -1,1 +1,2 @@
-collect_log(time,memory) && glob(0049.csv, 0049_time*.png)
+nemd_check collect_log time memory
+nemd_check glob 0049.csv "0049_time*.png"

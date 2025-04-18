@@ -1,1 +1,1 @@
-cmp('cb_lmp_log_toteng.csv', 'cb_lmp_log_toteng.csv', rtol=1e-6)
+nemd_check cmp cb_lmp_log_toteng.csv cb_lmp_log_toteng.csv rtol=1e-6

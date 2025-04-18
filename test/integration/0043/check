@@ -1,1 +1,1 @@
-exist('recip_sp.png')
+nemd_check exist recip_sp.png

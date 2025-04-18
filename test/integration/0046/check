@@ -1,1 +1,2 @@
-cmp(mb_lmp_log_toteng.csv, mb_lmp_log_toteng.csv, rtol=1e-3) && exist(mb_lmp_log_toteng.png)
+nemd_check cmp mb_lmp_log_toteng.csv mb_lmp_log_toteng.csv rtol=1e-3
+nemd_check exist mb_lmp_log_toteng.png

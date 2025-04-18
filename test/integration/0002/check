@@ -1,2 +1,2 @@
-cmp('mol_bldr.data', 'mol_bldr.data')
-cmp('mol_bldr.in', 'mol_bldr.in')
+nemd_check cmp mol_bldr.data mol_bldr.data
+nemd_check cmp mol_bldr.in mol_bldr.in

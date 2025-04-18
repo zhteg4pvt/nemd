@@ -26,9 +26,6 @@ class TestFunc:
                               stdout=subprocess.PIPE,
                               text=True,
                               shell=True)
-        if not evalue:
-            assert 'Lazily-loaded' in proc.stdout
-            return
-        assert 'Lazily-loaded' not in proc.stdout
+        assert bool(evalue) ^ ('Lazily-loaded' in proc.stdout)
         assert 1e-08 == constants.ANG_TO_CM
         assert not repr(constants).startswith('Lazily-loaded')

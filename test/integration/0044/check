@@ -1,3 +1,4 @@
-cmp('dispersion.data', 'dispersion.data') && cmp('dispersion.pattern_HARMONIC', 'suggest/dispersion.pattern_HARMONIC')
-cmp('dispersion.bands', 'phonons/dispersion.bands')
+nemd_check cmp dispersion.data dispersion.data
+nemd_check cmp dispersion.pattern_HARMONIC suggest/dispersion.pattern_HARMONIC
+nemd_check cmp dispersion.bands phonons/dispersion.bands
 # xml isn't compared due to non-significant difference: e.g. <FC2 pairs="0 9" multiplicity="1">1.003614294873896e-03</FC2> (mac) vs 1.003614294873972e-03 (ubuntu)

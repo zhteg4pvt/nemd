@@ -1,1 +1,1 @@
-cmp(lmp_traj_rdf.csv, lmp_traj_rdf.csv)
+nemd_check cmp lmp_traj_rdf.csv lmp_traj_rdf.csv

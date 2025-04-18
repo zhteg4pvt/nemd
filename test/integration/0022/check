@@ -1,1 +1,1 @@
-cmp('amorp_bldr.data', 'amorp_bldr.data', rtol=1e-3, atol=3e-3)
+nemd_check cmp amorp_bldr.data amorp_bldr.data rtol=1e-3 atol=3e-3
