@@ -13,6 +13,7 @@ import os
 import re
 
 from nemd import envutils
+from nemd import objectutils
 
 NEMD_RUN = 'nemd_run'
 NEMD_MODULE = 'nemd_module'
@@ -141,7 +142,7 @@ def add_outfile(outfile, jobname=None, file=False, log=False):
     job.write()
 
 
-class Job:
+class Job(objectutils.Object):
     """
     Json file centered job applications.
     """
@@ -155,19 +156,9 @@ class Job:
         :param dir str: the job dirname
         :param job 'signac.job.Job': the signac job instance for json path
         """
-        self.jobname = jobname if jobname else self.default
+        self.jobname = jobname or envutils.get_jobname() or self.name
         self.dir = dir
         self.job = job
-
-    @classmethod
-    @property
-    def default(cls):
-        """
-        The default jobname.
-
-        :return str: the default jobname
-        """
-        return envutils.get_jobname() or cls.__name__.lower()
 
     @property
     @functools.cache

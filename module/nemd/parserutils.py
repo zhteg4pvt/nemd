@@ -534,12 +534,11 @@ class Driver(argparse.ArgumentParser):
         Add job control related flags.
         """
         if self.FLAG_JOBNAME in self.JFLAGS:
-            name = envutils.get_jobname(name='job')
             self.add_argument(jobutils.FLAG_NAME,
-                              default=name,
+                              default=envutils.get_jobname(),
                               help=argparse.SUPPRESS)
             self.add_argument(self.FLAG_JOBNAME,
-                              default=name,
+                              default=envutils.get_jobname(),
                               help='Name output files.')
         if self.FLAG_INTERAC in self.JFLAGS:
             self.addBool(self.FLAG_INTERAC,

@@ -70,13 +70,13 @@ def jit_kwargs():
     return {NOPYTHON: mode in NOPYTHON_MODES, 'cache': mode == CACHE_MODE}
 
 
-def get_jobname(name=None):
+def get_jobname():
     """
     The jobname of the current execution.
 
     :return str: the jobname.
     """
-    return os.environ.get(JOBNAME, name)
+    return os.environ.get(JOBNAME)
 
 
 def get_mem_intvl():

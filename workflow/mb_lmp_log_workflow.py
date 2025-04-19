@@ -72,7 +72,7 @@ class AnalyzerAgg(analyzer.Agg):
         # Read the reported value from the log (e.g. dihedral angle: 73.50 deg)
         for job in jobutils.Job(job=self.groups[0][1][0]).getJobs():
             reader = Reader(job.logfile)
-            if reader.options.NAME != task.MolBldr.default:
+            if reader.options.NAME != task.MolBldr.name:
                 continue
             values = reader.getSubstruct(smiles)
             self.data.index = pd.Index([values], name=name)

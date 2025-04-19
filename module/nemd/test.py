@@ -19,6 +19,7 @@ from nemd import envutils
 from nemd import jobutils
 from nemd import lammpsdata
 from nemd import logutils
+from nemd import objectutils
 from nemd import plotutils
 from nemd import process
 from nemd import symbols
@@ -29,12 +30,8 @@ CHECK = 'check'
 TAG = 'tag'
 DIR = 'DIR'
 
-FILE_RE = re.compile('.* +(.*)_(driver|workflow).py( +.*)?$')
-NAME_BRKT_RE = re.compile('(?:;|&&|\|\|)?(\w+)\\((.*?)\\)')
-KWARGS_RE = re.compile(r'(.*)=(.*)')
 
-
-class Cmd:
+class Cmd(objectutils.Object):
     """
     The class to parse a cmd test file.
     """
@@ -49,16 +46,6 @@ class Cmd:
         self.dir = dir
         self.options = options
         self.pathname = os.path.join(self.dir, self.name)
-
-    @classmethod
-    @property
-    def name(cls):
-        """
-        The name of the class.
-
-        :return str: class name
-        """
-        return cls.__name__.lower()
 
     @property
     @functools.cache
@@ -116,7 +103,6 @@ class Param(Cmd):
     """
 
     PARAM = f'$param'
-    JOBNAME_RE = re.compile(f'{jobutils.FLAG_JOBNAME} +(\w+)')
 
     def __init__(self, *args, cmd=None, **kwargs):
         """
@@ -158,31 +144,29 @@ class Param(Cmd):
         params = Tag(dir=self.dir).slowParams(slow=self.options.slow)
         return [x for x in args if x in params]
 
-    def getCmds(self):
+    def getCmds(self,
+                jobname_re=re.compile(f'{jobutils.FLAG_JOBNAME} +\w+'),
+                script_re=re.compile('.* +(.*)_(driver|workflow).py( +.*|$)')):
         """
         Get the parameterized commands.
 
+        :param jobname_re `re.compile`: the jobname regular express
+        :param script_re `re.compile`:the script regular express
         :return list: each value is one command.
         """
-        if not self.cmd:
-            return
-        cmd = self.cmd.args[0]
-        if self.PARAM not in cmd or not self.args:
+        if not self.args or self.PARAM not in self.cmd.args[0]:
             return self.cmd.args
-        match = self.JOBNAME_RE.search(cmd)
-        if match:
-            name = match.group(1)
-            cmd = cmd.replace(cmd[slice(*match.span())], '')
-        else:
-            name = FILE_RE.match(cmd).group(1)
-        cmd += f' {jobutils.FLAG_NAME} {name}'
-        cmds = [cmd.replace(self.PARAM, x) for x in self.args]
-        names = [x.replace(' ', '_') for x in self.args]
-        flag_names = [f'{jobutils.FLAG_JOBNAME} {name}_{x}' for x in names]
-        return [f'{x} {y}' for x, y in zip(cmds, flag_names)]
+        name = self.label or script_re.match(self.cmd.args[0]).group(1)
+        name = name.lower().replace(' ', '_')
+        cmd = jobname_re.sub('', self.cmd.args[0])
+        cmd = f"{cmd} {jobutils.FLAG_NAME} {name}"
+        return [
+            f'{cmd.replace(self.PARAM, x)} {jobutils.FLAG_JOBNAME} {name}_{x}'
+            for x in self.args
+        ]
 
 
-class Exist:
+class Exist(objectutils.Object):
     """
     The class to perform file existence check.
     """
@@ -192,7 +176,6 @@ class Exist:
         :param args str: the target filenames
         """
         self.args = args
-        self.dir = None
         self.setUp()
 
     def run(self):
@@ -209,7 +192,6 @@ class Exist:
         Get the cmd tokens.
         """
         self.args = [x.strip() for x in self.args]
-        self.dir = os.environ[DIR]
 
     def error(self, msg):
         """
@@ -285,13 +267,7 @@ class Cmp(Exist):
         self.atol = atol
         self.rtol = rtol
         self.equal_nan = equal_nan
-
-    def setUp(self):
-        """
-        Get the cmd tokens.
-        """
-        super().setUp()
-        self.args[0] = os.path.join(self.dir, self.args[0])
+        self.dir = dir
 
     def run(self):
         """
@@ -388,7 +364,7 @@ class CollectLog(Exist):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.data = None
-        self.dirname = os.path.basename(self.dir)
+        self.outfile = f"{self.name}{self.PNG_EXT}"
         self.logs = {
             x.jobname: x.logfile
             for x in jobutils.Job().getJobs() if x.logfile
@@ -407,19 +383,19 @@ class CollectLog(Exist):
         """
         files = {x: y for x, y in self.logs.items() if os.path.exists(y)}
         rdrs = [logutils.Reader(x) for x in files.values()]
-        names = [x.options.NAME for x in rdrs]
-        params = [x.removeprefix(y)[1:] for x, y in zip(files.keys(), names)]
-        index = pd.Index(params, name=Param(dir=self.dir).label)
         data = {}
         if self.TIME in self.args:
             data[self.TIME_LB] = [x.task_time for x in rdrs]
         if self.MEMORY in self.args:
             data[self.MEMORY_LB] = [x.memory for x in rdrs]
+        name = rdrs[0].options.NAME
+        params = [x.removeprefix(name)[1:] for x in files.keys()]
+        index = pd.Index(params, name=name)
         self.data = pd.DataFrame(data, index=index)
         self.data.set_index(self.data.index.astype(float), inplace=True)
         func = lambda x: x.total_seconds() / 60. if x is not None else None
         self.data[self.TIME_LB] = self.data[self.TIME_LB].map(func)
-        out_csv = f"{self.dirname}{self.CSV_EXT}"
+        out_csv = f"{self.name}{self.CSV_EXT}"
         self.data.to_csv(out_csv)
         jobutils.add_outfile(out_csv)
 
@@ -454,11 +430,9 @@ class CollectLog(Exist):
                     ax2.set_ylabel(self.MEMORY_LB, color='b')
                     ax2.tick_params(axis='y', colors='b')
                     ax2.spines['right'].set_color('b')
-                    key = f"{self.TIME}_{self.MEMORY}"
                 fig.tight_layout()
-                out_png = f"{self.dirname}_{key}{self.PNG_EXT}"
-                fig.savefig(out_png)
-                jobutils.add_outfile(out_png)
+                fig.savefig(self.outfile)
+                jobutils.add_outfile(self.outfile)
 
 
 class CheckError(Exception):
@@ -473,15 +447,10 @@ class Check(Cmd):
     The class to execute the operators in addition to the parsing a file.
     """
 
-    Class = {
-        'exist': Exist,
-        'glob': Glob,
-        'in': In,
-        'cmp': Cmp,
-        'collect_log': CollectLog
-    }
+    NEMD_CHECK = 'nemd_check'
+    CMP = 'cmp'
 
-    def run(self):
+    def run(self, rex=re.compile(rf'{NEMD_CHECK} +{CMP} +(\w+)')):
         """
         Check the results by execute all operators. Raise errors if any failed.
 
@@ -489,8 +458,8 @@ class Check(Cmd):
         """
         jobname = os.path.basename(self.dir)
         print(f"{jobname}: {'; '.join(self.args)}")
-        export_dir = f'export {DIR}={self.dir}'
-        proc = Process(tokens=[export_dir] + self.args, jobname=jobname)
+        rpl = rf'{self.NEMD_CHECK} {self.CMP} {self.dir}{os.path.sep}\1'
+        proc = Process([rex.sub(rpl, x) for x in self.args], jobname=jobname)
         completed = proc.run()
         if not completed.returncode:
             return
@@ -528,13 +497,13 @@ class Tag(Cmd):
             return
         self.setOperators()
 
-    def setOperators(self):
+    def setOperators(self, rex=re.compile('(?:;|&&|\|\|)?(\w+)\\((.*?)\\)')):
         """
         Parse the one line command to get the operators.
         """
         if self.args is None:
             return
-        for match in NAME_BRKT_RE.finditer(' '.join(self.args)):
+        for match in rex.finditer(' '.join(self.args)):
             name, value = [x.strip("'\"") for x in match.groups()]
             values = [x.strip(" '\"") for x in value.split(symbols.COMMA)]
             self.operators.append([name] + [x for x in values if x])
@@ -701,7 +670,16 @@ class Tag(Cmd):
 
 
 if __name__ == "__main__":
-    matches = [KWARGS_RE.match(x) for x in sys.argv[2:]]
+    """
+    Run library module as a script.
+    """
+    Classes = [Exist, Glob, In, Cmp, CollectLog]
+    try:
+        Class = next(x for x in Classes if x.name == sys.argv[1])
+    except StopIteration:
+        sys.exit(f'Please choose from {[x.name for x in Classes]}')
+    kwargs_re = re.compile(r'(.*)=(.*)')
+    matches = [kwargs_re.match(x) for x in sys.argv[2:]]
     args = [x for x, y in zip(sys.argv[2:], matches) if y is None]
     kwargs = [[y.strip() for y in x.groups()] for x in matches if x]
-    Check.Class[sys.argv[1]](*args, **dict(kwargs)).run()
+    Class(*args, **dict(kwargs)).run()

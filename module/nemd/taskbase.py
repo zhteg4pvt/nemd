@@ -48,7 +48,7 @@ class Job(jobutils.Job):
 
     @classmethod
     @property
-    def default(cls):
+    def name(cls):
         """
         The default jobname.
 
@@ -84,7 +84,7 @@ class Job(jobutils.Job):
         :return 'types.SimpleNamespace': the name, operation, and class
         """
         if jobname is None:
-            jobname = cls.default
+            jobname = cls.name
         if cmd is None:
             cmd = cls.OUT == jobutils.OUTFILE
         if with_job is None:

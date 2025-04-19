@@ -9,13 +9,5 @@ Usage:
 [ $# -lt 1 ] && echo 'Please specify a check command.' && exit 1
 
 . nemd_func
-
-case $1 in
-  exist|glob|in|cmp|collect_log)
-    set -- python -m nemd.test "$@"
-    ;;
-  *)
-    ;;
-  esac
-
+set -- python -m nemd.test "$@"
 debug "$@"; "$@"
