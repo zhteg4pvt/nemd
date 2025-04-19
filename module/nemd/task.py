@@ -121,7 +121,7 @@ class Cmd(taskbase.Cmd):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.dir = self.job.statepoint[jobutils.FLAG_DIR]
-        self.cmd = test.Cmd(dir=self.dir)
+        self.cmd = test.Cmd(self.dir)
         self.args = self.param.getCmds()
 
     def getCmd(self, **kwargs):
@@ -130,7 +130,7 @@ class Cmd(taskbase.Cmd):
 
         :return str: the command as str
         """
-        return super().getCmd(prefix=f'echo "{self.cmd.header}"', **kwargs)
+        return super().getCmd(prefix=self.cmd.prefix, **kwargs)
 
     def run(self):
         """
@@ -193,10 +193,7 @@ class Cmd(taskbase.Cmd):
 
         :return: True if the post-conditions are met.
         """
-        jobs = self.getJobs()
-        if self.param.args is None:
-            return bool(jobs)
-        return len(jobs) >= len(self.param.args)
+        return len(self.getJobs()) >= max(1, len(self.param.args))
 
     @property
     @functools.cache
@@ -206,7 +203,7 @@ class Cmd(taskbase.Cmd):
 
         :return `test.Param`: the parameters.
         """
-        return test.Param(dir=self.dir, cmd=self.cmd, options=self.options)
+        return test.Param(self.dir, cmd=self.cmd, options=self.options)
 
     def clean(self):
         """
@@ -236,7 +233,7 @@ class Check(taskbase.Job):
         Main method to execute.
         """
         try:
-            test.Check(dir=self.dir, options=self.options).run()
+            test.Check(self.dir, options=self.options).run()
         except test.CheckError as err:
             self.out = str(err)
 
@@ -250,7 +247,7 @@ class Tag(Check):
         """
         Main method to execute.
         """
-        test.Tag(dir=self.dir, options=self.options).run()
+        test.Tag(self.dir, options=self.options).run()
 
 
 class LmpAgg(taskbase.Agg):

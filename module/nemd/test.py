@@ -33,50 +33,33 @@ class Cmd(objectutils.Object):
 
     POUND = symbols.POUND
 
-    def __init__(self, dir=None, options=None):
+    def __init__(self, dir, options=None):
         """
         :param dir str: the path containing the file
-        :param options 'argparse.ArgumentParser':  Parsed command-line options
+        :param options 'argparse.ArgumentParser': Parsed command-line options
         """
         self.dir = dir
         self.options = options
-        self.pathname = os.path.join(self.dir, self.name)
+        self.raw = []
+        self.args = []
         self.jobname = os.path.basename(self.dir)
-
-    @property
-    @functools.cache
-    def raw(self):
-        """
-        The raw string by reading the file.
-        """
-        if not os.path.isfile(self.pathname):
+        self.infile = os.path.join(self.dir, self.name)
+        if not os.path.isfile(self.infile):
             return
-        with open(self.pathname) as fh:
-            return [x.strip() for x in fh.readlines() if x.strip()]
+        with open(self.infile) as fh:
+            self.raw = [x.strip() for x in fh.readlines() if x.strip()]
+        self.args = [x for x in self.raw if not x.startswith(self.POUND)]
 
     @property
-    @functools.cache
-    def args(self):
+    def prefix(self):
         """
-        Return arguments out of the raw.
+        Return the prefix out of the raw.
 
-        :return list of str: each str is a command
+        :return str: the prefix
         """
-        if self.raw is None:
-            return
-        return [x for x in self.raw if not x.startswith(self.POUND)]
-
-    @property
-    @functools.cache
-    def header(self):
-        """
-        Return the header out of the raw.
-
-        :return str: the header
-        """
-        header = f"# {os.path.basename(self.dir)}"
         cmts = symbols.SPACE.join(self.cmts)
-        return f"{header}: {cmts}" if cmts else header
+        msg = f"{self.jobname}: {cmts}" if cmts else self.jobname
+        return f'echo "{msg}"'
 
     @property
     def cmts(self):
@@ -85,8 +68,6 @@ class Cmd(objectutils.Object):
 
         :return generator: the comments
         """
-        if self.raw is None:
-            return
         for line in self.raw:
             if not line.startswith(self.POUND):
                 return
@@ -106,6 +87,9 @@ class Param(Cmd):
         """
         super().__init__(*args, **kwargs)
         self.cmd = cmd
+        if self.options and self.options.slow:
+            fast = Tag(self.dir, options=self.options).fast
+            self.args = fast.intersection(self.args)
 
     @property
     @functools.cache
@@ -120,25 +104,9 @@ class Param(Cmd):
             match = re.search(f'-(\w*) \{self.PARAM}', self.cmd.args[0])
             name = match.group(1).replace('_', ' ') if match else self.name
             label = ' '.join([x.capitalize() for x in name.split()])
-            with open(self.pathname, 'w') as fh:
+            with open(self.infile, 'w') as fh:
                 fh.write('\n'.join([f"# {label}"] + self.args))
         return label
-
-    @property
-    @functools.cache
-    def args(self):
-        """
-        The arguments from the file filtered by the slow.
-
-        :return list: the arguments filtered by slow.
-        """
-        args = super().args
-        if args is None:
-            return
-        if self.options.slow is None:
-            return args
-        params = Tag(dir=self.dir).slowParams(slow=self.options.slow)
-        return [x for x in args if x in params]
 
     def getCmds(self,
                 jobname_re=re.compile(f'{jobutils.FLAG_JOBNAME} +\w+'),
@@ -452,7 +420,7 @@ class Check(Cmd):
 
         :raise CheckError: if check failed.
         """
-        print(f"# {self.jobname}: {'; '.join(self.args)}")
+        print(f"{self.jobname}: {'; '.join(self.args)}")
         rpl = rf'{self.NEMD_CHECK} {self.CMP} {self.dir}{os.path.sep}\1'
         proc = Process([rex.sub(rpl, x) for x in self.args],
                        jobname=self.jobname)
@@ -553,7 +521,7 @@ class Tag(Cmd):
 
         :return list: the parameters from the parameter file.
         """
-        return Param(dir=self.dir, options=self.options).args
+        return Param(self.dir, options=self.options).args
 
     def set(self, key, *value):
         """
@@ -608,8 +576,8 @@ class Tag(Cmd):
         """
         Write the tag file.
         """
-        print(f"# {self.jobname}: {symbols.COMMA.join(self.args)}")
-        with open(self.pathname, 'w') as fh:
+        print(f"{self.jobname}: {symbols.COMMA.join(self.args)}")
+        with open(self.infile, 'w') as fh:
             for key, *value in self.operators:
                 values = symbols.COMMA.join(value)
                 fh.write(f"{key}({values})\n")
@@ -620,34 +588,24 @@ class Tag(Cmd):
 
         :return bool: Whether the test is selected.
         """
-        return all([not self.slow(), self.labeled()])
+        return self.fast and self.labeled
 
-    def slow(self):
+    @property
+    def fast(self):
         """
-        Whether the test is slow.
+        Get the parameters considered as fast.
 
-        :return bool: Whether the test is slow.
+        :return bool or set of str: parameters filtered by slow
         """
-        if self.options.slow is None or not self.get(self.SLOW):
-            return False
-        params = self.slowParams()
-        return not params
-
-    def slowParams(self, slow=None):
-        """
-        Get the slow parameters filtered by slow.
-
-        :param slow float: above this value is slow
-        :return list of str: parameters filtered by slow
-        """
-        if slow is None:
-            slow = self.options.slow
+        if self.options.slow is None:
+            return True
         # [['slow', '00:00:01']]
         # [['slow', '1', '00:00:01'], ['slow', '9', '00:00:04']]
         params = [x[1:] for x in self.operators if x[0] == self.SLOW]
         time = [timeutils.str2delta(x[-1]).total_seconds() for x in params]
-        return [x[0] for x, y in zip(params, time) if y <= slow]
+        return {x[0] for x, y in zip(params, time) if y <= self.options.slow}
 
+    @property
     def labeled(self):
         """
         Whether the test is labeled with the specified labels.
