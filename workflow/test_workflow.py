@@ -68,10 +68,11 @@ class Test(jobcontrol.Runner):
         """
         Set operators to run cmds, check results, and tag tests.
         """
-        cmd = self.add(task.Cmd) if test.CMD in self.options.task else False
-        if test.CHECK in self.options.task:
+        cmd = self.add(
+            task.Cmd) if test.Cmd.name in self.options.task else False
+        if test.Check.name in self.options.task:
             self.add(task.Check, pre=cmd)
-        if test.TAG in self.options.task:
+        if test.Tag.name in self.options.task:
             self.add(task.Tag, pre=cmd)
 
     def setState(self):
@@ -138,13 +139,11 @@ class Parser(parserutils.Workflow):
     FLAG_LABEL = '-label'
     CMD = 'cmd'
     CHECK = 'check'
-    TAG = 'tag'
 
     INTEGRATION = 'integration'
     SCIENTIFIC = 'scientific'
     PERFORMANCE = 'performance'
     NAMES = [INTEGRATION, SCIENTIFIC, PERFORMANCE]
-    TASKS = [CMD, CHECK, TAG]
 
     def setUp(self):
         """
@@ -176,8 +175,8 @@ class Parser(parserutils.Workflow):
                           help='Select the tests marked with the given label.')
         self.add_argument(self.FLAG_TASK,
                           nargs='+',
-                          choices=self.TASKS,
-                          default=[self.CMD, self.CHECK],
+                          choices=[x.name for x in test.TASKS],
+                          default=[test.Cmd.name, test.Check.name],
                           help='cmd: run the commands in cmd file; '
                           'check: check the results; tag: update the tag file')
         self.valids.add(TestValid)
@@ -192,7 +191,6 @@ class Parser(parserutils.Workflow):
 
 def main(argv):
     parser = Parser(descr=__doc__)
-
     options = parser.parse_args(argv)
     with logutils.Script(options, file=True) as logger:
         obj = Test(options, argv, logger=logger)

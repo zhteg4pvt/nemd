@@ -25,11 +25,6 @@ from nemd import process
 from nemd import symbols
 from nemd import timeutils
 
-CMD = 'cmd'
-CHECK = 'check'
-TAG = 'tag'
-DIR = 'DIR'
-
 
 class Cmd(objectutils.Object):
     """
@@ -46,6 +41,7 @@ class Cmd(objectutils.Object):
         self.dir = dir
         self.options = options
         self.pathname = os.path.join(self.dir, self.name)
+        self.jobname = os.path.basename(self.dir)
 
     @property
     @functools.cache
@@ -456,10 +452,10 @@ class Check(Cmd):
 
         :raise CheckError: if check failed.
         """
-        jobname = os.path.basename(self.dir)
-        print(f"{jobname}: {'; '.join(self.args)}")
+        print(f"# {self.jobname}: {'; '.join(self.args)}")
         rpl = rf'{self.NEMD_CHECK} {self.CMP} {self.dir}{os.path.sep}\1'
-        proc = Process([rex.sub(rpl, x) for x in self.args], jobname=jobname)
+        proc = Process([rex.sub(rpl, x) for x in self.args],
+                       jobname=self.jobname)
         completed = proc.run()
         if not completed.returncode:
             return
@@ -612,9 +608,7 @@ class Tag(Cmd):
         """
         Write the tag file.
         """
-        ops = [f"{x[0]}({symbols.COMMA.join(x[1:])})" for x in self.operators]
-        name = os.path.basename(os.path.dirname(self.pathname))
-        print(f"# {name}: Tagging {symbols.COMMA.join(ops)}")
+        print(f"# {self.jobname}: {symbols.COMMA.join(self.args)}")
         with open(self.pathname, 'w') as fh:
             for key, *value in self.operators:
                 values = symbols.COMMA.join(value)
@@ -668,6 +662,8 @@ class Tag(Cmd):
                     return True
         return False
 
+
+TASKS = [Cmd, Check, Tag]
 
 if __name__ == "__main__":
     """
