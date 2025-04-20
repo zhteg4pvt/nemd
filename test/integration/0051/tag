@@ -1,2 +1,2 @@
-slow(traj, 00:00:03)
+slow(traj, 00:00:04)
 label(lmp_traj)

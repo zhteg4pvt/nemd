@@ -4,42 +4,55 @@
 This module provides test related classes to parse files for command, parameter,
 checking, and labels.
 """
-import functools
+import collections
 import os
 import re
 
+from nemd import check
 from nemd import jobutils
 from nemd import logutils
 from nemd import objectutils
 from nemd import process
 from nemd import symbols
 from nemd import timeutils
-from nemd import check
 
 
-class Cmd(objectutils.Object):
+class Base(collections.UserList, objectutils.Object):
     """
-    The class to parse a cmd test file.
+    The base class to parse a test file.
     """
 
     POUND = symbols.POUND
+    SEP = symbols.SPACE
 
     def __init__(self, dir, options=None):
         """
         :param dir str: the path containing the file
         :param options 'argparse.ArgumentParser': Parsed command-line options
         """
+        super().__init__(self)
         self.dir = dir
         self.options = options
         self.jobname = os.path.basename(self.dir)
         self.infile = os.path.join(self.dir, self.name)
-        self.raw = []
         self.args = []
         if not os.path.isfile(self.infile):
             return
         with open(self.infile) as fh:
-            self.raw = [x.strip() for x in fh.readlines() if x.strip()]
-        self.args = [x for x in self.raw if not x.startswith(self.POUND)]
+            self[:] = [x.strip() for x in fh.readlines() if x.strip()]
+        self.args = [x for x in self if not x.startswith(self.POUND)]
+
+    @property
+    def prefix(self):
+        """
+        Return the prefix.
+
+        :return str: the prefix
+        """
+        cmt = self.SEP.join(self.cmts)
+        if not cmt:
+            cmt = self.SEP.join(self.args)
+        return f"{self.jobname}: {cmt}" if cmt else self.jobname
 
     @property
     def cmts(self):
@@ -48,21 +61,25 @@ class Cmd(objectutils.Object):
 
         :return generator: the comments
         """
-        for line in self.raw:
+        for line in self:
             if not line.startswith(self.POUND):
                 return
             yield line.strip(self.POUND).strip()
 
+
+class Cmd(Base):
+    """
+    The class to parse a cmd test file.
+    """
+
     @property
     def prefix(self):
         """
-        Return the prefix out of the raw.
+        Return the prefix.
 
         :return str: the prefix
         """
-        cmt = symbols.SPACE.join(self.cmts)
-        msg = f"{self.jobname}: {cmt}" if cmt else self.jobname
-        return f'echo "{msg}"'
+        return f'echo "{super().prefix}"'
 
 
 class Param(Cmd):
@@ -102,7 +119,6 @@ class Param(Cmd):
         return cmds
 
     @property
-    @functools.cache
     def label(self, rex=re.compile(rf'-(\w*) \{PARAM}')):
         """
         Get the xlabel from the header of the parameter file.
@@ -119,36 +135,31 @@ class Param(Cmd):
         return label.lower().replace(' ', '_')
 
 
-class CheckError(Exception):
-    """
-    Raised when the results are unexpected.
-    """
-    pass
-
-
-class Check(Cmd):
+class Check(Base):
     """
     The class to execute the operators in addition to the parsing a file.
     """
 
     NEMD_CHECK = 'nemd_check'
     CMP = check.Cmp.name
+    SEP = symbols.SEMICOLON
+    RPL = rf'{NEMD_CHECK} {CMP} {{dir}}{os.path.sep}\1'
 
     def run(self, rex=re.compile(rf'{NEMD_CHECK} +{CMP} +(\w+)')):
         """
-        Check the results by execute all operators. Raise errors if any failed.
+        Check the results by execute all operators.
 
-        :raise CheckError: if check failed.
+        :return str: error message.
         """
-        print(f"{self.jobname}: {'; '.join(self.args)}")
-        rpl = rf'{self.NEMD_CHECK} {self.CMP} {self.dir}{os.path.sep}\1'
-        proc = Process([rex.sub(rpl, x) for x in self.args],
-                       jobname=self.jobname)
+        print(self.prefix)
+        rpl = self.RPL.format(dir=self.dir)
+        args = [rex.sub(rpl, x) for x in self.args]
+        proc = Process(args, jobname=self.jobname)
         completed = proc.run()
         if not completed.returncode:
             return
         with open(proc.logfile) as fh:
-            raise CheckError(fh.read())
+            return fh.read()
 
 
 class Process(process.Base):
@@ -160,7 +171,7 @@ class Process(process.Base):
     SEP = ';\n'
 
 
-class Tag(Cmd):
+class Tag(Base):
     """
     The class parses and interprets the tag file. The class also creates a new
     tag file (or update existing one).
@@ -174,23 +185,22 @@ class Tag(Cmd):
         :param delay 'bool': delay the setup if True.
         """
         super().__init__(*args, **kwargs)
-        self.delay = delay
-        self.operators = []
+        self.oprs = []
         self.logs = []
-        if self.delay:
+        if delay:
             return
-        self.setOperators()
+        self.setUp()
 
-    def setOperators(self, rex=re.compile(r'(?:;|&&|\|\|)?(\w+)\\((.*?)\\)')):
+    def setUp(self, rex=re.compile(r'(?:;|&&|\|\|)?(\w+)\\((.*?)\\)')):
         """
-        Parse the one line command to get the operators.
+        Parse the one line command.
         """
         if self.args is None:
             return
-        for match in rex.finditer(' '.join(self.args)):
+        for match in rex.finditer(self.SEP.join(self.args)):
             name, value = [x.strip("'\"") for x in match.groups()]
             values = [x.strip(" '\"") for x in value.split(symbols.COMMA)]
-            self.operators.append([name] + [x for x in values if x])
+            self.oprs.append([name] + [x for x in values if x])
 
     def run(self):
         """
@@ -216,25 +226,9 @@ class Tag(Cmd):
         """
         times = [x.task_time for x in self.logs]
         roots = [os.path.splitext(x.namepath)[0] for x in self.logs]
-        params = [x.split('_')[-1] for x in roots]
-        tags = [
-            f"{x}, {timeutils.delta2str(y)}" for x, y in zip(params, times)
-        ]
+        parms = [x.split('_')[-1] for x in roots]
+        tags = [f"{x}, {timeutils.delta2str(y)}" for x, y in zip(parms, times)]
         self.setMult(self.SLOW, *tags)
-
-    def set(self, key, *value):
-        """
-        Set the value (and the key) of one operator.
-
-        :param key str: the key to be set
-        :param value tuple of str: the value(s) to be set
-        """
-        try:
-            idx = next(i for i, x in enumerate(self.operators) if x[0] == key)
-        except StopIteration:
-            self.operators.append([key, *value])
-        else:
-            self.operators[idx] = [key, *value]
 
     def setMult(self, key, *values):
         """
@@ -244,9 +238,9 @@ class Tag(Cmd):
         :param values tuple of list: each list contains the value(s) of one
             operator.
         """
-        self.operators = [x for x in self.operators if x[0] != key]
+        self.oprs = [x for x in self if x[0] != key]
         for value in values:
-            self.operators.append([self.SLOW, value])
+            self.oprs.append([self.SLOW, value])
 
     def setLabel(self):
         """
@@ -258,6 +252,20 @@ class Tag(Cmd):
             return
         self.set(self.LABEL, *set(labels))
 
+    def set(self, key, *value):
+        """
+        Set the value (and the key) of one operator.
+
+        :param key str: the key to be set
+        :param value tuple of str: the value(s) to be set
+        """
+        try:
+            idx = next(i for i, x in enumerate(self) if x[0] == key)
+        except StopIteration:
+            self.oprs.append([key, *value])
+        else:
+            self.oprs[idx] = [key, *value]
+
     def get(self, key, default=None):
         """
         Get the value of a specific key.
@@ -266,7 +274,7 @@ class Tag(Cmd):
         :param default str: the default value if the key is not found
         :return tuple of str: the value(s)
         """
-        for name, *value in self.operators:
+        for name, *value in self.oprs:
             if name == key:
                 return value
         return tuple() if default is None else default
@@ -275,9 +283,9 @@ class Tag(Cmd):
         """
         Write the tag file.
         """
-        print(f"{self.jobname}: {symbols.COMMA.join(self.args)}")
+        print(self.prefix)
         with open(self.infile, 'w') as fh:
-            for key, *value in self.operators:
+            for key, *value in self.oprs:
                 values = symbols.COMMA.join(value)
                 fh.write(f"{key}({values})\n")
 
@@ -299,7 +307,7 @@ class Tag(Cmd):
         if self.options.slow is None:
             return True if args is None else args
         # [['slow', 'traj', '00:00:01'], ['slow', '9', '00:00:04']]
-        params = [x[1:] for x in self.operators if x[0] == self.SLOW]
+        params = [x[1:] for x in self.oprs if x[0] == self.SLOW]
         time = [timeutils.str2delta(x[-1]).total_seconds() for x in params]
         fast = {x[0] for x, y in zip(params, time) if y <= self.options.slow}
         return True if args is None else [x for x in args if x in fast]

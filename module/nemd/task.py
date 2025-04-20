@@ -222,10 +222,9 @@ class Check(taskbase.Job):
         """
         Main method to execute.
         """
-        try:
-            test.Check(self.dir, options=self.options).run()
-        except test.CheckError as err:
-            self.out = str(err)
+        err = test.Check(self.dir, options=self.options).run()
+        if err:
+            self.out = err
 
 
 class Tag(Check):
