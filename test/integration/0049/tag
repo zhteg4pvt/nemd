@@ -1,3 +1,3 @@
-label(number_of_molecules,amorp_bldr,wa)
-slow(100, 00:00:01)
-slow(50000, 00:00:03)
+slow(50000, 00:00:04)
+slow(100, 00:00:02)
+label(number_of_molecules)

@@ -120,8 +120,8 @@ class Cmd(taskbase.Cmd):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.dir = self.job.statepoint[jobutils.FLAG_DIR]
-        self.cmd = test.Cmd(self.dir)
+        self.cmd = test.Cmd(self.job.statepoint[jobutils.FLAG_DIR])
+        self.param = test.Param(self.cmd, options=self.options)
         self.args = self.param.cmds
 
     def getCmd(self, **kwargs):
@@ -194,16 +194,6 @@ class Cmd(taskbase.Cmd):
         :return: True if the post-conditions are met.
         """
         return len(self.getJobs()) >= max(1, len(self.param.args))
-
-    @property
-    @functools.cache
-    def param(self):
-        """
-        Return the parameter object.
-
-        :return `test.Param`: the parameters.
-        """
-        return test.Param(self.dir, cmd=self.cmd, options=self.options)
 
     def clean(self):
         """

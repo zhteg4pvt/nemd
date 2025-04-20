@@ -9,5 +9,5 @@ Usage:
 [ $# -lt 1 ] && echo 'Please specify a check command.' && exit 1
 
 . nemd_func
-set -- python -m nemd.test "$@"
+set -- python -m nemd.check "$@"
 debug "$@"; "$@"
