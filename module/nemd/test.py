@@ -40,10 +40,10 @@ class Cmd(objectutils.Object):
         """
         self.dir = dir
         self.options = options
-        self.raw = []
-        self.args = []
         self.jobname = os.path.basename(self.dir)
         self.infile = os.path.join(self.dir, self.name)
+        self.raw = []
+        self.args = []
         if not os.path.isfile(self.infile):
             return
         with open(self.infile) as fh:
@@ -57,8 +57,8 @@ class Cmd(objectutils.Object):
 
         :return str: the prefix
         """
-        cmts = symbols.SPACE.join(self.cmts)
-        msg = f"{self.jobname}: {cmts}" if cmts else self.jobname
+        cmt = symbols.SPACE.join(self.cmts)
+        msg = f"{self.jobname}: {cmt}" if cmt else self.jobname
         return f'echo "{msg}"'
 
     @property
@@ -87,30 +87,12 @@ class Param(Cmd):
         """
         super().__init__(*args, **kwargs)
         self.cmd = cmd
-        if self.options and self.options.slow:
-            fast = Tag(self.dir, options=self.options).fast
-            self.args = fast.intersection(self.args)
+        self.args = Tag(self.dir, options=self.options).fast(self.args)
 
-    @property
-    @functools.cache
-    def label(self):
-        """
-        Get the xlabel from the header of the parameter file.
-
-        :return str: The xlabel.
-        """
-        label = next(self.cmts, None)
-        if not label and self.cmd:
-            match = re.search(f'-(\w*) \{self.PARAM}', self.cmd.args[0])
-            name = match.group(1).replace('_', ' ') if match else self.name
-            label = ' '.join([x.capitalize() for x in name.split()])
-            with open(self.infile, 'w') as fh:
-                fh.write('\n'.join([f"# {label}"] + self.args))
-        return label
-
-    def getCmds(self,
-                jobname_re=re.compile(f'{jobutils.FLAG_JOBNAME} +\w+'),
-                script_re=re.compile('.* +(.*)_(driver|workflow).py( +.*|$)')):
+    def getCmds(
+        self,
+        jobname_re=re.compile(f'{jobutils.FLAG_JOBNAME} +\w+'),
+        script_re=re.compile(r'.* +(.*)_(driver|workflow).py( +.*|$)')):
         """
         Get the parameterized commands.
 
@@ -118,16 +100,32 @@ class Param(Cmd):
         :param script_re `re.compile`:the script regular express
         :return list: each value is one command.
         """
-        if not self.args or self.PARAM not in self.cmd.args[0]:
+        if not all([self.args, self.PARAM in self.cmd.args[0]]):
             return self.cmd.args
         name = self.label or script_re.match(self.cmd.args[0]).group(1)
-        name = name.lower().replace(' ', '_')
-        cmd = jobname_re.sub('', self.cmd.args[0])
-        cmd = f"{cmd} {jobutils.FLAG_NAME} {name}"
-        return [
+        cmd = f"{jobname_re.sub('', self.cmd.args[0])} {jobutils.FLAG_NAME} {name}"
+        cmds = [
             f'{cmd.replace(self.PARAM, x)} {jobutils.FLAG_JOBNAME} {name}_{x}'
             for x in self.args
         ]
+        return cmds
+
+    @property
+    @functools.cache
+    def label(self, rex=re.compile(rf'-(\w*) \{PARAM}')):
+        """
+        Get the xlabel from the header of the parameter file.
+
+        :param rex `re.compile`: the regular express to search param label
+        :return str: The xlabel.
+        """
+        label = next(self.cmts, '')
+        if not label and self.cmd:
+            match = rex.search(self.cmd.args[0])
+            label = match.group(1) if match else self.name
+            with open(self.infile, 'w') as fh:
+                fh.write('\n'.join([f"{self.POUND} {label}"] + self.args))
+        return label.lower().replace(' ', '_')
 
 
 class Exist(objectutils.Object):
@@ -140,7 +138,6 @@ class Exist(objectutils.Object):
         :param args str: the target filenames
         """
         self.args = args
-        self.setUp()
 
     def run(self):
         """
@@ -149,13 +146,7 @@ class Exist(objectutils.Object):
         for target in self.args:
             if os.path.isfile(target):
                 continue
-            self.error(f"{target} not found")
-
-    def setUp(self):
-        """
-        Get the cmd tokens.
-        """
-        self.args = [x.strip() for x in self.args]
+            self.error(f"{target} not found.")
 
     def error(self, msg):
         """
@@ -182,38 +173,35 @@ class Glob(Exist):
     def run(self):
         """
         The main method to check the existence of files.
-
-        :self.error: the number of found files is not the expected
         """
-        for target in self.args:
-            files = glob.glob(target)
-            if self.num is None and len(files) > 0:
-                continue
-            if self.num and len(files) == self.num:
-                continue
-            self.error(f"{files} found for {target} (num={self.num})")
+        for pattern in self.args:
+            files = glob.glob(pattern)
+            if self.num is None and not files:
+                self.error(f"No files found. ({pattern})")
+            if self.num and len(files) != self.num:
+                self.error(f"{len(files)} files found. ({pattern} {self.num})")
 
 
-class In(Exist):
+class Has(Exist):
     """
     The class to check the containing file strings.
     """
 
     def __init__(self, *args):
-        super().__init__(args[-1])
-        self.strs = args[:-1]
+        super().__init__(args[0])
+        self.contents = args[1:]
 
     def run(self):
         """
         The main method to check the containing file strings.
         """
         super().run()
-        with open(self.args[-1]) as fh:
-            file_str = fh.read()
-        for content in self.strs:
-            if content in file_str:
+        with open(self.args[0]) as fh:
+            contents = fh.read()
+        for content in self.contents:
+            if content in contents:
                 continue
-            self.error(f"{content} not found in {self.args[-1]}")
+            self.error(f"{content} not found in {self.args[0]}.")
 
 
 class Cmp(Exist):
@@ -223,40 +211,47 @@ class Cmp(Exist):
 
     def __init__(self, *args, atol=None, rtol=None, equal_nan=None, **kwargs):
         """
-        :param atol str: the absolute tolerance parameter for numpy.isclose
-        :param rtol str: the relative tolerance parameter for numpy.isclose
+        :param atol str: the absolute tolerance
+        :param rtol str: the relative tolerance
         :param equal_nan bool: whether to compare NaNs as equal.
         """
         super().__init__(*args, **kwargs)
-        self.atol = atol
-        self.rtol = rtol
-        self.equal_nan = equal_nan
-        self.dir = dir
+        self.exact = all(x is None for x in [atol, rtol, equal_nan])
+        self.kwargs = dict(atol=float(atol or '1e-08'),
+                           rtol=float(rtol or '1e-05'),
+                           equal_nan=eval(equal_nan or 'True'))
 
     def run(self):
         """
         The main method to compare files.
         """
         super().run()
-        self.cmpFile()
-        self.cmpCsv()
-        self.cmpData()
+        self.file()
+        self.csv()
+        self.data()
 
-    def cmpFile(self):
+    def file(self):
         """
-        Compare the file content.
+        Compare the file content for exact match.
         """
-        if not all(x is None for x in [self.atol, self.rtol, self.equal_nan]):
+        if not self.exact:
             return
-        # Exact Match
         if not filecmp.cmp(*self.args):
-            self.raiseError(', '.join(self.args[1:]))
+            self.error(', '.join(self.args[1:]))
 
-    def cmpCsv(self):
+    def error(self, target):
+        """
+        Error with proper message.
+
+        :param target str: the target filename(s)
+        """
+        super().error(f"{self.args[0]} is different from {target}.")
+
+    def csv(self):
         """
         Compare csv files via np.allclose.
         """
-        if not all(x.endswith('.csv') for x in self.args):
+        if self.exact or not all(x.endswith('.csv') for x in self.args):
             return
         origin = pd.read_csv(self.args[0])
         object = origin.select_dtypes(include='object')
@@ -265,51 +260,26 @@ class Cmp(Exist):
             data = pd.read_csv(target)
             tgt_obj = data.select_dtypes(include='object')
             if object.shape != tgt_obj.shape:
-                self.raiseError(target)
+                self.error(target)
             if not all(object == tgt_obj):
-                self.raiseError(target)
+                self.error(target)
             tgt_nonobj = data.select_dtypes(exclude='object')
             if nonobj.shape != tgt_nonobj.shape:
-                self.raiseError(target)
+                self.error(target)
             if not np.allclose(nonobj, tgt_nonobj, **self.kwargs):
-                self.raiseError(target)
+                self.error(target)
 
-    @property
-    @functools.cache
-    def kwargs(self, atol=1e-08, rtol=1e-05, equal_nan=True):
-        """
-        Set the parameters for the comparison of csv files (e.g., tolerance).
-
-        :param atol str: the absolute tolerance parameter for numpy.isclose
-        :param rtol str: the relative tolerance parameter for numpy.isclose
-        :param equal_nan bool: whether to compare NaNs as equal.
-        :return dict: the parameters for the comparison of csv files.
-        """
-        equal = equal_nan if self.equal_nan is None else eval(self.equal_nan)
-        atol = atol if self.atol is None else float(self.atol)
-        rtol = rtol if self.rtol is None else float(self.rtol)
-        return dict(atol=atol, rtol=rtol, equal_nan=equal)
-
-    def cmpData(self):
+    def data(self):
         """
         Compare the lammps data files.
         """
-        if not all(x.endswith('.data') for x in self.args):
+        if self.exact or not all(x.endswith('.data') for x in self.args):
             return
         origin = lammpsdata.read(self.args[0])
         for target in self.args[1:]:
             data = lammpsdata.read(target)
             if not origin.allClose(data, **self.kwargs):
-                self.raiseError(target)
-
-    def raiseError(self, target):
-        """
-        Raise the error with proper message.
-
-        :param target str: the target filename(s)
-        :raises CheckError: raise the error message as the files are different.
-        """
-        self.error(f"{self.args[0]} and {target} are different.")
+                self.error(target)
 
 
 class CollectLog(Exist):
@@ -354,7 +324,7 @@ class CollectLog(Exist):
             data[self.MEMORY_LB] = [x.memory for x in rdrs]
         name = rdrs[0].options.NAME
         params = [x.removeprefix(name)[1:] for x in files.keys()]
-        index = pd.Index(params, name=name)
+        index = pd.Index(params, name=name.replace('_', ' '))
         self.data = pd.DataFrame(data, index=index)
         self.data.set_index(self.data.index.astype(float), inplace=True)
         func = lambda x: x.total_seconds() / 60. if x is not None else None
@@ -588,22 +558,23 @@ class Tag(Cmd):
 
         :return bool: Whether the test is selected.
         """
-        return self.fast and self.labeled
+        return self.fast() and self.labeled
 
-    @property
-    def fast(self):
+    def fast(self, args=None):
         """
         Get the parameters considered as fast.
 
-        :return bool or set of str: parameters filtered by slow
+        :param args list: the parameters to filter
+        :return bool or list of str: parameters filtered by slow
         """
         if self.options.slow is None:
-            return True
+            return True if args is None else args
         # [['slow', '00:00:01']]
         # [['slow', '1', '00:00:01'], ['slow', '9', '00:00:04']]
         params = [x[1:] for x in self.operators if x[0] == self.SLOW]
         time = [timeutils.str2delta(x[-1]).total_seconds() for x in params]
-        return {x[0] for x, y in zip(params, time) if y <= self.options.slow}
+        fast = {x[0] for x, y in zip(params, time) if y <= self.options.slow}
+        return True if args is None else [x for x in args if x in fast]
 
     @property
     def labeled(self):
@@ -627,13 +598,13 @@ if __name__ == "__main__":
     """
     Run library module as a script.
     """
-    Classes = [Exist, Glob, In, Cmp, CollectLog]
+    Classes = [Exist, Glob, Has, Cmp, CollectLog]
     try:
         Class = next(x for x in Classes if x.name == sys.argv[1])
     except StopIteration:
-        sys.exit(f'Please choose from {[x.name for x in Classes]}')
+        sys.exit(f'{sys.argv[1]} found. ({[x.name for x in Classes]})')
     kwargs_re = re.compile(r'(.*)=(.*)')
     matches = [kwargs_re.match(x) for x in sys.argv[2:]]
-    args = [x for x, y in zip(sys.argv[2:], matches) if y is None]
+    args = [x.strip() for x, y in zip(sys.argv[2:], matches) if y is None]
     kwargs = [[y.strip() for y in x.groups()] for x in matches if x]
     Class(*args, **dict(kwargs)).run()
