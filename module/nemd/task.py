@@ -122,7 +122,7 @@ class Cmd(taskbase.Cmd):
         super().__init__(*args, **kwargs)
         self.dir = self.job.statepoint[jobutils.FLAG_DIR]
         self.cmd = test.Cmd(self.dir)
-        self.args = self.param.getCmds()
+        self.args = self.param.cmds
 
     def getCmd(self, **kwargs):
         """

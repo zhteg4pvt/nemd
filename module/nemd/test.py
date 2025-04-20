@@ -89,10 +89,10 @@ class Param(Cmd):
         self.cmd = cmd
         self.args = Tag(self.dir, options=self.options).fast(self.args)
 
-    def getCmds(
-        self,
-        jobname_re=re.compile(f'{jobutils.FLAG_JOBNAME} +\w+'),
-        script_re=re.compile(r'.* +(.*)_(driver|workflow).py( +.*|$)')):
+    @property
+    def cmds(self,
+             jobname_re=re.compile(rf'{jobutils.FLAG_JOBNAME} +\w+'),
+             script_re=re.compile(r'.* +(.*)_(driver|workflow).py( +.*|$)')):
         """
         Get the parameterized commands.
 
@@ -431,7 +431,7 @@ class Tag(Cmd):
             return
         self.setOperators()
 
-    def setOperators(self, rex=re.compile('(?:;|&&|\|\|)?(\w+)\\((.*?)\\)')):
+    def setOperators(self, rex=re.compile(r'(?:;|&&|\|\|)?(\w+)\\((.*?)\\)')):
         """
         Parse the one line command to get the operators.
         """
