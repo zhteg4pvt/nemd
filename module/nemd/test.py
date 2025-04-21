@@ -11,7 +11,9 @@ import re
 from nemd import check
 from nemd import jobutils
 from nemd import logutils
+from nemd import np
 from nemd import objectutils
+from nemd import pd
 from nemd import process
 from nemd import symbols
 from nemd import timeutils
@@ -45,18 +47,6 @@ class Base(objectutils.Object):
         return f"{self.jobname}: {msg}" if msg else self.jobname
 
     @property
-    def cmts(self):
-        """
-        Return the comment out of the raw.
-
-        :return generator: the comments
-        """
-        for line in self.raw:
-            if not line.startswith(self.POUND):
-                return
-            yield line.strip(self.POUND).strip()
-
-    @property
     @functools.cache
     def args(self):
         """
@@ -78,6 +68,18 @@ class Base(objectutils.Object):
             return []
         with open(self.infile) as fh:
             return [x.strip() for x in fh.readlines() if x.strip()]
+
+    @property
+    def cmts(self):
+        """
+        Return the comment out of the raw.
+
+        :return generator: the comments
+        """
+        for line in self.raw:
+            if not line.startswith(self.POUND):
+                return
+            yield line.strip(self.POUND).strip()
 
 
 class Cmd(Base):
@@ -116,8 +118,8 @@ class Param(Base):
         """
         Get the parameterized commands.
 
-        :param jobname_re `re.compile`: the jobname regular express
-        :param script_re `re.compile`:the script regular express
+        :param jobname_re `re.Pattern`: the jobname regular express
+        :param script_re `re.Pattern`:the script regular express
         :return list: each value is one command.
         """
         if not all([self.args, self.PARAM in self.cmd.args[0]]):
@@ -143,7 +145,7 @@ class Param(Base):
         """
         Get the xlabel from the header of the parameter file.
 
-        :param rex `re.compile`: the regular express to search param label
+        :param rex `re.Pattern`: the regular express to search param label
         :return str: The xlabel.
         """
         label = next(self.cmts, '')
@@ -162,18 +164,21 @@ class Check(Base):
 
     NEMD_CHECK = 'nemd_check'
     CMP = check.Cmp.name
-    SEP = symbols.SEMICOLON
     RPL = rf'{NEMD_CHECK} {CMP} {{dir}}{os.path.sep}\1'
 
-    def run(self, rex=re.compile(rf'{NEMD_CHECK} +{CMP} +(\w+)')):
+    def run(self,
+            sub_re=re.compile(rf'{NEMD_CHECK} +{CMP} +(\w+)'),
+            repl=rf'{NEMD_CHECK} {CMP} {{dir}}{os.path.sep}\1'):
         """
         Check the results by execute all operators.
 
+        :param sub_re `re.Pattern`: the regular expression to substitute
+        :param repl str: the replacement
         :return str: error message.
         """
         print(self.getHeader())
-        rpl = self.RPL.format(dir=self.dir)
-        args = [rex.sub(rpl, x) for x in self.args]
+        replacement = repl.format(dir=self.dir)
+        args = [sub_re.sub(replacement, x) for x in self.args]
         proc = Process(args, jobname=self.jobname)
         completed = proc.run()
         if not completed.returncode:
@@ -200,108 +205,62 @@ class Tag(Base):
     SLOW = 'slow'
     LABEL = 'label'
 
-    def __init__(self, *args, **kwargs):
-        """
-        :param delay 'bool': delay the setup if True.
-        """
-        super().__init__(*args, **kwargs)
-        self.logs = []
-
     def run(self):
         """
         Main method to run.
         """
-        self.setLogs()
         self.setSlow()
         self.setLabel()
         self.write()
-
-    def setLogs(self):
-        """
-        Set the log readers.
-        """
-        for job in jobutils.Job(dir=self.dir).getJobs():
-            if not job.logfile:
-                continue
-            self.logs.append(logutils.Reader(job.logfile))
 
     def setSlow(self):
         """
         Set the slow tag with the total job time from the driver log files.
         """
+        jobnames = [x.options.JOBNAME for x in self.logs]
+        parms = [x.split('_')[-1] for x in jobnames]
         times = [x.task_time for x in self.logs]
-        roots = [os.path.splitext(x.namepath)[0] for x in self.logs]
-        parms = [x.split('_')[-1] for x in roots]
         tags = [[x, timeutils.delta2str(y)] for x, y in zip(parms, times)]
-        self.setMult(self.SLOW, *tags)
-
-    def setMult(self, key, *values):
-        """
-        Set the values (and the key) of multiple operators.
-
-        :param key str: the key to be set
-        :param values tuple of list: each list contains the value(s) of one
-            operator.
-        """
-        matches = [i for i, x in enumerate(self.args) if x[0] == key]
-        for idx in reversed(matches):
-            self.args.pop(idx)
-        for value in values:
-            self.args.append([self.SLOW, *value])
+        self.tags[self.SLOW] = [y for x in tags for y in x]
 
     @property
     @functools.cache
-    def args(self):
+    def logs(self):
         """
-        See the parent.
+        Set the log readers.
         """
-        return [x.split() for x in super().args]
+        jobs = jobutils.Job(dir=self.dir).getJobs()
+        return [logutils.Reader(x.logfile) for x in jobs if x.logfile]
+
+    @property
+    @functools.cache
+    def tags(self):
+        """
+        The tags.
+
+        :return dict: the tags
+        """
+        return {x[0]: x[1:] for x in (x.split() for x in self.args)}
 
     def setLabel(self):
         """
         Set the label of the job.
         """
-        labels = self.get(self.LABEL, [])
+        labels = self.tags.get(self.LABEL, [])
         labels += [x.options.NAME for x in self.logs]
         if not labels:
             return
-        self.set(self.LABEL, *set(labels))
-
-    def set(self, key, *value):
-        """
-        Set the value (and the key) of one operator.
-
-        :param key str: the key to be set
-        :param value tuple of str: the value(s) to be set
-        """
-        try:
-            idx = next(i for i, x in enumerate(self.args) if x[0] == key)
-        except StopIteration:
-            self.args.append([key, *value])
-        else:
-            self.args[idx] = [key, *value]
-
-    def get(self, key, default=None):
-        """
-        Get the value of a specific key.
-
-        :param key str: the key to be searched
-        :param default str: the default value if the key is not found
-        :return tuple of str: the value(s)
-        """
-        for name, *value in self.args:
-            if name == key:
-                return value
-        return tuple() if default is None else default
+        self.tags[self.LABEL] = list(set(labels))
 
     def write(self):
         """
         Write the tag file.
         """
-        print(self.getHeader([symbols.SPACE.join(x) for x in self.args]))
+        lines = [symbols.SPACE.join([x] + y) for x, y in self.tags.items()]
+        print(self.getHeader(lines))
         with open(self.infile, 'w') as fh:
-            for values in self.args:
-                fh.write(f"{symbols.SPACE.join(values)}\n")
+            for line in lines:
+                fh.write(f"{line}\n")
 
     def selected(self):
         """
@@ -321,9 +280,10 @@ class Tag(Base):
         if self.options.slow is None:
             return True if args is None else args
         # [['slow', 'traj', '00:00:01'], ['slow', '9', '00:00:04']]
-        params = [x[1:] for x in self.args if x[0] == self.SLOW]
-        time = [timeutils.str2delta(x[-1]).total_seconds() for x in params]
-        fast = {x[0] for x, y in zip(params, time) if y <= self.options.slow}
+        params = np.reshape(self.tags[self.SLOW], (-1, 2))
+        params = pd.Series(params[:, 1], index=params[:, 0])
+        params = params.map(lambda x: timeutils.str2delta(x).total_seconds())
+        fast = set(params[params <= self.options.slow].index)
         return bool(fast) if args is None else [x for x in args if x in fast]
 
     @property
@@ -335,9 +295,9 @@ class Tag(Base):
         """
         if self.options.label is None:
             return True
-        for tagged_label in self.get(self.LABEL, []):
-            for label in self.options.label:
-                if tagged_label.startswith(label):
+        for label in self.tags.get(self.LABEL, []):
+            for selected in self.options.label:
+                if label.startswith(selected):
                     return True
         return False
 
