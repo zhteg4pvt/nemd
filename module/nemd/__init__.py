@@ -33,8 +33,6 @@ if not is_debug():
     # FIXME: rdkit.rdBase are not lazy-imported due to `ImportError: xx requires
     #  module rdkit, but it couldn't be loaded.` on "from rdkit import Chem;
     #  Chem.MolFromSmiles"
-    # FIXME: rdkitutils are not lazy-imported due to `TypeError: cannot pickle
-    #  'module' object` on cloudpickle.dumps(self) in flow/project.py
     # FIXME: sh are not lazy-imported due to `AttributeError: module 'sh' has no
     #  attribute 'grep'` on sh.grep
     modules = [
@@ -44,9 +42,11 @@ if not is_debug():
     names = [
         'constants', 'table', 'box', 'frame', 'dist', 'traj', 'structure',
         'lmpatomic', 'lmpfull', 'structutils', 'oplsua', 'stillinger', 'cru',
-        'polymutils', 'xtal', 'lmplog', 'psutils', 'alamode', 'molview'
+        'polymutils', 'xtal', 'lmplog', 'psutils', 'alamode', 'molview',
+        'rdkitutils'
     ]
     for name in modules + [f"nemd.{x}" for x in names]:
         lazy_import.lazy_module(name)
+import flow
 import numpy as np
 import pandas as pd

@@ -1,0 +1,1 @@
+{"args": ["1", "3", "5", "49", "-clean", "-slow", "2", "-cpu", "1", "-dir", "/Users/zhteg4/git/nemd/test/integration/0003"], "prereq": {"check": ["cmd"]}, "outfile": {"mol_bldr": "mol_bldr.in"}, "outfiles": {"mol_bldr": ["mol_bldr.log", "mol_bldr.data", "mol_bldr.in"]}, "logfile": {"mol_bldr": "mol_bldr.log"}, "message": {"check": false}}

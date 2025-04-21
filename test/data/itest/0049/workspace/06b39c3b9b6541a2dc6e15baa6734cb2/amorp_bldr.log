@@ -1,0 +1,35 @@
+2025-02-10 19:18:35,413 INFO ..........Command Options..........
+2025-02-10 19:18:35,413 INFO cru: CC(C)O
+2025-02-10 19:18:35,413 INFO cru_num: 1
+2025-02-10 19:18:35,413 INFO mol_num: 1
+2025-02-10 19:18:35,413 INFO buffer: None
+2025-02-10 19:18:35,413 INFO no_minimize: False
+2025-02-10 19:18:35,413 INFO rigid_bond: None
+2025-02-10 19:18:35,413 INFO rigid_angle: None
+2025-02-10 19:18:35,413 INFO substruct: None
+2025-02-10 19:18:35,413 INFO force_field: ('OPLSUA', 'TIP3P')
+2025-02-10 19:18:35,413 INFO density: 0.5
+2025-02-10 19:18:35,413 INFO method: grid
+2025-02-10 19:18:35,413 INFO seed: 4321
+2025-02-10 19:18:35,413 INFO timestep: 1
+2025-02-10 19:18:35,413 INFO stemp: 10
+2025-02-10 19:18:35,413 INFO temp: 300
+2025-02-10 19:18:35,413 INFO tdamp: 100
+2025-02-10 19:18:35,413 INFO press: 1
+2025-02-10 19:18:35,414 INFO pdamp: 1000
+2025-02-10 19:18:35,414 INFO relax_time: 1
+2025-02-10 19:18:35,414 INFO prod_time: 1
+2025-02-10 19:18:35,414 INFO prod_ens: NVE
+2025-02-10 19:18:35,414 INFO NAME: amorp_bldr
+2025-02-10 19:18:35,414 INFO jobname: amorp_bldr
+2025-02-10 19:18:35,414 INFO interactive: False
+2025-02-10 19:18:35,414 INFO python: 2
+2025-02-10 19:18:35,414 INFO cpu: 1
+2025-02-10 19:18:35,414 INFO debug: True
+2025-02-10 19:18:35,414 INFO JobStart: 19:18:35 02/10/2025
+2025-02-10 19:18:35,414 INFO ...................................
+2025-02-10 19:18:35,525 WARNING The minimum box span (5.78 Å) is smaller than 22.00 Å (Lennard-Jones Cutoff x 2) 
+2025-02-10 19:18:35,528 INFO Data file written into amorp_bldr.data
+2025-02-10 19:18:35,528 INFO In script written into amorp_bldr.in
+2025-02-10 19:18:35,529 INFO Finished.
+2025-02-10 19:18:35,529 INFO 19:18:35 02/10/2025

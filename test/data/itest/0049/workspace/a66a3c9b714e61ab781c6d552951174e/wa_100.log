@@ -1,0 +1,36 @@
+..........Command Options..........
+cru: [Ar]
+cru_num: 1
+mol_num: 100
+buffer: None
+no_minimize: False
+rigid_bond: None
+rigid_angle: None
+substruct: None
+force_field: OPLSUA TIP3P
+density: 0.5
+method: grid
+seed: 1
+timestep: 1
+stemp: 10
+temp: 300
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 1
+prod_time: 1
+prod_ens: NVE
+NAME: wa
+jobname: wa_100
+interactive: False
+python: 2
+cpu: 1
+debug: False
+JobStart: 19:18:38 02/10/2025
+...................................
+ERROR: [19:18:38] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
+The minimum box span (20.00 Å) is smaller than 22.00 Å (Lennard-Jones Cutoff x 2) 
+Data file written into wa_100.data
+In script written into wa_100.in
+Finished.
+19:18:38 02/10/2025

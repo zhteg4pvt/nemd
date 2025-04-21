@@ -1,0 +1,2 @@
+nemd_check collect_log time memory
+nemd_check exist collect_log.csv collect_log.png

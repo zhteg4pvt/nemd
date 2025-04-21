@@ -1,0 +1,1 @@
+nemd_check collect_log time memory /Users/zhteg4/git/nemd/test/integration/0049 wa_100=wa_100.log wa_50000=wa_50000.log && nemd_check exist 0049.csv 0049_time_memory.png

@@ -16,9 +16,8 @@ import glob
 import os
 import sys
 
-import flow
-
 from nemd import envutils
+from nemd import flow
 from nemd import jobcontrol
 from nemd import jobutils
 from nemd import logutils

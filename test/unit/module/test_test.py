@@ -1,12 +1,12 @@
+import os.path
+import shutil
+from unittest import mock
+
 import pytest
+import test_workflow
 
 from nemd import envutils
 from nemd import test
-
-
-@pytest.fixture
-def cmd(dirname):
-    return test.Cmd(envutils.test_data('itest', dirname))
 
 
 class TestBase:
@@ -16,18 +16,25 @@ class TestBase:
         Cmd = type('Cmd', (test.Base, ), {})
         return Cmd(envutils.test_data('itest', dirname))
 
-    @pytest.mark.parametrize('dirname,expected', [('0001', ['0001', 2, 1]),
-                                                  ('0000', ['0000', 2, 2]),
-                                                  ('empty', ['empty', 0, 0])])
-    def testInit(self, base, expected):
-        assert expected == [base.jobname, len(base), len(base.args)]
+    @pytest.mark.parametrize(
+        'dirname,args,expected',
+        [('empty', None, 'empty'),
+         ('0000', None, '0000: $param;echo hi;echo wa'),
+         ('0001', ['1', '2'], '0001: 1;2'),
+         ('0001', None,
+          '0001: run_nemd amorp_bldr_driver.py C -mol_num 10 -seed 5678')])
+    def testGetHeader(self, base, args, expected):
+        assert expected == base.getHeader(args=args)
 
-    @pytest.mark.parametrize('dirname,expected',
-                             [('0001', '0001: Amorphous builder on C'),
-                              ('0000', '0000: echo hi echo wa'),
-                              ('empty', 'empty')])
-    def testPrefix(self, base, expected):
-        assert expected == base.prefix
+    @pytest.mark.parametrize('dirname,expected', [('0001', 1), ('0000', 3),
+                                                  ('empty', 0)])
+    def testArgs(self, base, expected):
+        assert expected == len(base.args)
+
+    @pytest.mark.parametrize('dirname,expected', [('0001', 2), ('0000', 3),
+                                                  ('empty', 0)])
+    def testRaw(self, base, expected):
+        assert expected == len(base.raw)
 
     @pytest.mark.parametrize('dirname,expected', [('0001', 1), ('0000', 0),
                                                   ('empty', 0)])
@@ -37,7 +44,48 @@ class TestBase:
 
 class TestCmd:
 
+    @pytest.fixture
+    def cmd(self, dirname):
+        return test.Cmd(envutils.test_data('itest', dirname))
+
     @pytest.mark.parametrize('dirname,expected',
-                             [('0001', 'echo "0001: Amorphous builder on C"')])
+                             [('0000', 'echo "0000"'),
+                              ('0001', 'echo "0001: Amorphous builder on C"')])
     def testPrefix(self, cmd, expected):
         assert expected == cmd.prefix
+
+
+class TestParam:
+
+    @pytest.fixture
+    def param(self, dirname, args):
+        options = test_workflow.Parser().parse_args(args)
+        dirpath = envutils.test_data('itest', dirname)
+        cmd = test.Cmd(dirpath, options=options)
+        return test.Param(cmd)
+
+    @pytest.mark.parametrize('args', [[]])
+    @pytest.mark.parametrize('dirname,expected', [
+        ('0001', 1),
+        ('0000', 2),
+        ('empty', 0),
+        ('0049', 2),
+    ])
+    def testCmds(self, param, expected):
+        assert expected == len(param.cmds)
+
+    @pytest.mark.parametrize('dirname,args,expected',
+                             [('empty', [], 0), ('0049', [], 2),
+                              ('0049', ['-slow', '2'], 1)])
+    def testArgs(self, param, expected):
+        assert expected == len(param.args)
+
+    @pytest.mark.parametrize('args', [[]])
+    @pytest.mark.parametrize('dirname,write,expected',
+                             [('empty', False, ['', False]),
+                              ('0049', False, ['number_of_molecules', False]),
+                              ('no_label', True, ['param', True]),
+                              ('cmd_label', True, ['mol_num', True])])
+    def testLabel(self, param, write, expected, tmp_dir):
+        param.infile = 'out' if write else param.infile
+        assert expected == [param.label, os.path.isfile('out')]

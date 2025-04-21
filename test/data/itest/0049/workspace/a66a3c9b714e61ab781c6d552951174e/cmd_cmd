@@ -1,0 +1,2 @@
+echo '# 0049: Performance: [Ar] Amorphous Builder'
+nemd_run amorp_bldr_driver.py [Ar] -method grid -mol_num 100 -seed 1 -NAME wa -JOBNAME wa_100 -cpu 1 > /dev/null

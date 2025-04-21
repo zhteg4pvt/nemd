@@ -109,25 +109,23 @@ class Param(Base):
         :param cmd `Cmd`: the Cmd instance parsing the cmd file.
         """
         super().__init__(cmd.dir, **kwargs)
-        self.cmd = cmd
+        self.cmd = next(iter(cmd.args), None)
+        if self.options is None:
+            self.options = cmd.options
 
     @property
-    def cmds(self,
-             jobname_re=re.compile(rf'{jobutils.FLAG_JOBNAME} +\w+'),
-             script_re=re.compile(r'.* +(.*)_(driver|workflow).py( +.*|$)')):
+    def cmds(self, rex=re.compile(rf'{jobutils.FLAG_JOBNAME} +\w+')):
         """
         Get the parameterized commands.
 
-        :param jobname_re `re.Pattern`: the jobname regular express
-        :param script_re `re.Pattern`:the script regular express
+        :param rex `re.Pattern`: the jobname regular express
         :return list: each value is one command.
         """
-        if not all([self.args, self.PARAM in self.cmd.args[0]]):
-            return self.cmd.args
-        name = self.label or script_re.match(self.cmd.args[0]).group(1)
-        cmd = f"{jobname_re.sub('', self.cmd.args[0])} {jobutils.FLAG_NAME} {name}"
+        if not self.args or not self.cmd or self.PARAM not in self.cmd:
+            return [self.cmd] if self.cmd else []
+        cmd = f"{rex.sub('', self.cmd)} {jobutils.FLAG_NAME} {self.label}"
         cmds = [
-            f'{cmd.replace(self.PARAM, x)} {jobutils.FLAG_JOBNAME} {name}_{x}'
+            f'{cmd.replace(self.PARAM, x)} {jobutils.FLAG_JOBNAME} {self.label}_{x}'
             for x in self.args
         ]
         return cmds
@@ -150,10 +148,10 @@ class Param(Base):
         """
         label = next(self.cmts, '')
         if not label and self.cmd:
-            match = rex.search(self.cmd.args[0])
+            match = rex.search(self.cmd)
             label = match.group(1) if match else self.name
             with open(self.infile, 'w') as fh:
-                fh.write('\n'.join([f"{self.POUND} {label}"] + self.args))
+                fh.write('\n'.join([f"{self.POUND} {label}"] + super().args))
         return label.lower().replace(' ', '_')
 
 
@@ -198,8 +196,7 @@ class Process(process.Base):
 
 class Tag(Base):
     """
-    The class parses and interprets the tag file. The class also creates a new
-    tag file (or update existing one).
+    The class create, parses, and update the tag file.
     """
 
     SLOW = 'slow'

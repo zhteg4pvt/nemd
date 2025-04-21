@@ -6,14 +6,13 @@ This workflow runs molecule builder, lammps simulation, and log analyzer.
 import argparse
 import sys
 
-import pandas as pd
-
 from nemd import analyzer
 from nemd import jobcontrol
 from nemd import jobutils
 from nemd import logutils
 from nemd import np
 from nemd import parserutils
+from nemd import pd
 from nemd import rdkitutils
 from nemd import symbols
 from nemd import task
