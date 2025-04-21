@@ -1,2 +1,2 @@
-slow(log, 00:00:05)
-label(lmp_log)
+label lmp_log
+slow log 00:00:04

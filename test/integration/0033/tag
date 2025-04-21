@@ -1,2 +1,2 @@
-slow(builder, 00:00:02)
-label(crystal_builder)
+label crystal_builder
+slow builder 00:00:02

@@ -1,2 +1,2 @@
-slow(traj, 00:00:21)
-label(lmp_traj)
+label lmp_traj
+slow traj 00:00:20

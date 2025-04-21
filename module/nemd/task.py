@@ -118,29 +118,42 @@ class Cmd(taskbase.Cmd):
     DEBUG_RE = re.compile(f"{jobutils.FLAG_DEBUG}( +(True|False))?")
     SEP = f"{symbols.RETURN}"
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.cmd = test.Cmd(self.job.statepoint[jobutils.FLAG_DIR])
-        self.param = test.Param(self.cmd, options=self.options)
-        self.args = self.param.cmds
-
-    def getCmd(self, **kwargs):
-        """
-        Get command line str.
-
-        :return str: the command as str
-        """
-        return super().getCmd(prefix=self.cmd.prefix, **kwargs)
-
     def run(self):
         """
         Get arguments that form command lines.
         """
+        self.setArgs()
         self.addfiles()
         self.addQuot()
         self.numCpu()
         self.setDebug()
         self.setScreen()
+
+    def setArgs(self):
+        """
+        Set the arguments.
+        """
+        self.args = self.param.cmds
+
+    @property
+    @functools.cache
+    def param(self):
+        """
+        The param object.
+
+        :return `test.Param`: the param object.
+        """
+        return test.Param(self.cmd, options=self.options)
+
+    @property
+    @functools.cache
+    def cmd(self):
+        """
+        The cmd object.
+
+        :return `test.Cmd`: the cmd object.
+        """
+        return test.Cmd(self.job.statepoint[jobutils.FLAG_DIR])
 
     def addQuot(self):
         """
@@ -187,11 +200,12 @@ class Cmd(taskbase.Cmd):
         for idx, cmd in enumerate(self.args):
             self.args[idx] = f"{cmd} > /dev/null"
 
-    def post(self):
+    @property
+    def out(self):
         """
-        The job is considered finished when the post-conditions return True.
+        The output.
 
-        :return: True if the post-conditions are met.
+        :return bool: True when all output files are set.
         """
         return len(self.getJobs()) >= max(1, len(self.param.args))
 
@@ -206,6 +220,14 @@ class Cmd(taskbase.Cmd):
             shutil.rmtree(self.job.fn(jobutils.WORKSPACE))
         except FileNotFoundError:
             pass
+
+    def getCmd(self, **kwargs):
+        """
+        Get command line str.
+
+        :return str: the command as str
+        """
+        return super().getCmd(prefix=self.cmd.prefix, **kwargs)
 
 
 class Check(taskbase.Job):

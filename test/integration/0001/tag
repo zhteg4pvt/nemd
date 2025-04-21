@@ -1,4 +1,2 @@
-s(l,o,w,(,b,l,d,r,,, ,0,0,:,0,0,:,0,2,))
-l(a,b,e,l,(,a,m,o,r,p,_,b,l,d,r,))
-slow(bldr, 00:00:00)
-label(amorp_bldr)
+label amorp_bldr
+slow bldr 00:00:01

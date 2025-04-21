@@ -4,7 +4,7 @@
 This module provides test related classes to parse files for command, parameter,
 checking, and labels.
 """
-import collections
+import functools
 import os
 import re
 
@@ -17,42 +17,32 @@ from nemd import symbols
 from nemd import timeutils
 
 
-class Base(collections.UserList, objectutils.Object):
+class Base(objectutils.Object):
     """
     The base class to parse a test file.
     """
 
     POUND = symbols.POUND
-    SEP = symbols.SPACE
 
     def __init__(self, dir, options=None):
         """
         :param dir str: the path containing the file
         :param options 'argparse.ArgumentParser': Parsed command-line options
         """
-        super().__init__(self)
         self.dir = dir
         self.options = options
         self.jobname = os.path.basename(self.dir)
         self.infile = os.path.join(self.dir, self.name)
-        self.args = []
-        if not os.path.isfile(self.infile):
-            return
-        with open(self.infile) as fh:
-            self[:] = [x.strip() for x in fh.readlines() if x.strip()]
-        self.args = [x for x in self if not x.startswith(self.POUND)]
 
-    @property
-    def prefix(self):
+    def getHeader(self, args=None):
         """
-        Return the prefix.
+        Return the header.
 
-        :return str: the prefix
+        :param args list: the arguments to generate the message.
+        :return str: the header
         """
-        cmt = self.SEP.join(self.cmts)
-        if not cmt:
-            cmt = self.SEP.join(self.args)
-        return f"{self.jobname}: {cmt}" if cmt else self.jobname
+        msg = symbols.SEMICOLON.join(args or self.args)
+        return f"{self.jobname}: {msg}" if msg else self.jobname
 
     @property
     def cmts(self):
@@ -61,10 +51,33 @@ class Base(collections.UserList, objectutils.Object):
 
         :return generator: the comments
         """
-        for line in self:
+        for line in self.raw:
             if not line.startswith(self.POUND):
                 return
             yield line.strip(self.POUND).strip()
+
+    @property
+    @functools.cache
+    def args(self):
+        """
+        Return the argument.
+
+        :return list: the argument in the files. (non-comment lines)
+        """
+        return [x for x in self.raw if not x.startswith(self.POUND)]
+
+    @property
+    @functools.cache
+    def raw(self):
+        """
+        Return the raw lines.
+
+        :return list: the raw lines.
+        """
+        if not os.path.isfile(self.infile):
+            return []
+        with open(self.infile) as fh:
+            return [x.strip() for x in fh.readlines() if x.strip()]
 
 
 class Cmd(Base):
@@ -79,10 +92,10 @@ class Cmd(Base):
 
         :return str: the prefix
         """
-        return f'echo "{super().prefix}"'
+        return f'echo "{self.getHeader([symbols.SPACE.join(self.cmts)])}"'
 
 
-class Param(Cmd):
+class Param(Base):
     """
     The class to parse the parameter file.
     """
@@ -95,7 +108,6 @@ class Param(Cmd):
         """
         super().__init__(cmd.dir, **kwargs)
         self.cmd = cmd
-        self.args = Tag(self.dir, options=self.options).fast(self.args)
 
     @property
     def cmds(self,
@@ -117,6 +129,14 @@ class Param(Cmd):
             for x in self.args
         ]
         return cmds
+
+    @property
+    @functools.cache
+    def args(self):
+        """
+        See the parent.
+        """
+        return Tag(self.dir, options=self.options).fast(super().args)
 
     @property
     def label(self, rex=re.compile(rf'-(\w*) \{PARAM}')):
@@ -151,7 +171,7 @@ class Check(Base):
 
         :return str: error message.
         """
-        print(self.prefix)
+        print(self.getHeader())
         rpl = self.RPL.format(dir=self.dir)
         args = [rex.sub(rpl, x) for x in self.args]
         proc = Process(args, jobname=self.jobname)
@@ -180,27 +200,12 @@ class Tag(Base):
     SLOW = 'slow'
     LABEL = 'label'
 
-    def __init__(self, *args, delay=False, **kwargs):
+    def __init__(self, *args, **kwargs):
         """
         :param delay 'bool': delay the setup if True.
         """
         super().__init__(*args, **kwargs)
-        self.oprs = []
         self.logs = []
-        if delay:
-            return
-        self.setUp()
-
-    def setUp(self, rex=re.compile(r'(?:;|&&|\|\|)?(\w+)\\((.*?)\\)')):
-        """
-        Parse the one line command.
-        """
-        if self.args is None:
-            return
-        for match in rex.finditer(self.SEP.join(self.args)):
-            name, value = [x.strip("'\"") for x in match.groups()]
-            values = [x.strip(" '\"") for x in value.split(symbols.COMMA)]
-            self.oprs.append([name] + [x for x in values if x])
 
     def run(self):
         """
@@ -227,7 +232,7 @@ class Tag(Base):
         times = [x.task_time for x in self.logs]
         roots = [os.path.splitext(x.namepath)[0] for x in self.logs]
         parms = [x.split('_')[-1] for x in roots]
-        tags = [f"{x}, {timeutils.delta2str(y)}" for x, y in zip(parms, times)]
+        tags = [[x, timeutils.delta2str(y)] for x, y in zip(parms, times)]
         self.setMult(self.SLOW, *tags)
 
     def setMult(self, key, *values):
@@ -238,9 +243,19 @@ class Tag(Base):
         :param values tuple of list: each list contains the value(s) of one
             operator.
         """
-        self.oprs = [x for x in self if x[0] != key]
+        matches = [i for i, x in enumerate(self.args) if x[0] == key]
+        for idx in reversed(matches):
+            self.args.pop(idx)
         for value in values:
-            self.oprs.append([self.SLOW, value])
+            self.args.append([self.SLOW, *value])
+
+    @property
+    @functools.cache
+    def args(self):
+        """
+        See the parent.
+        """
+        return [x.split() for x in super().args]
 
     def setLabel(self):
         """
@@ -260,11 +275,11 @@ class Tag(Base):
         :param value tuple of str: the value(s) to be set
         """
         try:
-            idx = next(i for i, x in enumerate(self) if x[0] == key)
+            idx = next(i for i, x in enumerate(self.args) if x[0] == key)
         except StopIteration:
-            self.oprs.append([key, *value])
+            self.args.append([key, *value])
         else:
-            self.oprs[idx] = [key, *value]
+            self.args[idx] = [key, *value]
 
     def get(self, key, default=None):
         """
@@ -274,7 +289,7 @@ class Tag(Base):
         :param default str: the default value if the key is not found
         :return tuple of str: the value(s)
         """
-        for name, *value in self.oprs:
+        for name, *value in self.args:
             if name == key:
                 return value
         return tuple() if default is None else default
@@ -283,11 +298,10 @@ class Tag(Base):
         """
         Write the tag file.
         """
-        print(self.prefix)
+        print(self.getHeader([symbols.SPACE.join(x) for x in self.args]))
         with open(self.infile, 'w') as fh:
-            for key, *value in self.oprs:
-                values = symbols.COMMA.join(value)
-                fh.write(f"{key}({values})\n")
+            for values in self.args:
+                fh.write(f"{symbols.SPACE.join(values)}\n")
 
     def selected(self):
         """
@@ -307,10 +321,10 @@ class Tag(Base):
         if self.options.slow is None:
             return True if args is None else args
         # [['slow', 'traj', '00:00:01'], ['slow', '9', '00:00:04']]
-        params = [x[1:] for x in self.oprs if x[0] == self.SLOW]
+        params = [x[1:] for x in self.args if x[0] == self.SLOW]
         time = [timeutils.str2delta(x[-1]).total_seconds() for x in params]
         fast = {x[0] for x, y in zip(params, time) if y <= self.options.slow}
-        return True if args is None else [x for x in args if x in fast]
+        return bool(fast) if args is None else [x for x in args if x in fast]
 
     @property
     def labeled(self):

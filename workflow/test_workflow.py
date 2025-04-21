@@ -56,11 +56,11 @@ class Test(jobcontrol.Runner):
         if not self.dirs:
             self.error(f'No valid tests found in {self.options.dir}.')
 
-        if any([self.options.slow, self.options.label]):
-            self.dirs = [
-                x for x in self.dirs
-                if test.Tag(x, options=self.options).selected()
-            ]
+        self.dirs = [
+            x for x in self.dirs
+            if test.Tag(x, options=self.options).selected()
+        ]
+
         if not self.dirs:
             self.error('All tests are skipped according to the tag file.')
 
@@ -88,7 +88,7 @@ class Test(jobcontrol.Runner):
         super().logStatus()
         msgs = [x for x in self.status.values() if x is not True]
         total = len(self.status)
-        self.log(f"{total - len(msgs)} / {total} succeed jobs.")
+        self.log(f"{total - len(msgs)} / {total} succeed sub-jobs.")
 
     def setAggs(self, aggregator=None):
         """

@@ -1,2 +1,2 @@
-slow(bldr, 00:00:02)
-label(amorp_bldr)
+label amorp_bldr
+slow bldr 00:00:03
