@@ -82,10 +82,15 @@ class TestJob:
         return jobutils.Job(jobname, job=list(jobs)[0])
 
     @pytest.mark.parametrize("ekey", ['JOBNAME'])
-    @pytest.mark.parametrize("evalue,expected", [('myname', 'myname'),
-                                                 (None, 'job')])
-    def testDefault(self, expected, env):
-        assert expected == jobutils.Job.default
+    @pytest.mark.parametrize("jobname,evalue,expected",
+                             [('myname', 'envname', 'myname'),
+                              (None, 'envname', 'envname'),
+                              (None, None, 'job')])
+    def testInit(self, jobname, expected, env):
+        assert expected == jobutils.Job(jobname).jobname
+
+    def testName(self):
+        assert 'job' == jobutils.Job.name
 
     @pytest.mark.parametrize('jobname', [('mb_lmp_log')])
     @pytest.mark.parametrize('dirname,expected', [(MB_LMP_LOG, 4)])

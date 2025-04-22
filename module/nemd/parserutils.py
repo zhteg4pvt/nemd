@@ -16,6 +16,7 @@ from nemd import is_debug
 from nemd import jobutils
 from nemd import lammpsfix
 from nemd import np
+from nemd import objectutils
 from nemd import rdkitutils
 from nemd import sw
 from nemd import symbols
@@ -480,7 +481,7 @@ class TrajValid(Valid):
                              f" run {', '.join(rqd_data)} tasks.")
 
 
-class Driver(argparse.ArgumentParser):
+class Driver(argparse.ArgumentParser, objectutils.Object):
     """
     Parser with job arguments.
     """
@@ -534,11 +535,12 @@ class Driver(argparse.ArgumentParser):
         Add job control related flags.
         """
         if self.FLAG_JOBNAME in self.JFLAGS:
+            default = envutils.get_jobname() or self.name
             self.add_argument(jobutils.FLAG_NAME,
-                              default=envutils.get_jobname(),
+                              default=default,
                               help=argparse.SUPPRESS)
             self.add_argument(self.FLAG_JOBNAME,
-                              default=envutils.get_jobname(),
+                              default=default,
                               help='Name output files.')
         if self.FLAG_INTERAC in self.JFLAGS:
             self.addBool(self.FLAG_INTERAC,

@@ -1,4 +1,4 @@
-import os.path
+import os
 import shutil
 from unittest import mock
 
@@ -81,11 +81,29 @@ class TestParam:
         assert expected == len(param.args)
 
     @pytest.mark.parametrize('args', [[]])
-    @pytest.mark.parametrize('dirname,write,expected',
-                             [('empty', False, ['', False]),
-                              ('0049', False, ['number_of_molecules', False]),
-                              ('no_label', True, ['param', True]),
-                              ('cmd_label', True, ['mol_num', True])])
-    def testLabel(self, param, write, expected, tmp_dir):
-        param.infile = 'out' if write else param.infile
-        assert expected == [param.label, os.path.isfile('out')]
+    @pytest.mark.parametrize('dirname,expected',
+                             [('empty', 'param'),
+                              ('0049', 'number_of_molecules'),
+                              ('no_label', 'param'), ('cmd_label', 'mol_num')])
+    def testLabel(self, param, expected, tmp_dir):
+        assert expected == param.label
+
+
+class TestCheck:
+
+    @pytest.fixture
+    def check(self, dirname, tmp_dir):
+        dirpath = envutils.test_data('itest', dirname)
+        shutil.copytree(dirpath, os.curdir, dirs_exist_ok=True)
+        return test.Check(dirpath, logger=mock.Mock())
+
+    @pytest.mark.parametrize(
+        'dirname,expected',
+        [('empty', None),
+         ('0001', 'polymer_builder.data is different from amorp_bldr.data.\n'),
+         ('0046_test', None)])
+    def testRun(self, check, expected):
+        with open('amorp_bldr.data', 'w'):
+            pass
+        msg = check.run()
+        assert (msg.endswith(expected) if expected else msg is None)

@@ -43,12 +43,10 @@ class TestFunc:
         assert expected == list(kwargs.values())
 
     @pytest.mark.parametrize("ekey", ['JOBNAME'])
-    @pytest.mark.parametrize("evalue,default,expected",
-                             [('myname', None, 'myname'),
-                              (None, 'default', 'default'),
-                              ('myname', 'default', 'myname')])
-    def testGetJobname(self, default, expected, env):
-        assert expected == envutils.get_jobname(default)
+    @pytest.mark.parametrize("evalue,expected", [('myname', 'myname'),
+                                                 (None, None)])
+    def testGetJobname(self, expected, env):
+        assert expected == envutils.get_jobname()
 
     @pytest.mark.parametrize("ekey", ['MEM_INTVL'])
     @pytest.mark.parametrize("evalue,expected", [(None, None), ('-1.1', None),

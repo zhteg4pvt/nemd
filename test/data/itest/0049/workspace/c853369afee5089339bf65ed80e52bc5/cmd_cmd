@@ -1,2 +1,0 @@
-echo '# 0003: Molecule builder measures the geometry'
-nemd_run mol_bldr_driver.py "*C*" -cru_num 3 -substruct CCC -seed 12 -cpu 1 -JOBNAME mol_bldr > /dev/null

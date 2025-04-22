@@ -284,9 +284,9 @@ class TestDriver:
     @pytest.mark.parametrize('ekey', ['JOBNAME'])
     @pytest.mark.parametrize(
         'evalue,args,expected',
-        [(None, [], ['job', 'job']),
-         (None, ['-NAME', 'mol_bldr'], ['mol_bldr', 'job']),
-         (None, ['-JOBNAME', 'xtal_bldr'], ['job', 'xtal_bldr']),
+        [(None, [], ['driver', 'driver']),
+         (None, ['-NAME', 'mol_bldr'], ['mol_bldr', 'driver']),
+         (None, ['-JOBNAME', 'xtal_bldr'], ['driver', 'xtal_bldr']),
          ('lammps', [], ['lammps', 'lammps']),
          ('lammps', ['-NAME', 'mol_bldr'], ['mol_bldr', 'lammps']),
          ('lammps', ['-JOBNAME', 'xtal_bldr'], ['lammps', 'xtal_bldr'])])

@@ -1,2 +1,2 @@
 # polymers are built the same
-cmp('polymer_builder.data', 'amorp_bldr.data', atol=0.001)
+nemd_check cmp polymer_builder.data amorp_bldr.data

@@ -29,11 +29,6 @@ class TestJob:
                             status=status,
                             logger=mock.Mock())
 
-    @pytest.mark.parametrize('name,expected', [('Job', 'job'),
-                                               ('Check', 'check')])
-    def testDefault(self, raw, expected):
-        assert expected == raw.default
-
     @pytest.mark.parametrize("name", [('Job'), ('Check')])
     def testAgg(self, raw):
         assert False == raw.agg
@@ -121,11 +116,6 @@ class TestAgg:
                             status=status,
                             logger=mock.Mock())
 
-    @pytest.mark.parametrize('name,expected', [('Agg', 'agg'),
-                                               ('TimeAgg', 'time_agg')])
-    def testDefault(self, raw, expected):
-        assert expected == raw.default
-
     @pytest.mark.parametrize("name", [('Agg'), ('TimeAgg')])
     def testAgg(self, raw):
         assert True == raw.agg
@@ -162,10 +152,6 @@ class TestCmd:
         attrs = dict(FILE=file, ParserClass=parser, ARGS_TMPL=args_tmpl)
         Name = type(name, (taskbase.Cmd, ), attrs)
         return Name(*jobs, status={}, logger=mock.Mock())
-
-    @pytest.mark.parametrize('name,expected', [('MolBldr', 'mol_bldr')])
-    def testDefault(self, raw, expected):
-        assert expected == raw.default
 
     @pytest.mark.parametrize("name", [('MolBldr')])
     def testAgg(self, raw):
@@ -245,10 +231,11 @@ class TestCmd:
     def testQuote(self, word, expected):
         assert expected == taskbase.Cmd.quote(word)
 
+    @pytest.mark.parametrize('ekey,evalue', [('JOBNAME', 'env_name')])
     @pytest.mark.parametrize('name,jobname,expected',
-                             [('MolBldr', None, 'mol_bldr'),
+                             [('MolBldr', None, 'env_name'),
                               ('MolBldr', 'myname', 'myname')])
-    def testSetName(self, raw, jobname, expected):
+    def testSetName(self, raw, jobname, expected, env):
         mol_bldr = raw(jobname=jobname)
         mol_bldr.args = []
         mol_bldr.setName()

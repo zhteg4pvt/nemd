@@ -19,18 +19,19 @@ from nemd import symbols
 from nemd import timeutils
 
 
-class Base(objectutils.Object):
+class Base(logutils.Base, objectutils.Object):
     """
     The base class to parse a test file.
     """
 
     POUND = symbols.POUND
 
-    def __init__(self, dir, options=None):
+    def __init__(self, dir, options=None, **kwargs):
         """
         :param dir str: the path containing the file
         :param options 'argparse.ArgumentParser': Parsed command-line options
         """
+        super().__init__(**kwargs)
         self.dir = dir
         self.options = options
         self.jobname = os.path.basename(self.dir)
@@ -121,7 +122,7 @@ class Param(Base):
         :param rex `re.Pattern`: the jobname regular express
         :return list: each value is one command.
         """
-        if not self.args or not self.cmd or self.PARAM not in self.cmd:
+        if not (self.args and self.cmd and self.PARAM in self.cmd):
             return [self.cmd] if self.cmd else []
         cmd = f"{rex.sub('', self.cmd)} {jobutils.FLAG_NAME} {self.label}"
         cmds = [
@@ -146,13 +147,12 @@ class Param(Base):
         :param rex `re.Pattern`: the regular express to search param label
         :return str: The xlabel.
         """
-        label = next(self.cmts, '')
+        label = next(self.cmts, None)
         if not label and self.cmd:
             match = rex.search(self.cmd)
-            label = match.group(1) if match else self.name
-            with open(self.infile, 'w') as fh:
-                fh.write('\n'.join([f"{self.POUND} {label}"] + super().args))
-        return label.lower().replace(' ', '_')
+            if match:
+                label = match.group(1)
+        return label.lower().replace(' ', '_') if label else self.name
 
 
 class Check(Base):
@@ -174,7 +174,7 @@ class Check(Base):
         :param repl str: the replacement
         :return str: error message.
         """
-        print(self.getHeader())
+        self.log(self.getHeader())
         replacement = repl.format(dir=self.dir)
         args = [sub_re.sub(replacement, x) for x in self.args]
         proc = Process(args, jobname=self.jobname)
@@ -254,7 +254,7 @@ class Tag(Base):
         Write the tag file.
         """
         lines = [symbols.SPACE.join([x] + y) for x, y in self.tags.items()]
-        print(self.getHeader(lines))
+        self.log(self.getHeader(lines))
         with open(self.infile, 'w') as fh:
             for line in lines:
                 fh.write(f"{line}\n")

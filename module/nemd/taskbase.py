@@ -48,17 +48,6 @@ class Job(jobutils.Job):
 
     @classmethod
     @property
-    def name(cls):
-        """
-        The default jobname.
-
-        :return str: the default jobname
-        """
-        words = re.findall('[A-Z][^A-Z]*', cls.__name__)
-        return '_'.join([x.lower() for x in words])
-
-    @classmethod
-    @property
     def agg(cls):
         """
         Whether this is an aggregator class.
