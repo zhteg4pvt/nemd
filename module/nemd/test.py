@@ -177,21 +177,12 @@ class Check(Base):
         self.log(self.getHeader())
         replacement = repl.format(dir=self.dir)
         args = [sub_re.sub(replacement, x) for x in self.args]
-        proc = Process(args, jobname=self.jobname)
+        proc = process.Check(args, jobname=self.jobname)
         completed = proc.run()
         if not completed.returncode:
             return
         with open(proc.logfile) as fh:
             return fh.read()
-
-
-class Process(process.Base):
-    """
-    Sub process to run check cmd.
-    """
-
-    NAME = Check.name
-    SEP = ';\n'
 
 
 class Tag(Base):

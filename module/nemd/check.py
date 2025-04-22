@@ -12,11 +12,11 @@ import sys
 from nemd import envutils
 from nemd import jobutils
 from nemd import lammpsdata
+from nemd import logutils
 from nemd import np
 from nemd import objectutils
 from nemd import pd
 from nemd import plotutils
-from nemd import logutils
 
 
 class Exist(objectutils.Object):

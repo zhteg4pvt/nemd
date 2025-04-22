@@ -11,34 +11,29 @@ import subprocess
 from nemd import envutils
 from nemd import jobutils
 from nemd import lammpsfix
+from nemd import objectutils
 from nemd import osutils
 from nemd import symbols
 
 
-class Base:
+class Base(objectutils.Object):
     """
-    Base class to build command, execute subprocess, and search for output files
+    Run subprocess.
     """
-    NAME = None
     PRE_RUN = None
     SEP = ' '
     EXT = symbols.LOG_EXT
-    EXTS = {}
 
-    def __init__(self, tokens=None, name=None, jobname=None, files=None):
+    def __init__(self, tokens=None, dirname=os.curdir, jobname=None):
         """
         :param tokens list: the arguments to build the cmd from
-        :param name str: the subdirectory name
-        :param jobname str: name output files based on this
+        :param driname str: the subdirectory to run
         :param files list: input files
         """
         self.tokens = tokens
-        self.name = name
-        self.jobname = jobname
-        self._files = files
-        if self.name is None:
-            self.name = os.curdir
-        self.logfile = f'{self.jobname}{symbols.LOG_EXT}' if self.jobname else 'log'
+        self.dirname = dirname
+        self.jobname = jobname or envutils.get_jobname() or self.name
+        self.logfile = f'{self.jobname}{self.EXT}'
 
     def run(self):
         """
@@ -46,16 +41,11 @@ class Base:
 
         :return `subprocess.CompletedProcess`: a CompletedProcess instance.
         """
-        with osutils.chdir(self.name), open(self.logfile, 'w') as fh:
-            self.setUp()
-            cmd = self.getCmd()
-            return subprocess.run(cmd, stdout=fh, stderr=fh, shell=True)
-
-    def setUp(self):
-        """
-        Set up the input files.
-        """
-        pass
+        with osutils.chdir(self.dirname), open(self.logfile, 'w') as fh:
+            return subprocess.run(self.getCmd(),
+                                  stdout=fh,
+                                  stderr=fh,
+                                  shell=True)
 
     def getCmd(self, write_cmd=True):
         """
@@ -64,20 +54,69 @@ class Base:
         :param write_cmd bool: whether to write the command to a file
         :return str: the command
         """
-        pre = [x for x in [self.PRE_RUN] if x]
-        cmd = self.SEP.join(map(str, pre + self.getArgs()))
+        args = [self.PRE_RUN] + self.args if self.PRE_RUN else self.args
+        cmd = self.SEP.join(args)
         if write_cmd:
-            with open(f'{self.NAME}_cmd' if self.NAME else 'cmd', 'w') as fh:
+            file = 'cmd' if self.dirname == os.curdir else f'{self.name}_cmd'
+            with open(file, 'w') as fh:
                 fh.write(cmd)
         return cmd
 
-    def getArgs(self):
+    @property
+    def args(self):
         """
         The args to build the command from.
 
         :return list: the arguments to build the command
         """
         return self.tokens
+
+
+class Check(Base):
+    """
+    Subprocess to run check cmd.
+    """
+
+    SEP = symbols.SEMICOLON
+
+
+class Submodule(Base):
+    """
+    Build command, execute subprocess, and search for output files
+    """
+
+    PRE_RUN = jobutils.NEMD_MODULE
+    EXTS = {}
+
+    def __init__(self, mode=None, *args, files=None, **kwargs):
+        """
+        :param mode str: the mode
+        :param files list: input files
+        """
+        super().__init__(*args, **kwargs)
+        self.mode = mode
+        self.dirname = self.mode
+        self._files = files
+
+    @property
+    def name(self):
+        """
+        See parent.
+        """
+        return self.mode or super().name
+
+    def getCmd(self, *args, **kwargs):
+        """
+        See parent.
+        """
+        self.setUp()
+        return super().getCmd(*args, **kwargs)
+
+    def setUp(self):
+        """
+        Set up the input files.
+        """
+        pass
 
     @property
     @functools.cache
@@ -88,9 +127,8 @@ class Base:
         :return list: the outfiles found.
         :raise FileNotFoundError: no outfiles found
         """
-        ext = self.EXTS.get(self.name, self.EXT)
-        pattern = f"{self.jobname}{ext}"
-        relpath = os.path.join(self.name, pattern)
+        pattern = f"{self.jobname}{self.EXTS.get(self.mode, self.EXT)}"
+        relpath = os.path.join(self.dirname, pattern)
         outfiles = glob.glob(relpath)
         if not outfiles:
             raise FileNotFoundError(f"No output file found with {relpath}")
@@ -100,22 +138,17 @@ class Base:
     @functools.cache
     def files(self):
         """
-        The input files to run the program with paths modified with the dirname.
+        The input files to run the program with paths modified with the name.
 
         :return list: input files.
         """
         if not self._files:
             return []
-        relpath = os.path.relpath(os.curdir, start=self.name)
+        relpath = os.path.relpath(os.curdir, start=self.dirname)
         return [
             x if os.path.isabs(x) else os.path.join(relpath, x)
             for x in self._files
         ]
-
-
-class Submodule(Base):
-
-    PRE_RUN = jobutils.NEMD_MODULE
 
 
 class Lmp(Submodule):
@@ -125,32 +158,32 @@ class Lmp(Submodule):
 
     EXT = lammpsfix.CUSTOM_EXT
 
-    def __init__(self, struct, *args, **kwargs):
+    def __init__(self, struct, *args, jobname=None, files=None, **kwargs):
         """
         :param struct Struct: the structure to get in script and data file from.
         """
-        super().__init__(*args, **kwargs)
+        basename = os.path.splitext(os.path.basename(files[0]))[0]
+        name = f"lammps{basename.removeprefix(jobname)}"
+        super().__init__(*args, name, jobname=jobname, files=files, **kwargs)
         self.struct = struct
-        name = os.path.splitext(os.path.basename(self.files[0]))[0]
-        self.name = f"lammps{name.removeprefix(self.jobname)}"
-        Lmp.files.fget.cache_clear()
 
-    def getArgs(self):
+    def setUp(self):
         """
-        See parent class for docs.
+        See parent.
+        """
+        self.struct.writeIn()
+        osutils.symlink(self.files[0], self.struct.datafile)
+
+    @property
+    def args(self):
+        """
+        See parent.
         """
         return [
             symbols.LMP, jobutils.FLAG_IN, self.struct.inscript,
             jobutils.FLAG_SCREEN, symbols.LMP_LOG, jobutils.FLAG_LOG,
             symbols.LMP_LOG
         ]
-
-    def setUp(self):
-        """
-        See parent class for docs.
-        """
-        self.struct.writeIn()
-        osutils.symlink(self.files[0], self.struct.datafile)
 
 
 class Alamode(Submodule):
@@ -171,27 +204,27 @@ class Alamode(Submodule):
         """
         :param crystal Crystal: the crystal to get in script from.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(crystal.mode, *args, **kwargs)
         self.crystal = crystal
-        self.name = self.crystal.mode
-
-    def getArgs(self):
-        """
-        See parent class for docs.
-        """
-        return [self.EXES[self.crystal.mode], self.crystal.inscript]
 
     def setUp(self):
         """
-        See parent class for docs.
+        See parent.
         """
         self.crystal.write()
-        if self.crystal.mode == self.SUGGEST:
+        if self.mode == self.SUGGEST:
             return
         filename = os.path.basename(self.files[0])
-        if self.crystal.mode == self.OPTIMIZE:
+        if self.mode == self.OPTIMIZE:
             filename = f"{self.jobname}{symbols.DFSET_EXT}"
         osutils.symlink(self.files[0], filename)
+
+    @property
+    def args(self):
+        """
+        See parent.
+        """
+        return [self.EXES[self.mode], self.crystal.inscript]
 
 
 class Tools(Submodule):
@@ -203,20 +236,19 @@ class Tools(Submodule):
     EXTRACT = 'extract'
     EXTS = {DISPLACE: "*.lammps"}
 
-    def __init__(self, name, *args, **kwargs):
+    @property
+    def args(self):
         """
-        :param name str: the subdirectory name
+        See parent.
         """
-        super().__init__(*args, name=name, **kwargs)
-
-    def getArgs(self):
-        """
-        See parent class for docs.
-        """
-        scr = envutils.get_data('tools', f'{self.name}.py', module='alamode')
-        if self.name == self.EXTRACT:
-            return [scr, '--LAMMPS'] + self.files
-        return [
-            scr, '--prefix', self.jobname, '--mag', 0.01, '--LAMMPS',
-            self.files[0], '-pf', self.files[1]
-        ]
+        script = envutils.get_data('tools',
+                                   f'{self.mode}.py',
+                                   module='alamode')
+        match self.mode:
+            case self.EXTRACT:
+                return [script, '--LAMMPS'] + self.files
+            case self.DISPLACE:
+                return [
+                    script, '--prefix', self.jobname, '--mag', '0.01',
+                    '--LAMMPS', self.files[0], '-pf', self.files[1]
+                ]
