@@ -176,8 +176,8 @@ class Check(Base):
         """
         self.log(self.getHeader())
         replacement = repl.format(dir=self.dir)
-        args = [sub_re.sub(replacement, x) for x in self.args]
-        proc = process.Check(args, jobname=self.jobname)
+        tokens = [sub_re.sub(replacement, x) for x in self.args]
+        proc = process.Check(tokens, jobname=self.jobname)
         completed = proc.run()
         if not completed.returncode:
             return

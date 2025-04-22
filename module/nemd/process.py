@@ -22,18 +22,15 @@ class Base(objectutils.Object):
     """
     PRE_RUN = None
     SEP = ' '
-    EXT = symbols.LOG_EXT
 
-    def __init__(self, tokens=None, dirname=os.curdir, jobname=None):
+    def __init__(self, dirname=os.curdir, jobname=None):
         """
-        :param tokens list: the arguments to build the cmd from
         :param driname str: the subdirectory to run
         :param files list: input files
         """
-        self.tokens = tokens
         self.dirname = dirname
         self.jobname = jobname or envutils.get_jobname() or self.name
-        self.logfile = f'{self.jobname}{self.EXT}'
+        self.logfile = f'{self.jobname}{symbols.LOG_EXT}'
 
     def run(self):
         """
@@ -69,10 +66,32 @@ class Base(objectutils.Object):
 
         :return list: the arguments to build the command
         """
+        return ['echo', 'hi']
+
+
+class Process(Base):
+    """
+    Run subprocess.
+    """
+
+    def __init__(self, tokens, *args, **kwargs):
+        """
+        :param tokens list: the arguments to build the cmd from
+        """
+        super().__init__(*args, **kwargs)
+        self.tokens = tokens
+
+    @property
+    def args(self):
+        """
+        The args to build the command from.
+
+        :return list: the arguments to build the command
+        """
         return self.tokens
 
 
-class Check(Base):
+class Check(Process):
     """
     Subprocess to run check cmd.
     """
@@ -86,17 +105,18 @@ class Submodule(Base):
     """
 
     PRE_RUN = jobutils.NEMD_MODULE
+    EXT = symbols.LOG_EXT
     EXTS = {}
 
-    def __init__(self, mode=None, *args, files=None, **kwargs):
+    def __init__(self, mode, *args, files=None, **kwargs):
         """
         :param mode str: the mode
         :param files list: input files
         """
         super().__init__(*args, **kwargs)
         self.mode = mode
-        self.dirname = self.mode
         self._files = files
+        self.dirname = self.mode
 
     @property
     def name(self):
@@ -158,13 +178,13 @@ class Lmp(Submodule):
 
     EXT = lammpsfix.CUSTOM_EXT
 
-    def __init__(self, struct, *args, jobname=None, files=None, **kwargs):
+    def __init__(self, struct, jobname=None, files=None, **kwargs):
         """
         :param struct Struct: the structure to get in script and data file from.
         """
         basename = os.path.splitext(os.path.basename(files[0]))[0]
-        name = f"lammps{basename.removeprefix(jobname)}"
-        super().__init__(*args, name, jobname=jobname, files=files, **kwargs)
+        mode = f"lammps{basename.removeprefix(jobname)}"
+        super().__init__(mode, jobname=jobname, files=files, **kwargs)
         self.struct = struct
 
     def setUp(self):
