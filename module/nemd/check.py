@@ -88,18 +88,12 @@ class Cmp(Exist):
     """
     The class to perform file comparison.
     """
+    KEYS = {'atol', 'rtol', 'equal_nan'}
 
-    def __init__(self, *args, atol=None, rtol=None, equal_nan=None, **kwargs):
-        """
-        :param atol str: the absolute tolerance
-        :param rtol str: the relative tolerance
-        :param equal_nan bool: whether to compare NaNs as equal.
-        """
+    def __init__(self, *args, **kwargs):
+        self.keys = self.KEYS.intersection(kwargs.keys())
+        self.kwargs = {x: eval(kwargs.pop(x)) for x in self.keys}
         super().__init__(*args, **kwargs)
-        self.exact = all(x is None for x in [atol, rtol, equal_nan])
-        self.kwargs = dict(atol=float(atol or '1e-08'),
-                           rtol=float(rtol or '1e-05'),
-                           equal_nan=eval(equal_nan or 'True'))
 
     def run(self):
         """
@@ -114,16 +108,16 @@ class Cmp(Exist):
         """
         Compare the file content for exact match.
         """
-        if not self.exact:
+        if self.keys:
             return
-        if not filecmp.cmp(*self.args):
-            self.error(', '.join(self.args[1:]))
+        for target in self.args[1:]:
+            if filecmp.cmp(self.args[0], target):
+                continue
+            self.error(target)
 
     def error(self, target):
         """
-        Error with proper message.
-
-        :param target str: the target filename(s)
+        See parent.
         """
         super().error(f"{self.args[0]} is different from {target}.")
 
@@ -131,7 +125,7 @@ class Cmp(Exist):
         """
         Compare csv files via np.allclose.
         """
-        if self.exact or not all(x.endswith('.csv') for x in self.args):
+        if not self.keys or not all(x.endswith('.csv') for x in self.args):
             return
         origin = pd.read_csv(self.args[0])
         object = origin.select_dtypes(include='object')
@@ -153,13 +147,13 @@ class Cmp(Exist):
         """
         Compare the lammps data files.
         """
-        if self.exact or not all(x.endswith('.data') for x in self.args):
+        if not self.keys or not all(x.endswith('.data') for x in self.args):
             return
         origin = lammpsdata.read(self.args[0])
         for target in self.args[1:]:
-            data = lammpsdata.read(target)
-            if not origin.allClose(data, **self.kwargs):
-                self.error(target)
+            if origin.allClose(lammpsdata.read(target), **self.kwargs):
+                continue
+            self.error(target)
 
 
 class CollectLog(Exist):
