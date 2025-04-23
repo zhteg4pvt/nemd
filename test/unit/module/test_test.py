@@ -110,6 +110,7 @@ class TestCheck:
 
 
 class TestTag:
+
     TEST0001 = os.path.join('0001_test', 'workspace',
                             '06b39c3b9b6541a2dc6e15baa6734cb2')
 
