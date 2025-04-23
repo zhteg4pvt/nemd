@@ -174,7 +174,7 @@ class Check(Base):
         self.log(self.getHeader())
         replacement = repl.format(dir=self.dir)
         tokens = [sub_re.sub(replacement, x) for x in self.args]
-        proc = process.Check(tokens, jobname=self.jobname)
+        proc = process.Check(tokens, jobname=self.name)
         completed = proc.run()
         if not completed.returncode:
             return

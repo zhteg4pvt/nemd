@@ -764,12 +764,9 @@ class Agg(Base):
         parm = self.data[list(set(self.data.columns).difference([val, err]))]
         if parm.empty:
             return
-        columns = {
-            x: ' '.join([y.capitalize() for y in x.split('_')])
-            for x in parm.columns
-        }
-        self.data.index = parm.rename(columns=columns).values[:, 0]
-        self.data = self.data[[val, err]]
+        self.data.set_index(parm.columns[0], inplace=True)
+        self.data.index.name = ' '.join(
+            [y.capitalize() for y in self.data.index.name.split('_')])
 
     @property
     def name(self):

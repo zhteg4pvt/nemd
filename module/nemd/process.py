@@ -54,8 +54,7 @@ class Base(objectutils.Object):
         args = [self.PRE_RUN] + self.args if self.PRE_RUN else self.args
         cmd = self.SEP.join(args)
         if write_cmd:
-            file = 'cmd' if self.dirname == os.curdir else f'{self.name}_cmd'
-            with open(file, 'w') as fh:
+            with open(f'{self.jobname}_cmd', 'w') as fh:
                 fh.write(cmd)
         return cmd
 

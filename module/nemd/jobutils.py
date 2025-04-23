@@ -168,14 +168,6 @@ class Job(objectutils.Object):
 
         :return dict: the data in the job json.
         """
-        return self.getData()
-
-    def getData(self):
-        """
-        Return the job data.
-
-        :return dict: the data in the job json.
-        """
         try:
             with open(self.file) as fh:
                 return json.load(fh)

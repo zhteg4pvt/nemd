@@ -39,6 +39,15 @@ class Exist(logutils.Base):
                 continue
             self.error(f"{target} not found.")
 
+    def error(self, msg):
+        """
+        Print this message and exit the program.
+
+        :param msg str: the msg to be printed
+        """
+        self.log(msg)
+        sys.exit(1)
+
 
 class Glob(Exist):
     """
@@ -163,8 +172,6 @@ class CollectLog(Exist):
 
     TIME = 'time'
     MEMORY = 'memory'
-    CSV_EXT = '.csv'
-    PNG_EXT = '.png'
     TIME_LB = f'{TIME.capitalize()} (min)'
     MEMORY_LB = f'{MEMORY.capitalize()} (MB)'
     LABELS = {TIME: TIME_LB, MEMORY: MEMORY_LB}
@@ -172,24 +179,22 @@ class CollectLog(Exist):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.data = None
-        self.outfile = f"{self.name}{self.PNG_EXT}"
-        self.logs = {
-            x.jobname: x.logfile
-            for x in jobutils.Job().getJobs() if x.logfile
-        }
+        self.outfile = f"{self.name}.csv"
 
     def run(self):
         """
         Main method to run.
         """
         self.set()
-        self.plotData()
+        self.plot()
 
     def set(self):
         """
         Set the time and memory data from the log files.
         """
-        files = {x: y for x, y in self.logs.items() if os.path.exists(y)}
+        jobs = jobutils.Job().getJobs()
+        files = {x.jobname: x.logfile for x in jobs if x.logfile}
+        files = {x: y for x, y in files.items() if os.path.exists(y)}
         rdrs = [logutils.Reader(x) for x in files.values()]
         data = {}
         if self.TIME in self.args:
@@ -203,11 +208,10 @@ class CollectLog(Exist):
         self.data.set_index(self.data.index.astype(float), inplace=True)
         func = lambda x: x.total_seconds() / 60. if x is not None else None
         self.data[self.TIME_LB] = self.data[self.TIME_LB].map(func)
-        out_csv = f"{self.name}{self.CSV_EXT}"
-        self.data.to_csv(out_csv)
-        jobutils.add_outfile(out_csv)
+        self.data.to_csv(self.outfile)
+        jobutils.add_outfile(self.outfile)
 
-    def plotData(self):
+    def plot(self):
         """
         Plot the data. Time and memory are plotted together if possible.
         """
@@ -239,8 +243,9 @@ class CollectLog(Exist):
                     ax2.tick_params(axis='y', colors='b')
                     ax2.spines['right'].set_color('b')
                 fig.tight_layout()
-                fig.savefig(self.outfile)
-                jobutils.add_outfile(self.outfile)
+                outfile = f"{self.name}.png"
+                fig.savefig(outfile)
+                jobutils.add_outfile(outfile)
 
 
 if __name__ == "__main__":

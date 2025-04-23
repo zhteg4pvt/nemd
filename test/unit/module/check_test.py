@@ -80,7 +80,7 @@ class TestCmp:
         [(['cmd', 'cmd_same'], {}, None), (['cmd', 'check'], {}, 'check'),
          (['cmd', 'cmd_same', 'check'], {}, 'check'),
          (['cmd', 'check'], dict(equal_nan='True'), None)])
-    def testFile(self, cmp, expected, copied):
+    def testFile(self, cmp, expected):
         cmp.file()
         cmp.error.assert_called_with(
             expected) if expected else cmp.error.assert_not_called()
@@ -94,7 +94,7 @@ class TestCmp:
            ], dict(atol='1e-08'), 'close.csv'),
          (['original.csv', 'different.csv'
            ], dict(atol='1e-06'), 'different.csv')])
-    def testCsv(self, cmp, expected, copied):
+    def testCsv(self, cmp, expected):
         try:
             cmp.csv()
         except ValueError:
@@ -111,7 +111,7 @@ class TestCmp:
            ], dict(atol='1e-08'), 'close.data'),
          (['original.data', 'different.data'
            ], dict(atol='1e-03'), 'different.data')])
-    def testData(self, cmp, expected, copied):
+    def testData(self, cmp, expected):
         try:
             cmp.data()
         except ValueError:
