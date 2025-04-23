@@ -18,6 +18,7 @@ import wurlitzer
 from nemd import envutils
 from nemd import is_debug
 from nemd import jobutils
+from nemd import objectutils
 from nemd import psutils
 from nemd import symbols
 from nemd import timeutils
@@ -362,7 +363,7 @@ class Reader:
             return float(match.group(1))
 
 
-class Base(object):
+class Base(objectutils.Object):
     """
     A base class with a logger to print logging messages.
     """

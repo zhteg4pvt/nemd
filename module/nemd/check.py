@@ -14,20 +14,20 @@ from nemd import jobutils
 from nemd import lammpsdata
 from nemd import logutils
 from nemd import np
-from nemd import objectutils
 from nemd import pd
 from nemd import plotutils
 
 
-class Exist(objectutils.Object):
+class Exist(logutils.Base):
     """
     The class to perform file existence check.
     """
 
-    def __init__(self, *args):
+    def __init__(self, *args, logger=None):
         """
         :param args str: the target filenames
         """
+        super().__init__(logger=logger)
         self.args = args
 
     def run(self):
@@ -38,15 +38,6 @@ class Exist(objectutils.Object):
             if os.path.isfile(target):
                 continue
             self.error(f"{target} not found.")
-
-    def error(self, msg):
-        """
-        Print he message and exit with 1.
-
-        :param msg str: the message to print
-        """
-        print(msg)
-        sys.exit(1)
 
 
 class Glob(Exist):
@@ -65,12 +56,10 @@ class Glob(Exist):
         """
         The main method to check the existence of files.
         """
-        for pattern in self.args:
-            files = glob.glob(pattern)
-            if self.num is None and not files:
-                self.error(f"No files found. ({pattern})")
-            if self.num and len(files) != self.num:
-                self.error(f"{len(files)} files found. ({pattern} {self.num})")
+        num = sum([len(glob.glob(x)) for x in self.args])
+        if num == self.num or (num and self.num is None):
+            return
+        self.error(f"{num} files found. ({self.num})")
 
 
 class Has(Exist):

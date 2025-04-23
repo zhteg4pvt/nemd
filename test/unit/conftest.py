@@ -77,13 +77,16 @@ def flow_opr():
 
 
 @pytest.fixture
-def jobs(dirname, tmp_dir):
+def copied(dirname, tmp_dir):
     if dirname is None:
         return
     test_dir = envutils.test_data('itest', dirname)
     shutil.copytree(test_dir, os.curdir, dirs_exist_ok=True)
-    jobs = flow.project.FlowProject.get_project(os.curdir).find_jobs()
-    return list(jobs)
+
+
+@pytest.fixture
+def jobs(dirname, copied):
+    return list(flow.project.FlowProject.get_project(os.curdir).find_jobs())
 
 
 @pytest.fixture
