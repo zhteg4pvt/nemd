@@ -137,7 +137,8 @@ class Param(Base):
         """
         See the parent.
         """
-        return Tag(self.dir, options=self.options).fast(super().args)
+        fast = Tag(self.dir, options=self.options).fast
+        return super().args if fast is None else fast
 
     @property
     def label(self, rex=re.compile(rf'-(\w*) \{PARAM}')):
@@ -160,13 +161,9 @@ class Check(Base):
     The class to execute the operators in addition to the parsing a file.
     """
 
-    NEMD_CHECK = 'nemd_check'
-    CMP = check.Cmp.name
-    RPL = rf'{NEMD_CHECK} {CMP} {{dir}}{os.path.sep}\1'
-
     def run(self,
-            sub_re=re.compile(rf'{NEMD_CHECK} +{CMP} +(\w+)'),
-            repl=rf'{NEMD_CHECK} {CMP} {{dir}}{os.path.sep}\1'):
+            sub_re=re.compile(rf'(nemd_check) +({check.Cmp.name}) +(\w+)'),
+            repl=rf'\1 \2 {{dir}}{os.path.sep}\3'):
         """
         Check the results by execute all operators.
 
@@ -207,9 +204,11 @@ class Tag(Base):
         """
         jobnames = [x.options.JOBNAME for x in self.logs]
         parms = [x.split('_')[-1] for x in jobnames]
-        times = [x.task_time for x in self.logs]
-        tags = [[x, timeutils.delta2str(y)] for x, y in zip(parms, times)]
-        self.tags[self.SLOW] = [y for x in tags for y in x]
+        times = [timeutils.delta2str(x.task_time) for x in self.logs]
+        slow = [y for x in zip(parms, times) for y in x]
+        if not slow:
+            return
+        self.tags[self.SLOW] = slow
 
     @property
     @functools.cache
@@ -250,29 +249,33 @@ class Tag(Base):
             for line in lines:
                 fh.write(f"{line}\n")
 
+    @property
     def selected(self):
         """
         Select the operators by the options.
 
         :return bool: Whether the test is selected.
         """
-        return self.fast() and self.labeled
+        return self.labeled and (self.fast is None or bool(self.fast))
 
-    def fast(self, args=None):
+    @property
+    @functools.cache
+    def fast(self):
         """
-        Get the parameters considered as fast.
+        Get the fast parameters.
 
-        :param args list: the parameters to filter
-        :return bool or list of str: parameters filtered by slow
+        :return set: parameters filtered by slow
         """
         if self.options.slow is None:
-            return True if args is None else args
+            return
         # [['slow', 'traj', '00:00:01'], ['slow', '9', '00:00:04']]
-        params = np.reshape(self.tags[self.SLOW], (-1, 2))
+        params = self.tags.get(self.SLOW)
+        if not params:
+            return
+        params = np.reshape(params, (-1, 2))
         params = pd.Series(params[:, 1], index=params[:, 0])
         params = params.map(lambda x: timeutils.str2delta(x).total_seconds())
-        fast = set(params[params <= self.options.slow].index)
-        return bool(fast) if args is None else [x for x in args if x in fast]
+        return set(params[params <= self.options.slow].index)
 
     @property
     def labeled(self):

@@ -56,8 +56,7 @@ class Test(jobcontrol.Runner):
             self.error(f'No valid tests found in {self.options.dir}.')
 
         self.dirs = [
-            x for x in self.dirs
-            if test.Tag(x, options=self.options).selected()
+            x for x in self.dirs if test.Tag(x, options=self.options).selected
         ]
 
         if not self.dirs:

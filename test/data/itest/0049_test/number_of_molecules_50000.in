@@ -1,0 +1,25 @@
+units real
+atom_style full
+bond_style harmonic
+angle_style harmonic
+dihedral_style opls
+improper_style cvff
+special_bonds lj/coul 0 0 0.5
+pair_style lj/cut 11.0
+pair_modify mix geometric
+read_data number_of_molecules_50000.data
+
+dump 1 all custom 1000 number_of_molecules_50000.custom.gz id xu yu zu
+dump_modify 1 sort id
+min_style fire
+minimize 1.0e-6 1.0e-8 1000000 10000000
+
+timestep 1.0
+thermo_modify flush yes
+thermo 1000
+velocity all create 300 63106190
+fix 2a all nve
+run 1000000
+unfix 2a
+
+quit 0

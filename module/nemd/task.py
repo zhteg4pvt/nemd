@@ -393,4 +393,4 @@ class TestAgg(TimeAgg):
         if self.options is None or self.options.label is None:
             return
         tags = [test.Tag(job=x, options=self.options) for x in self.jobs]
-        self.jobs = [y for x, y in zip(tags, self.jobs) if x.selected()]
+        self.jobs = [y for x, y in zip(tags, self.jobs) if x.selected]

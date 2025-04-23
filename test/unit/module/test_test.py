@@ -107,3 +107,83 @@ class TestCheck:
             pass
         msg = check.run()
         assert (msg.endswith(expected) if expected else msg is None)
+
+
+class TestTag:
+    TEST0001 = os.path.join('0001_test', 'workspace',
+                            '06b39c3b9b6541a2dc6e15baa6734cb2')
+
+    @pytest.fixture
+    def tag(self, dirname, args):
+        dirname = envutils.test_data('itest', dirname)
+        options = test_workflow.Parser().parse_args(args)
+        return test.Tag(dirname, options=options)
+
+    @pytest.fixture
+    def ntag(self, dirname, tmp_dir):
+        dirname = envutils.test_data('itest', dirname)
+        shutil.copytree(dirname, os.curdir, dirs_exist_ok=True)
+        return test.Tag(os.curdir)
+
+    @pytest.mark.parametrize(
+        'dirname,expected',
+        [('empty', None), (TEST0001, ['bldr', '00:00:00']),
+         ('0049_test', ['50000', '00:00:02', '100', '00:00:01'])])
+    def testSetSlow(self, ntag, expected):
+        ntag.setSlow()
+        assert expected == ntag.tags.get('slow')
+
+    @pytest.mark.parametrize('dirname,expected', [('empty', 0), (TEST0001, 1),
+                                                  ('0049_test', 2)])
+    def testLogs(self, ntag, expected):
+        ntag.setSlow()
+        assert expected == len(ntag.logs)
+
+    @pytest.mark.parametrize('args', [[]])
+    @pytest.mark.parametrize('dirname,expected', [('empty', 0), ('0001', 2),
+                                                  ('0049', 2)])
+    def testTags(self, tag, expected):
+        assert expected == len(tag.tags)
+
+    @pytest.mark.parametrize('dirname,expected',
+                             [('empty', None), (TEST0001, ['amorp_bldr']),
+                              ('0049_test', ['number_of_molecules'])])
+    def testSetLabel(self, ntag, expected):
+        ntag.setLabel()
+        assert expected == ntag.tags.get('label')
+
+    @pytest.mark.parametrize('dirname,expected', [('empty', 0), (TEST0001, 2),
+                                                  ('0049_test', 2)])
+    def testWrite(self, ntag, expected):
+        ntag.setSlow()
+        ntag.setLabel()
+        ntag.write()
+        tag = test.Tag(os.curdir)
+        assert expected == len(tag.tags)
+
+    @pytest.mark.parametrize('dirname,args,expected', [
+        ('0000', [], True),
+        ('0000', ['-label', 'mol_bldr'], False),
+        ('0001', ['-label', 'amorp_bldr', '-slow', '1'], False),
+        ('0001', ['-label', 'amorp_bldr', '-slow', '4'], True),
+    ])
+    def testSelected(self, tag, expected):
+        assert expected == tag.selected
+
+    @pytest.mark.parametrize('dirname,args,expected',
+                             [('0000', ['-slow', '4'], None),
+                              ('0001', [], None),
+                              ('0001', ['-slow', '4'], {'bldr'}),
+                              ('0001', ['-slow', '1'], set())])
+    def testFast(self, tag, expected):
+        assert expected == tag.fast
+
+    @pytest.mark.parametrize('dirname,args,expected', [
+        ('0000', [], True),
+        ('0000', ['-label', 'amorp_bldr'], False),
+        ('0001', ['-label', 'amorp_bldr'], True),
+        ('0001', ['-label', 'mol', 'amorp'], True),
+        ('0001', ['-label', 'mol'], False),
+    ])
+    def testLabeled(self, tag, expected):
+        assert expected == tag.labeled
