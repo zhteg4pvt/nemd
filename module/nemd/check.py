@@ -165,16 +165,14 @@ class Cmp(Exist):
             self.error(target)
 
 
-class CollectLog(Exist):
+class Collect(Exist):
     """
     The class to collect the log files and plot the requested data.
     """
-
-    TIME = 'time'
-    MEMORY = 'memory'
-    TIME_LB = f'{TIME.capitalize()} (min)'
-    MEMORY_LB = f'{MEMORY.capitalize()} (MB)'
-    LABELS = {TIME: TIME_LB, MEMORY: MEMORY_LB}
+    TIME_MIN = 'Task Time (min)'
+    MEMORY_MB = 'Memory (MB)'
+    COLUMNS = {'task_time': TIME_MIN, 'memory': 'Memory (MB)'}
+    TWINX = {TIME_MIN: MEMORY_MB}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -192,22 +190,20 @@ class CollectLog(Exist):
         """
         Set the time and memory data from the log files.
         """
-        jobs = jobutils.Job().getJobs()
-        files = {x.jobname: x.logfile for x in jobs if x.logfile}
-        files = {x: y for x, y in files.items() if os.path.exists(y)}
+        files = {x.jobname: x.logfile for x in jobutils.Job().getJobs()}
+        files = {x: y for x, y in files.items() if y and os.path.exists(y)}
+        if not files:
+            return
         rdrs = [logutils.Reader(x) for x in files.values()]
-        data = {}
-        if self.TIME in self.args:
-            data[self.TIME_LB] = [x.task_time for x in rdrs]
-        if self.MEMORY in self.args:
-            data[self.MEMORY_LB] = [x.memory for x in rdrs]
+        data = [[getattr(x, y) for y in self.args] for x in rdrs]
         name = rdrs[0].options.NAME
         params = [x.removeprefix(name)[1:] for x in files.keys()]
         index = pd.Index(params, name=name.replace('_', ' '))
-        self.data = pd.DataFrame(data, index=index)
+        self.data = pd.DataFrame(data, index=index, columns=self.args)
         self.data.set_index(self.data.index.astype(float), inplace=True)
         func = lambda x: x.total_seconds() / 60. if x is not None else None
-        self.data[self.TIME_LB] = self.data[self.TIME_LB].map(func)
+        self.data.task_time = self.data.task_time.map(func)
+        self.data.rename(columns=self.COLUMNS, inplace=True)
         self.data.to_csv(self.outfile)
         jobutils.add_outfile(self.outfile)
 
@@ -215,31 +211,30 @@ class CollectLog(Exist):
         """
         Plot the data. Time and memory are plotted together if possible.
         """
-        for key in self.args:
-            if key == self.MEMORY and self.TIME in self.args:
-                # memory and time are plotted together when key == self.TIME
-                continue
-            label = self.LABELS[key]
+        if self.data is None:
+            return
+        self.data.dropna(inplace=True, axis=1)
+        for col in self.data.columns.difference(self.TWINX.values()):
+            twinx_lb = self.TWINX.get(col)
+            if twinx_lb and twinx_lb not in self.data.columns:
+                twinx_lb = None
             with plotutils.pyplot(inav=envutils.is_interac()) as plt:
                 fig = plt.figure(figsize=(10, 6))
                 ax1 = fig.add_subplot(1, 1, 1)
-                data = self.data.get(label)
-                twinx = key == self.TIME and self.MEMORY in self.args and not self.data[
-                    self.MEMORY_LB].isnull().all()
-                color = 'g' if twinx else 'k'
-                ax1.plot(self.data.index, data, f'{color}-.*')
+                color = 'g' if twinx_lb else 'k'
+                ax1.plot(self.data.index, self.data[col], f'{color}-.*')
                 ax1.set_xlabel(self.data.index.name)
-                ax1.set_ylabel(key, color=color)
-                if twinx:
+                ax1.set_ylabel(col, color=color)
+                if twinx_lb:
                     ax1.tick_params(axis='y', colors='g')
                     ax2 = ax1.twinx()
                     ax2.spines['left'].set_color('g')
                     ax2.plot(self.data.index,
-                             self.data[self.MEMORY_LB],
+                             self.data[twinx_lb],
                              'b--o',
                              markerfacecolor='none',
                              alpha=0.9)
-                    ax2.set_ylabel(self.MEMORY_LB, color='b')
+                    ax2.set_ylabel(twinx_lb, color='b')
                     ax2.tick_params(axis='y', colors='b')
                     ax2.spines['right'].set_color('b')
                 fig.tight_layout()
@@ -252,7 +247,7 @@ if __name__ == "__main__":
     """
     Run library module as a script.
     """
-    Classes = [Exist, Glob, Has, Cmp, CollectLog]
+    Classes = [Exist, Glob, Has, Cmp, Collect]
     try:
         Class = next(x for x in Classes if x.name == sys.argv[1])
     except StopIteration:

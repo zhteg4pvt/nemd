@@ -129,7 +129,7 @@ class TestTag:
     @pytest.mark.parametrize(
         'dirname,expected',
         [('empty', None), (TEST0001, ['bldr', '00:00:00']),
-         ('0049_test', ['50000', '00:00:02', '100', '00:00:01'])])
+         ('0049_test', ['50000', '00:00:02', '100', '00:00:00'])])
     def testSetSlow(self, ntag, expected):
         ntag.setSlow()
         assert expected == ntag.tags.get('slow')

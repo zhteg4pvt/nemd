@@ -1,3 +1,4 @@
+import os.path
 from unittest import mock
 
 import pytest
@@ -118,3 +119,29 @@ class TestCmp:
             pass
         cmp.error.assert_called_with(
             expected) if expected else cmp.error.assert_not_called()
+
+
+class TestCollect:
+
+    @pytest.fixture
+    def collect(self, args, copied):
+        collect = check.Collect(*args)
+        collect.error = mock.Mock()
+        return collect
+
+    @pytest.mark.parametrize('dirname,args,expected',
+                             [('0049', ['task_time'], None),
+                              ('0049_test', ['task_time'], (2, 1)),
+                              ('0049_test', ['task_time', 'memory'], (2, 2))])
+    def testSet(self, collect, expected):
+        collect.set()
+        assert expected == (collect.data.shape if expected else collect.data)
+
+    @pytest.mark.parametrize('dirname,args,expected',
+                             [('0049', ['task_time'], False),
+                              ('0049_test', ['task_time'], True),
+                              ('0049_test', ['task_time', 'memory'], True)])
+    def testPlot(self, collect, expected):
+        collect.set()
+        collect.plot()
+        assert expected == os.path.exists('collect.png')

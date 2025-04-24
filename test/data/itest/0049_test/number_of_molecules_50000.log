@@ -26,10 +26,10 @@ INTERAC: False
 PYTHON: 2
 CPU: 1
 DEBUG: False
-JobStart: 20:41:18 04/22/2025
+JobStart: 20:45:11 04/23/2025
 ...........................
-[20:41:18] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
+[20:45:12] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
 Data file written into number_of_molecules_50000.data
 In script written into number_of_molecules_50000.in
 Finished.
-20:41:20 04/22/2025
+20:45:13 04/23/2025
