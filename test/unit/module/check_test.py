@@ -132,16 +132,22 @@ class TestCollect:
     @pytest.mark.parametrize('dirname,args,expected',
                              [('0049', ['task_time'], None),
                               ('0049_test', ['task_time'], (2, 1)),
-                              ('0049_test', ['task_time', 'memory'], (2, 2))])
+                              ('0049_test', ['task_time', 'memory'], (2, 1)),
+                              ('0049_ubuntu', ['task_time', 'memory'], (2, 2)),
+                              ('0049_ubuntu', ['memory'], (2, 1))])
     def testSet(self, collect, expected):
         collect.set()
         assert expected == (collect.data.shape if expected else collect.data)
+        assert bool(expected) == os.path.isfile('collect.csv')
 
     @pytest.mark.parametrize('dirname,args,expected',
-                             [('0049', ['task_time'], False),
-                              ('0049_test', ['task_time'], True),
-                              ('0049_test', ['task_time', 'memory'], True)])
+                             [('0049', ['task_time'], 0),
+                              ('0049_test', ['task_time'], 1),
+                              ('0049_test', ['task_time', 'memory'], 1),
+                              ('0049_ubuntu', ['task_time', 'memory'], 2),
+                              ('0049_ubuntu', ['memory'], 1)])
     def testPlot(self, collect, expected):
         collect.set()
         collect.plot()
-        assert expected == os.path.exists('collect.png')
+        assert expected == (len(collect.fig.axes) if collect.fig else 0)
+        assert bool(expected) == os.path.exists('collect.png')

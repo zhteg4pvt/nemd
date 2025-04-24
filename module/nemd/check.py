@@ -177,6 +177,7 @@ class Collect(Exist):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.data = None
+        self.fig = None
         self.outfile = f"{self.name}.csv"
 
     def run(self):
@@ -199,11 +200,12 @@ class Collect(Exist):
         name = rdrs[0].options.NAME
         params = [x.removeprefix(name)[1:] for x in files.keys()]
         index = pd.Index(params, name=name.replace('_', ' '))
-        self.data = pd.DataFrame(data, index=index, columns=self.args)
-        self.data.set_index(self.data.index.astype(float), inplace=True)
-        func = lambda x: x.total_seconds() / 60. if x is not None else None
-        self.data.task_time = self.data.task_time.map(func)
-        self.data.rename(columns=self.COLUMNS, inplace=True)
+        columns = [self.COLUMNS[x] for x in self.args]
+        self.data = pd.DataFrame(data, index=index, columns=columns)
+        self.data.dropna(inplace=True, axis=1)
+        if self.TIME_MIN in self.data.columns:
+            time = [x.total_seconds() / 60. for x in self.data[self.TIME_MIN]]
+            self.data[self.TIME_MIN] = time
         self.data.to_csv(self.outfile)
         jobutils.add_outfile(self.outfile)
 
@@ -213,14 +215,14 @@ class Collect(Exist):
         """
         if self.data is None:
             return
-        self.data.dropna(inplace=True, axis=1)
-        for col in self.data.columns.difference(self.TWINX.values()):
+        twinx_lbs = [self.TWINX.get(x) for x in self.args]
+        for col in self.data.columns.difference(twinx_lbs):
             twinx_lb = self.TWINX.get(col)
             if twinx_lb and twinx_lb not in self.data.columns:
                 twinx_lb = None
             with plotutils.pyplot(inav=envutils.is_interac()) as plt:
-                fig = plt.figure(figsize=(10, 6))
-                ax1 = fig.add_subplot(1, 1, 1)
+                self.fig = plt.figure(figsize=(10, 6))
+                ax1 = self.fig.add_subplot(1, 1, 1)
                 color = 'g' if twinx_lb else 'k'
                 ax1.plot(self.data.index, self.data[col], f'{color}-.*')
                 ax1.set_xlabel(self.data.index.name)
@@ -237,9 +239,9 @@ class Collect(Exist):
                     ax2.set_ylabel(twinx_lb, color='b')
                     ax2.tick_params(axis='y', colors='b')
                     ax2.spines['right'].set_color('b')
-                fig.tight_layout()
+                self.fig.tight_layout()
                 outfile = f"{self.name}.png"
-                fig.savefig(outfile)
+                self.fig.savefig(outfile)
                 jobutils.add_outfile(outfile)
 
 
