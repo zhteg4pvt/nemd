@@ -14,11 +14,12 @@ import flow
 
 from nemd import jobutils
 from nemd import symbols
+from nemd import objectutils
 
 STATUS = 'status'
 
 
-class Job(jobutils.Job):
+class Job(objectutils.Object):
     """
     Non-cmd job.
     """
@@ -30,6 +31,7 @@ class Job(jobutils.Job):
                  options=None,
                  status=None,
                  logger=None,
+                 jobname=None,
                  **kwargs):
         """
         :param jobs list' of 'signac.job.Job': signac jobs
@@ -38,18 +40,18 @@ class Job(jobutils.Job):
         :param logger 'logutils.Logger': the logger to print message in the post
         """
         super().__init__(**kwargs)
-        self.job = jobs[0] if jobs else None
         self.jobs = jobs
         self.options = options
         self.status = status
         self.logger = logger
+        self.jobname = jobname
         self.doc = None
-        if self.job is None:
+        self.job = None
+        if not self.jobs:
             return
-        self.doc = self.job.project.doc
-        if self.agg:
-            self.job = self.job.project
-        self.dirname = self.job.fn('')
+        self.doc = self.jobs[0].project.doc
+        job = self.jobs[0].project if self.agg else self.jobs[0]
+        self.job = jobutils.Job(jobname=self.jobname, dirname=job.fn(''))
 
     @classmethod
     @property
@@ -80,7 +82,7 @@ class Job(jobutils.Job):
         if jobname is None:
             jobname = cls.name
         if cmd is None:
-            cmd = cls.OUT == cls.OUTFILE
+            cmd = cls.OUT == jobutils.Job.OUTFILE
         if with_job is None:
             with_job = not cls.agg
         if aggregator is None and cls.agg:
@@ -124,7 +126,7 @@ class Job(jobutils.Job):
 
         :return str: the output.
         """
-        return self.data.get(self.OUT)
+        return self.job.data.get(self.OUT)
 
     @out.setter
     def out(self, value):
@@ -133,8 +135,8 @@ class Job(jobutils.Job):
 
         :param value str: the output.
         """
-        self.data[self.OUT] = value
-        self.write()
+        self.job.data[self.OUT] = value
+        self.job.write()
 
     def getCmd(self, *arg, **kwargs):
         """
@@ -145,15 +147,16 @@ class Job(jobutils.Job):
         pass
 
     @classmethod
-    def postOpr(cls, *args, status=None, logger=None, **kwargs):
+    def postOpr(cls, *jobs, status=None, logger=None, **kwargs):
         """
         Whether the job is completed or not.
 
+        :param jobs 'signac.job.Job': the signac jobs
         :param status dict: the post status of all jobs
         :param logger 'logutils.Logger': the logger to print message
         :return bool: True if the post-conditions are met
         """
-        return cls(*args, status=status, logger=logger, **kwargs).post()
+        return cls(*jobs, status=status, logger=logger, **kwargs).post()
 
     def post(self):
         """
@@ -161,9 +164,7 @@ class Job(jobutils.Job):
 
         :return bool: whether the post-conditions are met.
         """
-        key = self.jobname
-        if not self.agg and self.job:
-            key = (key, self.job.id)
+        key = (self.jobname, self.job.dirname)
         if self.status and self.status.get(key):
             return True
         if self.status is None:
@@ -183,7 +184,7 @@ class Job(jobutils.Job):
         """
         return [
             y for x in self.jobs
-            for y in super(Job, self).getJobs(dirname=x.fn(''), **kwargs)
+            for y in self.job.getJobs(dirname=x.fn(''), **kwargs)
         ]
 
     def log(self, msg):
@@ -210,15 +211,15 @@ class Cmd(Job):
     PRE_RUN = jobutils.NEMD_RUN
     SEP = symbols.SPACE
     ARGS_TMPL = None
-    OUT = Job.OUTFILE
+    OUT = jobutils.Job.OUTFILE
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.args = []
-        if not self.job:
+        if not self.jobs:
             return
         self.args += list(map(str, self.doc.get(symbols.ARGS, [])))
-        self.args += [y for x in self.job.statepoint.items() for y in x]
+        self.args += [y for x in self.jobs[0].statepoint.items() for y in x]
 
     def run(self):
         """
@@ -243,7 +244,7 @@ class Cmd(Job):
         # Pass the outfiles of the prerequisite jobs to the current via cmd args
         # Please rearrange or modify the prerequisite jobs' input by subclassing
         for jobname in jobnames:
-            file = jobutils.Job(jobname, dirname=self.job.fn('')).getFile()
+            file = jobutils.Job(jobname, dirname=self.job.dirname).getFile()
             self.args[self.args.index(None)] = file
 
     def rmUnknown(self):

@@ -20,8 +20,8 @@ from nemd import units
 
 FLAG_IN_FILE = 'in_file'
 FLAG_TEMP_FILE = '-temp_file'
-FlAG_ENEGER_FILE = '-energy_file'
-FlAG_LOG_FILE = '-log_file'
+FLAG_ENEGER_FILE = '-energy_file'
+FLAG_LOG_FILE = '-log_file'
 FLAG_CROSS_SECTIONAL_AREA = '-cross_sectional_area'
 
 LOG_LAMMPS = 'log.lammps'
@@ -54,16 +54,16 @@ def get_parser():
                         metavar=FLAG_IN_FILE.upper(),
                         type=parserutils.type_file,
                         help='')
-    parser.add_argument(FlAG_LOG_FILE,
-                        metavar=FlAG_LOG_FILE.upper(),
+    parser.add_argument(FLAG_LOG_FILE,
+                        metavar=FLAG_LOG_FILE.upper(),
                         type=parserutils.type_file,
                         help='')
     parser.add_argument(FLAG_TEMP_FILE,
                         metavar=FLAG_TEMP_FILE.upper(),
                         type=parserutils.type_file,
                         help='')
-    parser.add_argument(FlAG_ENEGER_FILE,
-                        metavar=FlAG_ENEGER_FILE.upper(),
+    parser.add_argument(FLAG_ENEGER_FILE,
+                        metavar=FLAG_ENEGER_FILE.upper(),
                         type=parserutils.type_file,
                         help='')
     parser.add_argument(FLAG_CROSS_SECTIONAL_AREA,
@@ -84,7 +84,7 @@ def validate_options(argv):
         try:
             options.log_file = parserutils.type_file(log_file)
         except argparse.ArgumentTypeError:
-            parser.error(f'{log_file} not found. ({FlAG_LOG_FILE})')
+            parser.error(f'{log_file} not found. ({FLAG_LOG_FILE})')
 
     if options.temp_file and options.energy_file:
         return options
@@ -109,13 +109,13 @@ def validate_options(argv):
         energy_file = inscript.getEnergyFile()
         if energy_file is None:
             parser.error(
-                f"{options.in_file} doesn't define a energy file. ({FlAG_ENEGER_FILE})"
+                f"{options.in_file} doesn't define a energy file. ({FLAG_ENEGER_FILE})"
             )
         try:
             options.energy_file = parserutils.type_file(energy_file)
         except argparse.ArgumentTypeError:
             parser.error(
-                f'{energy_file} from {options.in_file} not found. ({FlAG_ENEGER_FILE})'
+                f'{energy_file} from {options.in_file} not found. ({FLAG_ENEGER_FILE})'
             )
 
     return options

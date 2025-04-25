@@ -153,7 +153,7 @@ class Cmd(taskbase.Cmd):
 
         :return `test.Cmd`: the cmd object.
         """
-        return test.Cmd(self.job.statepoint[jobutils.FLAG_DIR])
+        return test.Cmd(self.jobs[0].statepoint[jobutils.FLAG_DIR])
 
     def addQuot(self):
         """
@@ -238,7 +238,7 @@ class Check(taskbase.Job):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.dir = self.job.statepoint[jobutils.FLAG_DIR]
+        self.dir = self.jobs[0].statepoint[jobutils.FLAG_DIR]
 
     def run(self):
         """

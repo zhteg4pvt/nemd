@@ -636,7 +636,7 @@ class Bldr(Driver):
     """
     Parser with builder arguments.
     """
-    FlAG_FORCE_FIELD = '-force_field'
+    FLAG_FORCE_FIELD = '-force_field'
     FLAG_SUBSTRUCT = '-substruct'
 
     @classmethod
@@ -652,7 +652,7 @@ class Bldr(Driver):
                             action=StructAction,
                             help='set or measure the substructure geometry.')
         parser.add_argument(
-            cls.FlAG_FORCE_FIELD,
+            cls.FLAG_FORCE_FIELD,
             action=ForceFieldAction,
             nargs='+',
             default=symbols.OPLSUA_TIP3P,
@@ -852,7 +852,7 @@ class XtalBldr(Bldr):
     """
     Parser with crystal arguments.
     """
-    FlAG_DIMENSION = '-dimension'
+    FLAG_DIMENSION = '-dimension'
     FLAG_SCALED_FACTOR = '-scale_factor'
     ONES = (1, 1, 1)
 
@@ -870,7 +870,7 @@ class XtalBldr(Bldr):
             choices=['Si'],
             help='Name to retrieve the crystal structure from the database.')
         parser.add_argument(
-            cls.FlAG_DIMENSION,
+            cls.FLAG_DIMENSION,
             default=cls.ONES,
             nargs='+',
             type=int,
