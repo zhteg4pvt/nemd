@@ -21,6 +21,8 @@ from nemd import rdkitutils
 from nemd import sw
 from nemd import symbols
 
+FLAG_NAME = '-name'
+
 
 def type_file(arg):
     """
@@ -850,7 +852,6 @@ class XtalBldr(Bldr):
     """
     Parser with crystal arguments.
     """
-    FlAG_NAME = jobutils.FlAG_NAME
     FlAG_DIMENSION = '-dimension'
     FLAG_SCALED_FACTOR = '-scale_factor'
     ONES = (1, 1, 1)
@@ -864,7 +865,7 @@ class XtalBldr(Bldr):
         """
         # FIXME: support more choices based on crystals.Crystal.builtins
         parser.add_argument(
-            cls.FlAG_NAME,
+            FLAG_NAME,
             default='Si',
             choices=['Si'],
             help='Name to retrieve the crystal structure from the database.')

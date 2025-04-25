@@ -152,7 +152,7 @@ class Parser(parserutils.Workflow):
                           type=parserutils.type_positive_int,
                           nargs='*',
                           help='Select the tests according to these ids.')
-        self.add_argument(jobutils.FlAG_NAME,
+        self.add_argument(parserutils.FLAG_NAME,
                           default=self.INTEGRATION,
                           choices=self.NAMES,
                           help=f'{self.INTEGRATION}: reproducible; '

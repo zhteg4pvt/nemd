@@ -1,1 +1,0 @@
-nemd_run lmp_log_driver.py lammps_lmp.log -CPU 1 -JOBNAME lmp_log -data_file mol_bldr.data

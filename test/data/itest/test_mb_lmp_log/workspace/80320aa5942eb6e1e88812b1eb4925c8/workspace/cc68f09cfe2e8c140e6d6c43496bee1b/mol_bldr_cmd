@@ -1,1 +1,0 @@
-nemd_run mol_bldr_driver.py CCCC -seed 123 -CPU 1 -JOBNAME mol_bldr -substruct CCCC

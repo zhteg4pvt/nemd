@@ -23,12 +23,12 @@ class Base(objectutils.Object):
     PRE_RUN = None
     SEP = ' '
 
-    def __init__(self, dirname=os.curdir, jobname=None):
+    def __init__(self, dirname=None, jobname=None):
         """
         :param driname str: the subdirectory to run
         :param files list: input files
         """
-        self.dirname = dirname
+        self.dirname = dirname or os.curdir
         self.jobname = jobname or envutils.get_jobname() or self.name
         self.logfile = f'{self.jobname}{symbols.LOG_EXT}'
 

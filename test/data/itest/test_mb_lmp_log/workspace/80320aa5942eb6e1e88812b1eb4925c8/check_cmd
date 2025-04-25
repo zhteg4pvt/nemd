@@ -1,1 +1,0 @@
-nemd_check cmp /Users/zhteg4/git/nemd/test/integration/0047/mb_lmp_log_toteng.csv mb_lmp_log_toteng.csv rtol=1e-3 && nemd_check exist mb_lmp_log_toteng.png

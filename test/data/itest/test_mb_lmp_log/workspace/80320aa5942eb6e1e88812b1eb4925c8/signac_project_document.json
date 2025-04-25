@@ -1,1 +1,0 @@
-{"_status": {}, "message": {"lmp_log_#_agg": false, "task_#_agg": false}, "prereq": {"lammps": ["mol_bldr"], "lmp_log": ["lammps"]}, "args": ["CCCC", "-struct_rg", "CCCC", "-seed", "123", "-CPU", "1", "-JOBNAME", "mb_lmp_log"]}

@@ -27,7 +27,6 @@ FLAG_DEBUG = '-DEBUG'
 FLAG_CPU = '-CPU'
 FLAG_SEED = '-seed'
 FLAG_DIR = '-dir'
-FlAG_NAME = '-name'
 FLAG_TASK = '-task'
 FLAG_LOG = '-log'
 FLAG_IN = '-in'
@@ -155,15 +154,17 @@ class Job(objectutils.Object):
         filename = self.JOB_DOCUMENT.format(jobname=self.jobname)
         return os.path.join(self.dirname, filename)
 
-    def add(self, file, ftype=OUTFILES):
+    def append(self, value, key=OUTFILES):
         """
         Add the file to the outfiles.
 
+        :param value `str`: the value to add
+        :param key `key`: the key
         :param file str: the file to be added.
         """
-        self.data.setdefault(ftype, [])
-        if file not in self.data[ftype]:
-            self.data[ftype].append(file)
+        self.data.setdefault(key, [])
+        if value not in self.data[key]:
+            self.data[key].append(value)
 
     def set(self, value, key=OUTFILE):
         """
@@ -171,7 +172,6 @@ class Job(objectutils.Object):
 
         :param value str: the value to be set.
         :param key str: the key
-        :return:
         """
         self.data[key] = value
 
@@ -182,14 +182,14 @@ class Job(objectutils.Object):
         with open(self.file, 'w') as fh:
             json.dump(self.data, fh)
 
-    def getFile(self, ftype=OUTFILE):
+    def getFile(self, key=OUTFILE):
         """
         Get the file.
 
-        :param ftype str: the file type.
+        :param key str: the file type.
         :return str: the obtained & existed file.
         """
-        filename = self.data.get(ftype)
+        filename = self.data.get(key)
         return os.path.join(self.dirname, filename) if filename else None
 
     @property
@@ -200,7 +200,7 @@ class Job(objectutils.Object):
 
         :return str: the log file
         """
-        return self.getFile(ftype=self.LOGFILE)
+        return self.getFile(key=self.LOGFILE)
 
     def getJobs(self, dirname=None, patt=JOB_DOCUMENT.format(jobname='*')):
         """
@@ -249,7 +249,7 @@ class Job(objectutils.Object):
         if outfile is None:
             return
         job = cls(jobname)
-        job.add(outfile)
+        job.append(outfile)
         if file:
             job.set(outfile)
         if log:
