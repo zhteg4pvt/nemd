@@ -127,8 +127,8 @@ class Amorphous(logutils.Base):
         self.struct.writeIn()
         self.log(f'Data file written into {self.struct.datafile}')
         self.log(f'In script written into {self.struct.inscript}')
-        jobutils.add_outfile(self.struct.datafile)
-        jobutils.add_outfile(self.struct.inscript, file=True)
+        jobutils.Job.reg(self.struct.datafile)
+        jobutils.Job.reg(self.struct.inscript, file=True)
 
 
 def main(argv):

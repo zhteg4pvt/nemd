@@ -37,14 +37,19 @@ class Job(jobutils.Job):
         :param status dict: the post status of all jobs
         :param logger 'logutils.Logger': the logger to print message in the post
         """
-        super().__init__(job=jobs[0] if jobs else None, **kwargs)
+        super().__init__(**kwargs)
+        self.job = jobs[0] if jobs else None
         self.jobs = jobs
         self.options = options
         self.status = status
         self.logger = logger
-        self.doc = self.job.project.doc if self.job else None
-        if self.job and self.agg:
+        self.doc = None
+        if self.job is None:
+            return
+        self.doc = self.job.project.doc
+        if self.agg:
             self.job = self.job.project
+        self.dirname = self.job.fn('')
 
     @classmethod
     @property
@@ -75,7 +80,7 @@ class Job(jobutils.Job):
         if jobname is None:
             jobname = cls.name
         if cmd is None:
-            cmd = cls.OUT == jobutils.OUTFILE
+            cmd = cls.OUT == cls.OUTFILE
         if with_job is None:
             with_job = not cls.agg
         if aggregator is None and cls.agg:
@@ -178,7 +183,7 @@ class Job(jobutils.Job):
         """
         return [
             y for x in self.jobs
-            for y in super(Job, self).getJobs(job=x, **kwargs)
+            for y in super(Job, self).getJobs(dirname=x.fn(''), **kwargs)
         ]
 
     def log(self, msg):
@@ -205,7 +210,7 @@ class Cmd(Job):
     PRE_RUN = jobutils.NEMD_RUN
     SEP = symbols.SPACE
     ARGS_TMPL = None
-    OUT = jobutils.OUTFILE
+    OUT = Job.OUTFILE
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -238,8 +243,8 @@ class Cmd(Job):
         # Pass the outfiles of the prerequisite jobs to the current via cmd args
         # Please rearrange or modify the prerequisite jobs' input by subclassing
         for jobname in jobnames:
-            idx = self.args.index(None)
-            self.args[idx] = jobutils.Job(jobname, job=self.job).getFile()
+            file = jobutils.Job(jobname, dirname=self.job.fn('')).getFile()
+            self.args[self.args.index(None)] = file
 
     def rmUnknown(self):
         """

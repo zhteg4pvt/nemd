@@ -994,8 +994,11 @@ class Workflow(Driver):
     FLAG_CLEAN = '-clean'
     FLAG_JTYPE = '-jtype'
     FLAG_SCREEN = jobutils.FLAG_SCREEN
+    SERIAL = 'serial'
+    PARALLEL = jobutils.PARALLEL
+    JOB = jobutils.JOB
     WFLAGS = [FLAG_STATE_NUM, FLAG_CLEAN, FLAG_JTYPE, FLAG_SCREEN]
-    SCREENS = [symbols.OFF, jobutils.SERIAL, jobutils.PARALLEL, jobutils.JOB]
+    SCREENS = [symbols.OFF, SERIAL, PARALLEL, JOB]
 
     def __init__(self, *args, conflict_handler='resolve', **kwargs):
         """
@@ -1042,5 +1045,5 @@ class Workflow(Driver):
                 self.FLAG_SCREEN,
                 choices=self.SCREENS,
                 default=symbols.OFF,
-                help=f'Screen status: {symbols.OFF}, {jobutils.SERIAL}, '
-                f'{jobutils.PARALLEL}, and {jobutils.JOB} details')
+                help=f'Screen status: {symbols.OFF}, {self.SERIAL}, '
+                f'{self.PARALLEL}, and {self.JOB} details')

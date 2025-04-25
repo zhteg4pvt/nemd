@@ -163,7 +163,7 @@ class Parser(parserutils.Workflow):
                           type=parserutils.type_dir,
                           help='Search test(s) under this directory.')
         self.add_argument(
-            jobutils.FLAG_SLOW,
+            '-slow',
             type=parserutils.type_positive_float,
             metavar='SECOND',
             help='Skip (sub)tests marked with time longer than this criteria.')
@@ -184,7 +184,7 @@ class Parser(parserutils.Workflow):
         Customize workflow options.
         """
         super().addWorkflow()
-        self.suppress(**{parserutils.Workflow.FLAG_SCREEN: jobutils.SERIAL})
+        self.suppress(**{parserutils.Workflow.FLAG_SCREEN: self.SERIAL})
 
 
 def main(argv):

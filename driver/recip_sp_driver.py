@@ -347,7 +347,7 @@ class RecipSp(logutils.Base):
             fig.tight_layout()
             fname = self.options.JOBNAME + self.PNG_EXT
             fig.savefig(fname)
-            jobutils.add_outfile(fname, file=True)
+            jobutils.Job.reg(fname, file=True)
             self.log(f'Figure saved as {fname}')
 
 

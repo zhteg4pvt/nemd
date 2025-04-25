@@ -14,6 +14,7 @@ import re
 
 from nemd import envutils
 from nemd import objectutils
+from nemd import symbols
 
 NEMD_RUN = 'nemd_run'
 NEMD_MODULE = 'nemd_module'
@@ -26,24 +27,13 @@ FLAG_DEBUG = '-DEBUG'
 FLAG_CPU = '-CPU'
 FLAG_SEED = '-seed'
 FLAG_DIR = '-dir'
-FLAG_SCREEN = '-screen'
 FlAG_NAME = '-name'
 FLAG_TASK = '-task'
-FLAG_SLOW = '-slow'
 FLAG_LOG = '-log'
 FLAG_IN = '-in'
-SERIAL = 'serial'
+FLAG_SCREEN = '-screen'
 PARALLEL = 'parallel'
 JOB = 'job'
-
-LOGFILE = 'logfile'
-OUTFILE = 'outfile'
-OUTFILES = 'outfiles'
-
-SIGNAC = 'signac'
-JSON_EXT = '.json'
-FN_DOCUMENT = f'{SIGNAC}_job_document{JSON_EXT}'  # signac.job.Job.FN_DOCUMENT
-FN_STATE_POINT = f'{SIGNAC}_statepoint{JSON_EXT}'
 WORKSPACE = 'workspace'
 
 
@@ -122,43 +112,23 @@ def set_arg(args, flag, val):
     return args
 
 
-def add_outfile(outfile, jobname=None, file=False, log=False):
-    """
-    Register the outfile under the job control.
-
-    :param outfile str: the single output file
-    :param jobname str: the jobname to determine the json file
-    :param file bool: set this file as the single output file
-    :param log bool: set this file as the log file
-    """
-    if outfile is None:
-        return
-    job = Job(jobname)
-    job.add(outfile)
-    if file:
-        job.set(outfile)
-    if log:
-        job.set(outfile, ftype=LOGFILE)
-    job.write()
-
-
 class Job(objectutils.Object):
     """
     Json file centered job applications.
     """
 
-    OUT = OUTFILE
-    JOB_DOCUMENT = f'.{{jobname}}_document{JSON_EXT}'
+    LOGFILE = 'logfile'
+    OUTFILE = 'outfile'
+    OUTFILES = 'outfiles'
+    JOB_DOCUMENT = f'.{{jobname}}_document{symbols.JSON_EXT}'
 
-    def __init__(self, jobname=None, dir=os.curdir, job=None):
+    def __init__(self, jobname=None, dirname=None):
         """
         :param jobname str: the jobname
-        :param dir str: the job dirname
-        :param job 'signac.job.Job': the signac job instance for json path
+        :param dirname str: the job dirname
         """
         self.jobname = jobname or envutils.get_jobname() or self.name
-        self.dir = dir
-        self.job = job
+        self.dirname = dirname or os.curdir
 
     @property
     @functools.cache
@@ -182,8 +152,8 @@ class Job(objectutils.Object):
 
         :return str: the pathname of the json file
         """
-        file = self.JOB_DOCUMENT.format(jobname=self.jobname)
-        return self.job.fn(file) if self.job else os.path.join(self.dir, file)
+        filename = self.JOB_DOCUMENT.format(jobname=self.jobname)
+        return os.path.join(self.dirname, filename)
 
     def add(self, file, ftype=OUTFILES):
         """
@@ -195,15 +165,15 @@ class Job(objectutils.Object):
         if file not in self.data[ftype]:
             self.data[ftype].append(file)
 
-    def set(self, file, ftype=OUT):
+    def set(self, value, key=OUTFILE):
         """
-        set the file.
+        Set the key / value.
 
-        :param file str: the file to be set.
-        :param ftype str: the type of the file
+        :param value str: the value to be set.
+        :param key str: the key
         :return:
         """
-        self.data[ftype] = file
+        self.data[key] = value
 
     def write(self):
         """
@@ -219,12 +189,8 @@ class Job(objectutils.Object):
         :param ftype str: the file type.
         :return str: the obtained & existed file.
         """
-        file = self.data.get(ftype)
-        if not file:
-            return
-        if self.job:
-            file = self.job.fn(file)
-        return file
+        filename = self.data.get(ftype)
+        return os.path.join(self.dirname, filename) if filename else None
 
     @property
     @functools.cache
@@ -232,37 +198,60 @@ class Job(objectutils.Object):
         """
         Return the log file.
 
-        :return str: the namepath of the log file
+        :return str: the log file
         """
-        return self.getFile(ftype=LOGFILE)
+        return self.getFile(ftype=self.LOGFILE)
 
-    def getJobs(self,
-                job=None,
-                patt=JOB_DOCUMENT.format(jobname='*'),
-                doc_re=re.compile(JOB_DOCUMENT.format(jobname=r'(\w*)'))):
+    def getJobs(self, dirname=None, patt=JOB_DOCUMENT.format(jobname='*')):
         """
         Get the all the jobs in a directory.
 
-        :param job 'signac.job.Job': the signac job defines the directory
+        :param dirname 'str': the job driname
         :param patt str: the pattern to search job json files
-        :param doc_re 're.Pattern': the regular expression to get jobname
+        :return 'Job' list: the jobs in the directory
+        """
+        if dirname is None:
+            dirname = self.dirname
+        files = glob.glob(os.path.join(dirname, patt))
+        return [Job.fromFile(x) for x in files]
+
+    @staticmethod
+    def fromFile(namepath,
+                 rex=re.compile(JOB_DOCUMENT.format(jobname=r'(\w*)'))):
+        """
+        Get the job based on the job json file.
+
+        :param rex 're.Pattern': the regular expression to identify jobname
         :return 'Job' list: the json jobs
         """
-        if job is None:
-            job = self.job
-        if job:
-            patt = job.fn(patt)
-        files = glob.glob(patt)
-        jobnames = [doc_re.match(os.path.basename(x)).group(1) for x in files]
-        return [Job(x, job=job) for x in jobnames]
+        driname, basename = os.path.split(namepath)
+        return Job(rex.match(basename).group(1), dirname=driname)
 
     def clean(self):
         """
         Clean the json file.
-
-        Note: The jobnames of cmd tasks are determined by the cmd content.
         """
         try:
             os.remove(self.file)
         except FileNotFoundError:
             pass
+
+    @classmethod
+    def reg(cls, outfile, jobname=None, file=False, log=False):
+        """
+        Register the outfile under the job control.
+
+        :param outfile str: the single output file
+        :param jobname str: the jobname to determine the json file
+        :param file bool: set this file as the single output file
+        :param log bool: set this file as the log file
+        """
+        if outfile is None:
+            return
+        job = cls(jobname)
+        job.add(outfile)
+        if file:
+            job.set(outfile)
+        if log:
+            job.set(outfile, key=cls.LOGFILE)
+        job.write()

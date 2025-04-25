@@ -105,7 +105,7 @@ class Logger(logging.Logger):
         ext = '.debug' if name_ext.startswith('.py') else symbols.LOG_EXT
         # File handler for driver/workflow in any mode and module in debug mode
         filename = f"{basename}{ext}"
-        jobutils.add_outfile(filename)
+        jobutils.Job.reg(filename)
         hdlr = logging.FileHandler(filename, mode='w')
         hdlr.setFormatter(logging.Formatter('%(message)s'))
         self.addHandler(hdlr)
@@ -218,7 +218,7 @@ class Script:
         """
         self.logger = Logger.get(self.options.JOBNAME)
         logfile = os.path.basename(self.logger.handlers[0].baseFilename)
-        jobutils.add_outfile(logfile, **self.kwargs)
+        jobutils.Job.reg(logfile, **self.kwargs)
         self.logger.infoJob(self.options)
         intvl = envutils.get_mem_intvl()
         if intvl is not None:

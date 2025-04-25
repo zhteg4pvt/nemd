@@ -69,7 +69,7 @@ class AnalyzerAgg(analyzer.Agg):
             return
         # result.substruct contains the smiles (e.g. CCCC)
         # Read the reported value from the log (e.g. dihedral angle: 73.50 deg)
-        for job in jobutils.Job(job=self.groups[0][1][0]).getJobs():
+        for job in jobutils.Job(dirname=self.groups[0][1][0].fn('')).getJobs():
             reader = Reader(job.logfile)
             if reader.options.NAME != task.MolBldr.name:
                 continue

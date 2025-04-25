@@ -163,7 +163,7 @@ class Dispersion(logutils.Base):
         self.crystal.mode = alamode.PHONONS
         self.outfile = alamode.exe(self.crystal, files=optimize, **kwargs)[0]
         self.log(f"Phonon band structure is saved as {self.outfile}")
-        jobutils.add_outfile(self.outfile, file=True)
+        jobutils.Job.reg(self.outfile, file=True)
 
     def plot(self):
         """
@@ -172,7 +172,7 @@ class Dispersion(logutils.Base):
         plotter = Plotter(self.outfile, options=self.options)
         plotter.run()
         self.log(f'Phonon dispersion figure saved as {plotter.outfile}')
-        jobutils.add_outfile(plotter.outfile)
+        jobutils.Job.reg(plotter.outfile)
 
 
 class Parser(parserutils.XtalBldr):

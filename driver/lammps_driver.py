@@ -39,7 +39,7 @@ class Lammps(logutils.Base):
         self.env = None
         self.path = os.path.dirname(self.options.inscript)
         self.outfile = f"{self.options.JOBNAME}_{symbols.LMP_LOG}"
-        jobutils.add_outfile(self.outfile, file=True)
+        jobutils.Job.reg(self.outfile, file=True)
 
     def run(self):
         """

@@ -207,7 +207,7 @@ class Collect(Exist):
             time = [x.total_seconds() / 60. for x in self.data[self.TIME_MIN]]
             self.data[self.TIME_MIN] = time
         self.data.to_csv(self.outfile)
-        jobutils.add_outfile(self.outfile)
+        jobutils.Job.reg(self.outfile)
 
     def plot(self):
         """
@@ -242,7 +242,7 @@ class Collect(Exist):
                 self.fig.tight_layout()
                 outfile = f"{self.name}.png"
                 self.fig.savefig(outfile)
-                jobutils.add_outfile(outfile)
+                jobutils.Job.reg(outfile)
 
 
 if __name__ == "__main__":

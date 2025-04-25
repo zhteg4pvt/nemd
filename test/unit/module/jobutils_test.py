@@ -48,7 +48,7 @@ class TestFunc:
     @pytest.mark.parametrize('file', [False, True])
     @pytest.mark.parametrize('log', [False, True])
     def testAddOutfile(self, jobname, file, log, tmp_dir, env):
-        jobutils.add_outfile('file', jobname=jobname, file=file, log=log)
+        jobutils.Job.reg('file', jobname=jobname, file=file, log=log)
         json_file = f".{jobname if jobname else 'name'}_document.json"
         with open(json_file) as fh:
             data = json.load(fh)
@@ -96,13 +96,6 @@ class TestJob:
     @pytest.mark.parametrize('dirname,expected', [(MB_LMP_LOG, 4)])
     def testData(self, job, expected):
         assert 4 == len(job.data)
-
-    def testGetData(self, raw):
-        assert not raw.getData()
-        raw.data['outfile'] = 'mol_bldr.log'
-        assert not raw.getData()
-        raw.write()
-        assert 'mol_bldr.log' == raw.getData()['outfile']
 
     @pytest.mark.parametrize('dirname', [MB_LMP_LOG])
     @pytest.mark.parametrize('jobname,expected', [('mb_lmp_log', True),

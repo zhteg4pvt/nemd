@@ -3,7 +3,6 @@
 """
 Lammps trajectory and log analyzers.
 """
-import functools
 import math
 import os
 import re
@@ -72,7 +71,7 @@ class Base(logutils.Base):
             return
 
         self.data.to_csv(self.outfile, float_format=self.FLOAT_FMT)
-        jobutils.add_outfile(self.outfile)
+        jobutils.Job.reg(self.outfile)
         self.log(f'{self.full.capitalize()} data written into {self.outfile}')
 
     @property
@@ -163,7 +162,7 @@ class Base(logutils.Base):
             ax.set_ylabel(self.data.columns.values.tolist()[0])
             pathname = self.outfile[:-len(self.DATA_EXT)] + self.FIG_EXT
             self.fig.savefig(pathname)
-            jobutils.add_outfile(pathname)
+            jobutils.Job.reg(pathname)
 
         self.log(f'{self.name.capitalize()} figure saved as {pathname}')
 

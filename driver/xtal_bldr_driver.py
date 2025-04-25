@@ -36,8 +36,8 @@ class Crystal(logutils.Base):
         self.log(f"LAMMPS data file written as {self.struct.datafile}")
         self.struct.writeIn()
         self.log(f"LAMMPS input script written as {self.struct.inscript}")
-        jobutils.add_outfile(self.struct.datafile)
-        jobutils.add_outfile(self.struct.inscript, file=True)
+        jobutils.Job.reg(self.struct.datafile)
+        jobutils.Job.reg(self.struct.inscript, file=True)
 
 
 def main(argv):

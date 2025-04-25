@@ -330,9 +330,10 @@ class TimeAgg(taskbase.Agg):
             return
         jobs = [x for x in self.getJobs() if x.logfile]
         rdrs = [logutils.Reader(x.logfile) for x in jobs]
-        info = [[x.options.NAME[:8], x.task_time] for x in rdrs]
+        info = [[x.options.NAME[:9], x.task_time] for x in rdrs]
         info = pd.DataFrame(info, columns=[symbols.NAME, self.TIME])
-        info[symbols.ID] = [x.job.id[:3] for x in jobs]
+        pardirs = [os.path.basename(os.path.dirname(x.file)) for x in jobs]
+        info[symbols.ID] = [x[:3] for x in pardirs]
         total_time = timeutils.delta2str(info.time.sum())
         self.log(logutils.Reader.TOTAL_TIME + total_time)
         grouped = info.groupby(symbols.NAME)
@@ -342,7 +343,7 @@ class TimeAgg(taskbase.Agg):
         }
         data = {x: sorted(y, reverse=True) for x, y in data.items()}
         sorted_keys = sorted(data, key=lambda x: len(data[x]), reverse=True)
-        ave = grouped.time.mean().apply(lambda x: f"{self.delta2str(x)} (ave)")
+        ave = grouped.time.mean().apply(lambda x: f"{self.delta2str(x)} ave")
         data = {x: [ave.loc[x], *data[x]] for x in sorted_keys}
         data = pd.DataFrame.from_dict(data, orient='index').transpose()
         self.log(data.fillna('').to_markdown(index=False))
