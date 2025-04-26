@@ -1,7 +1,15 @@
+# This software is licensed under the BSD 3-Clause License.
+# Authors: Teng Zhang (zhteg4@gmail.com)
+"""
+Object utilities.
+"""
 import re
 
 
 class Object(object):
+    """
+    Class with name.
+    """
 
     @classmethod
     @property

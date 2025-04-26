@@ -170,11 +170,13 @@ class Job(objectutils.Object):
             return True
         if self.status is None:
             return bool(self.out)
-        self.status[key] = out = self.out
-        if self.logger and self.OUT == STATUS and isinstance(out, str):
+        if self.options.DEBUG:
+            print(self.jobname, self.out)
+        self.status[key] = self.out
+        if self.logger and self.OUT == STATUS and isinstance(self.out, str):
             header = '' if self.agg else f"%s in %s: " % key
-            self.logger.log(header + out.strip())
-        return bool(out)
+            self.logger.log(header + self.out.strip())
+        return bool(self.out)
 
     def getJobs(self):
         """

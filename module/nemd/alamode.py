@@ -12,6 +12,7 @@ import itertools
 import pandas as pd
 
 from nemd import constants
+from nemd import dictutils
 from nemd import process
 from nemd import stillinger
 from nemd import symbols
@@ -127,7 +128,7 @@ class Crystal(xtal.Crystal):
         return Position(self)
 
 
-class Base(dict):
+class Base(dictutils.Dict):
     """
     Class to store key value pairs by dot notation.
     """
@@ -141,7 +142,8 @@ class Base(dict):
         """
         :param crystal Crystal: the crystal structure
         """
-        super(Base, self).__setattr__('crystal', crystal)
+        super().__init__()
+        self.setattr('crystal', crystal)
         if self.MODES and self.crystal.mode not in self.MODES:
             return
         self.setUp()
@@ -151,27 +153,6 @@ class Base(dict):
         Set up the block content.
         """
         pass
-
-    def __setattr__(self, key, value):
-        """
-        Set the key = value by dot notation.
-
-        :param key str: the key of the key / value pair
-        :param value object convertible to str: the value to be saved.
-        """
-        self[key] = value
-
-    def __getattr__(self, key):
-        """
-        Get the attribute from the class and the stored data.
-
-        :param key str: the key to retrieve the value.
-        :return any: the retrieved value.
-        """
-        try:
-            return super().__getattr__(key)
-        except AttributeError:
-            return self[key]
 
     def write(self, fh):
         """

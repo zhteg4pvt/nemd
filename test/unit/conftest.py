@@ -64,6 +64,11 @@ def raises(request, expected):
 
 @pytest.fixture
 def flow_opr():
+    """
+    Yield FlowProject with restorable _OPERATION_*.
+
+    :return `flow.FlowProject`: the patched flow.FlowProject
+    """
     project = flow.FlowProject
     functions = project._OPERATION_FUNCTIONS
     preconditions = project._OPERATION_PRECONDITIONS
@@ -79,24 +84,45 @@ def flow_opr():
 
 @pytest.fixture
 def copied(dirname, tmp_dir):
+    """
+    Locate and copy an itest.
+
+    :return `str`: the dirname to the original itest
+    """
     if dirname is None:
         return
     test_dir = envutils.test_data('itest', dirname)
     shutil.copytree(test_dir, os.curdir, dirs_exist_ok=True)
+    return test_dir
 
 
 @pytest.fixture
 def jobs(dirname, copied):
+    """
+    Return the signac jobs of a copied itest.
+
+    :return `list`: signac jobs
+    """
     return list(flow.project.FlowProject.get_project(os.curdir).find_jobs())
 
 
 @pytest.fixture
 def job(jobname, copied):
+    """
+    Return the job of a copied itest.
+
+    :return `jobutils.Job`: Job loaded from a job json file
+    """
     return jobutils.Job(jobname)
 
 
 @pytest.fixture
 def Cmd(file):
+    """
+    Return a simple Cmd class that runs under jobcontrol.
+
+    :return `taskbase.Cmd`: the Cmd class
+    """
 
     class Cmd(taskbase.Cmd):
         FILE = (f"-c 'from nemd import jobutils;"
@@ -107,6 +133,11 @@ def Cmd(file):
 
 @pytest.fixture
 def Job(status):
+    """
+    Return a simple non-cmd class that runs under jobcontrol.
+
+    :return `taskbase.Job`: the Cmd class
+    """
 
     class Job(taskbase.Job):
 
@@ -118,5 +149,11 @@ def Job(status):
 
 @pytest.fixture
 def frm(file):
+    """
+    Return a trajectory frame.
+
+    :param file str: the trajectory file
+    :return `frame.Frame`: loaded frame
+    """
     with open(file, 'r') as fh:
         return frame.Frame.read(fh)

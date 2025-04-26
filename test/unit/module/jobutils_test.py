@@ -1,12 +1,12 @@
 import json
 import os
-import shutil
 
-import flow
 import pytest
 
 from nemd import envutils
 from nemd import jobutils
+
+NEMD_SRC = envutils.get_src()
 
 
 class TestFunc:
@@ -44,9 +44,8 @@ class TestFunc:
         assert expected == jobutils.set_arg(cmd, '-cru_num', '5')
 
 
+@pytest.mark.skipif(NEMD_SRC is None, reason="cannot locate test dir")
 class TestJob:
-
-    NEMD_SRC = envutils.get_src()
 
     @pytest.fixture
     def raw(self, jobname, dirname):
@@ -62,7 +61,7 @@ class TestJob:
                               ('mb_lmp_log', '0046_test', None, 'mb_lmp_log')])
     def testInit(self, jobname, dirname, expected, env):
         job = jobutils.Job(jobname=jobname, dirname=dirname)
-        assert [expected, 6] == [job.jobname, len(job)]
+        assert [expected, 3] == [job.jobname, len(job)]
 
     @pytest.mark.parametrize('dirname', ['0046_test'])
     @pytest.mark.parametrize('jobname,expected', [('mb_lmp_log', True),
@@ -80,8 +79,9 @@ class TestJob:
         assert os.path.isdir(dirname)
 
     @pytest.mark.parametrize('dirname', ['0046_test'])
-    @pytest.mark.parametrize('jobname,expected', [('mb_lmp_log', 'mb_lmp_log.log'),
-                                                  ('mb_lmp_log2', None)])
+    @pytest.mark.parametrize('jobname,expected',
+                             [('mb_lmp_log', 'mb_lmp_log.log'),
+                              ('mb_lmp_log2', None)])
     def testLogFile(self, raw, expected):
         if not expected:
             assert raw.outfile is None
@@ -89,64 +89,48 @@ class TestJob:
         assert expected == os.path.basename(raw.outfile)
         assert os.path.isfile(raw.outfile)
 
-    # @pytest.mark.parametrize('values', [(['first', 'second'])])
-    # @pytest.mark.parametrize("key", [('outfiles'), ('myfiles')])
-    # def testAppend(self, raw, key, values):
-    #     for file in values:
-    #         raw.append(file, key=key)
-    #     assert raw.data[key] == values
-    #
-    # @pytest.mark.parametrize('value', [('file')])
-    # @pytest.mark.parametrize("key", [('outfile'), ('logfile')])
-    # def testSet(self, raw, key, value):
-    #     raw.set(value, key=key)
-    #     assert raw.data[key] == value
-    #
-    # def testWrite(self, raw):
-    #     raw.set('my.log', key='logfile')
-    #     raw.write()
-    #     with open(raw.file) as fh:
-    #         assert raw.data == json.load(fh)
-    #
-    # @pytest.mark.skipif(NEMD_SRC is None, reason="cannot locate test dir")
-    # @pytest.mark.parametrize('jobname', [('mb_lmp_log')])
-    # @pytest.mark.parametrize('dirname, key, expected',
-    #                          [('0000', 'outfile', 'mb_lmp_log.log'),
-    #                           ('0000', 'outfile2', '/mb_lmp_log2.log'),
-    #                           (None, 'outfile', None)])
-    # def testGetFile(self, key, expected, dirname, job):
-    #     file = job.getFile(key=key)
-    #     assert file is None if expected is None else file.endswith(expected)
-    #
-    # @pytest.mark.skipif(NEMD_SRC is None, reason="cannot locate test dir")
-    # @pytest.mark.parametrize('jobname,dirname,expected',
-    #                          [('mb_lmp_log', '0000', 'mb_lmp_log.log')])
-    # def testLogFile(self, expected, dirname, job):
-    #     assert job.logfile.endswith(expected)
-    #
-    # @pytest.mark.skipif(NEMD_SRC is None, reason="cannot locate test dir")
-    # @pytest.mark.parametrize('jobname,dirname,expected',
-    #                          [(None, '0000', 'mb_lmp_log.log')])
-    # def testGetJobs(self, expected, job):
-    #     assert 4 == len([x.file for x in job.getJobs()])
-    #
-    # @pytest.mark.skipif(NEMD_SRC is None, reason="cannot locate test dir")
-    # @pytest.mark.parametrize('jobname,dirname,expected',
-    #                          [('mb_lmp_log', '0000', 'mb_lmp_log.log')])
-    # def testClean(self, expected, copied):
-    #     assert os.path.exists(copied.file)
-    #     copied.clean()
-    #     assert not os.path.exists(copied.file)
-    #
-    # @pytest.mark.parametrize('ekey,evalue', [('JOBNAME', 'name')])
-    # @pytest.mark.parametrize('jobname', [None, 'jobname'])
-    # @pytest.mark.parametrize('file', [False, True])
-    # @pytest.mark.parametrize('log', [False, True])
-    # def testReg(self, jobname, file, log, tmp_dir, env):
-    #     jobutils.Job.reg('file', jobname=jobname, file=file, log=log)
-    #     json_file = f".{jobname if jobname else 'name'}_document.json"
-    #     with open(json_file) as fh:
-    #         data = json.load(fh)
-    #         assert ['file'] == data['outfiles']
-    #         assert ('file' if file else None) == data.get('outfile')
-    #         assert ('file' if log else None) == data.get('logfile')
+    @pytest.mark.parametrize('dirname', ['0049_test'])
+    @pytest.mark.parametrize(
+        'jobname,expected',
+        [('number_of_molecules_100', 'number_of_molecules_100.in'),
+         ('mb_lmp_log', None)])
+    def testOutFile(self, raw, expected):
+        if not expected:
+            assert raw.outfile is None
+            return
+        assert expected == os.path.basename(raw.outfile)
+        assert os.path.isfile(raw.outfile)
+
+    @pytest.mark.parametrize('jobname,dirname', [('jobname', None)])
+    def testWrite(self, raw, tmp_dir):
+        raw._logfile = 'mylog'
+        raw._outfile = 'myout'
+        raw._outfiles.append('outfile1')
+        raw._outfiles.append('outfile2')
+        raw.write()
+        with open(raw.file) as fh:
+            assert raw == json.load(fh)
+
+    @pytest.mark.parametrize('jobname,dirname,expected',
+                             [(None, '0000', 'mb_lmp_log.log')])
+    def testSearch(self, expected, job):
+        assert 4 == len([x.file for x in job.search()])
+
+    @pytest.mark.parametrize('jobname,dirname,expected',
+                             [('mb_lmp_log', '0000', 4)])
+    def testFromFile(self, jobname, dirname, expected, copied):
+        assert expected == len(jobutils.Job.search(copied))
+        assert expected == len(jobutils.Job.search())
+
+    @pytest.mark.parametrize('ekey,evalue', [('JOBNAME', 'name')])
+    @pytest.mark.parametrize('jobname', [None, 'jobname'])
+    @pytest.mark.parametrize('file', [False, True])
+    @pytest.mark.parametrize('log', [False, True])
+    def testReg(self, jobname, file, log, tmp_dir, env):
+        jobutils.Job.reg('file', jobname=jobname, file=file, log=log)
+        json_file = f".{jobname if jobname else 'name'}_document.json"
+        with open(json_file) as fh:
+            data = json.load(fh)
+            assert ['file'] == data['_outfiles']
+            assert ('file' if file else None) == data.get('_outfile')
+            assert ('file' if log else None) == data.get('_logfile')

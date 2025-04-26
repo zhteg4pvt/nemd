@@ -121,15 +121,13 @@ class TestTag:
         return test.Tag(dirname, options=options)
 
     @pytest.fixture
-    def ntag(self, dirname, tmp_dir):
-        dirname = envutils.test_data('itest', dirname)
-        shutil.copytree(dirname, os.curdir, dirs_exist_ok=True)
+    def ntag(self, copied, tmp_dir):
         return test.Tag(os.curdir)
 
     @pytest.mark.parametrize(
         'dirname,expected',
         [('empty', None), (TEST0001, ['bldr', '00:00:00']),
-         ('0049_test', ['50000', '00:00:02', '100', '00:00:00'])])
+         ('0049_test', ['50000', '00:00:03', '100', '00:00:01'])])
     def testSetSlow(self, ntag, expected):
         ntag.setSlow()
         assert expected == ntag.tags.get('slow')

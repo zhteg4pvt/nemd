@@ -26,16 +26,16 @@ class Base(logutils.Base, objectutils.Object):
 
     POUND = symbols.POUND
 
-    def __init__(self, dir, options=None, **kwargs):
+    def __init__(self, dirname, options=None, **kwargs):
         """
-        :param dir str: the path containing the file
+        :param dirname str: the path containing the file
         :param options 'argparse.ArgumentParser': Parsed command-line options
         """
         super().__init__(**kwargs)
-        self.dir = dir
+        self.dirname = dirname
         self.options = options
-        self.jobname = os.path.basename(self.dir)
-        self.infile = os.path.join(self.dir, self.name)
+        self.jobname = os.path.basename(self.dirname)
+        self.infile = os.path.join(self.dirname, self.name)
 
     def getHeader(self, args=None):
         """
@@ -109,7 +109,7 @@ class Param(Base):
         """
         :param cmd `Cmd`: the Cmd instance parsing the cmd file.
         """
-        super().__init__(cmd.dir, **kwargs)
+        super().__init__(cmd.dirname, **kwargs)
         self.cmd = next(iter(cmd.args), None)
         if self.options is None:
             self.options = cmd.options
@@ -137,7 +137,7 @@ class Param(Base):
         """
         See the parent.
         """
-        fast = Tag(self.dir, options=self.options).fast
+        fast = Tag(self.dirname, options=self.options).fast
         return super().args if fast is None else fast
 
     @property
@@ -163,7 +163,7 @@ class Check(Base):
 
     def run(self,
             sub_re=re.compile(rf'(nemd_check) +({check.Cmp.name}) +(\w+)'),
-            repl=rf'\1 \2 {{dir}}{os.path.sep}\3'):
+            repl=rf'\1 \2 {{dirname}}{os.path.sep}\3'):
         """
         Check the results by execute all operators.
 
@@ -172,7 +172,7 @@ class Check(Base):
         :return str: error message.
         """
         self.log(self.getHeader())
-        replacement = repl.format(dir=self.dir)
+        replacement = repl.format(dirname=self.dirname)
         tokens = [sub_re.sub(replacement, x) for x in self.args]
         proc = process.Check(tokens, jobname=self.name)
         completed = proc.run()
@@ -216,7 +216,7 @@ class Tag(Base):
         """
         Set the log readers.
         """
-        jobs = jobutils.Job(dir=self.dir).getJobs()
+        jobs = jobutils.Job.search(self.dirname)
         return [logutils.Reader(x.logfile) for x in jobs if x.logfile]
 
     @property

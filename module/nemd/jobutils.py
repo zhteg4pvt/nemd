@@ -13,6 +13,7 @@ import re
 
 import dotted_dict
 
+from nemd import dictutils
 from nemd import envutils
 from nemd import objectutils
 from nemd import symbols
@@ -112,7 +113,7 @@ def set_arg(args, flag, val):
     return args
 
 
-class Job(dotted_dict.DottedDict, objectutils.Object):
+class Job(dictutils.Dict, objectutils.Object):
     """
     File-centered job applications.
     """
@@ -124,13 +125,10 @@ class Job(dotted_dict.DottedDict, objectutils.Object):
         :param jobname str: the jobname
         :param dirname str: the job dirname
         """
-        jobname = jobname or envutils.get_jobname() or self.name
-        super().__init__(jobname=jobname,
-                         dirname=dirname or os.getcwd(),
-                         _file=self.JOB_DOC.format(jobname=jobname),
-                         _logfile=None,
-                         _outfile=None,
-                         _outfiles=[])
+        super().__init__(_logfile=None, _outfile=None, _outfiles=[])
+        self.setattr('jobname', jobname or envutils.get_jobname() or self.name)
+        self.setattr('dirname', dirname or os.getcwd())
+        self.setattr('_file', self.JOB_DOC.format(jobname=self.jobname))
         try:
             with open(self.file) as fh:
                 self.update(json.load(fh))
@@ -178,7 +176,6 @@ class Job(dotted_dict.DottedDict, objectutils.Object):
         Write the data to the json.
         """
         with open(self.file, 'w') as fh:
-            self.pop('dirname', None)
             json.dump(self, fh)
 
     @classmethod
@@ -190,7 +187,7 @@ class Job(dotted_dict.DottedDict, objectutils.Object):
         :param patt str: the pattern to search job json files
         :return 'Job' list: the jobs in the directory
         """
-        patt =os.path.join(dirname if dirname else os.getcwd(), patt)
+        patt = os.path.join(dirname if dirname else os.getcwd(), patt)
         return [Job.fromFile(x) for x in glob.glob(patt)]
 
     @staticmethod
