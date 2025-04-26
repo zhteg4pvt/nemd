@@ -124,19 +124,54 @@ class Job(dotted_dict.DottedDict, objectutils.Object):
         :param jobname str: the jobname
         :param dirname str: the job dirname
         """
-        super().__init__(jobname=jobname or envutils.get_jobname()
-                         or self.name,
-                         dirname=dirname or os.curdir,
-                         logfile=None,
-                         outfile=None,
-                         outfiles=[])
-        self.file = os.path.join(self.dirname,
-                                 self.JOB_DOC.format(jobname=self.jobname))
+        jobname = jobname or envutils.get_jobname() or self.name
+        super().__init__(jobname=jobname,
+                         dirname=dirname or os.getcwd(),
+                         _file=self.JOB_DOC.format(jobname=jobname),
+                         _logfile=None,
+                         _outfile=None,
+                         _outfiles=[])
         try:
             with open(self.file) as fh:
                 self.update(json.load(fh))
         except (FileNotFoundError, json.decoder.JSONDecodeError):
             pass
+
+    def getFile(self, filename):
+        """
+        Get the pathname of a filename.
+
+        :param filename str: the filename
+        :return: the pathname
+        """
+        return os.path.join(self.dirname, filename) if filename else filename
+
+    @property
+    def outfile(self):
+        """
+        Get the pathname of the outfile.
+
+        :return: the outfile
+        """
+        return self.getFile(self._outfile)
+
+    @property
+    def logfile(self):
+        """
+        Get the pathname of the logfile.
+
+        :return: the logfile
+        """
+        return self.getFile(self._logfile)
+
+    @property
+    def file(self):
+        """
+        Get the pathname of the json file.
+
+        :return: the job json file
+        """
+        return self.getFile(self._file)
 
     def write(self):
         """
@@ -181,11 +216,10 @@ class Job(dotted_dict.DottedDict, objectutils.Object):
         """
         if outfile is None:
             return
-        outfile = os.path.join(os.getcwd(), outfile)
         job = cls(jobname)
-        job.outfiles.append(outfile)
+        job._outfiles.append(outfile)
         if file:
-            job.outfile = outfile
+            job._outfile = outfile
         if log:
-            job.logfile = outfile
+            job._logfile = outfile
         job.write()

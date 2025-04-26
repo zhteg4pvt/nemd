@@ -221,7 +221,7 @@ class Cmd(Job):
     PRE_RUN = jobutils.NEMD_RUN
     SEP = symbols.SPACE
     ARGS_TMPL = None
-    OUT = 'outfile'
+    OUT = '_outfile'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
