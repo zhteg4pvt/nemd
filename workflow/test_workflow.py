@@ -25,7 +25,7 @@ from nemd import parserutils
 from nemd import task
 from nemd import test
 
-FLAG_DIR = jobutils.FLAG_DIR
+FLAG_DIRNAME = jobutils.FLAG_DIRNAME
 
 
 class Test(jobcontrol.Runner):
@@ -35,7 +35,7 @@ class Test(jobcontrol.Runner):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.dirs = None
+        self.dirnames = None
 
     def run(self):
         self.setDirs()
@@ -47,19 +47,23 @@ class Test(jobcontrol.Runner):
         """
         if self.options.id:
             ids = [f"{x:0>4}" for x in self.options.id]
-            self.dirs = [os.path.join(self.options.dir, x) for x in ids]
-            self.dirs = [x for x in self.dirs if os.path.isdir(x)]
+            self.dirnames = [
+                os.path.join(self.options.dirname, x) for x in ids
+            ]
+            self.dirnames = [x for x in self.dirnames if os.path.isdir(x)]
         else:
-            self.dirs = glob.glob(os.path.join(self.options.dir, '[0-9]' * 4))
+            self.dirnames = glob.glob(
+                os.path.join(self.options.dirname, '[0-9]' * 4))
 
-        if not self.dirs:
-            self.error(f'No valid tests found in {self.options.dir}.')
+        if not self.dirnames:
+            self.error(f'No valid tests found in {self.options.dirname}.')
 
-        self.dirs = [
-            x for x in self.dirs if test.Tag(x, options=self.options).selected
+        self.dirnames = [
+            x for x in self.dirnames
+            if test.Tag(x, options=self.options).selected
         ]
 
-        if not self.dirs:
+        if not self.dirnames:
             self.error('All tests are skipped according to the tag file.')
 
     def setJobs(self):
@@ -77,7 +81,7 @@ class Test(jobcontrol.Runner):
         """
         Set state with test dirs.
         """
-        self.state = {FLAG_DIR: self.dirs}
+        self.state = {FLAG_DIRNAME: self.dirnames}
 
     def logStatus(self):
         """
@@ -96,8 +100,8 @@ class Test(jobcontrol.Runner):
         """
         if aggregator is None and self.options.id:
 
-            def select(x, dirs=self.dirs):
-                return x.sp[FLAG_DIR] in dirs
+            def select(x, dirnames=self.dirnames):
+                return x.sp[FLAG_DIRNAME] in dirnames
 
             aggregator = flow.aggregator(select=select)
         self.add(task.TestAgg, aggregator=aggregator)
@@ -106,7 +110,7 @@ class Test(jobcontrol.Runner):
         """
         Report the task timing after filtering.
         """
-        flag_dirs = [{FLAG_DIR: x} for x in self.dirs]
+        flag_dirs = [{FLAG_DIRNAME: x} for x in self.dirnames]
         super().setAggProj(filter={"$or": flag_dirs})
 
 
@@ -121,10 +125,11 @@ class TestValid(parserutils.Valid):
 
         :raises ValueError: if the input directory is None.
         """
-        if self.options.dir is None:
-            self.options.dir = envutils.get_src('test', self.options.name)
-        if not self.options.dir:
-            raise ValueError(f'Please define the test dir via {FLAG_DIR}')
+        if self.options.dirname is None:
+            self.options.dirname = envutils.get_src('test', self.options.name)
+        if not self.options.dirname:
+            raise ValueError(
+                f'Please define the test dirname via {FLAG_DIRNAME}')
 
 
 class Parser(parserutils.Workflow):
@@ -158,8 +163,8 @@ class Parser(parserutils.Workflow):
                           help=f'{self.INTEGRATION}: reproducible; '
                           f'{self.SCIENTIFIC}: physical meaningful; '
                           f'{self.PERFORMANCE}: resource efficient.')
-        self.add_argument(FLAG_DIR,
-                          metavar=FLAG_DIR[1:].upper(),
+        self.add_argument(FLAG_DIRNAME,
+                          metavar=FLAG_DIRNAME[1:].upper(),
                           type=parserutils.type_dir,
                           help='Search test(s) under this directory.')
         self.add_argument(

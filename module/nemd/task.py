@@ -153,7 +153,7 @@ class Cmd(taskbase.Cmd):
 
         :return `test.Cmd`: the cmd object.
         """
-        return test.Cmd(self.jobs[0].statepoint[jobutils.FLAG_DIR])
+        return test.Cmd(self.jobs[0].statepoint[jobutils.FLAG_DIRNAME])
 
     def addQuot(self):
         """
@@ -238,7 +238,7 @@ class Check(taskbase.Job):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.dir = self.jobs[0].statepoint[jobutils.FLAG_DIR]
+        self.dir = self.jobs[0].statepoint[jobutils.FLAG_DIRNAME]
 
     def run(self):
         """
@@ -383,7 +383,7 @@ class TestAgg(TimeAgg):
         """
         if self.options is None or len(self.options.id) == 0:
             return
-        dirs = [x.statepoint[jobutils.FLAG_DIR] for x in self.jobs]
+        dirs = [x.statepoint[jobutils.FLAG_DIRNAME] for x in self.jobs]
         ids = [int(os.path.basename(x)) for x in dirs]
         self.jobs = [y for x, y in zip(ids, self.jobs) if x in self.options.id]
 

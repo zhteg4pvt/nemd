@@ -22,7 +22,7 @@ class Job(jobutils.Job):
         self.flag_dir = flag_dir
         if self.flag_dir is None:
             self.flag_dir = os.path.join(BASE_DIR, f"{self.tid:0>4}")
-        self.statepoint[itest.FLAG_DIR] = self.flag_dir
+        self.statepoint[itest.FLAG_DIRNAME] = self.flag_dir
 
 
 class TestCmd:

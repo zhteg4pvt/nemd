@@ -7,14 +7,15 @@ Under jobcontrol:
  3) Cmd generates the cmd for execution
 """
 import functools
+import os
 import re
 import types
 
 import flow
 
 from nemd import jobutils
-from nemd import symbols
 from nemd import objectutils
+from nemd import symbols
 
 STATUS = 'status'
 
@@ -82,7 +83,7 @@ class Job(objectutils.Object):
         if jobname is None:
             jobname = cls.name
         if cmd is None:
-            cmd = cls.OUT == jobutils.Job.OUTFILE
+            cmd = cls.OUT != STATUS
         if with_job is None:
             with_job = not cls.agg
         if aggregator is None and cls.agg:
@@ -126,7 +127,7 @@ class Job(objectutils.Object):
 
         :return str: the output.
         """
-        return self.job.data.get(self.OUT)
+        return self.job.get(self.OUT)
 
     @out.setter
     def out(self, value):
@@ -135,7 +136,7 @@ class Job(objectutils.Object):
 
         :param value str: the output.
         """
-        self.job.data[self.OUT] = value
+        self.job[self.OUT] = value
         self.job.write()
 
     def getCmd(self, *arg, **kwargs):
@@ -195,6 +196,15 @@ class Job(objectutils.Object):
         """
         self.out = msg if self.out is None else '\n'.join([self.out, msg])
 
+    def clean(self):
+        """
+        Clean the json file.
+        """
+        try:
+            os.remove(self.job.namepath)
+        except FileNotFoundError:
+            pass
+
 
 class Agg(Job):
     """
@@ -211,7 +221,7 @@ class Cmd(Job):
     PRE_RUN = jobutils.NEMD_RUN
     SEP = symbols.SPACE
     ARGS_TMPL = None
-    OUT = jobutils.Job.OUTFILE
+    OUT = 'outfile'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -244,7 +254,7 @@ class Cmd(Job):
         # Pass the outfiles of the prerequisite jobs to the current via cmd args
         # Please rearrange or modify the prerequisite jobs' input by subclassing
         for jobname in jobnames:
-            file = jobutils.Job(jobname, dirname=self.job.dirname).getFile()
+            file = jobutils.Job(jobname, dirname=self.job.dirname).outfile
             self.args[self.args.index(None)] = file
 
     def rmUnknown(self):

@@ -6,11 +6,12 @@
 This module shares job flags, handles command list, defines jobname, and
 registers output.
 """
-import functools
 import glob
 import json
 import os
 import re
+
+import dotted_dict
 
 from nemd import envutils
 from nemd import objectutils
@@ -26,7 +27,7 @@ FLAG_INTERAC = '-INTERAC'
 FLAG_DEBUG = '-DEBUG'
 FLAG_CPU = '-CPU'
 FLAG_SEED = '-seed'
-FLAG_DIR = '-dir'
+FLAG_DIRNAME = '-dirname'
 FLAG_TASK = '-task'
 FLAG_LOG = '-log'
 FLAG_IN = '-in'
@@ -111,98 +112,40 @@ def set_arg(args, flag, val):
     return args
 
 
-class Job(objectutils.Object):
+class Job(dotted_dict.DottedDict, objectutils.Object):
     """
     Json file centered job applications.
     """
 
-    LOGFILE = 'logfile'
-    OUTFILE = 'outfile'
-    OUTFILES = 'outfiles'
-    JOB_DOCUMENT = f'.{{jobname}}_document{symbols.JSON_EXT}'
+    JOB_DOC = f'.{{jobname}}_document{symbols.JSON_EXT}'
 
     def __init__(self, jobname=None, dirname=None):
         """
         :param jobname str: the jobname
         :param dirname str: the job dirname
         """
-        self.jobname = jobname or envutils.get_jobname() or self.name
-        self.dirname = dirname or os.curdir
-
-    @property
-    @functools.cache
-    def data(self):
-        """
-        Return the job data.
-
-        :return dict: the data in the job json.
-        """
+        super().__init__(jobname=jobname or envutils.get_jobname()
+                         or self.name,
+                         dirname=dirname or os.curdir,
+                         logfile=None,
+                         outfile=None,
+                         outfiles=[])
+        self.file = os.path.join(self.dirname,
+                                 self.JOB_DOC.format(jobname=self.jobname))
         try:
             with open(self.file) as fh:
-                return json.load(fh)
+                self.update(json.load(fh))
         except (FileNotFoundError, json.decoder.JSONDecodeError):
-            return {}
-
-    @property
-    @functools.cache
-    def file(self):
-        """
-        Get the json file pathname.
-
-        :return str: the pathname of the json file
-        """
-        filename = self.JOB_DOCUMENT.format(jobname=self.jobname)
-        return os.path.join(self.dirname, filename)
-
-    def append(self, value, key=OUTFILES):
-        """
-        Add the file to the outfiles.
-
-        :param value `str`: the value to add
-        :param key `key`: the key
-        :param file str: the file to be added.
-        """
-        self.data.setdefault(key, [])
-        if value not in self.data[key]:
-            self.data[key].append(value)
-
-    def set(self, value, key=OUTFILE):
-        """
-        Set the key / value.
-
-        :param value str: the value to be set.
-        :param key str: the key
-        """
-        self.data[key] = value
+            pass
 
     def write(self):
         """
         Write the data to the json.
         """
         with open(self.file, 'w') as fh:
-            json.dump(self.data, fh)
+            json.dump(self, fh)
 
-    def getFile(self, key=OUTFILE):
-        """
-        Get the file.
-
-        :param key str: the file type.
-        :return str: the obtained & existed file.
-        """
-        filename = self.data.get(key)
-        return os.path.join(self.dirname, filename) if filename else None
-
-    @property
-    @functools.cache
-    def logfile(self):
-        """
-        Return the log file.
-
-        :return str: the log file
-        """
-        return self.getFile(key=self.LOGFILE)
-
-    def getJobs(self, dirname=None, patt=JOB_DOCUMENT.format(jobname='*')):
+    def getJobs(self, dirname=None, patt=JOB_DOC.format(jobname='*')):
         """
         Get the all the jobs in a directory.
 
@@ -216,8 +159,7 @@ class Job(objectutils.Object):
         return [Job.fromFile(x) for x in files]
 
     @staticmethod
-    def fromFile(namepath,
-                 rex=re.compile(JOB_DOCUMENT.format(jobname=r'(\w*)'))):
+    def fromFile(namepath, rex=re.compile(JOB_DOC.format(jobname=r'(\w*)'))):
         """
         Get the job based on the job json file.
 
@@ -226,15 +168,6 @@ class Job(objectutils.Object):
         """
         driname, basename = os.path.split(namepath)
         return Job(rex.match(basename).group(1), dirname=driname)
-
-    def clean(self):
-        """
-        Clean the json file.
-        """
-        try:
-            os.remove(self.file)
-        except FileNotFoundError:
-            pass
 
     @classmethod
     def reg(cls, outfile, jobname=None, file=False, log=False):
@@ -248,10 +181,11 @@ class Job(objectutils.Object):
         """
         if outfile is None:
             return
+        outfile = os.path.join(os.getcwd(), outfile)
         job = cls(jobname)
-        job.append(outfile)
+        job.outfiles.append(outfile)
         if file:
-            job.set(outfile)
+            job.outfile = outfile
         if log:
-            job.set(outfile, key=cls.LOGFILE)
+            job.logfile = outfile
         job.write()
