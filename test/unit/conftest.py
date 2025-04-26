@@ -13,6 +13,7 @@ import pytest
 
 from nemd import envutils
 from nemd import frame
+from nemd import jobutils
 from nemd import osutils
 from nemd import pytestutils
 from nemd import taskbase
@@ -87,6 +88,11 @@ def copied(dirname, tmp_dir):
 @pytest.fixture
 def jobs(dirname, copied):
     return list(flow.project.FlowProject.get_project(os.curdir).find_jobs())
+
+
+@pytest.fixture
+def job(jobname, copied):
+    return jobutils.Job(jobname)
 
 
 @pytest.fixture

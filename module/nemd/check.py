@@ -191,7 +191,7 @@ class Collect(Exist):
         """
         Set the time and memory data from the log files.
         """
-        files = {x.jobname: x.logfile for x in jobutils.Job().getJobs()}
+        files = {x.jobname: x.logfile for x in jobutils.Job.search()}
         files = {x: y for x, y in files.items() if y and os.path.exists(y)}
         if not files:
             return

@@ -176,17 +176,14 @@ class Job(objectutils.Object):
             self.logger.log(header + out.strip())
         return bool(out)
 
-    def getJobs(self, **kwargs):
+    def getJobs(self):
         """
         Get all json jobs.
 
         :return 'Job' list: the json jobs (within one parameter set for Job;
             across all parameter sets for Agg)
         """
-        return [
-            y for x in self.jobs
-            for y in self.job.getJobs(dirname=x.fn(''), **kwargs)
-        ]
+        return [y for x in self.jobs for y in jobutils.Job.search(x.fn(''))]
 
     def log(self, msg):
         """

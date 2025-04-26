@@ -114,7 +114,7 @@ def set_arg(args, flag, val):
 
 class Job(dotted_dict.DottedDict, objectutils.Object):
     """
-    Json file centered job applications.
+    File-centered job applications.
     """
 
     JOB_DOC = f'.{{jobname}}_document{symbols.JSON_EXT}'
@@ -136,6 +136,15 @@ class Job(dotted_dict.DottedDict, objectutils.Object):
                 self.update(json.load(fh))
         except (FileNotFoundError, json.decoder.JSONDecodeError):
             pass
+
+    @property
+    def file(self):
+        """
+        Get the pathname of the json file.
+
+        :return: the job json file
+        """
+        return self.getFile(self._file)
 
     def getFile(self, filename):
         """
@@ -164,44 +173,36 @@ class Job(dotted_dict.DottedDict, objectutils.Object):
         """
         return self.getFile(self._logfile)
 
-    @property
-    def file(self):
-        """
-        Get the pathname of the json file.
-
-        :return: the job json file
-        """
-        return self.getFile(self._file)
-
     def write(self):
         """
         Write the data to the json.
         """
         with open(self.file, 'w') as fh:
+            self.pop('dirname', None)
             json.dump(self, fh)
 
-    def getJobs(self, dirname=None, patt=JOB_DOC.format(jobname='*')):
+    @classmethod
+    def search(cls, dirname=None, patt=JOB_DOC.format(jobname='*')):
         """
-        Get the all the jobs in a directory.
+        Search the directory and return the found jobs.
 
         :param dirname 'str': the job driname
         :param patt str: the pattern to search job json files
         :return 'Job' list: the jobs in the directory
         """
-        if dirname is None:
-            dirname = self.dirname
-        files = glob.glob(os.path.join(dirname, patt))
-        return [Job.fromFile(x) for x in files]
+        patt =os.path.join(dirname if dirname else os.getcwd(), patt)
+        return [Job.fromFile(x) for x in glob.glob(patt)]
 
     @staticmethod
-    def fromFile(namepath, rex=re.compile(JOB_DOC.format(jobname=r'(\w*)'))):
+    def fromFile(pathname, rex=re.compile(JOB_DOC.format(jobname=r'(\w*)'))):
         """
         Get the job based on the job json file.
 
+        :param pathname 'str': the pathname of a job json file
         :param rex 're.Pattern': the regular expression to identify jobname
         :return 'Job' list: the json jobs
         """
-        driname, basename = os.path.split(namepath)
+        driname, basename = os.path.split(pathname)
         return Job(rex.match(basename).group(1), dirname=driname)
 
     @classmethod

@@ -26,11 +26,11 @@ INTERAC: False
 PYTHON: 2
 CPU: 1
 DEBUG: False
-JobStart: 11:03:33 04/24/2025
+JobStart: 11:45:57 04/26/2025
 ...........................
-[11:03:33] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
+[11:45:58] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
 Data file written into number_of_molecules_50000.data
 In script written into number_of_molecules_50000.in
 Peak memory usage: 222.4988 MB
 Finished.
-11:03:35 04/24/2025
+11:46:00 04/26/2025

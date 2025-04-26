@@ -26,12 +26,12 @@ INTERAC: False
 PYTHON: 2
 CPU: 1
 DEBUG: False
-JobStart: 11:03:31 04/24/2025
+JobStart: 11:45:55 04/26/2025
 ...........................
-[11:03:32] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
+[11:45:56] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
 WARNING: The minimum box span (20.00 Å) is smaller than 22.00 Å (Lennard-Jones Cutoff x 2) 
 Data file written into number_of_molecules_100.data
 In script written into number_of_molecules_100.in
 Peak memory usage: 183.6974 MB
 Finished.
-11:03:32 04/24/2025
+11:45:56 04/26/2025
