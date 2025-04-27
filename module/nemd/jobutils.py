@@ -212,7 +212,8 @@ class Job(builtinsutils.Dict, builtinsutils.Object):
         if outfile is None:
             return
         job = cls(jobname)
-        job._outfiles.append(outfile)
+        if outfile not in job._outfiles:
+            job._outfiles.append(outfile)
         if file:
             job._outfile = outfile
         if log:

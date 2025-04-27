@@ -132,11 +132,12 @@ class TestScript:
             with mock.patch('nemd.logutils.Script.__exit__'):
                 with logutils.Script(options, log=log, file=file) as logger:
                     assert bool(evalue) == mocked.called
-        assert '..........Options..........\n' in logger.data
-        assert 'hi: la\n' in logger.data
         job = jobutils.Job()
-        assert ['hi.log'] == job.data['outfiles']
-        assert file == ('hi.log' == job.data.get('outfile'))
+        assert ['hi.log'] == job._outfiles
+        assert file == ('hi.log' == job._outfile)
+        rdr = logutils.Reader(job._outfiles[0])
+        rdr.read()
+        assert 5 == len(rdr.lines)
 
     @pytest.mark.parametrize('ekey', ['MEM_INTVL'])
     @pytest.mark.parametrize('evalue', ['', '0.001'])
