@@ -103,7 +103,12 @@ def jobs(dirname, copied):
 
     :return `list`: signac jobs
     """
-    return list(flow.project.FlowProject.get_project(os.curdir).find_jobs())
+    try:
+        project = flow.project.FlowProject.get_project(os.curdir)
+    except LookupError:
+        return []
+    else:
+        return list(project.find_jobs())
 
 
 @pytest.fixture

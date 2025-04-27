@@ -45,14 +45,11 @@ class Job(builtinsutils.Object):
         self.options = options
         self.status = status
         self.logger = logger
-        self.jobname = jobname
-        self.doc = None
-        self.job = None
-        if not self.jobs:
-            return
-        self.doc = self.jobs[0].project.doc
-        job = self.jobs[0].project if self.agg else self.jobs[0]
-        self.job = jobutils.Job(jobname=self.jobname, dirname=job.fn(''))
+        self.jobname = jobname or self.name
+        job = self.jobs[0] if self.jobs else None
+        self.doc = job.project.doc if job else None
+        dirname = (job.project if self.agg else job).fn('') if job else None
+        self.job = jobutils.Job(jobname=self.jobname, dirname=dirname)
 
     @classmethod
     @property
@@ -170,7 +167,7 @@ class Job(builtinsutils.Object):
             return True
         if self.status is None:
             return bool(self.out)
-        if self.options.DEBUG:
+        if self.options and self.options.DEBUG:
             print(self.jobname, self.out)
         self.status[key] = self.out
         if self.logger and self.OUT == STATUS and isinstance(self.out, str):
@@ -200,7 +197,7 @@ class Job(builtinsutils.Object):
         Clean the json file.
         """
         try:
-            os.remove(self.job.namepath)
+            os.remove(self.job.file)
         except FileNotFoundError:
             pass
 

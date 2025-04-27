@@ -11,8 +11,6 @@ import json
 import os
 import re
 
-import dotted_dict
-
 from nemd import builtinsutils
 from nemd import envutils
 from nemd import symbols

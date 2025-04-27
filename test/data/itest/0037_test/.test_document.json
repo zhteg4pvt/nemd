@@ -1,1 +1,1 @@
-{"outfiles": ["test.log"], "outfile": "test.log", "logfile": "test.log"}
+{"_logfile": "test.log", "_outfile": "test.log", "_outfiles": ["test.log", "test.log", "flow.log"]}

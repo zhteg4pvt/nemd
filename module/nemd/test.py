@@ -8,7 +8,6 @@ import functools
 import os
 import re
 
-from nemd import builtinsutils
 from nemd import check
 from nemd import jobutils
 from nemd import logutils
@@ -19,7 +18,7 @@ from nemd import symbols
 from nemd import timeutils
 
 
-class Base(logutils.Base, builtinsutils.Object):
+class Base(logutils.Base):
     """
     The base class to parse a test file.
     """

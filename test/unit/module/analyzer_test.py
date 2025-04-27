@@ -128,12 +128,13 @@ class TestJob:
         assert expected == job.outfile
 
     @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
-    @pytest.mark.parametrize('dirname,expected', [(TEST0027, (0, 0, 0, None)),
+    @pytest.mark.parametrize('dirname,expected', [(TEST0027, None),
                                                   (TEST0037, (3, 1, 1, None)),
                                                   (TEST0045, (7, 2, 3, None))])
     def testRead(self, density, expected):
         density.read()
-        assert expected == (*density.data.shape, density.sidx, density.eidx)
+        assert expected == (None if density.data is None else
+                            (*density.data.shape, density.sidx, density.eidx))
 
     @pytest.mark.parametrize('args,parm,dirname', [([], None, None)])
     @pytest.mark.parametrize('name,expected',

@@ -48,7 +48,7 @@ class TestFunc:
 class TestJob:
 
     @pytest.fixture
-    def raw(self, jobname, dirname):
+    def job(self, jobname, dirname):
         if dirname:
             dirname = envutils.test_data('itest', dirname)
         return jobutils.Job(jobname=jobname, dirname=dirname)
@@ -66,15 +66,15 @@ class TestJob:
     @pytest.mark.parametrize('dirname', ['0046_test'])
     @pytest.mark.parametrize('jobname,expected', [('mb_lmp_log', True),
                                                   ('mb_lmp_log2', False)])
-    def testFile(self, raw, expected):
-        assert expected == os.path.isfile(raw.file)
+    def testFile(self, job, expected):
+        assert expected == os.path.isfile(job.file)
 
     @pytest.mark.parametrize('jobname', ['jobname'])
     @pytest.mark.parametrize('dirname,filename,expected',
                              [(NEMD_SRC, 'myfile', 'myfile'),
                               (None, 'filename', 'filename')])
-    def testGetFile(self, raw, filename, expected):
-        dirname, filename = os.path.split(raw.getFile(filename))
+    def testGetFile(self, job, filename, expected):
+        dirname, filename = os.path.split(job.getFile(filename))
         assert expected == filename
         assert os.path.isdir(dirname)
 
@@ -82,39 +82,39 @@ class TestJob:
     @pytest.mark.parametrize('jobname,expected',
                              [('mb_lmp_log', 'mb_lmp_log.log'),
                               ('mb_lmp_log2', None)])
-    def testLogFile(self, raw, expected):
+    def testLogFile(self, job, expected):
         if not expected:
-            assert raw.outfile is None
+            assert job.outfile is None
             return
-        assert expected == os.path.basename(raw.outfile)
-        assert os.path.isfile(raw.outfile)
+        assert expected == os.path.basename(job.outfile)
+        assert os.path.isfile(job.outfile)
 
     @pytest.mark.parametrize('dirname', ['0049_test'])
     @pytest.mark.parametrize(
         'jobname,expected',
         [('number_of_molecules_100', 'number_of_molecules_100.in'),
          ('mb_lmp_log', None)])
-    def testOutFile(self, raw, expected):
+    def testOutFile(self, job, expected):
         if not expected:
-            assert raw.outfile is None
+            assert job.outfile is None
             return
-        assert expected == os.path.basename(raw.outfile)
-        assert os.path.isfile(raw.outfile)
+        assert expected == os.path.basename(job.outfile)
+        assert os.path.isfile(job.outfile)
 
     @pytest.mark.parametrize('jobname,dirname', [('jobname', None)])
-    def testWrite(self, raw, tmp_dir):
-        raw._logfile = 'mylog'
-        raw._outfile = 'myout'
-        raw._outfiles.append('outfile1')
-        raw._outfiles.append('outfile2')
-        raw.write()
-        with open(raw.file) as fh:
-            assert raw == json.load(fh)
+    def testWrite(self, jobname, copied):
+        job = jobutils.Job(jobname=jobname)
+        job._logfile = 'mylog'
+        job._outfile = 'myout'
+        job._outfiles.append('outfile1')
+        job._outfiles.append('outfile2')
+        job.write()
+        with open(job.file) as fh:
+            assert job == json.load(fh)
 
-    @pytest.mark.parametrize('jobname,dirname,expected',
-                             [(None, '0000', 'mb_lmp_log.log')])
+    @pytest.mark.parametrize('jobname,dirname,expected', [(None, '0000', 4)])
     def testSearch(self, expected, job):
-        assert 4 == len([x.file for x in job.search()])
+        assert expected == len(jobutils.Job.search(job.dirname))
 
     @pytest.mark.parametrize('jobname,dirname,expected',
                              [('mb_lmp_log', '0000', 4)])

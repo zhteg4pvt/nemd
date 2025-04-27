@@ -231,7 +231,6 @@ class Job(Base):
         files = [x.fn(name) for x in self.jobs]
         files = [x for x in files if os.path.exists(x)]
         if not files:
-            self.data = pd.DataFrame()
             return
 
         datas = [pd.read_csv(x, index_col=0) for x in files]

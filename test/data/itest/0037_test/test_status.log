@@ -9,7 +9,7 @@ Detailed View:
 
 job id                            operation/group
 --------------------------------  -----------------
-bd21a261574eebc3264b126a2014680e  [ ]
+c57080b7efdda6099a8667ccf28534c9  [ ]
 
 [U]:unknown [R]:registered [I]:inactive [S]:submitted [H]:held [Q]:queued [A]:active [E]:error [GR]:group_registered [GI]:group_inactive [GS]:group_submitted [GH]:group_held [GQ]:group_queued [GA]:group_active [GE]:group_error
 
