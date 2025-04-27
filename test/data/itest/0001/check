@@ -1,2 +1,0 @@
-# polymers are built the same
-nemd_check cmp polymer_builder.data amorp_bldr.data

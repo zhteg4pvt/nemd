@@ -14,10 +14,10 @@ from nemd import parserutils
 from nemd import task
 from nemd import traj
 
-TEST0027 = envutils.test_data('itest', '0027_test')
-TEST0037 = envutils.test_data('itest', '0037_test')
-TEST0045 = envutils.test_data('itest', '0045_test')
-TEST0046 = envutils.test_data('itest', '0046_test')
+TEST0027 = envutils.test_data('0027_test')
+TEST0037 = envutils.test_data('0037_test')
+TEST0045 = envutils.test_data('0045_test')
+TEST0046 = envutils.test_data('0046_test')
 AR_DIR = os.path.join(TEST0045, 'workspace',
                       '6fd1b87409fbb60c6612569e187f59fc')
 AR_TRJ = os.path.join(AR_DIR, 'amorp_bldr.custom.gz')

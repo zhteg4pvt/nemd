@@ -1,2 +1,0 @@
-echo "0046: Workflow on ernergy over torsion: amorphous builder, single point energy, and log analysis"
-nemd_run mb_lmp_log_workflow.py CCCC -struct_rg CCCC 0 10 5 -seed 123 -CPU 1 -DEBUG False

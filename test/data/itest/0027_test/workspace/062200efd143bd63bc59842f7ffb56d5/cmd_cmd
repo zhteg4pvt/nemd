@@ -1,2 +1,0 @@
-echo "# 0027: Amorphous builder on NaCl"
-nemd_run amorp_bldr_driver.py '[Na+].[Cl-]' -mol_num 10 -force_field OPLSUA TIP3P -seed 1234 -DEBUG False -CPU 1

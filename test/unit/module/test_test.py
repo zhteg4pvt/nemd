@@ -14,7 +14,7 @@ class TestBase:
     @pytest.fixture
     def base(self, dirname):
         Cmd = type('Cmd', (test.Base, ), {})
-        return Cmd(envutils.test_data('itest', dirname))
+        return Cmd(envutils.test_data(dirname))
 
     @pytest.mark.parametrize(
         'dirname,args,expected',
@@ -46,7 +46,7 @@ class TestCmd:
 
     @pytest.fixture
     def cmd(self, dirname):
-        return test.Cmd(envutils.test_data('itest', dirname))
+        return test.Cmd(envutils.test_data(dirname))
 
     @pytest.mark.parametrize('dirname,expected',
                              [('0000', 'echo "0000"'),
@@ -60,7 +60,7 @@ class TestParam:
     @pytest.fixture
     def param(self, dirname, args):
         options = test_workflow.Parser().parse_args(args)
-        dirpath = envutils.test_data('itest', dirname)
+        dirpath = envutils.test_data(dirname)
         cmd = test.Cmd(dirpath, options=options)
         return test.Param(cmd)
 
@@ -93,7 +93,7 @@ class TestCheck:
 
     @pytest.fixture
     def check(self, dirname, tmp_dir):
-        dirpath = envutils.test_data('itest', dirname)
+        dirpath = envutils.test_data(dirname)
         shutil.copytree(dirpath, os.curdir, dirs_exist_ok=True)
         return test.Check(dirpath, logger=mock.Mock())
 
@@ -116,7 +116,7 @@ class TestTag:
 
     @pytest.fixture
     def tag(self, dirname, args):
-        dirname = envutils.test_data('itest', dirname)
+        dirname = envutils.test_data(dirname)
         options = test_workflow.Parser().parse_args(args)
         return test.Tag(dirname, options=options)
 

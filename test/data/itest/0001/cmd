@@ -1,2 +1,0 @@
-# Amorphous builder on C
-run_nemd amorp_bldr_driver.py C -mol_num 10 -seed 5678

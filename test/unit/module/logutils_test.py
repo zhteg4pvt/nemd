@@ -162,11 +162,10 @@ class TestScript:
 @pytest.mark.skipif(envutils.get_src() is None,
                     reason="cannot locate test dir")
 class TestReader:
-    AMORP_LOG = envutils.test_data('itest', '0001_test','workspace','06b39c3b9b6541a2dc6e15baa6734cb2',
+    AMORP_LOG = envutils.test_data('0001_test', 'workspace',
+                                   '06b39c3b9b6541a2dc6e15baa6734cb2',
                                    'amorp_bldr.log')
-    MB_LMP_LOG = envutils.test_data('itest',
-                                    '0046_test',
-                                    'mb_lmp_log.log')
+    MB_LMP_LOG = envutils.test_data('0046_test', 'mb_lmp_log.log')
 
     @pytest.fixture
     def raw(self, data):

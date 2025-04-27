@@ -50,7 +50,7 @@ class TestJob:
     @pytest.fixture
     def job(self, jobname, dirname):
         if dirname:
-            dirname = envutils.test_data('itest', dirname)
+            dirname = envutils.test_data(dirname)
         return jobutils.Job(jobname=jobname, dirname=dirname)
 
     @pytest.mark.parametrize("ekey", ['JOBNAME'])

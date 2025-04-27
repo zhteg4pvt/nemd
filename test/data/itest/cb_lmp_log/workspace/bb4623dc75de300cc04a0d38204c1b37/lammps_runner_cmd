@@ -1,1 +1,0 @@
-nemd_run lammps_driver.py crystal_builder.in -JOBNAME lammps_runner

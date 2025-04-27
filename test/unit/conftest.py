@@ -91,7 +91,7 @@ def copied(dirname, tmp_dir):
     """
     if dirname is None:
         return
-    test_dir = envutils.test_data('itest', dirname)
+    test_dir = envutils.test_data(dirname)
     shutil.copytree(test_dir, os.curdir, dirs_exist_ok=True)
     return test_dir
 

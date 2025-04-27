@@ -1,6 +1,9 @@
-import pytest
-from nemd import task
 from unittest import mock
+
+import pytest
+
+from nemd import task
+
 
 class TestLmpLog:
 
@@ -8,7 +11,8 @@ class TestLmpLog:
     def lmp_log(self, jobs):
         return task.LmpLog(*jobs, status={}, logger=mock.Mock())
 
-    @pytest.mark.parametrize('dirname,expected', [('0046_test','mol_bldr.data')])
+    @pytest.mark.parametrize('dirname,expected',
+                             [('0046_test', 'mol_bldr.data')])
     def testAddfiles(self, lmp_log, expected):
         lmp_log.addfiles()
         assert expected == lmp_log.args[-1]
@@ -20,7 +24,8 @@ class TestLmpTraj:
     def lmp_traj(self, jobs):
         return task.LmpTraj(*jobs, status={}, logger=mock.Mock())
 
-    @pytest.mark.parametrize('dirname,expected', [('0046_test','mol_bldr.data')])
+    @pytest.mark.parametrize('dirname,expected',
+                             [('0046_test', 'mol_bldr.data')])
     def testAddfiles(self, lmp_log, expected):
         lmp_log.addfiles()
         assert expected == lmp_log.args[-1]

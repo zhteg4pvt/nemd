@@ -1,1 +1,0 @@
-{"_logfile": null, "_outfile": null, "_outfiles": [], "status": "Task Total Timing: 00:00:38\n| amorp_bld   | lammps    | lmp_traj   |\n|:------------|:----------|:-----------|\n| 00:08 ave   | 00:00 ave | 00:10 ave  |\n| 00:09 6fd   | 00:00 d15 | 00:11 d15  |\n| 00:08 d15   | 00:00 6fd | 00:10 6fd  |"}

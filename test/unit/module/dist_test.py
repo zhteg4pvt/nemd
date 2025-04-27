@@ -15,7 +15,7 @@ HEX_FRM = os.path.join(HEX, 'dump.custom')
 class TestRadius:
 
     NACL = lmpfull.Reader(
-        envutils.test_data('itest', '0027_test', 'workspace',
+        envutils.test_data('0027_test', 'workspace',
                            '062200efd143bd63bc59842f7ffb56d5',
                            'amorp_bldr.data'))
     HE = lmpfull.Reader(envutils.test_data('he', 'mol_bldr.data'))

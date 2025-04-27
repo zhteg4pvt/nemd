@@ -11,8 +11,8 @@ from nemd import taskbase
 
 
 class TestJob:
-    TEST_0001 = envutils.test_data('itest', '0001_test')
-    FAIL_0001 = envutils.test_data('itest', '0001_fail')
+    TEST_0001 = envutils.test_data('0001_test')
+    FAIL_0001 = envutils.test_data('0001_fail')
 
     @pytest.fixture
     def job(self, jobs, jobname, status):

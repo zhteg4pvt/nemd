@@ -7,7 +7,7 @@ from nemd import envutils
 from nemd import lmpfunc
 from nemd import plotutils
 
-BASE_DIR = envutils.test_data('itest', '5524d62a356ac00d781a9cb1e5a6f03b')
+BASE_DIR = envutils.test_data('5524d62a356ac00d781a9cb1e5a6f03b')
 PRESS_DATA = os.path.join(BASE_DIR, 'defm_000', 'press_vol.data')
 XYZL_DATA = os.path.join(BASE_DIR, 'xyzl.data')
 
