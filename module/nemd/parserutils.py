@@ -10,13 +10,13 @@ import random
 import re
 
 from nemd import analyzer
+from nemd import builtinsutils
 from nemd import cru
 from nemd import envutils
 from nemd import is_debug
 from nemd import jobutils
 from nemd import lammpsfix
 from nemd import np
-from nemd import objectutils
 from nemd import rdkitutils
 from nemd import sw
 from nemd import symbols
@@ -483,7 +483,7 @@ class TrajValid(Valid):
                              f" run {', '.join(rqd_data)} tasks.")
 
 
-class Driver(argparse.ArgumentParser, objectutils.Object):
+class Driver(argparse.ArgumentParser, builtinsutils.Object):
     """
     Parser with job arguments.
     """

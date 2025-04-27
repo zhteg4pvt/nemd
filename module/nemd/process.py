@@ -8,15 +8,15 @@ import glob
 import os
 import subprocess
 
+from nemd import builtinsutils
 from nemd import envutils
 from nemd import jobutils
 from nemd import lammpsfix
-from nemd import objectutils
 from nemd import osutils
 from nemd import symbols
 
 
-class Base(objectutils.Object):
+class Base(builtinsutils.Object):
     """
     Run subprocess.
     """

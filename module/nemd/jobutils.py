@@ -13,9 +13,8 @@ import re
 
 import dotted_dict
 
-from nemd import dictutils
+from nemd import builtinsutils
 from nemd import envutils
-from nemd import objectutils
 from nemd import symbols
 
 NEMD_RUN = 'nemd_run'
@@ -113,7 +112,7 @@ def set_arg(args, flag, val):
     return args
 
 
-class Job(dictutils.Dict, objectutils.Object):
+class Job(builtinsutils.Dict, builtinsutils.Object):
     """
     File-centered job applications.
     """

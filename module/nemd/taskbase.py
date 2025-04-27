@@ -13,14 +13,14 @@ import types
 
 import flow
 
+from nemd import builtinsutils
 from nemd import jobutils
-from nemd import objectutils
 from nemd import symbols
 
 STATUS = 'status'
 
 
-class Job(objectutils.Object):
+class Job(builtinsutils.Object):
     """
     Non-cmd job.
     """

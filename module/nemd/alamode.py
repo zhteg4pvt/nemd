@@ -11,8 +11,8 @@ import itertools
 
 import pandas as pd
 
+from nemd import builtinsutils
 from nemd import constants
-from nemd import dictutils
 from nemd import process
 from nemd import stillinger
 from nemd import symbols
@@ -128,7 +128,7 @@ class Crystal(xtal.Crystal):
         return Position(self)
 
 
-class Base(dictutils.Dict):
+class Base(builtinsutils.Dict):
     """
     Class to store key value pairs by dot notation.
     """
