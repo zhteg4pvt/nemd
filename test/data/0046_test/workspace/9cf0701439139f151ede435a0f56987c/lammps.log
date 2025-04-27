@@ -1,0 +1,142 @@
+..........Options..........
+inscript: /Users/zhteg4/test/workspace/8dc7a9875fc601eb06beebcbe3469df1/workspace/9cf0701439139f151ede435a0f56987c/mol_bldr.in
+data_file: mol_bldr.data
+NAME: lammps
+JOBNAME: lammps
+INTERAC: False
+PYTHON: 2
+CPU: 1
+DEBUG: False
+JobStart: 18:41:31 04/27/2025
+...........................
+Running lammps simulations...
+LAMMPS (19 Nov 2024)
+  using 1 OpenMP thread(s) per MPI task
+Reading data file ...
+  orthogonal box = (0 0 0) to (45.6463 44.8566 46.5807)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  4 atoms
+  scanning bonds ...
+  1 = max bonds/atom
+  scanning angles ...
+  1 = max angles/atom
+  scanning dihedrals ...
+  1 = max dihedrals/atom
+  orthogonal box = (0 0 0) to (45.6463 44.8566 46.5807)
+  1 by 1 by 1 MPI processor grid
+  reading bonds ...
+  3 bonds
+  reading angles ...
+  2 angles
+  reading dihedrals ...
+  1 dihedrals
+Finding 1-2 1-3 1-4 neighbors ...
+  special bond factors lj:    0        0        0.5     
+  special bond factors coul:  0        0        0.5     
+     2 = max # of 1-2 neighbors
+     1 = max # of 1-3 neighbors
+     2 = max # of 1-4 neighbors
+     3 = max # of special neighbors
+  special bonds CPU = 0.000 seconds
+  read_data CPU = 0.004 seconds
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 13
+  ghost atom cutoff = 13
+  binsize = 6.5, bins = 8 7 8
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair lj/cut, perpetual
+      attributes: half, newton on
+      pair build: half/bin/newton
+      stencil: half/bin/3d
+      bin: standard
+Setting up fire style minimization ...
+  Unit style    : real
+  Current step  : 0
+  Parameters for fire:
+    dmax  delaystep dtgrow dtshrink alpha0 alphashrink tmax tmin   integrator   halfstepback   abcfire  
+     0.1     20      1.1     0.5     0.25     0.99      10  0.02 eulerimplicit      yes          no     
+Per MPI rank memory allocation (min/avg/max) = 6.818 | 6.818 | 6.818 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+         0   0              27.504784      4.0000018      31.504786      83.806566    
+        67   0.00022660841  3.2646578      7.3596831      10.624343     -0.0048063703 
+Loop time of 0.00019645 on 1 procs for 67 steps with 4 atoms
+
+94.7% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+      31.5047859080437   10.6243411668997   10.6243409493443
+  Force two-norm initial, final = 183.92998 0.060459058
+  Force max component initial, final = 124.82104 0.031573857
+  Final line search alpha, max atom move = 0 0
+  Iterations, force evaluations = 67 71
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 1.1733e-05 | 1.1733e-05 | 1.1733e-05 |   0.0 |  5.97
+Bond    | 4.3285e-05 | 4.3285e-05 | 4.3285e-05 |   0.0 | 22.03
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 3.1146e-05 | 3.1146e-05 | 3.1146e-05 |   0.0 | 15.85
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 1.86e-05   | 1.86e-05   | 1.86e-05   |   0.0 |  9.47
+Other   |            | 9.169e-05  |            |       | 46.67
+
+Nlocal:              4 ave           4 max           4 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:             28 ave          28 max          28 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              1 ave           1 max           1 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 1
+Ave neighs/atom = 0.25
+Ave special neighs/atom = 3
+Neighbor list builds = 0
+Dangerous builds = 0
+WARNING: No fixes with time integration, atoms won't move (src/verlet.cpp:60)
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Setting up Verlet run ...
+  Unit style    : real
+  Current step  : 67
+  Time step     : 1
+Per MPI rank memory allocation (min/avg/max) = 8.068 | 8.068 | 8.068 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+        67   0.00022660841  3.2646578      7.3596831      10.624343     -0.0048063703 
+Loop time of 1.231e-06 on 1 procs for 0 steps with 4 atoms
+
+81.2% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Bond    | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 1.231e-06  |            |       |100.00
+
+Nlocal:              4 ave           4 max           4 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:             28 ave          28 max          28 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              1 ave           1 max           1 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 1
+Ave neighs/atom = 0.25
+Ave special neighs/atom = 3
+Neighbor list builds = 0
+Dangerous builds = 0
+
+[Tengs-MacBook-Pro.local:13775] shmem: mmap: an error occurred while determining whether or not /var/folders/bk/wg487n5j7573mcb1vjqqz1j00000gn/T//ompi.Tengs-MacBook-Pro.501/jf.0/2077425664/sm_segment.Tengs-MacBook-Pro.501.7bd30000.0 could be created.
+
+Finished.
+18:41:31 04/27/2025

@@ -131,7 +131,7 @@ def Cmd(file):
 
     class Cmd(taskbase.Cmd):
         FILE = (f"-c 'from nemd import jobutils;"
-                f"jobutils.Job.reg(jobutils.OUTFILE, file={file})'")
+                f"jobutils.Job.reg(jobutils.JOB, file={file})'")
 
     return Cmd
 

@@ -1,0 +1,38 @@
+..........Options..........
+trj: /Users/zhteg4/git/nemd/test/data/water/dump.custom.gz
+task: view rdf density clash xyz msd
+data_file: /Users/zhteg4/git/nemd/test/data/water/modified.data
+last_pct: 0.6
+slice: (0, 3, 1)
+sel: None
+NAME: lmp_traj
+JOBNAME: lmp_traj
+INTERAC: False
+PYTHON: 2
+CPU: 1
+DEBUG: False
+JobStart: 22:19:54 04/26/2025
+...........................
+9 atoms selected.
+3 trajectory frames found.
+clash, xyz, density, view analyze all frames and save per frame results ∈ [0.000, 1.000] ps
+rdf, msd average results from last 60.0% frames ∈ [ 0.834,  1.000] ps
+Density data written into lmp_traj_density.csv
+Density: 0.5 ± 0 g/cm^3 ∈ [0.8340, 1.0000] ps
+Density figure saved as lmp_traj_density.png
+The volume fluctuates: [179.49 179.49] Å^3
+50%, [!n]
+100%
+Radial distribution function data written into lmp_traj_rdf.csv
+RDF peak 86.1 ± nan found at 0.96 Å
+Rdf figure saved as lmp_traj_rdf.png
+Mean squared displacement data written into lmp_traj_msd.csv
+Diffusion Coefficient 2.904e-07 ± 0 cm^2/s calculated by fitting MSD ∈ [0 0.834] ps. (R-squared: 1)
+Msd figure saved as lmp_traj_msd.png
+Clash data written into lmp_traj_clash.csv
+Clash: 3 ± 0 count ∈ [0.8340, 1.0000] ps
+Clash figure saved as lmp_traj_clash.png
+Trajectory visualization are written into lmp_traj_view.html
+XYZ coordinates are written into lmp_traj_xyz.xyz
+Finished.
+22:19:58 04/26/2025

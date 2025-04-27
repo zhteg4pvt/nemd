@@ -1,0 +1,3 @@
+-mol_num $param
+echo hi
+echo wa

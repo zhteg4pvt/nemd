@@ -103,7 +103,8 @@ class TestRunner:
     @pytest.mark.parametrize('original,file,status,pre',
                              [(['-clean', '-DEBUG'], True, True, None)])
     def testClean(self, ran):
-        files = [jobutils.Job(x, job=ran.jobs[0]).file for x in ['cmd', 'job']]
+        dirname = ran.jobs[0].fn('')
+        files = [jobutils.Job(x, dirname=dirname).file for x in ['cmd', 'job']]
         assert all([os.path.exists(x) for x in files])
         ran.clean()
         assert not any([os.path.exists(x) for x in files])
@@ -113,9 +114,10 @@ class TestRunner:
     @pytest.mark.parametrize('status', [True, False])
     @pytest.mark.parametrize('pre', [(None), (False)])
     def testRunProj(self, pre, file, status, ran):
-        outfile = jobutils.Job('cmd', job=ran.jobs[0]).getFile()
-        assert outfile.endswith('outfile') if outfile else (outfile is None)
-        stat = jobutils.Job('job', job=ran.jobs[0]).data.get('status')
+        dirname = ran.jobs[0].fn('')
+        outfile = jobutils.Job('cmd', dirname=dirname).outfile
+        assert outfile.endswith('job') if outfile else (outfile is None)
+        stat = jobutils.Job('job', dirname=dirname).get('status')
         assert (status if pre is False or file else None) == stat
 
     @pytest.mark.parametrize('original', [(['-JOBNAME', 'name', '-DEBUG'])])
@@ -158,7 +160,7 @@ class TestRunner:
         ran.add(taskbase.Agg)
         ran.setAggProj()
         ran.runProj(agg=True)
-        file = jobutils.Job('agg', job=ran.jobs[0].project).file
+        file = jobutils.Job('agg', dirname=ran.jobs[0].project.fn('')).file
         assert os.path.exists(file)
         ran.clean(agg=True)
         assert not os.path.exists(file)
@@ -169,5 +171,5 @@ class TestRunner:
         ran.add(taskbase.Agg)
         ran.setAggProj()
         ran.runProj(agg=True)
-        job = jobutils.Job('agg', job=ran.jobs[0].project)
-        assert job.data['status']
+        job = jobutils.Job('agg', dirname=ran.jobs[0].project.fn(''))
+        assert job['status']

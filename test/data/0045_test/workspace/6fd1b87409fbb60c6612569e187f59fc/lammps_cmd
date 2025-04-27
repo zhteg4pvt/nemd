@@ -1,0 +1,1 @@
+nemd_run lammps_driver.py /Users/zhteg4/test/workspace/d6e31b293894821f0b227e79d393ff72/workspace/6fd1b87409fbb60c6612569e187f59fc/amorp_bldr.in -CPU 1 -DEBUG False -JOBNAME lammps

@@ -1,0 +1,32 @@
+..........Options..........
+cru: CCCC
+cru_num: 1
+mol_num: 1
+buffer: 44.0
+substruct: ('CCCC', 5.0)
+force_field: OPLSUA TIP3P
+timestep: 1
+stemp: 10
+temp: 0
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 0
+prod_time: 0
+prod_ens: NVE
+seed: 123
+no_minimize: False
+rigid_bond: None
+rigid_angle: None
+NAME: mol_bldr
+JOBNAME: mol_bldr
+INTERAC: False
+PYTHON: 2
+CPU: 1
+DEBUG: False
+JobStart: 18:41:29 04/27/2025
+...........................
+Data file written into mol_bldr.data
+In script written into mol_bldr.in
+Finished.
+18:41:30 04/27/2025

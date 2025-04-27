@@ -110,10 +110,8 @@ class LmpTraj(LmpLog):
 
 class Cmd(taskbase.Cmd):
     """
-    The class to set up a job cmd so that the test can run normal nemd jobs from
-    the cmd line.
+    The class to parse file, setup cmd, and run job.
     """
-    NAME = 'cmd'
     CPU_RE = re.compile(fr"{jobutils.FLAG_CPU} +\d*")
     DEBUG_RE = re.compile(f"{jobutils.FLAG_DEBUG}( +(True|False))?")
     SEP = f"{symbols.RETURN}"
