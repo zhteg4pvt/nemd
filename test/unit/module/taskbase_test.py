@@ -1,5 +1,4 @@
 import glob
-import json
 import os
 from unittest import mock
 
@@ -9,9 +8,6 @@ from nemd import envutils
 from nemd import jobutils
 from nemd import parserutils
 from nemd import taskbase
-
-TEST0037 = os.path.join('0037_test', 'workspace',
-                        'c57080b7efdda6099a8667ccf28534c9')
 
 
 class TestJob:
@@ -204,16 +200,17 @@ class TestCmd:
         assert cmd.args[0].endswith(expected)
 
     @pytest.mark.parametrize('dirname', ['0045_test'])
-    @pytest.mark.parametrize(
-        'name,file,parser,tmpl,expected',
-        [('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, None, 19),
-         ('Lammps', 'lammps_driver.py', parserutils.Lammps, [None], 5)])
+    @pytest.mark.parametrize('name,file,parser,tmpl,expected', [
+        ('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, None, 19),
+        ('Lammps', 'lammps_driver.py', parserutils.Lammps, [None], 5)
+    ])
     def testRmUnknown(self, cmd, expected):
         cmd.addfiles()
         cmd.rmUnknown()
         assert expected == len(cmd.args)
 
-    @pytest.mark.parametrize('name,dirname,file,parser,tmpl', [('MolBldr', 'empty', *THREE)])
+    @pytest.mark.parametrize('name,dirname,file,parser,tmpl',
+                             [('MolBldr', 'empty', *THREE)])
     @pytest.mark.parametrize('word,expected', [('Ar', ['Ar']),
                                                ('[Ar]', ['"[Ar]"']),
                                                ('"[Ar]"', ['"[Ar]"']),
@@ -223,7 +220,8 @@ class TestCmd:
         cmd.addQuot()
         assert expected == cmd.args
 
-    @pytest.mark.parametrize('name,dirname,file,parser,tmpl', [('MolBldr', 'empty', *THREE)])
+    @pytest.mark.parametrize('name,dirname,file,parser,tmpl',
+                             [('MolBldr', 'empty', *THREE)])
     @pytest.mark.parametrize('word,expected', [('Ar', 'Ar'), ('@', '"@"'),
                                                ('[Ar]', '"[Ar]"'),
                                                ('"[Ar]"', '"[Ar]"'),
@@ -231,8 +229,9 @@ class TestCmd:
     def testQuote(self, cmd, word, expected):
         assert expected == cmd.quote(word)
 
-    @pytest.mark.parametrize('name,dirname,file,parser,tmpl', [('MolBldr', 'empty', *THREE)])
-    def testSetName(self, cmd,):
+    @pytest.mark.parametrize('name,dirname,file,parser,tmpl',
+                             [('MolBldr', 'empty', *THREE)])
+    def testSetName(self, cmd):
         cmd.args = []
         cmd.setName()
         assert ['-JOBNAME', 'mol_bldr'] == cmd.args

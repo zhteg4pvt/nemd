@@ -27,18 +27,33 @@ NAME: mb_lmp_log
 JOBNAME: mb_lmp_log
 INTERAC: False
 PYTHON: 2
-CPU: None
+CPU: 1
 DEBUG: False
 jtype: task aggregator
 prj_path: None
 clean: False
 screen: off
-JobStart: 21:14:51 04/16/2025
+JobStart: 18:41:26 04/27/2025
 ...........................
 2 / 2 completed jobs.
+Task Total Timing: 00:00:07
+| lammps    | lmp_log   | mol_bldr   |
+|:----------|:----------|:-----------|
+| 00:00 ave | 00:02 ave | 00:01 ave  |
+| 00:01 67f | 00:02 9cf | 00:01 9cf  |
+| 00:00 9cf | 00:02 67f | 00:01 67f  |
 2 jobs found for aggregation.
 Aggregation Task: toteng
-Aggregation Parameters (num=1): substruct="CCCC 0.0"
-Task Total Timing: 00:00:10
+Aggregation Parameters (num=1): substruct="CCCC 0.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_0.csv
+TotEng: 10.62 ± nan kcal/mol ∈ [0.0670, 0.0670] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_0.png
+Aggregation Parameters (num=1): substruct="CCCC 5.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_1.csv
+TotEng: 10.52 ± nan kcal/mol ∈ [0.0790, 0.0790] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_1.png
+Toteng data written into mb_lmp_log_toteng.csv
+The minimum TotEng of 10.52 kcal/mol found at 5.0 Degree.
+Toteng figure saved as mb_lmp_log_toteng.png
 Finished.
-21:14:52 04/16/2025
+18:41:37 04/27/2025

@@ -5,6 +5,7 @@ Creates loggers for modules and scripts, log messages and options, parse log
 files, and redirect stdout and stderr.
 """
 import contextlib
+import functools
 import io
 import logging
 import os

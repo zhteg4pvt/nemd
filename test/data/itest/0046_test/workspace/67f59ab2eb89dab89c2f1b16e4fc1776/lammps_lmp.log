@@ -1,5 +1,4 @@
 LAMMPS (19 Nov 2024)
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread. (src/comm.cpp:99)
   using 1 OpenMP thread(s) per MPI task
 units real
 atom_style full
@@ -38,7 +37,7 @@ Finding 1-2 1-3 1-4 neighbors ...
      2 = max # of 1-4 neighbors
      3 = max # of special neighbors
   special bonds CPU = 0.000 seconds
-  read_data CPU = 0.004 seconds
+  read_data CPU = 0.002 seconds
 
 dump 1 all custom 1000 mol_bldr.custom.gz id xu yu zu
 dump_modify 1 sort id
@@ -65,9 +64,9 @@ Per MPI rank memory allocation (min/avg/max) = 6.818 | 6.818 | 6.818 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0              27.140596      3.9318622      31.072459      82.848872    
         79   0.0021187074   3.2505961      7.2720123      10.522627     -0.039971516  
-Loop time of 0.000225972 on 1 procs for 79 steps with 4 atoms
+Loop time of 0.000148298 on 1 procs for 79 steps with 4 atoms
 
-95.1% CPU use with 1 MPI tasks x 1 OpenMP threads
+95.8% CPU use with 1 MPI tasks x 1 OpenMP threads
 
 Minimization stats:
   Stopping criterion = energy tolerance
@@ -81,13 +80,13 @@ Minimization stats:
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 1.4063e-05 | 1.4063e-05 | 1.4063e-05 |   0.0 |  6.22
-Bond    | 5.0423e-05 | 5.0423e-05 | 5.0423e-05 |   0.0 | 22.31
+Pair    | 9.822e-06  | 9.822e-06  | 9.822e-06  |   0.0 |  6.62
+Bond    | 3.5349e-05 | 3.5349e-05 | 3.5349e-05 |   0.0 | 23.84
 Neigh   | 0          | 0          | 0          |   0.0 |  0.00
-Comm    | 3.57e-05   | 3.57e-05   | 3.57e-05   |   0.0 | 15.80
+Comm    | 2.5432e-05 | 2.5432e-05 | 2.5432e-05 |   0.0 | 17.15
 Output  | 0          | 0          | 0          |   0.0 |  0.00
-Modify  | 2.163e-05  | 2.163e-05  | 2.163e-05  |   0.0 |  9.57
-Other   |            | 0.0001042  |            |       | 46.09
+Modify  | 1.3296e-05 | 1.3296e-05 | 1.3296e-05 |   0.0 |  8.97
+Other   |            | 6.44e-05   |            |       | 43.43
 
 Nlocal:              4 ave           4 max           4 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -108,9 +107,9 @@ Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
 Per MPI rank memory allocation (min/avg/max) = 8.068 | 8.068 | 8.068 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
         79   0.0021187074   3.2505961      7.2720123      10.522627     -0.039971516  
-Loop time of 1.107e-06 on 1 procs for 0 steps with 4 atoms
+Loop time of 9.31e-07 on 1 procs for 0 steps with 4 atoms
 
-90.3% CPU use with 1 MPI tasks x 1 OpenMP threads
+0.0% CPU use with 1 MPI tasks x 1 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -121,7 +120,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 1.107e-06  |            |       |100.00
+Other   |            | 9.31e-07   |            |       |100.00
 
 Nlocal:              4 ave           4 max           4 min
 Histogram: 1 0 0 0 0 0 0 0 0 0

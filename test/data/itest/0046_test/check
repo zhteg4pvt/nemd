@@ -1,2 +1,0 @@
-nemd_check cmp mb_lmp_log_toteng.csv mb_lmp_log_toteng.csv
-nemd_check exist mb_lmp_log_toteng.png

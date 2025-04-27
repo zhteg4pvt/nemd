@@ -162,11 +162,11 @@ class TestScript:
 @pytest.mark.skipif(envutils.get_src() is None,
                     reason="cannot locate test dir")
 class TestReader:
-    AMORP_LOG = envutils.test_data('itest', '5524d62a356ac00d781a9cb1e5a6f03b',
+    AMORP_LOG = envutils.test_data('itest', '0001_test','workspace','06b39c3b9b6541a2dc6e15baa6734cb2',
                                    'amorp_bldr.log')
     MB_LMP_LOG = envutils.test_data('itest',
-                                    '81dc7a1e5728084cb77c2b7d3c8994fc',
-                                    'mb_lmp_log-driver.log')
+                                    '0046_test',
+                                    'mb_lmp_log.log')
 
     @pytest.fixture
     def raw(self, data):
@@ -186,25 +186,25 @@ class TestReader:
                                             (MB_LMP_LOG, 'False')])
     def testSetOptions(self, debug, raw):
         raw.setOptions()
-        assert debug == raw.options.debug
+        assert debug == raw.options.DEBUG
         assert 2 == len(raw.options.JobStart)
 
     @pytest.mark.parametrize('data,onum,num', [(AMORP_LOG, 28, 6),
-                                               (MB_LMP_LOG, 34, 23)])
+                                               (MB_LMP_LOG, 35, 22)])
     def testCropOptions(self, onum, num, raw):
         assert onum == len(raw.cropOptions())
         assert num == len(raw.lines)
 
-    @pytest.mark.parametrize('data,task_time', [(AMORP_LOG, '0:00:09'),
-                                                (MB_LMP_LOG, '0:00:10')])
+    @pytest.mark.parametrize('data,task_time', [(AMORP_LOG, '0:00:00'),
+                                                (MB_LMP_LOG, '0:00:07')])
     def testTaskTime(self, task_time, reader):
         assert task_time == str(reader.task_time)
 
     @pytest.mark.parametrize('data', [AMORP_LOG])
     @pytest.mark.parametrize('dtype,expected',
-                             [('start', '2025-02-15 19:46:58'),
-                              ('end', '2025-02-15 19:47:07'),
-                              ('delta', '0:00:09')])
+                             [('start', '2025-03-13 19:02:59'),
+                              ('end', '2025-03-13 19:02:59'),
+                              ('delta', '0:00:00')])
     def testTime(self, dtype, expected, reader):
         assert expected == str(reader.time(dtype=dtype))
 

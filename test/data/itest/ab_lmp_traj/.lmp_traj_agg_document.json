@@ -1,1 +1,0 @@
-{"status": "2 jobs found for aggregation.\nAggregation Task: density\nDensity data written into workspace/ab_lmp_traj_density_None.csv\nDensity: 0.5 \u00b1 0 g/cm^3 \u2208 [0.0010, 0.0010] ps\nDensity figure saved as workspace/ab_lmp_traj_density_None.png\nDensity of all parameters saved to ab_lmp_traj_density.csv"}

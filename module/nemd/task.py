@@ -67,7 +67,7 @@ class LmpLog(taskbase.Cmd):
     TMPL = [None]
     ParserClass = parserutils.LmpLog
 
-    def addfiles(self, match_re=re.compile(lammpsfix.READ_DATA_RE)):
+    def addfiles(self):
         """
         Set arguments to analyze the log file.
 
@@ -75,10 +75,10 @@ class LmpLog(taskbase.Cmd):
         """
         super().addfiles()
         # Set the args with the data file from the log file
-        data_file = self.getMatch(match_re=match_re).group(1)
+        data_file = self.getMatch().group(1)
         self.args += [parserutils.LmpLog.FLAG_DATA_FILE, data_file]
 
-    def getMatch(self, match_re=lammpsfix.READ_DATA_RE):
+    def getMatch(self, match_re=re.compile(lammpsfix.READ_DATA_RE)):
         """
         Get the regular expression match.
 
