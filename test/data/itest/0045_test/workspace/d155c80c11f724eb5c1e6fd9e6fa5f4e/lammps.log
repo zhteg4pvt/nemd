@@ -1,17 +1,16 @@
 ..........Options..........
-inscript: /Users/zhteg4/git/nemd/test/data/itest/0045_test/workspace/d155c80c11f724eb5c1e6fd9e6fa5f4e/amorp_bldr.in
+inscript: /Users/zhteg4/test/workspace/d6e31b293894821f0b227e79d393ff72/workspace/d155c80c11f724eb5c1e6fd9e6fa5f4e/amorp_bldr.in
 data_file: amorp_bldr.data
 NAME: lammps
 JOBNAME: lammps
 INTERAC: False
 PYTHON: 2
-CPU: None
+CPU: 1
 DEBUG: False
-JobStart: 11:56:37 04/16/2025
+JobStart: 11:04:50 04/27/2025
 ...........................
 Running lammps simulations...
 LAMMPS (19 Nov 2024)
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread. (src/comm.cpp:99)
   using 1 OpenMP thread(s) per MPI task
 Reading data file ...
   orthogonal box = (0 0 0) to (73.9549 73.9549 73.9549)
@@ -50,9 +49,9 @@ Per MPI rank memory allocation (min/avg/max) = 6.017 | 6.017 | 6.017 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -0.056174429    0             -0.056174429   -0.017955047  
        999   0.0015629359  -0.46799991     0             -0.46795798     0.00010176157
-Loop time of 0.00109115 on 1 procs for 999 steps with 10 atoms
+Loop time of 0.00105675 on 1 procs for 999 steps with 10 atoms
 
-99.4% CPU use with 1 MPI tasks x 1 OpenMP threads
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
 
 Minimization stats:
   Stopping criterion = energy tolerance
@@ -66,13 +65,13 @@ Minimization stats:
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 0.00014747 | 0.00014747 | 0.00014747 |   0.0 | 13.52
-Bond    | 9.3359e-05 | 9.3359e-05 | 9.3359e-05 |   0.0 |  8.56
-Neigh   | 8.071e-06  | 8.071e-06  | 8.071e-06  |   0.0 |  0.74
-Comm    | 0.00025122 | 0.00025122 | 0.00025122 |   0.0 | 23.02
+Pair    | 0.00013973 | 0.00013973 | 0.00013973 |   0.0 | 13.22
+Bond    | 9.7299e-05 | 9.7299e-05 | 9.7299e-05 |   0.0 |  9.21
+Neigh   | 7.17e-06   | 7.17e-06   | 7.17e-06   |   0.0 |  0.68
+Comm    | 0.00024112 | 0.00024112 | 0.00024112 |   0.0 | 22.82
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 0.000591   |            |       | 54.17
+Other   |            | 0.0005714  |            |       | 54.07
 
 Nlocal:             10 ave          10 max          10 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -100,21 +99,21 @@ Per MPI rank memory allocation (min/avg/max) = 7.267 | 7.267 | 7.267 Mbytes
       4000   300.57723     -0.41405439     0              7.6496183      0.94124152   
       5000   299.48498     -0.36066971     0              7.6737009      0.83060177   
       5999   299.64267     -0.31082352     0              7.7277773      0.84830611   
-Loop time of 0.00566665 on 1 procs for 5000 steps with 10 atoms
+Loop time of 0.00532613 on 1 procs for 5000 steps with 10 atoms
 
-Performance: 76235.451 ns/day, 0.000 hours/ns, 882354.758 timesteps/s, 8.824 Matom-step/s
-97.4% CPU use with 1 MPI tasks x 1 OpenMP threads
+Performance: 81109.594 ns/day, 0.000 hours/ns, 938768.452 timesteps/s, 9.388 Matom-step/s
+98.1% CPU use with 1 MPI tasks x 1 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 0.00067896 | 0.00067896 | 0.00067896 |   0.0 | 11.98
-Bond    | 0.00035175 | 0.00035175 | 0.00035175 |   0.0 |  6.21
-Neigh   | 0.00012343 | 0.00012343 | 0.00012343 |   0.0 |  2.18
-Comm    | 0.0012057  | 0.0012057  | 0.0012057  |   0.0 | 21.28
-Output  | 0.00022264 | 0.00022264 | 0.00022264 |   0.0 |  3.93
-Modify  | 0.0017272  | 0.0017272  | 0.0017272  |   0.0 | 30.48
-Other   |            | 0.001357   |            |       | 23.95
+Pair    | 0.00066508 | 0.00066508 | 0.00066508 |   0.0 | 12.49
+Bond    | 0.00034838 | 0.00034838 | 0.00034838 |   0.0 |  6.54
+Neigh   | 0.00014277 | 0.00014277 | 0.00014277 |   0.0 |  2.68
+Comm    | 0.0011164  | 0.0011164  | 0.0011164  |   0.0 | 20.96
+Output  | 0.00016615 | 0.00016615 | 0.00016615 |   0.0 |  3.12
+Modify  | 0.0016173  | 0.0016173  | 0.0016173  |   0.0 | 30.37
+Other   |            | 0.00127    |            |       | 23.85
 
 Nlocal:             10 ave          10 max          10 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -129,7 +128,7 @@ Ave special neighs/atom = 0
 Neighbor list builds = 34
 Dangerous builds = 0
 
-[Tengs-MacBook-Pro.local:28657] shmem: mmap: an error occurred while determining whether or not /var/folders/bk/wg487n5j7573mcb1vjqqz1j00000gn/T//ompi.Tengs-MacBook-Pro.501/jf.0/2705981440/sm_segment.Tengs-MacBook-Pro.501.a14a0000.0 could be created.
+[Tengs-MacBook-Pro.local:08597] shmem: mmap: an error occurred while determining whether or not /var/folders/bk/wg487n5j7573mcb1vjqqz1j00000gn/T//ompi.Tengs-MacBook-Pro.501/jf.0/181141504/sm_segment.Tengs-MacBook-Pro.501.acc0000.0 could be created.
 
 Finished.
-11:56:38 04/16/2025
+11:04:50 04/27/2025

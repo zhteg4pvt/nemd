@@ -9,9 +9,9 @@ NAME: lmp_traj
 JOBNAME: lmp_traj
 INTERAC: False
 PYTHON: 2
-CPU: None
+CPU: 1
 DEBUG: False
-JobStart: 11:56:39 04/16/2025
+JobStart: 11:04:51 04/27/2025
 ...........................
 10 atoms selected.
 7 trajectory frames found.
@@ -29,7 +29,7 @@ Radial distribution function data written into lmp_traj_rdf.csv
 RDF peak 474.1 ± nan found at 4.120000000000001 Å
 Rdf figure saved as lmp_traj_rdf.png
 Mean squared displacement data written into lmp_traj_msd.csv
-Diffusion Coefficient 0.001252 ± 0.0004044 cm^2/s calculated by fitting MSD in the range of [0 2] ps. (R-squared: 0.827)
+Diffusion Coefficient 0.001252 ± 0.0004044 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.827)
 Msd figure saved as lmp_traj_msd.png
 Clash data written into lmp_traj_clash.csv
 Clash: 0 ± 0 count ∈ [2.0000, 5.0000] ps
@@ -37,4 +37,4 @@ Clash figure saved as lmp_traj_clash.png
 Trajectory visualization are written into lmp_traj_view.html
 XYZ coordinates are written into lmp_traj_xyz.xyz
 Finished.
-11:56:49 04/16/2025
+11:05:02 04/27/2025

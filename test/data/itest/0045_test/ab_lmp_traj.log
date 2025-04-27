@@ -29,22 +29,16 @@ NAME: ab_lmp_traj
 JOBNAME: ab_lmp_traj
 INTERAC: False
 PYTHON: 2
-CPU: None
+CPU: 1
 DEBUG: False
 state_num: 2
 jtype: task aggregator
 prj_path: None
 clean: False
 screen: off
-JobStart: 11:56:25 04/16/2025
+JobStart: 11:04:29 04/27/2025
 ...........................
 2 / 2 completed jobs.
-Task Total Timing: 00:00:40
-| amorp_bl    | lammps      | lmp_traj    |
-|:------------|:------------|:------------|
-| 00:09 (ave) | 00:01 (ave) | 00:10 (ave) |
-| 00:09 d15   | 00:01 d15   | 00:10 d15   |
-| 00:09 6fd   | 00:01 6fd   | 00:10 6fd   |
 2 jobs found for aggregation.
 Aggregation Task: density
 Density data written into workspace/ab_lmp_traj_density_None.csv
@@ -58,7 +52,7 @@ Rdf figure saved as workspace/ab_lmp_traj_rdf_None.png
 Rdf data written into ab_lmp_traj_rdf.csv
 Aggregation Task: msd
 Mean squared displacement data written into workspace/ab_lmp_traj_msd_None.csv
-Diffusion Coefficient 0.00131 ± 0.0001312 cm^2/s calculated by fitting MSD in the range of [0 2] ps. (R-squared: 0.98)
+Diffusion Coefficient 0.00131 ± 0.0001312 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.98)
 Msd figure saved as workspace/ab_lmp_traj_msd_None.png
 Msd data written into ab_lmp_traj_msd.csv
 Aggregation Task: clash
@@ -68,5 +62,11 @@ Clash figure saved as workspace/ab_lmp_traj_clash_None.png
 Clash data written into ab_lmp_traj_clash.csv
 WARNING: Empty Result for view
 WARNING: Empty Result for xyz
+Task Total Timing: 00:00:38
+| amorp_bld   | lammps    | lmp_traj   |
+|:------------|:----------|:-----------|
+| 00:08 ave   | 00:00 ave | 00:10 ave  |
+| 00:09 6fd   | 00:00 d15 | 00:11 d15  |
+| 00:08 d15   | 00:00 6fd | 00:10 6fd  |
 Finished.
-11:56:53 04/16/2025
+11:05:15 04/27/2025

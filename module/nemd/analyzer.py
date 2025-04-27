@@ -458,6 +458,9 @@ class Clash(Density):
         if self.data is not None:
             return
         self.data = pd.DataFrame()
+        if self.jobs:
+            return
+
         if len(self.gids) < 2:
             self.warning("Clash requires least two atoms selected.")
             return
@@ -494,8 +497,10 @@ class RDF(Clash):
         """
         if self.data is not None:
             return
-
         self.data = pd.DataFrame()
+        if self.jobs:
+            return
+
         if len(self.gids) < 2:
             self.warning("RDF requires least two atoms selected.")
             return
@@ -592,8 +597,10 @@ class MSD(RDF):
         """
         if self.data is not None:
             return
-
         self.data = pd.DataFrame()
+        if self.jobs:
+            return
+
         if not self.gids:
             self.warning("MSD requires least one atom selected.")
             return

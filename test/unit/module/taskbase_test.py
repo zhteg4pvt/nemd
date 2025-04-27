@@ -10,12 +10,13 @@ from nemd import jobutils
 from nemd import parserutils
 from nemd import taskbase
 
-TEST_0001 = envutils.test_data('itest', '0001_test')
-FAIL_0001 = envutils.test_data('itest', '0001_fail')
-AB_LMP_TRAJ = envutils.test_data('itest', 'ab_lmp_traj')
+TEST0037 = os.path.join('0037_test', 'workspace',
+                        'c57080b7efdda6099a8667ccf28534c9')
 
 
 class TestJob:
+    TEST_0001 = envutils.test_data('itest', '0001_test')
+    FAIL_0001 = envutils.test_data('itest', '0001_fail')
 
     @pytest.fixture
     def job(self, jobs, jobname, status):
@@ -124,10 +125,10 @@ class TestAgg:
         assert False == opr.opr._flow_aggregate._is_default_aggregator
 
     @pytest.mark.parametrize('dirname,jobname,status,expected,logged',
-                             [(AB_LMP_TRAJ, 'time_agg', {}, True, True),
-                              (AB_LMP_TRAJ, 'time_agg', True, True, False),
-                              (AB_LMP_TRAJ, 'time_agg2', {}, False, False),
-                              (AB_LMP_TRAJ, 'time_agg2', True, True, False)])
+                             [('0037_test', 'test_agg', {}, True, True),
+                              ('0037_test', 'time_agg', True, True, False),
+                              ('0037_test', 'time_agg2', {}, False, False),
+                              ('0037_test', 'time_agg2', True, True, False)])
     def testPost(self, agg, jobname, status, expected, logged):
         if status is True or status is False:
             agg.status = {(agg.jobname, agg.job.dirname): status}
@@ -140,24 +141,21 @@ class TestAgg:
 
 
 class TestCmd:
-    EMPTY_PARM = [('empty', None, None, None)]
+
+    THREE = (None, None, None)
 
     @pytest.fixture
-    def raw(self, name, tmp_dir):
-        return type(name, (taskbase.Cmd, ), {})
-
-    @pytest.fixture
-    def cmd(self, name, file, parser, args_tmpl, jobs):
-        attrs = dict(FILE=file, ParserClass=parser, ARGS_TMPL=args_tmpl)
+    def cmd(self, name, file, parser, tmpl, jobs):
+        attrs = dict(FILE=file, ParserClass=parser, TMPL=tmpl)
         Name = type(name, (taskbase.Cmd, ), attrs)
         return Name(*jobs, status={}, logger=mock.Mock())
 
-    @pytest.mark.parametrize('dirname,file,parser,args_tmpl', EMPTY_PARM)
+    @pytest.mark.parametrize('dirname,file,parser,tmpl', [('empty', *THREE)])
     @pytest.mark.parametrize('name', ['MolBldr'])
     def testAgg(self, cmd):
         assert False == cmd.agg
 
-    @pytest.mark.parametrize('dirname,file,parser,args_tmpl', EMPTY_PARM)
+    @pytest.mark.parametrize('dirname,file,parser,tmpl', [('empty', *THREE)])
     @pytest.mark.parametrize('name,jobname,expected',
                              [('MolBldr', None, 'mol_bldr'),
                               ('TrajLmp', 'myname', 'myname')])
@@ -169,7 +167,7 @@ class TestCmd:
         assert True == opr.opr._flow_aggregate._is_default_aggregator
         assert issubclass(opr.cls, taskbase.Cmd)
 
-    @pytest.mark.parametrize('dirname,file,parser,args_tmpl', EMPTY_PARM)
+    @pytest.mark.parametrize('dirname,file,parser,tmpl', [('empty', *THREE)])
     @pytest.mark.parametrize(
         "name,jobname,expected",
         [('Job', None, 'nemd_run -JOBNAME job'),
@@ -178,76 +176,72 @@ class TestCmd:
         assert expected == cmd.runOpr(jobname=jobname)
         assert not glob.glob('.*_document.json')
 
-    # @pytest.mark.parametrize('dirname', [AB_LMP_TRAJ])
-    # @pytest.mark.parametrize('name,jobname,expected',
-    #                          [('AmorpBldr', 'amorp_bldr', True),
-    #                           ('LmpTraj', 'lmp_traj', False)])
-    # def testPostOpr(self, jobs, name, jobname, raw, expected):
-    #     assert expected == raw.postOpr(*jobs, jobname=jobname)
+    @pytest.mark.parametrize('dirname,file,parser,tmpl',
+                             [('0037_test', *THREE)])
+    @pytest.mark.parametrize('name,jobname,expected',
+                             [('AmorpBldr', 'amorp_bldr', False),
+                              ('LmpTraj', 'lmp_traj', True)])
+    def testPostOpr(self, jobs, name, jobname, cmd, expected):
+        assert expected == cmd.postOpr(*jobs, jobname=jobname)
 
-    # @pytest.mark.parametrize('dirname', [AB_LMP_TRAJ])
-    # @pytest.mark.parametrize(
-    #     'name,file,parser,args_tmpl,expected,status',
-    #     [('AmorpBldr', None, None, None, True, 'amorp_bldr.in'),
-    #      ('LmpTraj', None, None, None, False, None)])
-    # def testPost(self, cmd, expected, status):
-    #     assert expected == cmd.post()
-    #     assert status == next(iter(cmd.status.values()))
-    #     assert not cmd.logger.log.called
-    #
-    # @pytest.mark.parametrize('dirname', [AB_LMP_TRAJ])
-    # @pytest.mark.parametrize('name,file,parser,args_tmpl,expected',
-    #                          [('AmorpBldr', 'amorp_bldr_driver.py',
-    #                            parserutils.AmorpBldr, None, '[Ar]'),
-    #                           ('Lammps', 'lammps_driver.py',
-    #                            parserutils.Lammps, [None], 'amorp_bldr.in')])
-    # def testAddfiles(self, cmd, expected):
-    #     cmd.addfiles()
-    #     assert cmd.args[0].endswith(expected)
-    #
-    # @pytest.mark.parametrize('dirname', [AB_LMP_TRAJ])
-    # @pytest.mark.parametrize(
-    #     'name,file,parser,args_tmpl,expected',
-    #     [('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, None, 9),
-    #      ('Lammps', 'lammps_driver.py', parserutils.Lammps, [None], 5)])
-    # def testRmUnknown(self, cmd, expected):
-    #     cmd.addfiles()
-    #     cmd.rmUnknown()
-    #     assert expected == len(cmd.args)
-    #
-    # @pytest.mark.parametrize('name', ['MolBldr'])
-    # @pytest.mark.parametrize('word,expected', [('Ar', ['Ar']),
-    #                                            ('[Ar]', ['"[Ar]"']),
-    #                                            ('"[Ar]"', ['"[Ar]"']),
-    #                                            ("'[Ar]'", ["'[Ar]'"])])
-    # def testAddQuot(self, raw, word, expected):
-    #     cmd = raw()
-    #     cmd.args = [word]
-    #     cmd.addQuot()
-    #     assert expected == cmd.args
-    #
-    # @pytest.mark.parametrize('word,expected', [('Ar', 'Ar'), ('@', '"@"'),
-    #                                            ('[Ar]', '"[Ar]"'),
-    #                                            ('"[Ar]"', '"[Ar]"'),
-    #                                            ("'[Ar]'", "'[Ar]'")])
-    # def testQuote(self, word, expected):
-    #     assert expected == taskbase.Cmd.quote(word)
-    #
-    # @pytest.mark.parametrize('ekey,evalue', [('JOBNAME', 'env_name')])
-    # @pytest.mark.parametrize('name,jobname,expected',
-    #                          [('MolBldr', None, 'env_name'),
-    #                           ('MolBldr', 'myname', 'myname')])
-    # def testSetName(self, raw, jobname, expected, env):
-    #     mol_bldr = raw(jobname=jobname)
-    #     mol_bldr.args = []
-    #     mol_bldr.setName()
-    #     assert ['-JOBNAME', expected] == mol_bldr.args
-    #
-    # @pytest.mark.parametrize('dirname', [AB_LMP_TRAJ])
-    # @pytest.mark.parametrize('name,file,parser,args_tmpl,expected', [
-    #     ('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, None, 11),
-    #     ('Lammps', 'lammps_driver.py', parserutils.Lammps, [None], 7)
-    # ])
-    # def testGetCmd(self, cmd, expected):
-    #     cmd.run()
-    #     assert expected == len(cmd.getCmd().split())
+    @pytest.mark.parametrize('dirname,file,parser,tmpl,',
+                             [('0037_test', *THREE)])
+    @pytest.mark.parametrize('name,expected',
+                             [('AmorpBldr', (False, None)),
+                              ('LmpTraj', (True, 'lmp_traj.log'))])
+    def testPost(self, cmd, expected):
+        assert expected == (cmd.post(), next(iter(cmd.status.values())))
+        assert not cmd.logger.log.called
+
+    @pytest.mark.parametrize('dirname', ['0045_test'])
+    @pytest.mark.parametrize('name,file,parser,tmpl,expected',
+                             [('AmorpBldr', 'amorp_bldr_driver.py',
+                               parserutils.AmorpBldr, None, '[Ar]'),
+                              ('Lammps', 'lammps_driver.py',
+                               parserutils.Lammps, [None], 'amorp_bldr.in')])
+    def testAddfiles(self, cmd, expected):
+        cmd.addfiles()
+        assert cmd.args[0].endswith(expected)
+
+    @pytest.mark.parametrize('dirname', ['0045_test'])
+    @pytest.mark.parametrize(
+        'name,file,parser,tmpl,expected',
+        [('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, None, 19),
+         ('Lammps', 'lammps_driver.py', parserutils.Lammps, [None], 5)])
+    def testRmUnknown(self, cmd, expected):
+        cmd.addfiles()
+        cmd.rmUnknown()
+        assert expected == len(cmd.args)
+
+    @pytest.mark.parametrize('name,dirname,file,parser,tmpl', [('MolBldr', 'empty', *THREE)])
+    @pytest.mark.parametrize('word,expected', [('Ar', ['Ar']),
+                                               ('[Ar]', ['"[Ar]"']),
+                                               ('"[Ar]"', ['"[Ar]"']),
+                                               ("'[Ar]'", ["'[Ar]'"])])
+    def testAddQuot(self, cmd, word, expected):
+        cmd.args = [word]
+        cmd.addQuot()
+        assert expected == cmd.args
+
+    @pytest.mark.parametrize('name,dirname,file,parser,tmpl', [('MolBldr', 'empty', *THREE)])
+    @pytest.mark.parametrize('word,expected', [('Ar', 'Ar'), ('@', '"@"'),
+                                               ('[Ar]', '"[Ar]"'),
+                                               ('"[Ar]"', '"[Ar]"'),
+                                               ("'[Ar]'", "'[Ar]'")])
+    def testQuote(self, cmd, word, expected):
+        assert expected == cmd.quote(word)
+
+    @pytest.mark.parametrize('name,dirname,file,parser,tmpl', [('MolBldr', 'empty', *THREE)])
+    def testSetName(self, cmd,):
+        cmd.args = []
+        cmd.setName()
+        assert ['-JOBNAME', 'mol_bldr'] == cmd.args
+
+    @pytest.mark.parametrize('dirname', ['0045_test'])
+    @pytest.mark.parametrize('name,file,parser,tmpl,expected', [
+        ('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, None, 23),
+        ('Lammps', 'lammps_driver.py', parserutils.Lammps, [None], 9)
+    ])
+    def testGetCmd(self, cmd, expected):
+        cmd.run()
+        assert expected == len(cmd.getCmd().split())

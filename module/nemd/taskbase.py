@@ -162,11 +162,11 @@ class Job(builtinsutils.Object):
 
         :return bool: whether the post-conditions are met.
         """
-        key = (self.jobname, self.job.dirname)
-        if self.status and self.status.get(key):
-            return True
         if self.status is None:
             return bool(self.out)
+        key = (self.jobname, self.job.dirname)
+        if self.status.get(key):
+            return True
         if self.options and self.options.DEBUG:
             print(self.jobname, self.out)
         self.status[key] = self.out
@@ -216,7 +216,7 @@ class Cmd(Job):
     ParserClass = None
     PRE_RUN = jobutils.NEMD_RUN
     SEP = symbols.SPACE
-    ARGS_TMPL = None
+    TMPL = None
     OUT = '_outfile'
 
     def __init__(self, *args, **kwargs):
@@ -240,13 +240,13 @@ class Cmd(Job):
         """
         Add the outfiles from previous jobs to the input arguments of this job.
         """
-        if self.ARGS_TMPL is None:
+        if self.TMPL is None:
             return
         try:
             jobnames = self.doc[self.PREREQ][self.jobname]
         except KeyError:
             return
-        self.args = self.ARGS_TMPL + self.args
+        self.args = self.TMPL + self.args
         # Pass the outfiles of the prerequisite jobs to the current via cmd args
         # Please rearrange or modify the prerequisite jobs' input by subclassing
         for jobname in jobnames:

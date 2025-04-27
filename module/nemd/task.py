@@ -55,7 +55,7 @@ class Lammps(taskbase.Cmd):
     """
     FILE = 'lammps_driver.py'
     ParserClass = parserutils.Lammps
-    ARGS_TMPL = [None]
+    TMPL = [None]
 
 
 class LmpLog(taskbase.Cmd):
@@ -64,7 +64,7 @@ class LmpLog(taskbase.Cmd):
     """
 
     FILE = 'lmp_log_driver.py'
-    ARGS_TMPL = [None]
+    TMPL = [None]
     ParserClass = parserutils.LmpLog
 
     def addfiles(self, match_re=re.compile(lammpsfix.READ_DATA_RE)):
