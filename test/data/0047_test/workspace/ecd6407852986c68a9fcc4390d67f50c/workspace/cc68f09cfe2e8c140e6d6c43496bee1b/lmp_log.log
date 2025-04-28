@@ -1,0 +1,22 @@
+..........Options..........
+log: /Users/zhteg4/test/workspace/ecd6407852986c68a9fcc4390d67f50c/workspace/cc68f09cfe2e8c140e6d6c43496bee1b/lammps_lmp.log
+task: toteng
+data_file: mol_bldr.data
+last_pct: 0.2
+slice: None
+NAME: lmp_log
+JOBNAME: lmp_log
+INTERAC: False
+PYTHON: 2
+CPU: 1
+DEBUG: False
+JobStart: 12:17:59 04/28/2025
+...........................
+3 steps of thermo data found.
+Averages results from 0.102 ps to 0.102 ps
+WARNING:  tasks cannot be found out of e_pair, toteng, temp, e_mol, step, press.
+Thermodynamic information data written into lmp_log_toteng.csv
+TotEng: 0.002557 ± nan kcal/mol ∈ [0.1020, 0.1020] ps
+Toteng figure saved as lmp_log_toteng.png
+Finished.
+12:18:00 04/28/2025

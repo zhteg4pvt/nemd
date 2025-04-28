@@ -89,7 +89,10 @@ class TestJob:
         assert expected == os.path.basename(job.outfile)
         assert os.path.isfile(job.outfile)
 
-    @pytest.mark.parametrize('dirname', ['0049_test'])
+    @pytest.mark.parametrize('dirname', [
+        os.path.join('0049_test', 'workspace',
+                     '58cfa7519a72301a30d16f7310437c03')
+    ])
     @pytest.mark.parametrize(
         'jobname,expected',
         [('number_of_molecules_100', 'number_of_molecules_100.in'),
@@ -101,9 +104,8 @@ class TestJob:
         assert expected == os.path.basename(job.outfile)
         assert os.path.isfile(job.outfile)
 
-    @pytest.mark.parametrize('jobname,dirname', [('jobname', None)])
-    def testWrite(self, jobname, copied):
-        job = jobutils.Job(jobname=jobname)
+    def testWrite(self, tmp_dir):
+        job = jobutils.Job(jobname=('jobname'))
         job._logfile = 'mylog'
         job._outfile = 'myout'
         job._outfiles.append('outfile1')
@@ -111,6 +113,13 @@ class TestJob:
         job.write()
         with open(job.file) as fh:
             assert job == json.load(fh)
+
+    def testClean(self, tmp_dir):
+        job = jobutils.Job(jobname='jobname')
+        job.write()
+        assert os.path.exists(job.file)
+        job.clean()
+        assert not os.path.exists(job.file)
 
     @pytest.mark.parametrize('jobname,dirname,expected', [(None, '0000', 4)])
     def testSearch(self, expected, job):

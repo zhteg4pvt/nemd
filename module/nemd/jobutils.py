@@ -175,6 +175,15 @@ class Job(builtinsutils.Dict, builtinsutils.Object):
         with open(self.file, 'w') as fh:
             json.dump(self, fh)
 
+    def clean(self):
+        """
+        Clean the json file.
+        """
+        try:
+            os.remove(self.file)
+        except FileNotFoundError:
+            pass
+
     @classmethod
     def search(cls, dirname=None, patt=JOB_DOC.format(jobname='*')):
         """

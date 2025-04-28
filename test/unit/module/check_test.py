@@ -122,6 +122,8 @@ class TestCmp:
 
 
 class TestCollect:
+    TEST0049 = os.path.join('0049_test', 'workspace',
+                            '58cfa7519a72301a30d16f7310437c03')
 
     @pytest.fixture
     def collect(self, args, copied):
@@ -129,15 +131,12 @@ class TestCollect:
         collect.error = mock.Mock()
         return collect
 
-    @pytest.mark.parametrize(
-        'dirname,args,expected',
-        [
-            #    ('0049', ['task_time'], None),
-            # ('0049_test', ['task_time'], (2, 1)),
-            ('0049_test', ['task_time', 'memory'], (2, 1)),
-            # ('0049_ubuntu', ['task_time', 'memory'], (2, 2)),
-            # ('0049_ubuntu', ['memory'], (2, 1))
-        ])
+    @pytest.mark.parametrize('dirname,args,expected',
+                             [('0049', ['task_time'], None),
+                              (TEST0049, ['task_time'], (2, 1)),
+                              (TEST0049, ['task_time', 'memory'], (2, 1)),
+                              ('0049_ubuntu', ['task_time', 'memory'], (2, 2)),
+                              ('0049_ubuntu', ['memory'], (2, 1))])
     def testSet(self, collect, expected):
         collect.set()
         assert expected == (collect.data.shape if expected else collect.data)
@@ -145,8 +144,8 @@ class TestCollect:
 
     @pytest.mark.parametrize('dirname,args,expected',
                              [('0049', ['task_time'], 0),
-                              ('0049_test', ['task_time'], 1),
-                              ('0049_test', ['task_time', 'memory'], 1),
+                              (TEST0049, ['task_time'], 1),
+                              (TEST0049, ['task_time', 'memory'], 1),
                               ('0049_ubuntu', ['task_time', 'memory'], 2),
                               ('0049_ubuntu', ['memory'], 1)])
     def testPlot(self, collect, expected):

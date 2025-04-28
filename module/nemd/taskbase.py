@@ -196,10 +196,7 @@ class Job(builtinsutils.Object):
         """
         Clean the json file.
         """
-        try:
-            os.remove(self.job.file)
-        except FileNotFoundError:
-            pass
+        self.job.clean()
 
 
 class Agg(Job):

@@ -1,3 +1,5 @@
+import glob
+import types
 from unittest import mock
 
 import pytest
@@ -82,3 +84,48 @@ class TestCmd:
             manual.options.CPU = options
         manual.numCpu()
         assert expected == manual.args
+
+    @pytest.mark.parametrize(
+        'args,options,expected',
+        [(["echo hi"], None, ['echo hi']), (["nemd_run"], None, ['nemd_run']),
+         (["nemd_run -DEBUG"], None, ['nemd_run -DEBUG']),
+         (["nemd_run -DEBUG False"], None, ['nemd_run -DEBUG False']),
+         (["nemd_run"], True, ['nemd_run -DEBUG True']),
+         (["nemd_run -DEBUG"], False, ['nemd_run -DEBUG False']),
+         (["nemd_run -DEBUG True"], False, ['nemd_run -DEBUG False'])])
+    def testSetDebug(self, manual, options, expected):
+        manual.options.DEBUG = options
+        manual.setDebug()
+        assert expected == manual.args
+
+    @pytest.mark.parametrize(
+        'args,options,expected',
+        [(["echo hi"], dict(screen='off', DEBUG=None), False),
+         (["nemd_run"], dict(screen='off', DEBUG=None), True),
+         (["nemd_run"], dict(screen='off', DEBUG=True), False),
+         (["nemd_run"], dict(screen='job', DEBUG=None), False)])
+    def testSetScreen(self, manual, options, expected):
+        manual.options = types.SimpleNamespace(**options)
+        manual.setScreen()
+        assert expected == manual.args[0].endswith('/dev/null')
+
+    @pytest.mark.parametrize('dirname,expected', [('0049_test', True),
+                                                  ('0049_cmd', False),
+                                                  ('0001_cmd', False),
+                                                  ('0001_test', True)])
+    def testOut(self, cmd, expected):
+        assert expected == cmd.out
+
+    @pytest.mark.parametrize('dirname', ['0047_test'])
+    def testClean(self, cmd):
+        assert cmd.post()
+        assert glob.glob('workspace/*/workspace')
+        cmd.clean()
+        assert not cmd.post()
+        assert not glob.glob('workspace/*/workspace')
+
+    @pytest.mark.parametrize('dirname,expected', [('0049_test', 332),
+                                                  ('0001_cmd', 161)])
+    def testGetCmd(self, cmd, expected):
+        cmd.setArgs()
+        assert expected == len(cmd.getCmd())

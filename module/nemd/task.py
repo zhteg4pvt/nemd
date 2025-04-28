@@ -191,6 +191,8 @@ class Cmd(taskbase.Cmd):
             return
         debug_bool = f"{jobutils.FLAG_DEBUG} {self.options.DEBUG}"
         for idx, cmd in enumerate(self.args):
+            if jobutils.NEMD_RUN not in cmd:
+                continue
             if jobutils.FLAG_DEBUG in cmd:
                 self.args[idx] = self.DEBUG_RE.sub(debug_bool, cmd)
             else:
@@ -203,6 +205,8 @@ class Cmd(taskbase.Cmd):
         if self.options.screen != symbols.OFF or self.options.DEBUG:
             return
         for idx, cmd in enumerate(self.args):
+            if jobutils.NEMD_RUN not in cmd:
+                continue
             self.args[idx] = f"{cmd} > /dev/null"
 
     @property
@@ -221,10 +225,11 @@ class Cmd(taskbase.Cmd):
         # Remove all jobs as the cmd task jobnames are unknown.
         for job in self.getJobs():
             job.clean()
-        try:
-            shutil.rmtree(self.job.fn(jobutils.WORKSPACE))
-        except FileNotFoundError:
-            pass
+        for job in self.jobs:
+            try:
+                shutil.rmtree(job.fn(jobutils.WORKSPACE))
+            except FileNotFoundError:
+                pass
 
     def getCmd(self, **kwargs):
         """

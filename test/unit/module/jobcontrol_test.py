@@ -48,10 +48,10 @@ class TestRunner:
     def testAdd(self, agg, pre, runner, expected, num, flow_opr):
         job = taskbase.Agg if agg else taskbase.Job
         runner.add(job)
-        assert 1 == len(runner.added)
+        assert 1 == len(runner.oprs)
         assert 0 == len(runner.prereq)
         runner.add(job, jobname='job2', pre=pre)
-        assert 2 == len(runner.added)
+        assert 2 == len(runner.oprs)
         assert expected == runner.prereq.get('job2')
         assert num == len(flow_opr._OPERATION_PRECONDITIONS)
 

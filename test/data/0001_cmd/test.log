@@ -1,0 +1,74 @@
+..........Options..........
+id: 1
+name: integration
+dirname: /Users/zhteg4/git/nemd/test/integration
+slow: None
+label: None
+task: cmd check
+NAME: test
+JOBNAME: test
+INTERAC: False
+PYTHON: 2
+CPU: None
+DEBUG: False
+jtype: task aggregator
+prj_path: None
+clean: False
+screen: serial
+JobStart: 11:49:36 04/28/2025
+...........................
+0 / 1 completed jobs.
+| job_id                           | operations   |
+|:---------------------------------|:-------------|
+| cab913cd09a661ad4e2585885ebed4a9 | cmd, check   |
+0 / 2 succeed sub-jobs.
+multiprocessing.pool.RemoteTraceback: 
+"""
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.10/site-packages/flow/project.py", line 3543, in _execute_operation
+    self._operations[operation.name](*operation._jobs)
+  File "/usr/local/lib/python3.10/site-packages/flow/project.py", line 626, in __call__
+    return self._op_func(*jobs)
+  File "/Users/zhteg4/git/nemd/module/nemd/taskbase.py", line 109, in runOpr
+    obj.run()
+  File "/Users/zhteg4/git/nemd/module/nemd/task.py", line 387, in run
+    super().run()
+  File "/Users/zhteg4/git/nemd/module/nemd/task.py", line 346, in run
+    total_time = timeutils.delta2str(info.time.sum())
+  File "/Users/zhteg4/git/nemd/module/nemd/timeutils.py", line 43, in delta2str
+    return (HMS_ZERO + delta).strftime(fmt)
+TypeError: unsupported operand type(s) for +: 'datetime.datetime' and 'int'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/Cellar/python@3.10/3.10.16/Frameworks/Python.framework/Versions/3.10/lib/python3.10/multiprocessing/pool.py", line 125, in worker
+    result = (True, func(*args, **kwds))
+  File "/usr/local/lib/python3.10/site-packages/flow/project.py", line 5246, in _deserialize_and_run_operation
+    project._execute_operation(project._job_operation_from_tuple(operation_data))
+  File "/usr/local/lib/python3.10/site-packages/flow/project.py", line 3545, in _execute_operation
+    raise UserOperationError(execution_error_message) from error
+flow.errors.UserOperationError: An exception was raised during operation test_agg for job or aggregate with id cab913cd09a661ad4e2585885ebed4a9.
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/zhteg4/git/nemd/workflow/test_workflow.py", line 200, in main
+    obj.run()
+  File "/Users/zhteg4/git/nemd/workflow/test_workflow.py", line 42, in run
+    super().run()
+  File "/Users/zhteg4/git/nemd/module/nemd/jobcontrol.py", line 86, in run
+    self.runProj(agg=True)
+  File "/Users/zhteg4/git/nemd/module/nemd/jobcontrol.py", line 229, in runProj
+    self.proj.run(np=cpu, progress=prog, jobs=jobs, **kwargs)
+  File "/usr/local/lib/python3.10/site-packages/flow/project.py", line 3778, in run
+    self._run_operations(
+  File "/usr/local/lib/python3.10/site-packages/flow/project.py", line 3381, in _run_operations
+    self._run_operations_in_parallel(
+  File "/usr/local/lib/python3.10/site-packages/flow/project.py", line 3458, in _run_operations_in_parallel
+    result.get(timeout=timeout)
+  File "/usr/local/Cellar/python@3.10/3.10.16/Frameworks/Python.framework/Versions/3.10/lib/python3.10/multiprocessing/pool.py", line 774, in get
+    raise self._value
+flow.errors.UserOperationError: An exception was raised during operation test_agg for job or aggregate with id cab913cd09a661ad4e2585885ebed4a9.
+

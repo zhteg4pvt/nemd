@@ -1,0 +1,16 @@
+
+Overview: 1 jobs/aggregates, 1 jobs/aggregates with eligible operations.
+
+operation/group      number of eligible jobs  submission status
+-----------------  -------------------------  -------------------
+cmd                                        1  [U]: 1
+
+Detailed View:
+
+job id                            operation/group
+--------------------------------  -----------------
+58cfa7519a72301a30d16f7310437c03  cmd [U]
+
+[U]:unknown [R]:registered [I]:inactive [S]:submitted [H]:held [Q]:queued [A]:active [E]:error [GR]:group_registered [GI]:group_inactive [GS]:group_submitted [GH]:group_held [GQ]:group_queued [GA]:group_active [GE]:group_error
+
+

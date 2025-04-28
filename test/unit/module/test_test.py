@@ -113,6 +113,8 @@ class TestTag:
 
     TEST0001 = os.path.join('0001_test', 'workspace',
                             'cab913cd09a661ad4e2585885ebed4a9')
+    TEST0049 = os.path.join('0049_test', 'workspace',
+                            '58cfa7519a72301a30d16f7310437c03')
 
     @pytest.fixture
     def tag(self, dirname, args):
@@ -127,13 +129,13 @@ class TestTag:
     @pytest.mark.parametrize(
         'dirname,expected',
         [('empty', None), (TEST0001, ['bldr', '00:00:01']),
-         ('0049_test', ['50000', '00:00:03', '100', '00:00:01'])])
+         (TEST0049, ['50000', '00:00:03', '100', '00:00:01'])])
     def testSetSlow(self, ntag, expected):
         ntag.setSlow()
         assert expected == ntag.tags.get('slow')
 
     @pytest.mark.parametrize('dirname,expected', [('empty', 0), (TEST0001, 1),
-                                                  ('0049_test', 2)])
+                                                  (TEST0049, 2)])
     def testLogs(self, ntag, expected):
         ntag.setSlow()
         assert expected == len(ntag.logs)
@@ -146,13 +148,13 @@ class TestTag:
 
     @pytest.mark.parametrize('dirname,expected',
                              [('empty', None), (TEST0001, ['amorp_bldr']),
-                              ('0049_test', ['number_of_molecules'])])
+                              (TEST0049, ['number_of_molecules'])])
     def testSetLabel(self, ntag, expected):
         ntag.setLabel()
         assert expected == ntag.tags.get('label')
 
     @pytest.mark.parametrize('dirname,expected', [('empty', 0), (TEST0001, 2),
-                                                  ('0049_test', 2)])
+                                                  (TEST0049, 2)])
     def testWrite(self, ntag, expected):
         ntag.setSlow()
         ntag.setLabel()

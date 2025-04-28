@@ -1,0 +1,1 @@
+nemd_run lmp_log_driver.py /Users/zhteg4/test/workspace/ecd6407852986c68a9fcc4390d67f50c/workspace/cc68f09cfe2e8c140e6d6c43496bee1b/lammps_lmp.log -CPU 1 -DEBUG False -data_file mol_bldr.data -JOBNAME lmp_log

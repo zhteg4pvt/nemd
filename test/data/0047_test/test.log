@@ -1,0 +1,28 @@
+..........Options..........
+id: 47
+name: integration
+dirname: /Users/zhteg4/git/nemd/test/integration
+slow: None
+label: None
+task: cmd check
+NAME: test
+JOBNAME: test
+INTERAC: False
+PYTHON: 2
+CPU: None
+DEBUG: False
+jtype: task aggregator
+prj_path: None
+clean: False
+screen: serial
+JobStart: 12:17:54 04/28/2025
+...........................
+1 / 1 completed jobs.
+2 / 2 succeed sub-jobs.
+Task Total Timing: 00:00:03
+| mb_lmp_lo   |
+|:------------|
+| 00:03 ave   |
+| 00:03 ecd   |
+Finished.
+12:18:03 04/28/2025
