@@ -1,4 +1,6 @@
 import glob
+import os
+import shutil
 import types
 from unittest import mock
 
@@ -6,6 +8,8 @@ import pytest
 import test_workflow
 
 from nemd import envutils
+from nemd import jobutils
+from nemd import osutils
 from nemd import task
 
 TEST0001 = envutils.test_data('0001')
@@ -129,3 +133,32 @@ class TestCmd:
     def testGetCmd(self, cmd, expected):
         cmd.setArgs()
         assert expected == len(cmd.getCmd())
+
+
+class TestCheck:
+
+    @pytest.fixture
+    def check(self, jobs):
+        return task.Check(*jobs)
+
+    @pytest.mark.parametrize('dirname,expected',
+                             [('0001_test', True),
+                              ('0001_fail', 'is different from')])
+    def testRun(self, check, expected):
+        with osutils.chdir(check.job.dirname):
+            check.run()
+            assert (expected == check.out) if isinstance(
+                expected, bool) else (expected in check.out)
+
+
+class TestTag:
+
+    @pytest.fixture
+    def tag(self, jobs):
+        return task.Tag(*jobs)
+
+    @pytest.mark.parametrize('dirname,expected', [('0001_test', True)])
+    def testRun(self, tag, expected):
+        tag.jobs = [types.SimpleNamespace(statepoint={'-dirname': os.curdir})]
+        tag.run()
+        assert os.path.exists(os.path.join(tag.job.dirname, 'tag'))

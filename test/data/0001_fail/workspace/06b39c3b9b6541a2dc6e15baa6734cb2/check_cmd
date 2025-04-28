@@ -1,1 +1,0 @@
-nemd_check cmp /Users/zhteg4/git/nemd/test/integration/0001/amorp_bldr2.data amorp_bldr.data atol=1e-3 atol=3e-3

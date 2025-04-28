@@ -18,6 +18,7 @@ from nemd import analyzer
 from nemd import jobutils
 from nemd import lammpsfix
 from nemd import logutils
+from nemd import osutils
 from nemd import parserutils
 from nemd import symbols
 from nemd import taskbase
@@ -245,18 +246,16 @@ class Check(taskbase.Job):
     The job class to parse the check file, run the operators, and set the job
     message.
     """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.dir = self.jobs[0].statepoint[jobutils.FLAG_DIRNAME]
+    TestClass = test.Check
 
     def run(self):
         """
         Main method to execute.
         """
-        err = test.Check(self.dir, options=self.options).run()
-        if err:
-            self.out = err
+        with osutils.chdir(self.job.dirname):
+            dirname = self.jobs[0].statepoint[jobutils.FLAG_DIRNAME]
+            obj = self.TestClass(dirname, options=self.options)
+            self.out = obj.run() or True
 
 
 class Tag(Check):
@@ -264,11 +263,7 @@ class Tag(Check):
     This job class generates a new tag file (or updates the existing one).
     """
 
-    def run(self):
-        """
-        Main method to execute.
-        """
-        test.Tag(self.dir, options=self.options).run()
+    TestClass = test.Tag
 
 
 class LmpAgg(taskbase.Agg):

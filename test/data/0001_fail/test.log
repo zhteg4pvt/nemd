@@ -1,7 +1,7 @@
 ..........Options..........
 id: 1
 name: integration
-dir: /Users/zhteg4/git/nemd/test/integration
+dirname: /Users/zhteg4/git/nemd/test/integration
 slow: None
 label: None
 task: cmd check
@@ -14,16 +14,16 @@ DEBUG: False
 jtype: task aggregator
 prj_path: None
 clean: False
-screen: None
-JobStart: 21:11:11 03/13/2025
+screen: serial
+JobStart: 13:53:59 04/28/2025
 ...........................
-check in 06b39c3b9b6541a2dc6e15baa6734cb2: /Users/zhteg4/git/nemd/test/integration/0001/amorp_bldr2.data not found
+check in /Users/zhteg4/test/workspace/cab913cd09a661ad4e2585885ebed4a9/: /Users/zhteg4/git/nemd/test/integration/0001/amorp_bldr.data is different from amorp_bldr.data.
 1 / 1 completed jobs.
-0 / 1 succeed jobs.
-Task Total Timing: 00:00:00
-| amorp_bl    |
+1 / 2 succeed sub-jobs.
+Task Total Timing: 00:00:02
+| amorp_bld   |
 |:------------|
-| 00:00 (ave) |
-| 00:00 06b   |
+| 00:02 ave   |
+| 00:02 cab   |
 Finished.
-21:11:13 03/13/2025
+13:54:05 04/28/2025

@@ -1,7 +1,7 @@
 ..........Options..........
 cru: CC(C)O
 cru_num: 1
-mol_num: 1
+mol_num: 2
 buffer: None
 density: 0.5
 method: grid
@@ -26,10 +26,10 @@ INTERAC: False
 PYTHON: 2
 CPU: 1
 DEBUG: False
-JobStart: 21:10:00 03/13/2025
+JobStart: 13:54:01 04/28/2025
 ...........................
-WARNING: The minimum box span (5.78 Å) is smaller than 22.00 Å (Lennard-Jones Cutoff x 2) 
+WARNING: The minimum box span (11.56 Å) is smaller than 22.00 Å (Lennard-Jones Cutoff x 2) 
 Data file written into amorp_bldr.data
 In script written into amorp_bldr.in
 Finished.
-21:10:00 03/13/2025
+13:54:03 04/28/2025

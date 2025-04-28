@@ -216,8 +216,10 @@ class Tag(Base):
         """
         Set the log readers.
         """
-        jobs = jobutils.Job.search(self.dirname)
-        return [logutils.Reader(x.logfile) for x in jobs if x.logfile]
+        return [
+            logutils.Reader(x.logfile) for x in jobutils.Job.search()
+            if x.logfile
+        ]
 
     @property
     @functools.cache
