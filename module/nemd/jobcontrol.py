@@ -47,7 +47,6 @@ class Runner(logutils.Base):
         super().__init__(logger=logger)
         self.options = options
         self.original = original
-        self.args = self.original[:]
         self.state = {}
         self.jobs = []
         self.added = []
@@ -130,8 +129,8 @@ class Runner(logutils.Base):
         Initiate the project.
         """
         self.proj = flow.project.FlowProject.init_project()
-        self.proj.document[symbols.ARGS] = self.args
-        self.proj.document[self.PREREQ] = self.prereq
+        self.proj.doc[symbols.ARGS] = self.original[:]
+        self.proj.doc[self.PREREQ] = self.prereq
 
     def plotJobs(self):
         """
@@ -167,7 +166,7 @@ class Runner(logutils.Base):
         # for randomSeed in [0, 1]:
         #     AllChem.EmbedMolecule(mol, randomSeed=randomSeed)
         #     print(mol.GetConformer().GetPositions())
-        jobutils.pop_arg(self.args, self.FLAG_SEED)
+        jobutils.pop_arg(self.proj.doc[symbols.ARGS], self.FLAG_SEED)
         seed = getattr(self.options, self.FLAG_SEED[1:], 1)
         seeds = (seed_incre + seed) % symbols.MAX_INT32
         self.state = {self.FLAG_SEED: list(map(str, seeds))}
@@ -189,20 +188,18 @@ class Runner(logutils.Base):
         """
         Set cpu numbers for the project.
         """
-        if self.options.CPU is None:
+
+        if self.options.CPU:
+            # Evenly distribute among subjobs if only total cpu specified
+            num = self.options.CPU[1] if len(self.options.CPU) > 1 else \
+                max([math.floor(self.options.CPU[0] / len(self.jobs)), 1])
+            self.cpu = [math.floor(self.options.CPU[0] / num), num]
+        else:
             # Single cpu per job ensures efficiency
             self.cpu = [self.max_cpu, 1]
-            return
 
-        # Evenly distribute among subjobs if only total cpu specified
-        num = self.options.CPU[1] if len(self.options.CPU) > 1 else \
-            max([math.floor(self.options.CPU[0] / len(self.jobs)), 1])
-        self.cpu = [math.floor(self.options.CPU[0] / num), num]
-
-        if jobutils.FLAG_CPU not in self.args:
-            return
-        jobutils.pop_arg(self.args, jobutils.FLAG_CPU)
-        self.args.extend([jobutils.FLAG_CPU, str(self.cpu[1])])
+        jobutils.set_arg(self.proj.doc[symbols.ARGS], jobutils.FLAG_CPU,
+                         str(self.cpu[1]))
 
     def clean(self, agg=False):
         """

@@ -224,7 +224,7 @@ class Cmd(Job):
         self.args = []
         if not self.jobs:
             return
-        self.args += list(map(str, self.doc.get(symbols.ARGS, [])))
+        self.args += self.doc[symbols.ARGS]
         self.args += [y for x in self.jobs[0].statepoint.items() for y in x]
 
     def run(self):

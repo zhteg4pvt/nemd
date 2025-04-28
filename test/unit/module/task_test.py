@@ -1,8 +1,12 @@
 from unittest import mock
 
 import pytest
+import test_workflow
 
+from nemd import envutils
 from nemd import task
+
+TEST0001 = envutils.test_data('0001')
 
 
 class TestLmpLog:
@@ -29,3 +33,49 @@ class TestLmpTraj:
     def testAddfiles(self, lmp_traj, expected):
         lmp_traj.addfiles()
         assert expected == lmp_traj.args[0]
+
+
+class TestCmd:
+
+    @pytest.fixture
+    def cmd(self, jobs):
+        options = test_workflow.Parser().parse_args([])
+        return task.Cmd(*jobs, options=options)
+
+    @pytest.fixture
+    def manual(self, args):
+        options = test_workflow.Parser().parse_args([])
+        cmd = task.Cmd(options=options)
+        cmd.args = args
+        return cmd
+
+    @pytest.mark.parametrize('dirname,expected', [('0001_test', 1)])
+    def testSetArgs(self, cmd, expected):
+        cmd.setArgs()
+        assert expected == len(cmd.args)
+
+    @pytest.mark.parametrize('dirname,expected', [('0001_test', 0)])
+    def testParam(self, cmd, expected):
+        assert expected == len(cmd.param.args)
+
+    @pytest.mark.parametrize('dirname,expected', [('0001_test', 1)])
+    def testCmd(self, cmd, expected):
+        assert expected == len(cmd.cmd.args)
+
+    @pytest.mark.parametrize(
+        'args,expected',
+        [(["echo hi; CC(C)O -mol_num 1"], ['echo hi; "CC(C)O" -mol_num 1'])])
+    def testAddQuot(self, manual, expected):
+        manual.addQuot()
+        assert expected == manual.args
+
+    @pytest.mark.parametrize(
+        'args,job_args,expected',
+        [(["echo hi"], ['-CPU', '2'], ['echo hi']),
+         (["nemd_run"], ['-CPU', '2'], ['nemd_run -CPU 2']),
+         (["nemd_run"], ['-CPU', '2'], ['nemd_run -CPU 2']),
+         (["nemd_run -CPU 3"], ['-CPU', '2'], ['nemd_run -CPU 2'])])
+    def testNumCpu(self, manual, job_args, expected):
+        manual.doc = {'args': job_args}
+        manual.numCpu()
+        assert expected == manual.args

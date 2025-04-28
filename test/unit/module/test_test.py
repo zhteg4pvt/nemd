@@ -112,7 +112,7 @@ class TestCheck:
 class TestTag:
 
     TEST0001 = os.path.join('0001_test', 'workspace',
-                            '06b39c3b9b6541a2dc6e15baa6734cb2')
+                            'cab913cd09a661ad4e2585885ebed4a9')
 
     @pytest.fixture
     def tag(self, dirname, args):
@@ -126,7 +126,7 @@ class TestTag:
 
     @pytest.mark.parametrize(
         'dirname,expected',
-        [('empty', None), (TEST0001, ['bldr', '00:00:00']),
+        [('empty', None), (TEST0001, ['bldr', '00:00:01']),
          ('0049_test', ['50000', '00:00:03', '100', '00:00:01'])])
     def testSetSlow(self, ntag, expected):
         ntag.setSlow()

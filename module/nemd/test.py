@@ -109,7 +109,8 @@ class Param(Base):
         :param cmd `Cmd`: the Cmd instance parsing the cmd file.
         """
         super().__init__(cmd.dirname, **kwargs)
-        self.cmd = next(iter(cmd.args), None)
+        self.cmd = cmd
+        self.first = next(iter(cmd.args), None)
         if self.options is None:
             self.options = cmd.options
 
@@ -121,9 +122,9 @@ class Param(Base):
         :param rex `re.Pattern`: the jobname regular express
         :return list: each value is one command.
         """
-        if not (self.args and self.cmd and self.PARAM in self.cmd):
-            return [self.cmd] if self.cmd else []
-        cmd = f"{rex.sub('', self.cmd)} {jobutils.FLAG_NAME} {self.label}"
+        if not (self.args and self.first and self.PARAM in self.first):
+            return self.cmd.args if self.first else []
+        cmd = f"{rex.sub('', self.first)} {jobutils.FLAG_NAME} {self.label}"
         cmds = [
             f'{cmd.replace(self.PARAM, x)} {jobutils.FLAG_JOBNAME} {self.label}_{x}'
             for x in self.args
@@ -148,8 +149,8 @@ class Param(Base):
         :return str: The xlabel.
         """
         label = next(self.cmts, None)
-        if not label and self.cmd:
-            match = rex.search(self.cmd)
+        if not label and self.first:
+            match = rex.search(self.first)
             if match:
                 label = match.group(1)
         return label.lower().replace(' ', '_') if label else self.name

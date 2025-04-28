@@ -75,8 +75,9 @@ class TestRunner:
     @pytest.mark.parametrize('kwargs,expected',
                              [({}, None), (dict(state_num=1), ['1']),
                               (dict(state_num=3), ['1', '2', '3'])])
-    def testSetState(self, kwargs, expected):
+    def testSetState(self, kwargs, expected, tmp_dir):
         runner = jobcontrol.Runner(types.SimpleNamespace(**kwargs), [])
+        runner.setProj()
         runner.setState()
         assert expected == runner.state.get('-seed')
 
@@ -94,9 +95,10 @@ class TestRunner:
                              [([], [12, 1]), (['-CPU', '3'], [3, 1]),
                               (['-CPU', '12'], [4, 3]),
                               (['-CPU', '7', '3'], [2, 3])])
-    def testSetCpu(self, max_cpu, jobs, runner, expected):
+    def testSetCpu(self, max_cpu, jobs, runner, expected, tmp_dir):
         runner.max_cpu = max_cpu
         runner.jobs = jobs
+        runner.setProj()
         runner.setCpu()
         assert expected == runner.cpu
 
