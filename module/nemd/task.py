@@ -171,14 +171,17 @@ class Cmd(taskbase.Cmd):
         cpu = jobutils.get_arg(args, jobutils.FLAG_CPU, 1)
         for idx, cmd in enumerate(self.args):
             if jobutils.NEMD_RUN not in cmd:
-                return
-            if jobutils.FLAG_CPU in cmd:
-                # CPU defined for the sub-job, but users forced a different
-                flag_num = f"{jobutils.FLAG_CPU} {cpu}"
-                self.args[idx] = self.CPU_RE.sub(flag_num, cmd)
-            else:
+                continue
+            if jobutils.FLAG_CPU not in cmd:
                 # CPU not defined for the sub-job: 1 cpu for efficiency
                 self.args[idx] = f"{cmd} {jobutils.FLAG_CPU} {cpu}"
+                continue
+            if self.options.CPU:
+                # CPU defined in the cmd file, but users forced a different
+                flag_num = f"{jobutils.FLAG_CPU} {cpu}"
+                self.args[idx] = self.CPU_RE.sub(flag_num, cmd)
+                continue
+            # Use the CPU defined in the cmd file
 
     def setDebug(self):
         """

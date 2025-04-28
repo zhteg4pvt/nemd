@@ -47,14 +47,15 @@ class Runner(logutils.Base):
         super().__init__(logger=logger)
         self.options = options
         self.original = original
-        self.state = {}
-        self.jobs = []
-        self.added = []
-        self.status = {}
-        self.proj = None
         self.max_cpu = None
+        self.proj = None
         self.cpu = None
         self.prereq = {}
+        self.state = {}
+        self.oprs = []
+        self.jobs = []
+        self.status = {}
+        self.args = self.original[:]
         # flow/project.py gets logger from logging.getLogger(__name__)
         logutils.Logger.get('flow.project')
 
@@ -109,16 +110,16 @@ class Runner(logutils.Base):
 
         :param TaskClass 'task.Task' (sub)-class: the class to get the operator
         :param pre 'types.SimpleNamespace': the prerequisite operator container
-        :return 'types.SimpleNamespace': the added operator container
+        :return 'types.SimpleNamespace': the oprs operator container
         """
         if pre is None and not TaskClass.agg:
-            added = (x for x in reversed(self.added) if not x.cls.agg)
-            pre = next(added, None)
+            oprs = (x for x in reversed(self.oprs) if not x.cls.agg)
+            pre = next(oprs, None)
         opr = TaskClass.getOpr(**kwargs,
                                status=self.status,
                                logger=self.logger,
                                options=self.options)
-        self.added.append(opr)
+        self.oprs.append(opr)
         if pre:
             flow.project.FlowProject.pre.after(pre.opr)(opr.opr)
             self.prereq.setdefault(opr.jobname, []).append(pre.jobname)
@@ -129,8 +130,9 @@ class Runner(logutils.Base):
         Initiate the project.
         """
         self.proj = flow.project.FlowProject.init_project()
-        self.proj.doc[symbols.ARGS] = self.original[:]
         self.proj.doc[self.PREREQ] = self.prereq
+        self.proj.doc[symbols.ARGS] = self.args
+        self.args = self.proj.doc[symbols.ARGS]
 
     def plotJobs(self):
         """
@@ -166,7 +168,7 @@ class Runner(logutils.Base):
         # for randomSeed in [0, 1]:
         #     AllChem.EmbedMolecule(mol, randomSeed=randomSeed)
         #     print(mol.GetConformer().GetPositions())
-        jobutils.pop_arg(self.proj.doc[symbols.ARGS], self.FLAG_SEED)
+        jobutils.pop_arg(self.args, self.FLAG_SEED)
         seed = getattr(self.options, self.FLAG_SEED[1:], 1)
         seeds = (seed_incre + seed) % symbols.MAX_INT32
         self.state = {self.FLAG_SEED: list(map(str, seeds))}
@@ -198,8 +200,7 @@ class Runner(logutils.Base):
             # Single cpu per job ensures efficiency
             self.cpu = [self.max_cpu, 1]
 
-        jobutils.set_arg(self.proj.doc[symbols.ARGS], jobutils.FLAG_CPU,
-                         str(self.cpu[1]))
+        jobutils.set_arg(self.args, jobutils.FLAG_CPU, str(self.cpu[1]))
 
     def clean(self, agg=False):
         """
@@ -210,7 +211,7 @@ class Runner(logutils.Base):
         """
         if not self.options.clean:
             return
-        for opr in self.added:
+        for opr in self.oprs:
             if opr.cls.agg ^ agg:
                 continue
             for job in self.jobs:

@@ -69,13 +69,16 @@ class TestCmd:
         manual.addQuot()
         assert expected == manual.args
 
+    @pytest.mark.parametrize('doc_args', [(['-CPU', '2'])])
     @pytest.mark.parametrize(
-        'args,job_args,expected',
-        [(["echo hi"], ['-CPU', '2'], ['echo hi']),
-         (["nemd_run"], ['-CPU', '2'], ['nemd_run -CPU 2']),
-         (["nemd_run"], ['-CPU', '2'], ['nemd_run -CPU 2']),
-         (["nemd_run -CPU 3"], ['-CPU', '2'], ['nemd_run -CPU 2'])])
-    def testNumCpu(self, manual, job_args, expected):
-        manual.doc = {'args': job_args}
+        'args,options,expected',
+        [(["echo hi"], None, ['echo hi']),
+         (["nemd_run"], None, ['nemd_run -CPU 2']),
+         (["nemd_run -CPU 3"], [], ['nemd_run -CPU 3']),
+         (["nemd_run -CPU 3"], [6, 3], ['nemd_run -CPU 2'])])
+    def testNumCpu(self, manual, doc_args, options, expected):
+        manual.doc = dict(args=doc_args)
+        if options:
+            manual.options.CPU = options
         manual.numCpu()
         assert expected == manual.args
