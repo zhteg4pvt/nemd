@@ -268,7 +268,7 @@ class Tag(Check):
 
 class LmpAgg(taskbase.Agg):
     """
-    The aggregator job for analyzers.
+    Analyzer aggregator.
     """
     AnalyzerAgg = analyzer.Agg
 
@@ -320,7 +320,7 @@ class LmpAgg(taskbase.Agg):
 
 class TimeAgg(taskbase.Agg):
     """
-    The class to run a non-cmd aggregator job in a workflow.
+    Report the time.
     """
     TIME = symbols.TIME.lower()
 
@@ -364,33 +364,33 @@ class TimeAgg(taskbase.Agg):
 
 class TestAgg(TimeAgg):
     """
-    The class to run a non-cmd aggregator over jobs filtered by the specified
-    ids and labels.
+    Report the time of jobs filtered by ids and labels.
     """
 
     def run(self):
         """
         Main method to run.
         """
-        self.filterIds()
-        self.filterLabels()
+        self.filter()
         super().run()
 
-    def filterIds(self):
+    def filter(self):
         """
-        Filter the jobs by the specified ids.
+        Filter the jobs by the ids and labels.
         """
-        if self.options is None or len(self.options.id) == 0:
+        if not any([self.options.id, self.options.label, self.options.slow]):
             return
-        dirs = [x.statepoint[jobutils.FLAG_DIRNAME] for x in self.jobs]
-        ids = [int(os.path.basename(x)) for x in dirs]
-        self.jobs = [y for x, y in zip(ids, self.jobs) if x in self.options.id]
-
-    def filterLabels(self):
-        """
-        Filter the jobs by the specified labels.
-        """
-        if self.options is None or self.options.label is None:
-            return
-        tags = [test.Tag(job=x, options=self.options) for x in self.jobs]
-        self.jobs = [y for x, y in zip(tags, self.jobs) if x.selected]
+        jobs = {x.statepoint[jobutils.FLAG_DIRNAME]: x for x in self.jobs}
+        if self.options.id:
+            jobs = {
+                x: y
+                for x, y in jobs.items()
+                if int(os.path.basename(x)) in self.options.id
+            }
+        if self.options.label or self.options.slow:
+            jobs = {
+                x: y
+                for x, y in jobs.items()
+                if test.Tag(x, options=self.options).selected
+            }
+        self.jobs = list(jobs.values())

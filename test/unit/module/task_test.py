@@ -203,3 +203,21 @@ class TestTimeAgg:
     def testDelta2str(self, delta, expected):
         delta = timeutils.str2delta(delta)
         assert expected == task.TimeAgg.delta2str(delta)
+
+
+class TestTestAgg:
+
+    @pytest.fixture
+    def test_agg(self, jobs, args):
+        options = test_workflow.Parser().parse_args(args)
+        return task.TestAgg(*jobs, options=options)
+
+    @pytest.mark.parametrize('dirname', ['0001_test'])
+    @pytest.mark.parametrize('args,expected', [([], 1), (['1'], 1), (['2'], 0),
+                                               (['-label', 'amorp_b'], 1),
+                                               (['-label', 'xtal'], 0),
+                                               (['-slow', '1'], 0),
+                                               (['-slow', '5'], 1)])
+    def testFilter(self, test_agg, expected):
+        test_agg.filter()
+        assert expected == len(test_agg.jobs)
