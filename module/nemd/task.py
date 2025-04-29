@@ -322,9 +322,6 @@ class TimeAgg(taskbase.Agg):
     """
     The class to run a non-cmd aggregator job in a workflow.
     """
-    MS_FMT = '%M:%S'
-    MS_LMT = '59:59'
-    DELTA_LMT = timeutils.str2delta(MS_LMT, fmt=MS_FMT)
     TIME = symbols.TIME.lower()
 
     def run(self):
@@ -354,18 +351,15 @@ class TimeAgg(taskbase.Agg):
         self.log(data.fillna('').to_markdown(index=False))
 
     @classmethod
-    def delta2str(cls, delta):
+    def delta2str(cls, delta, fmt='%M:%S'):
         """
         Delta time to string with upper limit.
 
         :param delta 'datetime.timedelta': the time delta object
+        :param fmt str: the format to print the time
         :return str: the string representation of the delta time (< 1 hour)
         """
-        if pd.isnull(delta):
-            return str(delta)
-        if delta > cls.DELTA_LMT:
-            return cls.MS_LMT
-        return timeutils.delta2str(delta, fmt=cls.MS_FMT)
+        return timeutils.delta2str(delta, fmt=fmt)
 
 
 class TestAgg(TimeAgg):

@@ -40,7 +40,10 @@ def delta2str(delta, fmt=HMS_FMT):
     :param fmt str: the format to print the time
     :return str: the string representation of the timedelta
     """
-    return (HMS_ZERO + delta).strftime(fmt)
+    try:
+        return (HMS_ZERO + delta).strftime(fmt)
+    except TypeError:
+        pass
 
 
 def str2delta(value, fmt=HMS_FMT):

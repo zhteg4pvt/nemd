@@ -10,6 +10,7 @@ import test_workflow
 from nemd import envutils
 from nemd import osutils
 from nemd import task
+from nemd import timeutils
 
 TEST0001 = envutils.test_data('0001')
 
@@ -184,3 +185,21 @@ class TestLmpAgg:
                               ('0046_test', 'lmp_traj_agg', ["CCCC"], 2)])
     def testGroups(self, lmp_agg, expected):
         assert expected == len(lmp_agg.groups)
+
+
+class TestTimeAgg:
+
+    @pytest.fixture
+    def time_agg(self, jobs):
+        return task.TimeAgg(*jobs, logger=mock.Mock())
+
+    @pytest.mark.parametrize('dirname,expected', [('0045_test', 465)])
+    def testRun(self, time_agg, expected):
+        time_agg.run()
+        assert expected == len(time_agg.out)
+
+    @pytest.mark.parametrize('delta,expected', [('00:00:00', '00:00'),
+                                                ('12:34:56', '34:56')])
+    def testDelta2str(self, delta, expected):
+        delta = timeutils.str2delta(delta)
+        assert expected == task.TimeAgg.delta2str(delta)
