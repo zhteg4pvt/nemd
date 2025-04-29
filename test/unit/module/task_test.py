@@ -1,14 +1,13 @@
 import glob
 import os
-import shutil
 import types
 from unittest import mock
 
+import ab_lmp_traj_workflow
 import pytest
 import test_workflow
 
 from nemd import envutils
-from nemd import jobutils
 from nemd import osutils
 from nemd import task
 
@@ -147,8 +146,7 @@ class TestCheck:
     def testRun(self, check, expected):
         with osutils.chdir(check.job.dirname):
             check.run()
-            assert (expected == check.out) if isinstance(
-                expected, bool) else (expected in check.out)
+            assert (expected == check.out) or (expected in check.out)
 
 
 class TestTag:
@@ -159,6 +157,30 @@ class TestTag:
 
     @pytest.mark.parametrize('dirname,expected', [('0001_test', True)])
     def testRun(self, tag, expected):
-        tag.jobs = [types.SimpleNamespace(statepoint={'-dirname': os.curdir})]
+        job = types.SimpleNamespace(statepoint={'-dirname': os.getcwd()})
+        tag.jobs = [job]
         tag.run()
-        assert os.path.exists(os.path.join(tag.job.dirname, 'tag'))
+        assert os.path.exists('tag')
+
+
+class TestLmpAgg:
+
+    @pytest.fixture
+    def lmp_agg(self, jobs, jobname, args):
+        options = ab_lmp_traj_workflow.Parser().parse_args(args)
+        return task.LmpAgg(*jobs, jobname=jobname, options=options)
+
+    @pytest.mark.parametrize(
+        'dirname,jobname,args,expected',
+        [('0045_test', 'lmp_traj_agg',
+          ["[Ar]", '-task', 'density', 'rdf', 'msd', 'xyz'], 3)])
+    def testRun(self, lmp_agg, expected):
+        assert not glob.glob('*.csv')
+        lmp_agg.run()
+        assert expected == len(glob.glob('*.csv'))
+
+    @pytest.mark.parametrize('dirname,jobname,args,expected',
+                             [('0045_test', 'lmp_traj_agg', ["[Ar]"], 1),
+                              ('0046_test', 'lmp_traj_agg', ["CCCC"], 2)])
+    def testGroups(self, lmp_agg, expected):
+        assert expected == len(lmp_agg.groups)

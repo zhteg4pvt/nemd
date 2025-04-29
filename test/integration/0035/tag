@@ -1,2 +1,2 @@
 slow lammps 00:00:01 log 00:00:02
-label lmp_log lammps
+label lammps lmp_log

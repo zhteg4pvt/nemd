@@ -290,7 +290,7 @@ class LmpAgg(taskbase.Agg):
     @functools.cache
     def groups(self):
         """
-        Group jobs by the statepoints so that the jobs within one group only
+        Group jobs by the statepoint so that the jobs within one group only
         differ by the FLAG_SEED.
 
         return list of tuples: each tuple contains parameters (pandas.Series),
