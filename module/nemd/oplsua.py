@@ -690,17 +690,6 @@ class Improper(Bond):
         return {x: y for x, y in zip(counted, indexes)}
 
 
-@functools.cache
-def get_parser(wmodel=symbols.TIP3P):
-    """
-    Read and parser opls force field file.
-
-    :param wmodel str: the model type for water
-    :return 'OplsParser': the parser with force field information
-    """
-    return Parser(wmodel=wmodel)
-
-
 class Parser:
     """
     Parsed force field information, mapping details, and atomic typer.
@@ -795,11 +784,22 @@ class Parser:
         """
         The molecular weight of one molecule.
 
-        :parm mol Chem.rdchem.Mol: the input molecule.
+        :param mol Chem.rdchem.Mol: the input molecule.
         :return float: the total molecular weight.
         """
         tids = [x.GetIntProp(TYPE_ID) for x in mol.GetAtoms()]
         return round(sum(self.atoms.mass.values[tids]), 4)
+
+    @classmethod
+    @functools.cache
+    def get(cls, wmodel=symbols.TIP3P):
+        """
+        Read and parser opls force field file.
+
+        :param wmodel str: the model type for water
+        :return 'OplsParser': the parser with force field information
+        """
+        return cls(wmodel=wmodel)
 
 
 class Typer:

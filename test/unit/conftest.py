@@ -16,6 +16,7 @@ from nemd import frame
 from nemd import jobutils
 from nemd import osutils
 from nemd import pytestutils
+from nemd import structure
 from nemd import taskbase
 
 
@@ -162,3 +163,14 @@ def frm(file):
     """
     with open(file, 'r') as fh:
         return frame.Frame.read(fh)
+
+
+@pytest.fixture
+def mol(smiles):
+    """
+    Return a molecule.
+
+    :param smiles str: the input smiles
+    :return `structure.Mol`: the molecule
+    """
+    return structure.Mol.MolFromSmiles(smiles)

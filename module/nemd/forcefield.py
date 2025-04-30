@@ -19,4 +19,4 @@ def get(name, *args, struct=None):
     if name == symbols.SW:
         return sw.get_file(args, struct=struct)
     if name == symbols.OPLSUA:
-        return oplsua.get_parser(wmodel=args[0])
+        return oplsua.Parser.get(wmodel=args[0])
