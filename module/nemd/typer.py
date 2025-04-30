@@ -12,6 +12,7 @@ from rdkit import Chem
 
 from nemd import envutils
 from nemd import logutils
+from nemd import rdkitutils
 from nemd import symbols
 
 logger = logutils.Logger.get(__file__)
@@ -60,7 +61,7 @@ class Typer:
         :raise KeyError: if any atoms are not marked.
         """
         unmarked = self.mol.GetNumAtoms()
-        for _, sml in self.smiles.iterrows():
+        for idx, sml in self.smiles.iterrows():
             if unmarked <= 0:
                 break
             matches = self.mol.GetSubstructMatches(sml.mol, maxMatches=self.mx)
@@ -105,7 +106,7 @@ class Typer:
             x - 1: y - 1
             for x, y in x.items()
         })
-        sml['mol'] = [Chem.MolFromSmiles(x) for x in sml.sml]
+        sml['mol'] = [rdkitutils.MolFromSmiles(x) for x in sml.sml]
         sml['deg'] = [
             np.array(list(map(self.getDeg, x.GetAtoms()))) for x in sml.mol
         ]

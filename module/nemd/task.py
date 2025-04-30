@@ -364,7 +364,7 @@ class TimeAgg(taskbase.Agg):
 
 class TestAgg(TimeAgg):
     """
-    Report the time of jobs filtered by ids and labels.
+    Report the time of filtered jobs.
     """
 
     def run(self):

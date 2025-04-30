@@ -52,23 +52,3 @@ def capture_logging(logger=None):
             rdkit.log_handler.setStream(stream)
             rdkit.logger.removeHandler(hdlr)
             rdBase.LogToCppStreams()
-
-
-# def get_mol_from_smiles(smiles_str, embeded=True, mol_id=1):
-#     with rdkit_preserve_hs() as ps:
-#         mol = Chem.MolFromSmiles(smiles_str, ps)
-#     if not embeded:
-#         return mol
-#     with ignore_warnings():
-#         AllChem.EmbedMolecule(mol, useRandomCoords=True)
-#     mol.GetConformer().SetIntProp(pnames.MOL_ID, mol_id)
-#     return mol
-#
-# @contextmanager
-# def rdkit_preserve_hs():
-#     ps = Chem.SmilesParserParams()
-#     ps.removeHs = False
-#     try:
-#         yield ps
-#     finally:
-#         ps.removeHs = True

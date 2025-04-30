@@ -1,96 +1,66 @@
-import os
-
 import pytest
-from rdkit import Chem
 
-from nemd import envutils
 from nemd import oplsua
-from nemd import rdkitutils
-
-BUTANE = 'CCCC'
-CC3COOH = '[H]OC(=O)CCC(CC(C)C(=O)O[H])C(=O)O[H]'
-BUTANE_DATA = envutils.test_data(os.path.join('polym_builder', 'cooh123.data'))
+from nemd import structure
 
 
-class TestOplsTyper:
-
-    CCOOH_SML = [
-        x for x in oplsua.OplsTyper.SMILES_TEMPLATE if x.sml == 'CC(=O)O'
-    ][0]
+class TestTyper:
 
     @pytest.fixture
-    def opls_typer(self):
-        mol = rdkitutils.get_mol_from_smiles(CC3COOH, embeded=False)
-        return oplsua.OplsTyper(mol)
+    def typer(self, smiles):
+        typer = oplsua.Typer()
+        typer.setUp(structure.Mol.MolFromSmiles(smiles))
+        return typer
 
-    def testRun(self, opls_typer):
-        opls_typer.run()
-        assert all([x.HasProp('type_id') for x in opls_typer.mol.GetAtoms()])
+    @pytest.mark.parametrize('smiles,expected', [('[Ar]', 1), ('CC(C)O', 5),
+                                                 ('[Br-].[Mg+2].[Br-]', 3)])
+    def testSetUp(self, typer, expected):
+        assert expected == typer.mx
 
-    def testFilterMatch(self, opls_typer):
-        frag = Chem.MolFromSmiles(self.CCOOH_SML.sml)
-        matches = opls_typer.mol.GetSubstructMatches(frag)
-        matches = [opls_typer.filterMatch(x, frag) for x in matches]
-        for match in matches:
-            assert match[0] is None
+    @pytest.mark.parametrize('smiles,expected',
+                             [('C', 80), ('O', 77), ('CO', 105), ('CCO', 106),
+                              ('CC(C)', 85), ('CCCO', 106), ('CC(C)O', 107),
+                              ('CC(=O)C', 128), ('CCC(=O)CC', 129),
+                              ('CC(C)(C)', 87), ('CC(=O)C(C)(C)', 128),
+                              ('[Li+].[F-]', 205), ('[K+].[Br-]', 207),
+                              ('[Na+].[Cl-]', 206),
+                              ('[Br-].[Mg+2].[Br-]', 207),
+                              ('[Rb+].[Cl-].[Cs+].[Br-]', 207),
+                              ('[Ca+2].[Sr+2].[Ba+2].[Cl-]', 206),
+                              ('[He].[Ne].[Ar].[Kr].[Xe]', 212)])
+    def testDoTyping(self, typer, expected):
+        typer.doTyping()
+        atoms = typer.mol.GetAtoms()
+        assert expected == max(x.GetIntProp('type_id') for x in atoms)
 
-    def testMarkMatches(self, opls_typer):
-        matches = [[None, 2, 3, 1], [None, 14, 15, 16], [None, 10, 11, 12]]
-        res_num, matom_ids = opls_typer.markMatches(matches, self.CCOOH_SML, 1)
-        assert 4 == res_num
+    def testSmiles(self):
+        assert (33, 6) == oplsua.Typer().smiles.shape
 
-    def testMarkAtoms(self, opls_typer):
-        marked = opls_typer.markAtoms([None, 2, 3, 1], self.CCOOH_SML, 1)
-        assert 4 == len(marked)
+    @pytest.mark.parametrize('smiles,expected', [('CC(C)O', [1, 3, 1, 2, 1])])
+    def testGetDeg(self, typer, expected):
+        assert expected == [typer.getDeg(x) for x in typer.mol.GetAtoms()]
 
-    def testMarkAtom(self, opls_typer):
-        atom = opls_typer.mol.GetAtomWithIdx(2)
-        opls_typer.markAtom(atom, 133, 1)
-        assert 133 == atom.GetIntProp('type_id')
-        assert 1 == atom.GetIntProp('res_num')
+    @pytest.mark.parametrize(
+        'smiles,matches',
+        [('CC(=O)C(C)(C)', [((2, ), 26, 0, []),
+                            ((0, 1, 2, 3), 24, 1, [0, 1, 2]),
+                            ((1, 3, 4, 5), 21, 2, [3, 4, 5])])])
+    def testMark(self, typer, matches):
+        for match, idx, res_num, expected in matches:
+            aids = list(typer.mark(match, typer.smiles.loc[idx], res_num))
+            assert expected == aids
+            if not aids:
+                return
+            atoms = [typer.mol.GetAtomWithIdx(x) for x in aids]
+            res_nums = set([x.GetIntProp('res_num') for x in atoms]).pop()
+            assert res_num == res_nums
 
-
-class TestOplsParser:
-
-    @pytest.fixture
-    def nprsr(self):
-        return oplsua.OplsParser()
-
-    @pytest.fixture
-    def raw_prsr(self):
-        raw_prsr = oplsua.OplsParser()
-        raw_prsr.setRawContent()
-        raw_prsr.setAtomType()
-        return raw_prsr
-
-    def testSetRawContent(self, nprsr):
-        nprsr.setRawContent()
-        assert 10 == len(nprsr.raw_content)
-
-    def testSetAtomType(self, raw_prsr):
-        raw_prsr.setAtomType()
-        assert 215 == len(raw_prsr.atoms)
-
-    def testSetVdW(self, raw_prsr):
-        raw_prsr.setVdW()
-        assert 215 == len(raw_prsr.vdws)
-
-    def testSetCharge(self, raw_prsr):
-        raw_prsr.setCharge()
-        assert 215 == len(raw_prsr.charges)
-
-    def testSetBond(self, raw_prsr):
-        raw_prsr.setBond()
-        assert 151 == len(raw_prsr.bonds)
-
-    def testSetAngle(self, raw_prsr):
-        raw_prsr.setAngle()
-        assert 309 == len(raw_prsr.angles)
-
-    def testSetImproper(self, raw_prsr):
-        raw_prsr.setImproper()
-        assert 76 == len(raw_prsr.impropers)
-
-    def testSetDihedral(self, raw_prsr):
-        raw_prsr.setDihedral()
-        assert 630 == len(raw_prsr.dihedrals)
+    @pytest.mark.parametrize('smiles,expected',
+                             [('C', 0), ('CCCO', 1),
+                              ('[Ca+2].[Sr+2].[Ba+2].[Cl-]', 3),
+                              ('[He].[Ne].[Ar].[Kr].[Xe]', 4)])
+    def testSetResNum(self, typer, expected):
+        typer.doTyping()
+        typer.setResNum()
+        res_nums = [x.GetIntProp('res_num') for x in typer.mol.GetAtoms()]
+        assert expected == max(res_nums)

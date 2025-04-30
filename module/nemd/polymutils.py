@@ -422,8 +422,7 @@ class Mol(structure.Mol, logutils.Base):
                  delay=False,
                  **kwargs):
         """
-        :param cru str: the smiles string for monomer
-        :param cru_num int: the number of monomers per polymer
+        :param mol `rdkit.Chem.rdchem.Mol`: the molecule or polymer
         :param mol_num int: the number of molecules of this type of polymer
         :param options 'argparse.Namespace': command-line options
         :param delay bool: if True, the object is initialized without building
