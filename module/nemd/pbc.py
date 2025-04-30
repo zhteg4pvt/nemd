@@ -13,10 +13,11 @@ import pandas as pd
 
 from nemd import envutils
 from nemd import numbautils
+from nemd import pandasutils
 from nemd import symbols
 
 
-class Base(pd.DataFrame):
+class Base(pandasutils.DataFrame):
     """
     Base class to handle a datafile block.
     """
@@ -39,16 +40,6 @@ class Base(pd.DataFrame):
         if isinstance(data, int):
             data = np.ones((data, len(columns)), dtype=np.int32)
         super().__init__(data=data, columns=columns, **kwargs)
-
-    @classmethod
-    @property
-    def _constructor(cls):
-        """
-        Return the constructor of the class.
-
-        :return (sub-)class of 'Block': the constructor of the class
-        """
-        return cls
 
     @classmethod
     def fromLines(cls,

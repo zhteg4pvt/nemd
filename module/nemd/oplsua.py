@@ -17,8 +17,10 @@ import pandas as pd
 import scipy
 from rdkit import Chem
 
+from nemd import builtinsutils
 from nemd import envutils
 from nemd import logutils
+from nemd import pandasutils
 from nemd import rdkitutils
 from nemd import symbols
 
@@ -28,14 +30,8 @@ IDX = 'idx'
 TYPE_ID = symbols.TYPE_ID
 
 
-class Charge(pd.DataFrame):
-    """
-    The class to hold charge information.
-    """
+class Base(pandasutils.DataFrame, builtinsutils.Object):
 
-    NAME = 'charge'
-    COLS = [IDX, 'q']
-    MARKER = '##  Atomic Partial Charge Parameters  ##'
     OPLSUA = symbols.OPLSUA.lower()
     BASE_DIR = envutils.get_data('ff', OPLSUA)
 
@@ -56,13 +52,38 @@ class Charge(pd.DataFrame):
 
         :return str: the path of the parquet file.
         """
-        return os.path.join(cls.BASE_DIR, f"{cls.NAME}.parquet")
+        return os.path.join(cls.BASE_DIR, f"{cls.name}.parquet")
 
     def to_parquet(self, *args, index=False, **kwargs):
         """
         Save the data to the parquet file.
         """
         super().to_parquet(self.parquet, *args, index=index, **kwargs)
+
+
+class Smiles(Base):
+    """
+    The class to hold smiles.
+    """
+
+    @classmethod
+    def load(cls):
+        """
+        See parent.
+        """
+        sml = super().load()
+        sml.hs = sml.hs.apply(eval)
+        sml['mol'] = [rdkitutils.MolFromSmiles(x) for x in sml.sml]
+        return sml
+
+
+class Charge(Base):
+    """
+    The class to hold charge information.
+    """
+
+    COLS = [IDX, 'q']
+    MARKER = '##  Atomic Partial Charge Parameters  ##'
 
     @classmethod
     def read(cls, sep=r'\s+'):
@@ -73,9 +94,9 @@ class Charge(pd.DataFrame):
         :return `pd.DataFrame`: the pandas DataFrame object
         """
         formatted = [cls.format(x) for x in cls.getLines()]
-        block = [' '.join([cls.NAME] + cls.COLS)] + formatted
+        block = [' '.join([cls.name] + cls.COLS)] + formatted
         data = pd.read_csv(io.StringIO('\n'.join(block)), sep=sep)
-        data.drop([cls.NAME], axis=1, inplace=True)
+        data.drop([cls.name], axis=1, inplace=True)
         if IDX in data.columns:
             data.set_index(IDX, inplace=True)
             # The index starts from 1 in the .prm file
@@ -112,7 +133,6 @@ class Vdw(Charge):
     """
     The class to hold VDW information.
     """
-    NAME = 'vdw'
     COLS = [IDX, 'dist', 'ene']
     MARKER = '##  Van der Waals Parameters  ##'
 
@@ -121,7 +141,7 @@ class Atom(Charge):
     """
     The class to hold atom information.
     """
-    NAME = 'atom'
+
     COLS = [IDX, 'formula', 'descr', 'Z', 'mass', 'conn', 'symbol']
     HYDROGEN = symbols.HYDROGEN
     MARKER = '##  Atom Type Definitions  ##'
@@ -382,7 +402,6 @@ class Bond(Charge):
     The class to hold Bond information.
     """
 
-    NAME = 'bond'
     ID_COLS = ['id1', 'id2']
     COLS = ID_COLS + ['ene', 'dist']
     MARKER = '##  Bond Stretching Parameters  ##'
@@ -456,7 +475,7 @@ class Bond(Charge):
 
         :return str: the npy pathname for mapping.
         """
-        return os.path.join(cls.BASE_DIR, f"{cls.NAME}.npy")
+        return os.path.join(cls.BASE_DIR, f"{cls.name}.npy")
 
     def getCtype(self, tids):
         """
@@ -491,11 +510,11 @@ class Bond(Charge):
         :return int: the index of the first match
         :raise IndexError: failed to find any matches.
         """
-        logger.debug(f"No exact match for {self.NAME} between atom {tids}.")
+        logger.debug(f"No exact match for {self.name} between atom {tids}.")
         try:
             indexes, head_tail = self.row_map.getFlipped(tids)
         except IndexError:
-            raise IndexError(f"No partial match for {self.NAME} ({tids}).")
+            raise IndexError(f"No partial match for {self.name} ({tids}).")
         # Check atomic number
         atomic = self.atoms.atomic_number[head_tail]
         atom_zs = [atoms[0].GetAtomicNum(), atoms[-1].GetAtomicNum()]
@@ -510,7 +529,7 @@ class Bond(Charge):
         try:
             index = np.nonzero(found)[0][0]
         except IndexError:
-            raise IndexError(f"No params for {self.NAME} between atom {tids}.")
+            raise IndexError(f"No params for {self.name} between atom {tids}.")
         asked = [f"{x}_{y}" for x, y in zip(atom_zs, atom_conns)]
         found = [f"{x}_{y}" for x, y in zip(atomic[index], conns[index])]
         logger.debug(f"{asked} replaced by {found}")
@@ -565,7 +584,7 @@ class Bond(Charge):
         """
         Save the mapping information into a numpy file.
         """
-        with open(self.npyname, 'wb') as fh:
+        with open(self.npy, 'wb') as fh:
             np.save(fh, np.array([x for x in self.TMAP.items()]))
             keys = np.array([x for x in self.MAP.keys()])
             values = np.array([x for x in self.MAP.values()])
@@ -577,7 +596,6 @@ class Angle(Bond):
     The class to hold Angle information.
     """
 
-    NAME = 'angle'
     ID_COLS = ['id1', 'id2', 'id3']
     COLS = ID_COLS + ['ene', 'deg']
     MARKER = '##  Angle Bending Parameters  ##'
@@ -588,8 +606,6 @@ class Dihedral(Angle):
     """
     The class to hold Dihedral information.
     """
-
-    NAME = 'torsion'
     ID_COLS = ['id1', 'id2', 'id3', 'id4']
     COLS = ID_COLS + ['k1', 'k2', 'k3', 'k4']
     MARKER = '##  Torsional Parameters  ##'
@@ -635,8 +651,6 @@ class Improper(Bond):
     """
     The class to hold improper information.
     """
-
-    NAME = 'imptors'
     ID_COLS = ['id1', 'id2', 'id3', 'id4']
     COLS = ID_COLS + ['ene', 'deg', 'n_parm']
     MARKER = 'Improper Torsional Parameters'
@@ -876,37 +890,11 @@ class Typer:
 
         :return `pd.DataFrame`: the smiles-based typing table
         """
-        namepath = envutils.get_data('ff', 'oplsua', 'typer.parquet')
-        sml = pd.read_parquet(namepath)
-        sml['mp'] = sml['mp'].map(lambda x: [x - 1 for x in x])
-        water_range = range(*eval(sml.index.name))
-        water_dsc = symbols.WATER_DSC.format(model=self.wmodel)
-        to_drop = [x for x in water_range if sml.iloc[x].dsc != water_dsc]
-        sml.drop(index=to_drop, inplace=True)
-        sml.hs = sml.hs.apply(eval)
-        sml['hs'] = sml['hs'].map(lambda x: x if x is None else {
-            x - 1: y - 1
-            for x, y in x.items()
-        })
-        sml['mol'] = [rdkitutils.MolFromSmiles(x) for x in sml.sml]
-        sml['deg'] = [
-            np.array(list(map(self.getDeg, x.GetAtoms()))) for x in sml.mol
-        ]
-        return sml.iloc[::-1]
-
-    @staticmethod
-    def getDeg(atom):
-        """
-        Get the degree of the atom. (the hydrogen atoms on carbons are not
-        counted towards in the degree in the united atom model)
-
-        :param atom `rdkit.Chem.rdchem.Atom`: the atom to get degree of
-        :return list: the degree of the atom
-        """
-        degree = atom.GetDegree()
-        if atom.GetSymbol() != symbols.CARBON:
-            degree += atom.GetNumImplicitHs()
-        return degree
+        sml = Smiles.load()
+        water = sml.iloc[sml.index[sml.sml == 'O'].tolist()]
+        to_drop = water.dsc != symbols.WATER_DSC.format(model=self.wmodel)
+        sml.drop(index=water[to_drop].index, inplace=True)
+        return sml
 
     def mark(self, match, sml, res_num):
         """
@@ -922,8 +910,11 @@ class Typer:
         # in 'CC(=O)O' fragment terminates while the second 'C' in 'CCC(=O)O'
         # molecule is connected to two carbons. Mark the first C in 'CC(=O)O'
         # fragment as None so that molecule won't type this terminating atom.
-        deg = [self.mol.GetAtomWithIdx(x).GetDegree() for x in match]
-        ids = [[x, y] for x, y, z in zip(match, sml.mp, deg == sml.deg) if z]
+        deg = [
+            self.mol.GetAtomWithIdx(x).GetDegree() == y
+            for x, y in zip(match, sml.deg)
+        ]
+        ids = [[x, y] for x, y, z in zip(match, sml.mp, deg) if z]
         for atom_id, type_id in ids:
             atom = self.mol.GetAtomWithIdx(atom_id)
             if atom.HasProp(TYPE_ID):
@@ -937,7 +928,7 @@ class Typer:
             for idx, atom in enumerate([atom] + h_nbrs):
                 # Neighboring hydrogen when idx != 0
                 aid = atom.GetIdx() if idx else atom_id
-                tid = sml.hs[type_id] if idx else type_id.item()
+                tid = sml.hs[type_id] if idx else type_id
                 # TYPE_ID defines vdw and charge
                 atom.SetIntProp(TYPE_ID, tid)
                 atom.SetIntProp(self.RES_NUM, res_num)

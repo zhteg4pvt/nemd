@@ -5,9 +5,8 @@ This script generates oplsua typing table.
 """
 from collections import namedtuple
 
-import pandas as pd
-
 from nemd import oplsua
+from nemd import rdkitutils
 from nemd import symbols
 
 FIELDS = ['sml', 'mp', 'hs', 'dsc']
@@ -71,6 +70,38 @@ def shift(tmap):
 
 def subtract(cmap):
     return {tuple([x - 1 for x in x]): [x - 1 for x in y] for x, y in cmap.items()}
+
+
+class Smiles(oplsua.Smiles):
+
+    @classmethod
+    def read(cls):
+        smiles = cls([x._asdict().values() for x in SMILES], columns=FIELDS)
+        mol = [rdkitutils.MolFromSmiles(x) for x in smiles.sml]
+        smiles['deg'] = [
+            list(map(cls.getDeg, x.GetAtoms())) for x in mol
+        ]
+        smiles['mp'] = smiles['mp'].map(lambda x: [x - 1 for x in x])
+        smiles['hs'] = smiles['hs'].map(lambda x: x if x is None else {
+            x - 1: y - 1
+            for x, y in x.items()
+        })
+        smiles['hs'] = smiles['hs'].astype(str)
+        return smiles.iloc[::-1]
+
+    @staticmethod
+    def getDeg(atom):
+        """
+        Get the degree of the atom. (the hydrogen atoms on carbons are not
+        counted towards in the degree in the united atom model)
+
+        :param atom `rdkit.Chem.rdchem.Atom`: the atom to get degree of
+        :return list: the degree of the atom
+        """
+        degree = atom.GetDegree()
+        if atom.GetSymbol() != symbols.CARBON:
+            degree += atom.GetNumImplicitHs()
+        return degree
 
 
 class Bond(oplsua.Bond):
@@ -156,31 +187,60 @@ class Dihedral(oplsua.Dihedral):
         })
 
 
-data = pd.DataFrame([x._asdict().values() for x in SMILES], columns=FIELDS)
-data.index.name = str([SMILES.index(WATERS[0]), SMILES.index(WATERS[-1]) + 1])
-data['hs'] = data['hs'].astype(str)
-data.to_parquet('typer.parquet')
-#atom          1    C     "C Peptide Amide"              6    12.011    3
-atoms = oplsua.Atom.read()
-atoms.to_parquet()
-# 'vdw         213               2.5560     0.4330'
-vdws = oplsua.Vdw.read()
-vdws.to_parquet()
-# 'charge      213               0.0000'
-charges = oplsua.Charge.read()
-charges.to_parquet()
-# 'bond        104  107          386.00     1.4250'
-bonds =Bond.read()
-bonds.to_parquet()
-bonds.save()
-# 'angle        83  107  104      80.00     109.50'
-anlges = Angle.read()
-anlges.to_parquet()
-anlges.save()
-# torsion       2    1    3    4            0.650    0.0  1      2.500  180.0  2
-dihedrals = Dihedral.read()
-dihedrals.to_parquet()
-dihedrals.save()
-# imptors       5    3    1    2           10.500  180.0  2
-impropers =oplsua.Improper.read()
-impropers.to_parquet()
+class Writer:
+
+    def run(self):
+        self.typer()
+        self.atoms()
+        self.vdws()
+        self.charges()
+        self.bonds()
+        self.angles()
+        self.dihedrals()
+        self.impropers()
+
+    def typer(self):
+        smiles = Smiles.read()
+        smiles.to_parquet()
+
+    def atoms(self):
+        #atom          1    C     "C Peptide Amide"              6    12.011    3
+        atoms = oplsua.Atom.read()
+        atoms.to_parquet()
+
+    def vdws(self):
+        # 'vdw         213               2.5560     0.4330'
+        vdws = oplsua.Vdw.read()
+        vdws.to_parquet()
+
+    def charges(self):
+        # 'charge      213               0.0000'
+        charges = oplsua.Charge.read()
+        charges.to_parquet()
+
+    def bonds(self):
+        # 'bond        104  107          386.00     1.4250'
+        bonds =Bond.read()
+        bonds.to_parquet()
+        bonds.save()
+
+    def angles(self):
+        # 'angle        83  107  104      80.00     109.50'
+        anlges = Angle.read()
+        anlges.to_parquet()
+        anlges.save()
+
+    def dihedrals(self):
+        # torsion       2    1    3    4            0.650    0.0  1      2.500  180.0  2
+        dihedrals = Dihedral.read()
+        dihedrals.to_parquet()
+        dihedrals.save()
+
+    def impropers(self):
+        # imptors       5    3    1    2           10.500  180.0  2
+        impropers =oplsua.Improper.read()
+        impropers.to_parquet()
+
+
+if __name__ == "__main__":
+    Writer().run()
