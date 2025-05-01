@@ -7,10 +7,8 @@ This module reads, parses and assigns opls-ua parameters.
 """
 import collections
 import functools
-import io
 import os
 
-import chemparse
 import methodtools
 import numpy as np
 import pandas as pd
@@ -20,7 +18,6 @@ from rdkit import Chem
 from nemd import builtinsutils
 from nemd import envutils
 from nemd import logutils
-from nemd import pandasutils
 from nemd import rdkitutils
 from nemd import symbols
 
@@ -30,19 +27,25 @@ IDX = 'idx'
 TYPE_ID = symbols.TYPE_ID
 
 
-class Base(pandasutils.DataFrame, builtinsutils.Object):
+class Oplsua(pd.DataFrame, builtinsutils.Object):
 
-    OPLSUA = symbols.OPLSUA.lower()
-    BASE_DIR = envutils.get_data('ff', OPLSUA)
+    DIRNAME = envutils.get_data('ff', symbols.OPLSUA.lower())
 
-    @classmethod
-    def load(cls, *args, **kwargs):
+    def __init__(self, data=None, **kwargs):
         """
-        Load the force field information from the parquet file.
-
-        :return `pd.DataFrame`: the pandas DataFrame object
+        See parent.
         """
-        return cls(pd.read_parquet(cls.parquet), *args, **kwargs)
+        if data is None:
+            data = pd.read_parquet(self.parquet)
+        super().__init__(data, **kwargs)
+
+    def to_parquet(self, *args, index=False, **kwargs):
+        """
+        Save the pandas data to the parquet file.
+
+        :param index: include the dataframe’s index(es) if True
+        """
+        super().to_parquet(self.parquet, *args, index=index, **kwargs)
 
     @classmethod
     @property
@@ -52,99 +55,49 @@ class Base(pandasutils.DataFrame, builtinsutils.Object):
 
         :return str: the path of the parquet file.
         """
-        return os.path.join(cls.BASE_DIR, f"{cls.name}.parquet")
+        return os.path.join(cls.DIRNAME, f"{cls.name}.parquet")
 
-    def to_parquet(self, *args, index=False, **kwargs):
+    @classmethod
+    @property
+    def npy(cls):
         """
-        Save the data to the parquet file.
+        Return the pathname of the npy file.
+
+        :return str: the npy pathname for mapping.
         """
-        super().to_parquet(self.parquet, *args, index=index, **kwargs)
+        return os.path.join(cls.DIRNAME, f"{cls.name}.npy")
 
 
-class Smiles(Base):
+class Smiles(Oplsua):
     """
     The class to hold smiles.
     """
 
-    @classmethod
-    def load(cls):
+    def __init__(self, *args, **kwargs):
         """
         See parent.
         """
-        sml = super().load()
-        sml.hs = sml.hs.apply(eval)
-        sml['mol'] = [rdkitutils.MolFromSmiles(x) for x in sml.sml]
-        return sml
+        super().__init__(*args, **kwargs)
+        self.hs = self.hs.apply(eval)
 
 
-class Charge(Base):
+class Charge(Oplsua):
     """
     The class to hold charge information.
     """
-
-    COLS = [IDX, 'q']
-    MARKER = '##  Atomic Partial Charge Parameters  ##'
-
-    @classmethod
-    def read(cls, sep=r'\s+'):
-        """
-        Read from lines that form an information block.
-
-        :param sep str: the separators for columns
-        :return `pd.DataFrame`: the pandas DataFrame object
-        """
-        formatted = [cls.format(x) for x in cls.getLines()]
-        block = [' '.join([cls.name] + cls.COLS)] + formatted
-        data = pd.read_csv(io.StringIO('\n'.join(block)), sep=sep)
-        data.drop([cls.name], axis=1, inplace=True)
-        if IDX in data.columns:
-            data.set_index(IDX, inplace=True)
-            # The index starts from 1 in the .prm file
-            data.index -= 1
-        return cls(data)
-
-    @classmethod
-    def getLines(cls):
-        """
-        Read from lines that form an information block.
-
-        :return iterator: iterator of the block lines.
-        """
-        with open(os.path.join(cls.BASE_DIR, f"{cls.OPLSUA}.prm"), 'r') as fh:
-            next(x for x in fh if cls.MARKER in x)
-            next(x for x in fh if not x.strip().startswith(symbols.POUND))
-            line = next(x for x in fh if x.strip('\n')).strip('\n')
-            while line:
-                yield line
-                line = fh.readline().strip('\n')
-
-    @classmethod
-    def format(cls, line):
-        """
-        Format the line to the desired format.
-
-        :param line str: the input raw line.
-        :return str: the formatted line.
-        """
-        return line
 
 
 class Vdw(Charge):
     """
     The class to hold VDW information.
     """
-    COLS = [IDX, 'dist', 'ene']
-    MARKER = '##  Van der Waals Parameters  ##'
 
 
 class Atom(Charge):
     """
     The class to hold atom information.
     """
-
-    COLS = [IDX, 'formula', 'descr', 'Z', 'mass', 'conn', 'symbol']
     HYDROGEN = symbols.HYDROGEN
-    MARKER = '##  Atom Type Definitions  ##'
 
     @methodtools.lru_cache()
     @property
@@ -165,21 +118,6 @@ class Atom(Charge):
         :return `np.ndarray`: the connectivity of each atom.
         """
         return self.conn.values
-
-    @classmethod
-    def read(cls, *args, **kwargs):
-        """
-        Read an atom block and customize attributes.
-
-        :return `Atom`: the Atom object.
-        """
-        data = super().read(*args, **kwargs)
-        parseed = data.formula.apply(chemparse.parse_formula)
-        h_count = parseed.apply(lambda x: x.pop(cls.HYDROGEN, 0)).astype(int)
-        data['conn'] += h_count
-        func = lambda x: list(x.keys())[0] if x else cls.HYDROGEN
-        data['symbol'] = parseed.apply(func)
-        return data
 
 
 class BondIndex(np.ndarray):
@@ -401,14 +339,10 @@ class Bond(Charge):
     """
     The class to hold Bond information.
     """
-
     ID_COLS = ['id1', 'id2']
-    COLS = ID_COLS + ['ene', 'dist']
-    MARKER = '##  Bond Stretching Parameters  ##'
     INDEX_CLASS = BondIndex
     # https://pandas.pydata.org/docs/development/extending.html
-    _internal_names = pd.DataFrame._internal_names + ['atoms']
-    _internal_names_set = set(_internal_names)
+    _metadata = ['atoms']
 
     def __init__(self, *args, atoms=None, **kwargs):
         """
@@ -466,16 +400,6 @@ class Bond(Charge):
             cmap = {tuple(x): tuple(y) for x, y in zip(*np.load(fh))}
             cmap.update({x[::-1]: y[::-1] for x, y in cmap.items()})
         return tmap, cmap
-
-    @classmethod
-    @property
-    def npy(cls):
-        """
-        Return the pathname of the npy file.
-
-        :return str: the npy pathname for mapping.
-        """
-        return os.path.join(cls.BASE_DIR, f"{cls.name}.npy")
 
     def getCtype(self, tids):
         """
@@ -569,36 +493,12 @@ class Bond(Charge):
         """
         return self[self.ID_COLS].values
 
-    @classmethod
-    def read(cls, *args, **kwargs):
-        """
-        Read the block and customize indexing.
-
-        :return `Bond` (sub-)class: the dataframe object.
-        """
-        data = super().read(*args, **kwargs)
-        data[cls.ID_COLS] -= 1
-        return data
-
-    def save(self):
-        """
-        Save the mapping information into a numpy file.
-        """
-        with open(self.npy, 'wb') as fh:
-            np.save(fh, np.array([x for x in self.TMAP.items()]))
-            keys = np.array([x for x in self.MAP.keys()])
-            values = np.array([x for x in self.MAP.values()])
-            np.save(fh, np.stack([keys, values]))
-
 
 class Angle(Bond):
     """
     The class to hold Angle information.
     """
-
     ID_COLS = ['id1', 'id2', 'id3']
-    COLS = ID_COLS + ['ene', 'deg']
-    MARKER = '##  Angle Bending Parameters  ##'
     INDEX_CLASS = AngleIndex
 
 
@@ -607,8 +507,6 @@ class Dihedral(Angle):
     The class to hold Dihedral information.
     """
     ID_COLS = ['id1', 'id2', 'id3', 'id4']
-    COLS = ID_COLS + ['k1', 'k2', 'k3', 'k4']
-    MARKER = '##  Torsional Parameters  ##'
     INDEX_CLASS = DihedralIndex
 
     def getCtype(self, tids):
@@ -621,39 +519,12 @@ class Dihedral(Angle):
         mids = super().getCtype(tids[1:-1])
         return tuple((tids[0], *mids, tids[-1]))
 
-    @classmethod
-    def format(cls, line):
-        """
-        Format the dihedral coefficients to Lammps format: K1, K2, K3, K4 as in
-        0.5*K1[1+cos(x)] + 0.5*K2[1-cos(2x)] ... from LAMMPS dihedral_style opls
-        https://docs.lammps.org/dihedral_opls.html
-
-        In oplsua.prm, dihedral adopts [1 + cos(n*x-gama)] formula.
-        When gama = 180, cos(x-gama) = cos(x - 180°) = cos(180° - x) = -cos(x)
-
-        :return list of float: opls coefficients K1, K2, K3, K4
-        """
-        splitted = line.split()
-        contants = splitted[5:]
-        params = [0., 0., 0., 0.]
-        constants = zip(contants[::3], contants[1::3], contants[2::3])
-        for ene, deg, n_parm in constants:
-            ene, deg, n_parm = float(ene), float(deg), int(n_parm)
-            params[n_parm - 1] = ene * 2
-            if not params[n_parm]:
-                continue
-            if (deg == 180.) ^ (not n_parm % 2):
-                params[n_parm] *= -1
-        return ' '.join(splitted[:5] + list(map(str, params)))
-
 
 class Improper(Bond):
     """
     The class to hold improper information.
     """
     ID_COLS = ['id1', 'id2', 'id3', 'id4']
-    COLS = ID_COLS + ['ene', 'deg', 'n_parm']
-    MARKER = 'Improper Torsional Parameters'
     ATOMIC_NUMBERS = [6, 1, 7, 8]
 
     def getMatched(self, atoms):
@@ -732,7 +603,7 @@ class Parser:
 
         :return `Atom`: the atom information.
         """
-        return Atom.load()
+        return Atom()
 
     @property
     @functools.cache
@@ -742,7 +613,7 @@ class Parser:
 
         :return `Vdw`: the vdw information.
         """
-        return Vdw.load()
+        return Vdw()
 
     @property
     @functools.cache
@@ -752,7 +623,7 @@ class Parser:
 
         :return `Charge`: the charge information.
         """
-        return Charge.load()
+        return Charge()
 
     @property
     @functools.cache
@@ -762,7 +633,7 @@ class Parser:
 
         :return `Bond`: the bond information.
         """
-        return Bond.load(atoms=self.atoms)
+        return Bond(atoms=self.atoms)
 
     @property
     @functools.cache
@@ -772,7 +643,7 @@ class Parser:
 
         :return `Angle`: the angle information.
         """
-        return Angle.load(atoms=self.atoms)
+        return Angle(atoms=self.atoms)
 
     @property
     @functools.cache
@@ -782,7 +653,7 @@ class Parser:
 
         :return `Improper`: the improper information.
         """
-        return Improper.load(atoms=self.atoms)
+        return Improper(atoms=self.atoms)
 
     @property
     @functools.cache
@@ -792,7 +663,7 @@ class Parser:
 
         :return `Dihedral`: the dihedral information.
         """
-        return Dihedral.load(atoms=self.atoms)
+        return Dihedral(atoms=self.atoms)
 
     def molecular_weight(self, mol):
         """
@@ -890,10 +761,11 @@ class Typer:
 
         :return `pd.DataFrame`: the smiles-based typing table
         """
-        sml = Smiles.load()
+        sml = Smiles()
         water = sml.iloc[sml.index[sml.sml == 'O'].tolist()]
         to_drop = water.dsc != symbols.WATER_DSC.format(model=self.wmodel)
         sml.drop(index=water[to_drop].index, inplace=True)
+        sml['mol'] = [rdkitutils.MolFromSmiles(x) for x in sml.sml]
         return sml
 
     def mark(self, match, sml, res_num):
