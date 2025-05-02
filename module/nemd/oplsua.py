@@ -356,7 +356,7 @@ class Bond(Charge):
         :return int: the index of the first match
         """
         tids = self.getTypes(atoms)
-        idx = self.row_map.index(tids)
+        idx = self.row.index(tids)
         if idx is not None:
             return idx
         return self.getPartial(tids, atoms)
@@ -408,7 +408,7 @@ class Bond(Charge):
 
     @methodtools.lru_cache()
     @property
-    def row_map(self):
+    def row(self):
         """
         The mapping from a row of atom type ids to the index of the exact match,
         or the indexes and head-tail of all partial matches.
@@ -429,7 +429,7 @@ class Bond(Charge):
         """
         logger.debug(f"No exact match for {self.name} between atom {tids}.")
         try:
-            indexes, head_tail = self.row_map.getFlipped(tids)
+            indexes, head_tail = self.row.getFlipped(tids)
         except IndexError:
             raise IndexError(f"No partial match for {self.name} ({tids}).")
         # Check atomic number
@@ -438,7 +438,7 @@ class Bond(Charge):
         z_matches = (atomic == atom_zs).all(axis=1)
         # Check connectivity
         conns = self.atoms.connectivity[head_tail]
-        atom_conns = [self.getConnt(atoms[0]), self.getConnt(atoms[-1])]
+        atom_conns = [self.getConn(atoms[0]), self.getConn(atoms[-1])]
         con_matches = (conns == atom_conns).all(axis=1)
         found = z_matches & con_matches
         if not found.any():
@@ -453,7 +453,7 @@ class Bond(Charge):
         return indexes[index]
 
     @staticmethod
-    def getConnt(atom):
+    def getConn(atom):
         """
         Get the atomic connectivity information.
 
@@ -527,7 +527,7 @@ class Improper(Bond):
         :param atoms list: bonded atoms.
         :return int: the index of the match.
         """
-        conn_atomic = [self.getConnt(atoms[2])]
+        conn_atomic = [self.getConn(atoms[2])]
         conn_atomic += [x.GetAtomicNum() for x in atoms]
         hashed = self.hash(conn_atomic)
         return self.index_map[hashed]

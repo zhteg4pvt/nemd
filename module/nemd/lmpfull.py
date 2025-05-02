@@ -528,8 +528,7 @@ class Mol(lmpatomic.Mol):
         """
         The bonds of the molecule.
         """
-        bonds = [x for x in self.GetBonds()]
-        atoms = [[x.GetBeginAtom(), x.GetEndAtom()] for x in bonds]
+        atoms = [[x.GetBeginAtom(), x.GetEndAtom()] for x in self.GetBonds()]
         type_ids = [self.ff.bonds.getMatched(x) for x in atoms]
         aids = [[y.GetIdx() for y in x] for x in atoms]
         self.bonds = Bond(type_ids=type_ids, aids=aids)

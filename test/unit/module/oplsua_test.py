@@ -3,6 +3,104 @@ import pytest
 from nemd import oplsua
 
 
+class TestBase:
+
+    def testParquet(self):
+        assert oplsua.Base.parquet.endswith('base.parquet')
+
+    def testNpy(self):
+        assert oplsua.Base.npy.endswith('base.npy')
+
+
+class TestCharge:
+
+    def testInit(self):
+        assert (215, 1) == oplsua.Charge().shape
+
+
+class TestSmiles:
+
+    def testInit(self):
+        smiles = oplsua.Smiles()
+        assert (35, 5) == smiles.shape
+        assert {134: 135} == smiles.hs.iloc[1]
+
+
+class TestVdw:
+
+    def testInit(self):
+        assert (215, 2) == oplsua.Vdw().shape
+
+
+class TestAtom:
+
+    @pytest.fixture
+    def atom(self):
+        return oplsua.Atom()
+
+    def testInit(self, atom):
+        assert (215, 6) == atom.shape
+
+    def testAtomicNumber(self, atom):
+        assert (215, ) == atom.atomic_number.shape
+
+    def testConnectivity(self, atom):
+        assert (215, ) == atom.connectivity.shape
+
+
+class TestBond:
+
+    @pytest.fixture
+    def bonds(self):
+        return oplsua.Bond(atoms=oplsua.Atom())
+
+    @pytest.mark.parametrize('smiles', ['CC(C)O'])
+    @pytest.mark.parametrize('idx,expected', [(1, 142), (2, 148)])
+    def testBond(self, bonds, idx, mol, expected):
+        oplsua.Typer().type(mol)
+        bond = mol.GetBondWithIdx(idx)
+        atoms = [bond.GetBeginAtom(), bond.GetEndAtom()]
+        assert expected == bonds.getMatched(atoms)
+
+    @pytest.mark.parametrize('smiles', ['CC(C)O'])
+    @pytest.mark.parametrize('idx,expected', [(1, (106, 83)), (3, (103, 104))])
+    def testGetTypes(self, bonds, idx, mol, expected):
+        oplsua.Typer().type(mol)
+        bond = mol.GetBondWithIdx(idx)
+        atoms = [bond.GetBeginAtom(), bond.GetEndAtom()]
+        assert expected == bonds.getTypes(atoms)
+
+    def testMaps(self, bonds):
+        assert [13, 6] == [len(x) for x in bonds.maps]
+
+    @pytest.mark.parametrize('tids,expected', [((106, 83), (106, 83)),
+                                               ((85, 106), (85, 85))])
+    def testGetCtype(self, bonds, tids, expected):
+        assert expected == bonds.getCtype(tids)
+
+    def testRowMap(self, bonds):
+        assert (3, 150) == bonds.row.shape
+
+    @pytest.mark.parametrize('smiles,idx,expected', [('CC(C)O', 1, 142)])
+    def testGetPartial(self, bonds, mol, idx, expected):
+        oplsua.Typer().type(mol)
+        bond = mol.GetBondWithIdx(idx)
+        atoms = [bond.GetBeginAtom(), bond.GetEndAtom()]
+        tids = bonds.getTypes(atoms)
+        assert expected == bonds.getPartial(tids, atoms)
+
+    @pytest.mark.parametrize('smiles', ['CC(C)O'])
+    @pytest.mark.parametrize('idx,expected', [(0, 4), (2, 4)])
+    def testGetConn(self, mol, idx, expected):
+        assert expected == oplsua.Bond.getConn(mol.GetAtomWithIdx(idx))
+
+    def testHasH(self, bonds):
+        assert (150, ) == bonds.has_h.shape
+
+    def testIds(self, bonds):
+        assert (150, 2) == bonds.ids.shape
+
+
 class TestParser:
 
     @pytest.fixture
