@@ -9,6 +9,7 @@ import os
 
 import chemparse
 
+from nemd import builtinsutils
 from nemd import np
 from nemd import oplsua
 from nemd import pd
@@ -68,18 +69,31 @@ SMILES = [
 ] # yapf: disable
 
 
-class Smiles(oplsua.Oplsua):
+class Base(oplsua.Base):
+    """
+    Base class of oplsua database.
+    """
+
+    def to_parquet(self, *args, index=False, **kwargs):
+        """
+        Save the pandas data to the parquet file.
+
+        :param index: include the dataframe’s index(es) if True
+        """
+        super().to_parquet(self.parquet, *args, index=index, **kwargs)
+
+
+class Smiles(Base):
 
     def __init__(self):
         super().__init__(SMILES[::-1], columns=['sml', 'mp', 'hs', 'dsc'])
         mol = [rdkitutils.MolFromSmiles(x) for x in self.sml]
         self['deg'] = [list(map(self.getDeg, x.GetAtoms())) for x in mol]
-        self['mp'] = self['mp'].map(lambda x: [x - 1 for x in x])
-        self['hs'] = self['hs'].map(lambda x: x if x is None else {
-            x - 1: y - 1
-            for x, y in x.items()
-        })
-        self['hs'] = self['hs'].astype(str)
+        self.mp = self.mp.map(lambda x: [x - 1 for x in x])
+        hs = self.hs.dropna()
+        hs = hs.map(lambda x: {y - 1: z - 1 for y, z in x.items()})
+        self.loc[hs.index, 'hs'] = hs
+        self.hs = self.hs.astype(str)
 
     @staticmethod
     def getDeg(atom):
@@ -96,12 +110,17 @@ class Smiles(oplsua.Oplsua):
         return degree
 
 
-class Charge(oplsua.Charge):
-
+class Charge(Base):
+    """
+    The class to hold charge information.
+    """
     COLS = [IDX, 'q']
     MARKER = 'Atomic Partial Charge Parameters'
 
     def __init__(self, lines):
+        """
+        :param lines list: the lines from force field file.
+        """
         text = io.StringIO('\n'.join(self.getLines(lines)))
         data = pd.read_csv(text, sep=r'\s+', names=[self.name] + self.COLS)
         super().__init__(data)
@@ -111,8 +130,15 @@ class Charge(oplsua.Charge):
             # The index starts from 1 in the .prm file
             self.index -= 1
 
-    def getLines(self, lines):
-        sidx = lines.index(self.MARKER)
+    @classmethod
+    def getLines(cls, lines):
+        """
+        Get the block lines.
+
+        :param lines list: the lines from force field file.
+        :return list: the block lines.
+        """
+        sidx = lines.index(cls.MARKER)
         lines = lines[sidx + 1:]
         lines = lines[next(x for x, y in enumerate(lines) if y):]
         return lines[:next(x for x, y in enumerate(lines) if not y)]
@@ -120,7 +146,7 @@ class Charge(oplsua.Charge):
 
 class Vdw(Charge):
     """
-    The class to hold VDW information.
+    The class to hold Van der Waals information.
     """
     COLS = [IDX, 'dist', 'ene']
     MARKER = 'Van der Waals Parameters'
@@ -132,29 +158,40 @@ class Atom(Vdw):
     """
     COLS = [IDX, 'formula', 'descr', 'Z', 'mass', 'conn', 'symbol']
     MARKER = 'Atom Type Definitions'
-    HYDROGEN = symbols.HYDROGEN
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        parseed = self.formula.apply(chemparse.parse_formula)
-        h_count = parseed.apply(lambda x: x.pop(self.HYDROGEN, 0)).astype(int)
-        self['conn'] += h_count
-        func = lambda x: list(x.keys())[0] if x else self.HYDROGEN
-        self['symbol'] = parseed.apply(func)
+        formula = self.formula.apply(chemparse.parse_formula)
+        self.conn += formula.apply(lambda x: int(x.pop(symbols.HYDROGEN, 0)))
+        self.symbol = formula.apply(lambda x: next(iter(x), symbols.HYDROGEN))
 
 
-class Bond(Charge):
-
-    ID_COLS = oplsua.Bond.ID_COLS
-    COLS = ID_COLS + ['ene', 'dist']
-    MARKER = 'Bond Stretching Parameters'
+class Improper(Charge):
+    """
+    The class to hold improper torsional information.
+    """
+    ID_COLS = oplsua.Improper.ID_COLS
+    COLS = ID_COLS + ['ene', 'deg', 'n_parm']
+    MARKER = 'Improper Torsional Parameters'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self[self.ID_COLS] -= 1
 
+
+class Bond(Improper):
+    """
+    The class to hold bond information.
+    """
+    ID_COLS = oplsua.Bond.ID_COLS
+    COLS = ID_COLS + ['ene', 'dist']
+    MARKER = 'Bond Stretching Parameters'
+
     @property
     def _TMAP(self):
+        """
+        See TMAP.
+        """
         # "O Peptide Amide" "COH (zeta) Tyr" "OH Tyr"  "H(O) Ser/Thr/Tyr"
         return {
             134: 2,
@@ -174,15 +211,28 @@ class Bond(Charge):
 
     @property
     def _MAP(self):
+        """
+        See MAP.
+        """
         # C-OH (Tyr) is used as HO-C=O, which needs CH2-COOH map as alpha-COOH bond
         return {(26, 86): (16, 17), (26, 88): (16, 17), (86, 107): (86, 86)}
 
     @property
     def TMAP(self):
+        """
+        The type mapper.
+
+        :return dict: map a specific atom type a to general one
+        """
         return {x - 1: y - 1 for x, y in self._TMAP.items()}
 
     @property
     def MAP(self):
+        """
+        The type mapper.
+
+        :return dict: map a pair of atom types to a more general pair
+        """
         return {
             tuple([x - 1 for x in x]): [x - 1 for x in y]
             for x, y in self._MAP.items()
@@ -200,7 +250,9 @@ class Bond(Charge):
 
 
 class Angle(Bond):
-
+    """
+    The class to hold angle information.
+    """
     ID_COLS = oplsua.Angle.ID_COLS
     COLS = ID_COLS + ['ene', 'deg']
     MARKER = 'Angle Bending Parameters'
@@ -230,6 +282,9 @@ class Angle(Bond):
 
 
 class Dihedral(Bond):
+    """
+    The class to hold dihedral information.
+    """
     ID_COLS = oplsua.Dihedral.ID_COLS
     COLS = ID_COLS + ['k1', 'k2', 'k3', 'k4']
     MARKER = 'Torsional Parameters'
@@ -263,9 +318,13 @@ class Dihedral(Bond):
         }
 
     def getLines(self, lines):
+        """
+        See parent.
+        """
         return [self.format(x) for x in super().getLines(lines)]
 
-    def format(self, line):
+    @staticmethod
+    def format(line):
         """
         Format the dihedral coefficients to Lammps format: K1, K2, K3, K4 as in
         0.5*K1[1+cos(x)] + 0.5*K2[1-cos(2x)] ... from LAMMPS dihedral_style opls
@@ -290,16 +349,39 @@ class Dihedral(Bond):
         return ' '.join(splitted[:5] + list(map(str, params)))
 
 
-class Improper(Bond):
+class Raw(builtinsutils.Object):
+    """
+    Oplsua raw text reader and database writer.
+    """
 
-    ID_COLS = oplsua.Improper.ID_COLS
-    COLS = ID_COLS + ['ene', 'deg', 'n_parm']
-    MARKER = 'Improper Torsional Parameters'
+    def __init__(self):
+        self.smiles = Smiles()
+        lines = self.getLines()
+        self.charges = Charge(lines)
+        self.vdws = Vdw(lines)
+        self.atoms = Atom(lines)
+        self.bonds = Bond(lines)
+        self.angles = Angle(lines)
+        self.dihedrals = Dihedral(lines)
+        self.impropers = Improper(lines)
 
+    @staticmethod
+    @functools.cache
+    def getLines(to_strip=f'{symbols.POUND}\n '):
+        """
+        The lines from the force field file.
 
-class Raw:
+        :param to_strip: the chars to strip off.
+        :return list: the stripped lines from the force field file.
+        """
+        pathname = os.path.join(oplsua.DIRNAME, f"{oplsua.OPLSUA}.prm")
+        with open(pathname, 'r') as fh:
+            return [x.strip(to_strip) for x in fh.readlines()]
 
     def write(self):
+        """
+        Write to database.
+        """
         self.smiles.to_parquet()
         self.charges.to_parquet()
         self.vdws.to_parquet()
@@ -311,45 +393,6 @@ class Raw:
         self.dihedrals.to_parquet()
         self.dihedrals.to_npy()
         self.impropers.to_parquet()
-
-    @property
-    def smiles(self):
-        return Smiles()
-
-    @property
-    def charges(self):
-        return Charge(self.lines)
-
-    @property
-    def vdws(self):
-        return Vdw(self.lines)
-
-    @property
-    def atoms(self):
-        return Atom(self.lines)
-
-    @property
-    def bonds(self):
-        return Bond(self.lines)
-
-    @property
-    def angles(self):
-        return Angle(self.lines)
-
-    @property
-    def dihedrals(self):
-        return Dihedral(self.lines)
-
-    @property
-    def impropers(self):
-        return Improper(self.lines)
-
-    @property
-    @functools.cache
-    def lines(self, to_strip=f'{symbols.POUND}\n '):
-        file = os.path.join(oplsua.Oplsua.DIRNAME, f"{oplsua.Oplsua.name}.prm")
-        with open(file, 'r') as fh:
-            return [x.strip(to_strip) for x in fh.readlines()]
 
 
 if __name__ == "__main__":

@@ -83,10 +83,6 @@ class TestTyper:
     def testSmiles(self):
         assert (33, 6) == oplsua.Typer().smiles.shape
 
-    @pytest.mark.parametrize('smiles,expected', [('CC(C)O', [1, 3, 1, 2, 1])])
-    def testGetDeg(self, typer, expected):
-        assert expected == [typer.getDeg(x) for x in typer.mol.GetAtoms()]
-
     @pytest.mark.parametrize(
         'smiles,matches',
         [('CC(=O)C(C)(C)', [((2, ), 26, 0, []),

@@ -25,27 +25,14 @@ logger = logutils.Logger.get(__file__)
 
 IDX = 'idx'
 TYPE_ID = symbols.TYPE_ID
+OPLSUA = symbols.OPLSUA.lower()
+DIRNAME = envutils.get_data('ff', OPLSUA)
 
 
-class Oplsua(pd.DataFrame, builtinsutils.Object):
-
-    DIRNAME = envutils.get_data('ff', symbols.OPLSUA.lower())
-
-    def __init__(self, data=None, **kwargs):
-        """
-        See parent.
-        """
-        if data is None:
-            data = pd.read_parquet(self.parquet)
-        super().__init__(data, **kwargs)
-
-    def to_parquet(self, *args, index=False, **kwargs):
-        """
-        Save the pandas data to the parquet file.
-
-        :param index: include the dataframe’s index(es) if True
-        """
-        super().to_parquet(self.parquet, *args, index=index, **kwargs)
+class Base(pd.DataFrame, builtinsutils.Object):
+    """
+    Base class of oplsua assignment.
+    """
 
     @classmethod
     @property
@@ -55,7 +42,7 @@ class Oplsua(pd.DataFrame, builtinsutils.Object):
 
         :return str: the path of the parquet file.
         """
-        return os.path.join(cls.DIRNAME, f"{cls.name}.parquet")
+        return os.path.join(DIRNAME, f"{cls.name}.parquet")
 
     @classmethod
     @property
@@ -65,26 +52,32 @@ class Oplsua(pd.DataFrame, builtinsutils.Object):
 
         :return str: the npy pathname for mapping.
         """
-        return os.path.join(cls.DIRNAME, f"{cls.name}.npy")
+        return os.path.join(DIRNAME, f"{cls.name}.npy")
 
 
-class Smiles(Oplsua):
+class Charge(Base):
+    """
+    The class to hold charge information.
+    """
+
+    def __init__(self, **kwargs):
+        """
+        See parent.
+        """
+        super().__init__(pd.read_parquet(self.parquet), **kwargs)
+
+
+class Smiles(Charge):
     """
     The class to hold smiles.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         """
         See parent.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.hs = self.hs.apply(eval)
-
-
-class Charge(Oplsua):
-    """
-    The class to hold charge information.
-    """
 
 
 class Vdw(Charge):
@@ -762,7 +755,7 @@ class Typer:
         :return `pd.DataFrame`: the smiles-based typing table
         """
         sml = Smiles()
-        water = sml.iloc[sml.index[sml.sml == 'O'].tolist()]
+        water = sml[sml.sml == 'O']
         to_drop = water.dsc != symbols.WATER_DSC.format(model=self.wmodel)
         sml.drop(index=water[to_drop].index, inplace=True)
         sml['mol'] = [rdkitutils.MolFromSmiles(x) for x in sml.sml]
