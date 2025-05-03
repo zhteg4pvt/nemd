@@ -140,22 +140,22 @@ class BondIndex(np.ndarray):
 
         :return `Dihedral`: the map from values to the row index.
         """
-        obj = np.array(data).transpose().view(cls)
-        return obj
+        return np.array(data).transpose().view(cls)
 
     def index(self, row):
         """
         Return the matched index given the row values.
 
+        :param row tuple: the values of a row.
         :return int: the matched index.
         """
         if row[self.START] > row[self.END]:
             row = row[::-1]
-        block = self.getBlock(row[1:-1])
+        block = self.getBlock(row)
         try:
             index = block[row[0], row[-1]]
         except IndexError:
-            # when index exceeds the range
+            # Index exceeds the range
             return
         if index != 0 or row == self.zero:
             return index
@@ -169,7 +169,8 @@ class BondIndex(np.ndarray):
         """
         return self.getCsr(self)
 
-    def getCsr(self, dat, dtype=np.int16):
+    @staticmethod
+    def getCsr(dat, dtype=np.int16):
         """
         Convert the data to a sparse matrix.
 
@@ -191,15 +192,21 @@ class BondIndex(np.ndarray):
 
     @methodtools.lru_cache()
     def getFlipped(self, row):
-        indexes, head_tail = self.getPartial(row)
-        return self.flipped(indexes, head_tail)
+        """
+        Get the indexes of rows with the middle values matched.
+
+        :param row list of ints: the row values to match the middle value(s).
+        :return 'ndarray': the indexes of the matching rows.
+        :raise IndexError: when block not found.
+        """
+        return self.flipped(*self.getPartial(row))
 
     def getPartial(self, row):
         """
-        Get the indexes of rows whose values match any of the given values.
+        Get the indexes of partially matched rows.
 
         :param row tuple: match rows containing any of the values.
-        :return 'np.ndarray': the indexes of the matching rows.
+        :return 'np.ndarray', 'np.ndarray': the indexes, head and tail.
         """
         block = self.getBlock()
         indexes = (block[row, :].data, block[:, row].data)
@@ -209,9 +216,22 @@ class BondIndex(np.ndarray):
     @methodtools.lru_cache()
     @property
     def head_tail(self):
+        """
+        Get the head and tail columns.
+
+        :return nx2 `np.ndarray`: the terminating points of each chain.
+        """
         return self[[1, -1]].transpose()
 
-    def flipped(self, indexes, head_tail):
+    @staticmethod
+    def flipped(indexes, head_tail):
+        """
+        Extend the data with the head and tail flipped.
+
+        :param indexes 'np.ndarray': the indexes of the matched rows.
+        :param head_tail 'np.ndarray': the head and tail of the matched rows.
+        :return 'np.ndarray', 'np.ndarray': the indexes, head and tail.
+        """
         indexes = np.repeat(indexes, repeats=2, axis=0)
         head_tail = np.repeat(head_tail, repeats=2, axis=0)
         head_tail[1::2, :] = np.fliplr(head_tail[1::2, :])
@@ -239,26 +259,19 @@ class AngleIndex(BondIndex):
     """
 
     @methodtools.lru_cache()
-    def getBlock(self, key):
+    def getBlock(self, row):
         """
-        Get the sparse block which maps the given values to the row index.
-
-        :param key tuple of int: the value in the middle of the row.
-        :return 'csr_array': a matrix mapping atom 1d1 and 1d4 to dihedral id.
+        See parent.
         """
-        matches = np.where(self[2] == key[0])[0]
+        matches = np.where(self[2] == row[1])[0]
         return self.getCsr(self[[0, 1, 3], matches[0]:matches[-1] + 1])
 
     @methodtools.lru_cache()
     def getPartial(self, row):
         """
-        Get the indexes of rows with the given two middle values matched.
-
-        :param row list of ints: the row values whose middle value to match.
-        :return 'ndarray': the indexes of the matching rows.
-        :raise IndexError: when block is not found.
+        See parent.
         """
-        blk = self.getBlock(row[1:-1])
+        blk = self.getBlock(row)
         return blk.data, self.head_tail[blk.data]
 
 
@@ -285,13 +298,11 @@ class DihedralIndex(AngleIndex):
     END = 2
 
     @methodtools.lru_cache()
-    def getBlock(self, key):
+    def getBlock(self, row):
         """
-        Get the sparse block.
-
-        :param key tuple of two ints: the two values in the middle of a row.
-        :return 'csr_array': a matrix mapping atom 1d1 and 1d4 to the indexes.
+        See parent.
         """
+        key = row[1:-1]
         start = self.getMap()[key]
         end = self.getMap(shift=-1)[key] + 1
         return self.getCsr(self[[0, 1, 4], start:end])
@@ -312,11 +323,7 @@ class DihedralIndex(AngleIndex):
     @methodtools.lru_cache()
     def getFlipped(self, row):
         """
-        Get the indexes of rows with the given two middle values matched.
-
-        :param row list of ints: the row values whose middle value to match.
-        :return 'ndarray': the indexes of the matching rows.
-        :raise IndexError: when block is not found.
+        See parent.
         """
         flipped = row[self.START] > row[self.END]
         indexes, head_tail = self.getPartial(row[::-1] if flipped else row)

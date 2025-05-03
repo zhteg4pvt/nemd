@@ -1,5 +1,6 @@
 import pytest
 
+from nemd import np
 from nemd import oplsua
 
 
@@ -46,6 +47,48 @@ class TestAtom:
 
     def testConnectivity(self, atom):
         assert (215, ) == atom.connectivity.shape
+
+
+class TestBondIndex:
+
+    @pytest.fixture
+    def bond(self):
+        return oplsua.Bond().row
+
+    @pytest.mark.parametrize('row,expected', [((82, 85), 141), ((85, 82), 141),
+                                              ((85, 83), None),
+                                              ((85, 1000), None), ((0, 1), 0)])
+    def testIndex(self, bond, row, expected):
+        assert expected == bond.index(row)
+
+    def testGetBlock(self, bond):
+        assert (214, 215) == bond.getBlock().shape
+
+    def testGetCsr(self, bond):
+        assert (214, 215) == oplsua.BondIndex.getCsr(bond).shape
+
+    def testZero(self, bond):
+        assert (0, 1) == bond.zero
+
+    @pytest.mark.parametrize('row,expected', [((106, 83), 4)])
+    def testGetFlipped(self, bond, row, expected):
+        indexes, head_tail = bond.getFlipped(row)
+        assert expected == indexes.shape[0] == head_tail.shape[0]
+
+    @pytest.mark.parametrize('row,expected', [((106, 83), 2)])
+    def testGetPartial(self, bond, row, expected):
+        indexes, head_tail = bond.getPartial(row)
+        assert expected == indexes.shape[0] == head_tail.shape[0]
+
+    def testHeadTail(self, bond):
+        assert (150, 2) == bond.head_tail.shape
+
+    def testFlipped(self):
+        indexes = np.array([[1]])
+        head_tail = np.array([[3, 4]])
+        indexes, head_tail = oplsua.BondIndex.flipped(indexes, head_tail)
+        np.testing.assert_equal(indexes, np.array([[1], [1]]))
+        np.testing.assert_equal(head_tail, np.array([[3, 4], [4, 3]]))
 
 
 class TestBond:
@@ -119,7 +162,8 @@ class TestImproper:
     def atoms(self, mol, ids):
         return [mol.GetAtomWithIdx(x) for x in ids]
 
-    @pytest.mark.parametrize('smiles,ids,expected', [('CC(C)C', [0,2,1,3], 30)])
+    @pytest.mark.parametrize('smiles,ids,expected',
+                             [('CC(C)C', [0, 2, 1, 3], 30)])
     def testGetMatched(self, improper, atoms, expected):
         assert expected == improper.getMatched(atoms)
 
