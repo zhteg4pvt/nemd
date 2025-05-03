@@ -54,20 +54,21 @@ class TestBond:
     def bonds(self):
         return oplsua.Bond(atoms=oplsua.Atom())
 
+    @pytest.fixture
+    def atoms(self, mol, idx):
+        bond = mol.GetBondWithIdx(idx)
+        return [bond.GetBeginAtom(), bond.GetEndAtom()]
+
     @pytest.mark.parametrize('smiles', ['CC(C)O'])
     @pytest.mark.parametrize('idx,expected', [(1, 142), (2, 148)])
-    def testBond(self, bonds, idx, mol, expected):
+    def testBond(self, bonds, mol, atoms, expected):
         oplsua.Typer().type(mol)
-        bond = mol.GetBondWithIdx(idx)
-        atoms = [bond.GetBeginAtom(), bond.GetEndAtom()]
         assert expected == bonds.getMatched(atoms)
 
     @pytest.mark.parametrize('smiles', ['CC(C)O'])
     @pytest.mark.parametrize('idx,expected', [(1, (106, 83)), (3, (103, 104))])
-    def testGetTypes(self, bonds, idx, mol, expected):
+    def testGetTypes(self, bonds, atoms, mol, expected):
         oplsua.Typer().type(mol)
-        bond = mol.GetBondWithIdx(idx)
-        atoms = [bond.GetBeginAtom(), bond.GetEndAtom()]
         assert expected == bonds.getTypes(atoms)
 
     def testMaps(self, bonds):
@@ -81,12 +82,9 @@ class TestBond:
     def testRowMap(self, bonds):
         assert (3, 150) == bonds.row.shape
 
-    @pytest.mark.parametrize('smiles,idx,expected', [('CC(C)O', 1, 142)])
-    def testGetPartial(self, bonds, mol, idx, expected):
-        oplsua.Typer().type(mol)
-        bond = mol.GetBondWithIdx(idx)
-        atoms = [bond.GetBeginAtom(), bond.GetEndAtom()]
-        tids = bonds.getTypes(atoms)
+    @pytest.mark.parametrize('smiles,idx,tids,expected',
+                             [('CC(C)O', 1, (106, 83), 142)])
+    def testGetPartial(self, bonds, atoms, tids, expected):
         assert expected == bonds.getPartial(tids, atoms)
 
     @pytest.mark.parametrize('smiles', ['CC(C)O'])
@@ -97,8 +95,36 @@ class TestBond:
     def testHasH(self, bonds):
         assert (150, ) == bonds.has_h.shape
 
-    def testIds(self, bonds):
-        assert (150, 2) == bonds.ids.shape
+
+class TestDihedral:
+
+    @pytest.fixture
+    def dihedrals(self):
+        return oplsua.Dihedral()
+
+    @pytest.mark.parametrize('tids,expected',
+                             [((10, 25, 75, 23), (10, 25, 75, 23)),
+                              ((83, 106, 8, 106), (83, 8, 8, 106))])
+    def testGetCtype(self, dihedrals, tids, expected):
+        assert expected == dihedrals.getCtype(tids)
+
+
+class TestImproper:
+
+    @pytest.fixture
+    def improper(self):
+        return oplsua.Improper(atoms=oplsua.Atom())
+
+    @pytest.fixture
+    def atoms(self, mol, ids):
+        return [mol.GetAtomWithIdx(x) for x in ids]
+
+    @pytest.mark.parametrize('smiles,ids,expected', [('CC(C)C', [0,2,1,3], 30)])
+    def testGetMatched(self, improper, atoms, expected):
+        assert expected == improper.getMatched(atoms)
+
+    def testRow(self, improper):
+        assert 11 == len(improper.row)
 
 
 class TestParser:

@@ -90,7 +90,6 @@ class Atom(Charge):
     """
     The class to hold atom information.
     """
-    HYDROGEN = symbols.HYDROGEN
 
     @methodtools.lru_cache()
     @property
@@ -474,17 +473,7 @@ class Bond(Charge):
 
         :return `np.ndarray`: whether each bond has hydrogen atoms.
         """
-        return (self.atoms.atomic_number[self.ids] == 1).any(axis=1)
-
-    @methodtools.lru_cache()
-    @property
-    def ids(self):
-        """
-        Return the atom ids
-
-        :return 'np.ndarray': the atom ids.
-        """
-        return self[self.ID_COLS].values
+        return (self.atoms.atomic_number[self[self.ID_COLS]] == 1).any(axis=1)
 
 
 class Angle(Bond):
@@ -527,29 +516,14 @@ class Improper(Bond):
         :param atoms list: bonded atoms.
         :return int: the index of the match.
         """
-        conn_atomic = [self.getConn(atoms[2])]
-        conn_atomic += [x.GetAtomicNum() for x in atoms]
-        hashed = self.hash(conn_atomic)
-        return self.index_map[hashed]
-
-    @classmethod
-    def hash(cls, conn_atomic):
-        """
-        Hash improper cluster information.
-
-        :param conn_atomic list: The first is the center atom connectivity
-            (implicit hydrogen included) following by the atomic numbers of
-            four atoms. (the third one is the center)
-        """
-        counted = collections.Counter(conn_atomic[1:])
-        count = [counted.get(x, 0) for x in cls.ATOMIC_NUMBERS]
-        # the center atom's atomic number and connectivity followed by the count
-        # e.g., [3, 6, 7, 6, 8] --> 6 3 2 0 1 1
-        return tuple([conn_atomic[3], conn_atomic[0], *count])
+        center = atoms[2]
+        atomics = [x.GetAtomicNum() for x in atoms if x != center]
+        vals = [self.getConn(center), center.GetAtomicNum(), *sorted(atomics)]
+        return self.row[tuple(vals)]
 
     @methodtools.lru_cache()
     @property
-    def index_map(self):
+    def row(self):
         """
         Return the mapping from a hashed improper to type id.
 
@@ -561,11 +535,12 @@ class Improper(Bond):
         # neighbors of CC(=O)C and CC(O)C have the same symbols
         # The third one is the center ('Improper Torsional Parameters' in prm)
         conns = self.atoms.connectivity[self.id3]
-        atomic = self.atoms.atomic_number[self.ids]
-        conn_atomic = np.concatenate((conns.reshape(-1, 1), atomic), axis=1)
+        atomic = self.atoms.atomic_number[self.id3]
+        atomics = self.atoms.atomic_number[[self.id1, self.id2, self.id4]]
+        conn_atomic = np.array((conns, atomic, *atomics)).transpose()
         unique, indexes = np.unique(conn_atomic, axis=0, return_index=True)
-        counted = [self.hash(x) for x in unique]
-        return {x: y for x, y in zip(counted, indexes)}
+        hashed = [tuple([*x[:2], *sorted(x[2:])]) for x in unique]
+        return {x: y for x, y in zip(hashed, indexes)}
 
 
 class Parser:
@@ -768,38 +743,26 @@ class Typer:
 
         :param match tuple: atom ids of one match
         :param sml `'pandas.Series'`: the smiles to search and mark matches
-        :return generator int: one of marked atom id
+        :return generator int: one marked atom
         """
         # Filter substructure matches based on connectivity. The connecting
         # atoms usually have different connectivities. For example, first C
         # in 'CC(=O)O' fragment terminates while the second 'C' in 'CCC(=O)O'
         # molecule is connected to two carbons. Mark the first C in 'CC(=O)O'
         # fragment as None so that molecule won't type this terminating atom.
-        deg = [
-            self.mol.GetAtomWithIdx(x).GetDegree() == y
-            for x, y in zip(match, sml.deg)
-        ]
-        ids = [[x, y] for x, y, z in zip(match, sml.mp, deg) if z]
-        for atom_id, type_id in ids:
-            atom = self.mol.GetAtomWithIdx(atom_id)
-            if atom.HasProp(TYPE_ID):
-                # This atom has been marked, skip
-                continue
+        atoms = [self.mol.GetAtomWithIdx(x) for x in match]
+        atom_ids = [[x, y] for x, y, z in zip(atoms, sml.mp, sml.deg)
+                    if x.GetDegree() == z and not x.HasProp(TYPE_ID)]
+        for atom, type_id in atom_ids:
             # Mark the atom and it's hydrogen neighbors
-            h_nbrs = [
-                x for x in atom.GetNeighbors()
-                if x.GetSymbol() == symbols.HYDROGEN
-            ]
-            for idx, atom in enumerate([atom] + h_nbrs):
+            nbrs = [x for x in atom.GetNeighbors() if x.GetAtomicNum() == 1]
+            for idx, atom in enumerate([atom] + nbrs):
                 # Neighboring hydrogen when idx != 0
-                aid = atom.GetIdx() if idx else atom_id
                 tid = sml.hs[type_id] if idx else type_id
                 # TYPE_ID defines vdw and charge
                 atom.SetIntProp(TYPE_ID, tid)
                 atom.SetIntProp(self.RES_NUM, res_num)
-                yield aid
-                logger.debug(
-                    f"{atom.GetSymbol()}{atom.GetDegree()} {aid} {tid}")
+                yield atom
 
     def setResNum(self):
         """
