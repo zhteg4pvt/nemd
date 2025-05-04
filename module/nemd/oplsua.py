@@ -120,16 +120,6 @@ class BondIndex(np.ndarray):
 
     1) locate the row index by value1, value2
     2) return the row indices for rows containing any of the given values.
-
-    for example:
-
-    data = [[index_1, value1_1, value2_1],
-            [index_2, value1_2, value2_2],
-            [index_3, value1_3, value2_2],
-            ...]
-
-    Map(data).index(value1_2, value2_2) --> index_2
-    Map(data).indexes(value1_2, value2_2) --> [index_2, index_3]
     """
     START = 0
     END = -1
@@ -241,21 +231,10 @@ class BondIndex(np.ndarray):
 class AngleIndex(BondIndex):
     """
     This class maps the row values (value1, value2, value3) to the corresponding
-    index of an array (index). The mapping is done by sparse matrix and
-    dictionary lookup, which is fast and memory-efficient.
+    index of an array (index).
 
     1) locate the row range by value2
     2) match the value1 and value3 within the range
-
-    for example:
-
-    data = [[index_1, value1_1, value2_1, value3_1],
-            [index_2, value1_2, value2_2, value3_2],
-            [index_3, value1_3, value2_2, value3_3],
-            ...]
-
-    Map(data).index(value1_2, value2_2, value3_2) --> index_2
-    Map(data).indexes(value1_3, value2_2, value3_4) --> [index_2, index_3]
     """
 
     @methodtools.lru_cache()
@@ -278,21 +257,10 @@ class AngleIndex(BondIndex):
 class DihedralIndex(AngleIndex):
     """
     This class maps the row values (value1, value2, value3, value4) to the
-    corresponding index of an array (index). The mapping is done by sparse
-    matrix and dictionary lookup, which is fast and memory-efficient.
+    corresponding index of an array (index).
 
     1) locate the row range by value2, value3
     2) match the value1 and value4 within the range
-
-    for example:
-
-    data = [[index_1, value1_1, value2_1, value3_1, value4_1],
-            [index_2, value1_2, value2_2, value3_2, value4_2],
-            [index_3, value1_3, value2_2, value3_3, value4_2],
-            ...]
-
-    Map(data).index(value1_2, value2_2, value3_2, value4_2) --> index_2
-    Map(data).indexes(value1_2, value2_2) --> [index_2, index_3]
     """
     START = 1
     END = 2
@@ -303,35 +271,36 @@ class DihedralIndex(AngleIndex):
         See parent.
         """
         key = row[1:-1]
-        start = self.getMap()[key]
-        end = self.getMap(shift=-1)[key] + 1
-        return self.getCsr(self[[0, 1, 4], start:end])
+        start = self.getRange()[key]
+        stop = self.getRange(stop=True)[key]
+        return self.getCsr(self[[0, 1, 4], start:stop])
 
     @methodtools.lru_cache()
-    def getMap(self, shift=1):
+    def getRange(self, stop=False):
         """
-        Return the mapping from values to the row start and end indices.
+        Return the map from the middle values the start or stop indexes.
 
-        :param shift int: shift the array by the given value.
+        :param stop bool: the stop index if True
         :return 'csr_array': a sparse matrix mapping ids to the limits.
         """
-        coords = self[[2, 3]]  # value2, value3
-        selected = [np.roll(x, shift=shift) != x for x in coords]
-        sel = np.array(selected).any(axis=0)
-        return self.getCsr(self[[0, 2, 3]][:, sel])
+        shift = -1 if stop else 1
+        selected = [np.roll(x, shift=shift) != x for x in self[[2, 3]]]
+        csr = self.getCsr(self[[0, 2, 3]][:, np.array(selected).any(axis=0)])
+        if stop:
+            csr.data += 1
+        return csr
 
     @methodtools.lru_cache()
     def getFlipped(self, row):
         """
         See parent.
         """
-        flipped = row[self.START] > row[self.END]
-        indexes, head_tail = self.getPartial(row[::-1] if flipped else row)
-        if flipped:
-            return indexes, np.fliplr(head_tail)
+        if row[self.START] < row[self.END]:
+            return self.getPartial(row)
         if row[self.START] == row[self.END]:
-            return self.flipped(indexes, head_tail)
-        return indexes, head_tail
+            return super().getFlipped(row)
+        indexes, head_tails = self.getPartial(row[::-1])
+        return indexes, np.fliplr(head_tails)
 
 
 class Bond(Charge):

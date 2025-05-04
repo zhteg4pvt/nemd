@@ -62,7 +62,7 @@ class TestBondIndex:
         assert expected == bond.index(row)
 
     def testGetBlock(self, bond):
-        assert (214, 215) == bond.getBlock().shape
+        assert 150 == bond.getBlock().size
 
     def testGetCsr(self, bond):
         assert (214, 215) == oplsua.BondIndex.getCsr(bond).shape
@@ -89,6 +89,45 @@ class TestBondIndex:
         indexes, head_tail = oplsua.BondIndex.flipped(indexes, head_tail)
         np.testing.assert_equal(indexes, np.array([[1], [1]]))
         np.testing.assert_equal(head_tail, np.array([[3, 4], [4, 3]]))
+
+
+class TestAngleIndex:
+
+    @pytest.fixture
+    def angle(self):
+        return oplsua.Angle().row
+
+    @pytest.mark.parametrize('row,expected', [((104, 106, 106), 1)])
+    def testGetBlock(self, angle, row, expected):
+        assert expected == angle.getBlock(row).data.size
+
+    @pytest.mark.parametrize('row,expected', [((104, 106, 106), (1, 1, 2))])
+    def testGetPartial(self, angle, row, expected):
+        indexes, head_tail = angle.getPartial(row)
+        assert expected == (*indexes.shape, *head_tail.shape)
+
+
+class TestDihedralIndex:
+
+    @pytest.fixture
+    def dihedral(self):
+        return oplsua.Dihedral().row
+
+    @pytest.mark.parametrize('row,expected', [((1, 0, 2, 4), 94)])
+    def testGetBlock(self, dihedral, row, expected):
+        assert expected == dihedral.getBlock(row).data.size
+
+    @pytest.mark.parametrize('stop,expected', [(False, 629), (True, 630)])
+    def testGetRange(self, dihedral, stop, expected):
+        assert expected == dihedral.getRange(stop=stop).max()
+
+    @pytest.mark.parametrize('row,expected',
+                             [((104, 103, 106, 82), (629, 104, 82)),
+                              ((82, 106, 103, 104), (629, 82, 104)),
+                              ((0, 29, 29, 16), (502, 502, 0, 16, 16, 0))])
+    def testGetFlipped(self, dihedral, row, expected):
+        indexes, head_tail = dihedral.getFlipped(row)
+        assert expected == (*indexes, *head_tail.flatten())
 
 
 class TestBond:
