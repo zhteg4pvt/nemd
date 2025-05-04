@@ -13,7 +13,7 @@ NAME_ELEMENTS = {SI: [SI]}
 
 
 @functools.cache
-def get_file(elements, struct=None):
+def get_file(elements=None, struct=None):
     """
     Get the force field file for the given elements.
 
@@ -23,9 +23,7 @@ def get_file(elements, struct=None):
     :param struct `stillinger.Struct`: the structure to retrieve elements from.
     :return str: the force field pathname.
     """
-    if not elements:
-        elements = struct.masses.element
-    elements = set(elements)
+    elements = set(elements if elements else struct.masses.element)
     for name, supported in NAME_ELEMENTS.items():
         if elements.difference(supported):
             continue

@@ -114,9 +114,8 @@ class Atom(Charge):
 
 class BondIndex(np.ndarray):
     """
-    This class maps the row values (value1, value2) to the corresponding index
-    of an array (index). The mapping is done by sparse matrix, which is fast and
-    memory-efficient.
+    This class maps the row values (value1, value2) to the corresponding index.
+    The mapping is done by sparse matrix, which is fast and memory-efficient.
 
     1) locate the row index by value1, value2
     2) return the row indices for rows containing any of the given values.
@@ -231,7 +230,7 @@ class BondIndex(np.ndarray):
 class AngleIndex(BondIndex):
     """
     This class maps the row values (value1, value2, value3) to the corresponding
-    index of an array (index).
+    index.
 
     1) locate the row range by value2
     2) match the value1 and value3 within the range
@@ -257,7 +256,7 @@ class AngleIndex(BondIndex):
 class DihedralIndex(AngleIndex):
     """
     This class maps the row values (value1, value2, value3, value4) to the
-    corresponding index of an array (index).
+    corresponding index.
 
     1) locate the row range by value2, value3
     2) match the value1 and value4 within the range
