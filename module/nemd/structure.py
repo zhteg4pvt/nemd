@@ -18,42 +18,16 @@ class Conformer(Chem.rdchem.Conformer):
     A subclass of Chem.rdchem.Conformer with additional attributes and methods.
     """
 
-    def __init__(self, *args, mol=None, **kwargs):
+    def __init__(self, *args, mol=None, gid=0, start=0, **kwargs):
+        """
+        :param mol:  `Chem.rdchem.Mol`: the molecule this conformer belongs to.
+        :param gid int: the conformer gid.
+        :param start int: the starting global atom id.
+        """
         super().__init__(*args, **kwargs)
         self.mol = mol
-        self.gid = None
-        self.start = 0
-
-    def setUp(self, mol, cid=0, start=0):
-        """
-        Set up the conformer global id, global atoms ids, and owning molecule.
-
-        :param mol `Chem.rdchem.Mol`: the original molecule.
-        :param cid int: the conformer gid to start with.
-        :param gid int: the starting global id.
-        """
-        self.mol = mol
-        self.gid = cid
-        self.start = start
-
-    @property
-    def id_map(self):
-        """
-        Return map from atom ids to the global atom ids.
-
-        :return 'np.ndarray': the map from atom ids to global atom ids.
-        """
-        return self.GetOwningMol().id_map + self.start
-
-    @property
-    @functools.cache
-    def aids(self):
-        """
-        Return the atom ids of this conformer.
-
-        :return list of int: the atom ids of this conformer.
-        """
-        return np.where(self.id_map != -1)[0].tolist()
+        self.gid = gid
+        self.id_map = self.mol.id_map + start if self.mol else None
 
     @property
     @functools.cache
@@ -63,7 +37,7 @@ class Conformer(Chem.rdchem.Conformer):
 
         :return list of int: the global atom ids of this conformer.
         """
-        return self.id_map[self.id_map != -1].tolist()
+        return self.id_map.tolist()
 
     def HasOwningMol(self):
         """
@@ -71,7 +45,7 @@ class Conformer(Chem.rdchem.Conformer):
 
         :return `bool`: the molecule this conformer belongs to.
         """
-        return bool(self.GetOwningMol())
+        return self.mol is not None
 
     def GetOwningMol(self):
         """
@@ -85,8 +59,8 @@ class Conformer(Chem.rdchem.Conformer):
         """
         Reset the positions of the atoms to the original xyz coordinates.
         """
-        for id in range(xyz.shape[0]):
-            self.SetAtomPosition(id, xyz[id, :])
+        for idx in range(xyz.shape[0]):
+            self.SetAtomPosition(idx, xyz[idx, :])
 
 
 class Mol(Chem.rdchem.Mol):
@@ -132,17 +106,17 @@ class Mol(Chem.rdchem.Mol):
             return
         self.setUp(mol.GetConformers())
 
-    def setUp(self, confs, cid=0, start=0):
+    def setUp(self, confs, gid=0, start=0):
         """
         Set up the conformers including global ids and references.
 
         :param confs `Chem.rdchem.Conformers`: the conformers from the original
             molecule.
-        :param cid int: the conformer gid to start with.
-        :param gid int: the starting global id.
+        :param gid int: the conformer gid.
+        :param start int: the starting global atom id.
         """
         if self.struct:
-            cid, start = self.struct.getCid()
+            gid, start = self.struct.getCid()
         ConfClass = self.ConfClass
         if self.ConfWrapper is not None:
             ConfClass = self.ConfWrapper
@@ -152,11 +126,10 @@ class Mol(Chem.rdchem.Mol):
         #  coarse-grained may have multiple aids mapping to one single gid
         #  united atom may have hydrogen aid mapping to None
         self.id_map = np.arange(0, self.GetNumAtoms(), dtype=np.uint32)
-        for cid, conf in enumerate(confs, start=cid):
-            conf = ConfClass(conf)
-            conf.setUp(self, cid=np.uint32(cid), start=np.uint32(start))
+        for cid, conf in enumerate(confs, start=gid):
+            conf = ConfClass(conf, mol=self, gid=np.uint32(cid), start=start)
             self.confs.append(conf)
-            start += self.GetNumAtoms()
+            start += np.uint32(self.GetNumAtoms())
 
     def GetConformer(self, id=0):
         """
@@ -358,11 +331,11 @@ class Struct:
         """
         Get the global ids to start with.
 
-        :retrun int, int: the conformer gid, the global atom id.
+        :return int, int: the conformer gid, the global atom id.
         """
-        cid = max([x.gid for x in self.conformer] or [-1]) + 1
-        gid = max([x.id_map.max() for x in self.conformer] or [-1]) + 1
-        return cid, gid
+        gid = max([x.gid for x in self.conformer] or [-1]) + 1
+        start = max([x.id_map.max() for x in self.conformer] or [-1]) + 1
+        return gid, start
 
     @property
     def conformer(self):

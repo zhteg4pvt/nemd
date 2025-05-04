@@ -129,15 +129,13 @@ class PackedConf(GriddedConf):
         mtrx[:-1, :-1] = rotation.as_matrix()
         rdkit.Chem.rdMolTransforms.TransformConformer(self, mtrx)
 
-    def hasClash(self, aids=None):
+    def hasClash(self):
         """
         Whether the conformer has any clashes with the existing atoms.
 
-        :param aids: the conformer atom ids.
         :return bool: True if clashes are found.
         """
-        gids = self.id_map[self.aids if aids is None else aids]
-        return self.mol.struct.dist.hasClash(gids)
+        return self.mol.struct.dist.hasClash(self.gids)
 
     def reset(self):
         """
@@ -174,7 +172,7 @@ class GrownConf(PackedConf):
         """
         mol = self.GetOwningMol()
         mol.fragmentize()
-        self.init_aids = mol.init_aids.copy()
+        self.init_aids = mol.init_aids
         self.ifrag = mol.ifrag.copyInit(self)
         self.frags = [self.ifrag]
 
@@ -234,6 +232,15 @@ class GrownConf(PackedConf):
         # FIXME: Failed to fill the void with initiator too often
         logger.debug(f'Only {self.mol.struct.dist.ratio} placed')
         raise ConfError
+
+    def hasClash(self, aids):
+        """
+        Whether the conformer has any clashes with the existing atoms.
+
+        :param aids list: the conformer atom ids.
+        :return bool: True if clashes are found.
+        """
+        return self.mol.struct.dist.hasClash(self.id_map[aids])
 
     def setFrag(self, max_trial=MAX_TRIAL_PER_CONF):
         """
@@ -442,10 +449,9 @@ class GrownMol(PackedMol):
             return
         # dihe is not known and will be handled in setFragments()
         self.ifrag = Fragment(self.GetConformer())
-        frags = self.ifrag.fragments()
-        frag_aids_set = set([y for x in frags for y in x.aids])
-        all_aids = set([x.GetIdx() for x in self.GetAtoms()])
-        self.init_aids = list(all_aids.difference(frag_aids_set))
+        aids = [y for x in self.ifrag.fragments() for y in x.aids]
+        self.init_aids = list(
+            set(range(self.id_map.shape[0])).difference(aids))
 
     def findHeadTailPair(self):
         """
