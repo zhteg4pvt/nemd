@@ -89,9 +89,7 @@ class Smiles(Base):
         super().__init__(SMILES[::-1], columns=['sml', 'mp', 'hs', 'dsc'])
         mol = [rdkitutils.MolFromSmiles(x) for x in self.sml]
         self['deg'] = [list(map(self.getDeg, x.GetAtoms())) for x in mol]
-        self.mp = self.mp.map(lambda x: [x - 1 for x in x])
         hs = self.hs.dropna()
-        hs = hs.map(lambda x: {y - 1: z - 1 for y, z in x.items()})
         self.loc[hs.index, 'hs'] = hs
         self.hs = self.hs.astype(str)
 
@@ -127,8 +125,6 @@ class Charge(Base):
         self.drop([self.name], axis=1, inplace=True)
         if IDX in self.columns:
             self.set_index(IDX, inplace=True)
-            # The index starts from 1 in the .prm file
-            self.index -= 1
 
     @classmethod
     def getLines(cls, lines):
@@ -174,10 +170,6 @@ class Improper(Charge):
     COLS = ID_COLS + ['ene', 'deg', 'n_parm']
     MARKER = 'Improper Torsional Parameters'
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self[self.ID_COLS] -= 1
-
 
 class Bond(Improper):
     """
@@ -188,7 +180,7 @@ class Bond(Improper):
     MARKER = 'Bond Stretching Parameters'
 
     @property
-    def _TMAP(self):
+    def TMAP(self):
         """
         See TMAP.
         """
@@ -210,33 +202,12 @@ class Bond(Improper):
         }
 
     @property
-    def _MAP(self):
+    def MAP(self):
         """
         See MAP.
         """
         # C-OH (Tyr) is used as HO-C=O, which needs CH2-COOH map as alpha-COOH bond
         return {(26, 86): (16, 17), (26, 88): (16, 17), (86, 107): (86, 86)}
-
-    @property
-    def TMAP(self):
-        """
-        The type mapper.
-
-        :return dict: map a specific atom type a to general one
-        """
-        return {x - 1: y - 1 for x, y in self._TMAP.items()}
-
-    @property
-    def MAP(self):
-        """
-        The type mapper.
-
-        :return dict: map a pair of atom types to a more general pair
-        """
-        return {
-            tuple([x - 1 for x in x]): [x - 1 for x in y]
-            for x, y in self._MAP.items()
-        }
 
     def to_npy(self):
         """
@@ -258,7 +229,7 @@ class Angle(Bond):
     MARKER = 'Angle Bending Parameters'
 
     @property
-    def _TMAP(self):
+    def TMAP(self):
         return {
             134: 2,
             133: 17,
@@ -273,7 +244,7 @@ class Angle(Bond):
         }
 
     @property
-    def _MAP(self):
+    def MAP(self):
         return {
             (84, 107, 84): (86, 88, 86),
             (84, 107, 86): (86, 88, 83),
@@ -290,7 +261,7 @@ class Dihedral(Bond):
     MARKER = 'Torsional Parameters'
 
     @property
-    def _TMAP(self):
+    def TMAP(self):
         return {
             134: 11,
             133: 26,
@@ -307,7 +278,7 @@ class Dihedral(Bond):
         }
 
     @property
-    def _MAP(self):
+    def MAP(self):
         return {
             (26, 86): (1, 6),
             (26, 88): (1, 6),

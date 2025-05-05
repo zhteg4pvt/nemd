@@ -142,12 +142,10 @@ class BondIndex(np.ndarray):
             row = row[::-1]
         block = self.getBlock(row)
         try:
-            index = block[row[0], row[-1]]
+            return block[row[0], row[-1]]
         except IndexError:
             # Index exceeds the range
             return
-        if index != 0 or row == self.zero:
-            return index
 
     @methodtools.lru_cache()
     def getBlock(self, *args):
@@ -167,17 +165,6 @@ class BondIndex(np.ndarray):
         :return 'csr_matrix': the sparse matrix from values to the row index.
         """
         return scipy.sparse.coo_matrix((dat[0], dat[1:]), dtype=dtype).tocsr()
-
-    @methodtools.lru_cache()
-    @property
-    def zero(self):
-        """
-        Return the zero row values.
-
-        :return tuple: the row values that correspond to the zero index.
-        """
-        index = np.where(self[0] == 0)[0]
-        return tuple(self[1:, index].transpose().flatten())
 
     @methodtools.lru_cache()
     def getFlipped(self, row):
@@ -331,9 +318,7 @@ class Bond(Charge):
         """
         tids = self.getTypes(atoms)
         idx = self.row.index(tids)
-        if idx is not None:
-            return idx
-        return self.getPartial(tids, atoms)
+        return idx if idx else self.getPartial(tids, atoms)
 
     def getTypes(self, atoms):
         """

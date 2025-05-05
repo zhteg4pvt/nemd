@@ -16,7 +16,7 @@ class TestBase:
 class TestCharge:
 
     def testInit(self):
-        assert (215, 1) == oplsua.Charge().shape
+        assert (216, 1) == oplsua.Charge().shape
 
 
 class TestSmiles:
@@ -24,13 +24,13 @@ class TestSmiles:
     def testInit(self):
         smiles = oplsua.Smiles()
         assert (35, 5) == smiles.shape
-        assert {134: 135} == smiles.hs.iloc[1]
+        assert {135: 136} == smiles.hs.iloc[1]
 
 
 class TestVdw:
 
     def testInit(self):
-        assert (215, 2) == oplsua.Vdw().shape
+        assert (216, 2) == oplsua.Vdw().shape
 
 
 class TestAtom:
@@ -40,13 +40,13 @@ class TestAtom:
         return oplsua.Atom()
 
     def testInit(self, atom):
-        assert (215, 6) == atom.shape
+        assert (216, 6) == atom.shape
 
     def testAtomicNumber(self, atom):
-        assert (215, ) == atom.atomic_number.shape
+        assert (216, ) == atom.atomic_number.shape
 
     def testConnectivity(self, atom):
-        assert (215, ) == atom.connectivity.shape
+        assert (216, ) == atom.connectivity.shape
 
 
 class TestBondIndex:
@@ -55,33 +55,30 @@ class TestBondIndex:
     def bond(self):
         return oplsua.Bond().row
 
-    @pytest.mark.parametrize('row,expected', [((82, 85), 141), ((85, 82), 141),
-                                              ((85, 83), None),
-                                              ((85, 1000), None), ((0, 1), 0)])
+    @pytest.mark.parametrize('row,expected', [((83, 86), 142), ((86, 83), 142),
+                                              ((86, 84), 0),
+                                              ((86, 1000), None), ((0, 1), 0)])
     def testIndex(self, bond, row, expected):
         assert expected == bond.index(row)
 
     def testGetBlock(self, bond):
-        assert 150 == bond.getBlock().size
+        assert 151 == bond.getBlock().size
 
     def testGetCsr(self, bond):
-        assert (214, 215) == oplsua.BondIndex.getCsr(bond).shape
+        assert (215, 216) == oplsua.BondIndex.getCsr(bond).shape
 
-    def testZero(self, bond):
-        assert (0, 1) == bond.zero
-
-    @pytest.mark.parametrize('row,expected', [((106, 83), 4)])
+    @pytest.mark.parametrize('row,expected', [((107, 84), 4)])
     def testGetFlipped(self, bond, row, expected):
         indexes, head_tail = bond.getFlipped(row)
         assert expected == indexes.shape[0] == head_tail.shape[0]
 
-    @pytest.mark.parametrize('row,expected', [((106, 83), 2)])
+    @pytest.mark.parametrize('row,expected', [((107, 84), 2)])
     def testGetPartial(self, bond, row, expected):
         indexes, head_tail = bond.getPartial(row)
         assert expected == indexes.shape[0] == head_tail.shape[0]
 
     def testHeadTail(self, bond):
-        assert (150, 2) == bond.head_tail.shape
+        assert (151, 2) == bond.head_tail.shape
 
     def testFlipped(self):
         indexes = np.array([[1]])
@@ -97,11 +94,11 @@ class TestAngleIndex:
     def angle(self):
         return oplsua.Angle().row
 
-    @pytest.mark.parametrize('row,expected', [((104, 106, 106), 1)])
+    @pytest.mark.parametrize('row,expected', [((105, 107, 107), 1)])
     def testGetBlock(self, angle, row, expected):
         assert expected == angle.getBlock(row).data.size
 
-    @pytest.mark.parametrize('row,expected', [((104, 106, 106), (1, 1, 2))])
+    @pytest.mark.parametrize('row,expected', [((105, 107, 107), (1, 1, 2))])
     def testGetPartial(self, angle, row, expected):
         indexes, head_tail = angle.getPartial(row)
         assert expected == (*indexes.shape, *head_tail.shape)
@@ -113,18 +110,18 @@ class TestDihedralIndex:
     def dihedral(self):
         return oplsua.Dihedral().row
 
-    @pytest.mark.parametrize('row,expected', [((1, 0, 2, 4), 94)])
+    @pytest.mark.parametrize('row,expected', [((2, 1, 3, 5), 94)])
     def testGetBlock(self, dihedral, row, expected):
         assert expected == dihedral.getBlock(row).data.size
 
-    @pytest.mark.parametrize('stop,expected', [(False, 629), (True, 630)])
+    @pytest.mark.parametrize('stop,expected', [(False, 630), (True, 631)])
     def testGetRange(self, dihedral, stop, expected):
         assert expected == dihedral.getRange(stop=stop).max()
 
     @pytest.mark.parametrize('row,expected',
-                             [((104, 103, 106, 82), (629, 104, 82)),
-                              ((82, 106, 103, 104), (629, 82, 104)),
-                              ((0, 29, 29, 16), (502, 502, 0, 16, 16, 0))])
+                             [((105, 104, 107, 83), (630, 105, 83)),
+                              ((83, 107, 104, 105), (630, 83, 105)),
+                              ((1, 30, 30, 17), (503, 503, 1, 17, 17, 1))])
     def testGetFlipped(self, dihedral, row, expected):
         indexes, head_tail = dihedral.getFlipped(row)
         assert expected == (*indexes, *head_tail.flatten())
@@ -142,13 +139,13 @@ class TestBond:
         return [bond.GetBeginAtom(), bond.GetEndAtom()]
 
     @pytest.mark.parametrize('smiles', ['CC(C)O'])
-    @pytest.mark.parametrize('idx,expected', [(1, 142), (2, 148)])
+    @pytest.mark.parametrize('idx,expected', [(1, 143), (2, 149)])
     def testBond(self, bonds, mol, atoms, expected):
         oplsua.Typer().type(mol)
         assert expected == bonds.getMatched(atoms)
 
     @pytest.mark.parametrize('smiles', ['CC(C)O'])
-    @pytest.mark.parametrize('idx,expected', [(1, (106, 83)), (3, (103, 104))])
+    @pytest.mark.parametrize('idx,expected', [(1, (107, 84)), (3, (104, 105))])
     def testGetTypes(self, bonds, atoms, mol, expected):
         oplsua.Typer().type(mol)
         assert expected == bonds.getTypes(atoms)
@@ -156,16 +153,16 @@ class TestBond:
     def testMaps(self, bonds):
         assert [13, 6] == [len(x) for x in bonds.maps]
 
-    @pytest.mark.parametrize('tids,expected', [((106, 83), (106, 83)),
-                                               ((85, 106), (85, 85))])
+    @pytest.mark.parametrize('tids,expected', [((107, 84), (107, 84)),
+                                               ((86, 107), (86, 86))])
     def testGetCtype(self, bonds, tids, expected):
         assert expected == bonds.getCtype(tids)
 
     def testRowMap(self, bonds):
-        assert (3, 150) == bonds.row.shape
+        assert (3, 151) == bonds.row.shape
 
     @pytest.mark.parametrize('smiles,idx,tids,expected',
-                             [('CC(C)O', 1, (106, 83), 142)])
+                             [('CC(C)O', 1, (107, 84), 143)])
     def testGetPartial(self, bonds, atoms, tids, expected):
         assert expected == bonds.getPartial(tids, atoms)
 
@@ -175,7 +172,7 @@ class TestBond:
         assert expected == oplsua.Bond.getConn(mol.GetAtomWithIdx(idx))
 
     def testHasH(self, bonds):
-        assert (150, ) == bonds.has_h.shape
+        assert (151, ) == bonds.has_h.shape
 
 
 class TestDihedral:
@@ -185,8 +182,8 @@ class TestDihedral:
         return oplsua.Dihedral()
 
     @pytest.mark.parametrize('tids,expected',
-                             [((10, 25, 75, 23), (10, 25, 75, 23)),
-                              ((83, 106, 8, 106), (83, 8, 8, 106))])
+                             [((11, 26, 76, 24), (11, 26, 76, 24)),
+                              ((84, 107, 9, 107), (84, 9, 9, 107))])
     def testGetCtype(self, dihedrals, tids, expected):
         assert expected == dihedrals.getCtype(tids)
 
@@ -217,33 +214,33 @@ class TestParser:
         return oplsua.Parser()
 
     @pytest.mark.parametrize('smiles,expected',
-                             [('[Ar]', [210]),
-                              ('CC(C)O', [83, 107, 83, 103, 104]),
-                              ('[Br-].[Mg+2].[Br-]', [207, 207, 201])])
+                             [('[Ar]', [211]),
+                              ('CC(C)O', [84, 108, 84, 104, 105]),
+                              ('[Br-].[Mg+2].[Br-]', [208, 208, 202])])
     def testType(self, parser, mol, expected):
         parser.type(mol)
         assert expected == [x.GetIntProp('type_id') for x in mol.GetAtoms()]
 
     def testAtoms(self, parser):
-        assert (215, 6) == parser.atoms.shape
+        assert (216, 6) == parser.atoms.shape
 
     def testVdws(self, parser):
-        assert (215, 2) == parser.vdws.shape
+        assert (216, 2) == parser.vdws.shape
 
     def testCharges(self, parser):
-        assert (215, 1) == parser.charges.shape
+        assert (216, 1) == parser.charges.shape
 
     def testBonds(self, parser):
-        assert (150, 4) == parser.bonds.shape
+        assert (151, 4) == parser.bonds.shape
 
     def testAngles(self, parser):
-        assert (309, 5) == parser.angles.shape
+        assert (310, 5) == parser.angles.shape
 
     def testImpropers(self, parser):
         assert (76, 7) == parser.impropers.shape
 
     def testDihedrals(self, parser):
-        assert (630, 8) == parser.dihedrals.shape
+        assert (631, 8) == parser.dihedrals.shape
 
     @pytest.mark.parametrize('smiles,expected',
                              [('[Ar]', 39.948), ('CC(C)O', 60.096),
@@ -272,16 +269,16 @@ class TestTyper:
         assert expected == typer.mx
 
     @pytest.mark.parametrize('smiles,expected',
-                             [('C', 80), ('O', 77), ('CO', 105), ('CCO', 106),
-                              ('CC(C)', 85), ('CCCO', 106), ('CC(C)O', 107),
-                              ('CC(=O)C', 128), ('CCC(=O)CC', 129),
-                              ('CC(C)(C)', 87), ('CC(=O)C(C)(C)', 128),
-                              ('[Li+].[F-]', 205), ('[K+].[Br-]', 207),
-                              ('[Na+].[Cl-]', 206),
-                              ('[Br-].[Mg+2].[Br-]', 207),
-                              ('[Rb+].[Cl-].[Cs+].[Br-]', 207),
-                              ('[Ca+2].[Sr+2].[Ba+2].[Cl-]', 206),
-                              ('[He].[Ne].[Ar].[Kr].[Xe]', 212)])
+                             [('C', 81), ('O', 78), ('CO', 106), ('CCO', 107),
+                              ('CC(C)', 86), ('CCCO', 107), ('CC(C)O', 108),
+                              ('CC(=O)C', 129), ('CCC(=O)CC', 130),
+                              ('CC(C)(C)', 88), ('CC(=O)C(C)(C)', 129),
+                              ('[Li+].[F-]', 206), ('[K+].[Br-]', 208),
+                              ('[Na+].[Cl-]', 207),
+                              ('[Br-].[Mg+2].[Br-]', 208),
+                              ('[Rb+].[Cl-].[Cs+].[Br-]', 208),
+                              ('[Ca+2].[Sr+2].[Ba+2].[Cl-]', 207),
+                              ('[He].[Ne].[Ar].[Kr].[Xe]', 213)])
     def testDoTyping(self, typer, expected):
         typer.doTyping()
         atoms = typer.mol.GetAtoms()

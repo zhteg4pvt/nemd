@@ -40,7 +40,7 @@ class Mass(lmpatomic.Mass):
         :param atoms `pd.DataFrame`: the atoms.
         :return `cls`: the mass instance.
         """
-        return cls([[x.mass, f"{x.descr} {x.symbol} {x.Index + 1}"]
+        return cls([[x.mass, f"{x.descr} {x.symbol} {x.Index}"]
                     for x in atoms.itertuples()])
 
 
@@ -441,13 +441,11 @@ class Mol(lmpatomic.Mol):
         """
         # Set the bond lengths of one conformer
         tpl = self.GetConformer()
-        for type_id, *ids in self.bonds.values:
-            tpl.setBondLength(list(map(int, ids)),
-                              self.ff.bonds.loc[type_id].dist)
+        for tid, *ids in self.bonds.values:
+            tpl.setBondLength(list(map(int, ids)), self.ff.bonds.loc[tid].dist)
         # Set the angle degree of one conformer
-        for type_id, *ids in self.angles.values:
-            tpl.setAngleDeg(list(map(int, ids)),
-                            self.ff.angles.loc[type_id].deg)
+        for tid, *ids in self.angles.values:
+            tpl.setAngleDeg(list(map(int, ids)), self.ff.angles.loc[tid].deg)
 
     def setSubstructure(self):
         """
