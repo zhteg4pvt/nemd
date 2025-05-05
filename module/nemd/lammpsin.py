@@ -4,19 +4,19 @@
 This module writes Lammps in script.
 """
 import functools
-import math
 import os
 import string
 
 import numpy as np
 import scipy
 
+from nemd import builtinsutils
 from nemd import constants
 from nemd import lammpsfix
 from nemd import symbols
 
 
-class In:
+class In(builtinsutils.Object):
     """
     Class to write a LAMMPS in script.
 
@@ -69,18 +69,8 @@ class In:
         :param options 'argparse.Namespace': command line options
         """
         self.options = options
-        self.inscript = None
-        self.datafile = None
-        self.dumpfile = None
         self.fh = None
-        self.setFilenames(self.options.JOBNAME if self.options else 'lmp')
-
-    def setFilenames(self, jobname):
-        """
-        Set the filenames based on the jobname.
-
-        :param jobname str: new jobname based on which out filenames are defined
-        """
+        jobname = self.options.JOBNAME if self.options else self.name
         self.inscript = jobname + self.IN_EXT
         self.datafile = jobname + self.DATA_EXT
         self.dumpfile = jobname + self.CUSTOM_EXT
@@ -573,7 +563,7 @@ class FixWriter:
         """
         Append command for constant energy and volume.
 
-        :nstep int: run this steps for time integration.
+        :param nstep int: run this steps for time integration.
         """
         # NVT on single molecule gives nan coords (guess due to translation)
         cmd = self.FIX_NVE + self.RUN_STEP % nstep + self.UNFIX

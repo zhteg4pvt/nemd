@@ -880,12 +880,11 @@ class Struct(lmpatomic.Struct, In):
 
     Atom = Atom
 
-    def __init__(self, struct=None, options=None, **kwargs):
+    def __init__(self, *args, options=None, **kwargs):
         """
-        :param struct Struct: struct object with moelcules and conformers.
         :param options 'argparse.Namespace': parsed command line options.
         """
-        super().__init__(struct=struct, **kwargs)
+        super().__init__(*args, options=options, **kwargs)
         In.__init__(self, options=options)
         self.atm_types = None
         self.bnd_types = None
@@ -918,13 +917,11 @@ class Struct(lmpatomic.Struct, In):
         self.dihe_types[mol.dihedrals[TYPE_ID]] = True
         self.impr_types[mol.impropers[TYPE_ID]] = True
 
-    def writeData(self, nofile=False):
+    def writeData(self):
         """
         Write out a LAMMPS datafile or return the content.
-
-        :param nofile bool: return the content as a string if True.
         """
-        with io.StringIO() if nofile else open(self.datafile, 'w') as self.hdl:
+        with open(self.datafile, 'w') as self.hdl:
             self.hdl.write(f"{self.DESCR.format(style=self.V_ATOM_STYLE)}\n\n")
             # Topology counting
             self.atoms.writeCount(self.hdl)
@@ -955,7 +952,6 @@ class Struct(lmpatomic.Struct, In):
             self.angles.write(self.hdl)
             self.dihedrals.write(self.hdl)
             self.impropers.write(self.hdl)
-            return self.getContents() if nofile else None
 
     @property
     @functools.cache
@@ -1086,8 +1082,6 @@ class Struct(lmpatomic.Struct, In):
         :return float: the total weight.
         """
         return sum([x.mw * len(x.confs) for x in self.mols])
-
-    mw = molecular_weight
 
     def hasCharge(self):
         """

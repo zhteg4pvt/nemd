@@ -15,14 +15,12 @@ class Struct(lmpatomic.Struct, lammpsin.In):
     V_ATOM_STYLE = lammpsin.In.ATOMIC
     V_PAIR_STYLE = lammpsin.In.SW
 
-    def __init__(self, struct=None, options=None, **kwargs):
+    def __init__(self, *args, options=None, **kwargs):
         """
-        :param struct Struct: struct object with moelcules and conformers.
-        :param ff 'OplsParser': the force field class.
         :param options 'argparse.Namespace': parsed command line options.
         """
-        super().__init__(struct=struct, **kwargs)
-        lammpsin.In.__init__(self, options=options, **kwargs)
+        super().__init__(*args, options=options, **kwargs)
+        lammpsin.In.__init__(self, options=options)
 
     def coeff(self):
         """
@@ -31,10 +29,18 @@ class Struct(lmpatomic.Struct, lammpsin.In):
         elements = symbols.SPACE.join(self.masses.comment).strip()
         self.fh.write(f"{self.PAIR_COEFF} * * {self.ff} {elements}\n")
 
-    @property
-    def box(self):
+    def writeData(self):
         """
-        Write box information.
+        Write out a LAMMPS datafile or return the content.
         """
         # FIXME: crystal mixture and interface
-        return pbc.Box.fromParams(*self.mols[0].vecs)
+        self.box = pbc.Box.fromParams(*self.mols[0].vecs)
+        with open(self.datafile, 'w') as self.hdl:
+            self.hdl.write(f"{self.DESCR.format(style=self.V_ATOM_STYLE)}\n\n")
+            self.atoms.writeCount(self.hdl)
+            self.hdl.write("\n")
+            self.masses.writeCount(self.hdl)
+            self.hdl.write("\n")
+            self.box.write(self.hdl)
+            self.masses.write(self.hdl)
+            self.atom_blk.write(self.hdl)

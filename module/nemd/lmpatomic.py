@@ -7,7 +7,6 @@ Atoms section: atom-ID atom-type x y z
 """
 import base64
 import functools
-import io
 import re
 
 import numpy as np
@@ -41,10 +40,10 @@ class Base(pbc.Base):
     @classmethod
     def fromLines(cls, *args, index_col=0, **kwargs):
         """
-        Construct a mass instance from a list of lines.
+        Construct an instance from a list of lines.
 
         :param index_col int: Column(s) to use as row label(s)
-        :return 'Mass' or subclass instance: the mass.
+        :return 'Base' or subclass instance: an instance.
         """
         return super().fromLines(*args, index_col=index_col, **kwargs)
 
@@ -93,14 +92,14 @@ class Mass(Base):
         In addition to the parent class, add a space before and after the
         comment (e.g., 1 28.0860 # Si #).
         """
-        self[self.COMMENT] = ' ' + self[self.COMMENT] + ' '
+        self.comment = ' ' + self.comment + ' '
         super().write(*args, **kwargs)
-        self[self.COMMENT] = self[self.COMMENT].str.strip()
+        self.comment = self.comment.str.strip()
 
     @classmethod
     def fromLines(cls, *args, **kwargs):
         """
-        In addition to the parent class, strip the space wrapping the comment.
+        In addition to the parent, strip the space wrapping the comment.
 
         :return 'Mass': the mass.
         """
@@ -137,8 +136,7 @@ class XYZ(PairCoeff):
     NAME = 'XYZ'
     COLUMNS = symbols.XYZU
     # https://pandas.pydata.org/docs/development/extending.html
-    _internal_names = pd.DataFrame._internal_names + ['_cached']
-    _internal_names_set = set(_internal_names)
+    _metadata = ['_cached']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -265,8 +263,6 @@ class Mol(structure.Mol):
     def setAtoms(self):
         """
         The atoms of the molecules.
-
-        :return 'Atom': Atoms with type ids and charges
         """
         type_ids = [x.GetIntProp(TYPE_ID) for x in self.GetAtoms()]
         aids = [x.GetIdx() for x in self.GetAtoms()]
@@ -296,10 +292,15 @@ class Struct(structure.Struct):
     MolClass = Mol
     DESCR = 'LAMMPS Description # {style}'
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, options=None, **kwargs):
+        """
+        :param options 'argparse.Namespace': parsed command line options.
+        """
         super().__init__(*args, **kwargs)
+        self.options = options
         # Atomic number of Og element
         self.atm_types = numpyutils.IntArray(shape=119)
+        self.box = None
 
     def setUp(self, *arg, **kwargs):
         """
@@ -309,58 +310,11 @@ class Struct(structure.Struct):
         for mol in self.mols:
             self.setTypeMap(mol)
 
-    def writeData(self, nofile=False):
-        """
-        Write out a LAMMPS datafile or return the content.
-
-        :param nofile bool: return the content as a string if True.
-        """
-        with io.StringIO() if nofile else open(self.datafile, 'w') as self.hdl:
-            self.hdl.write(f"{self.DESCR.format(style=self.V_ATOM_STYLE)}\n\n")
-            self.atoms.writeCount(self.hdl)
-            self.hdl.write("\n")
-            self.masses.writeCount(self.hdl)
-            self.hdl.write("\n")
-            self.box.write(self.hdl)
-            self.masses.write(self.hdl)
-            self.atom_blk.write(self.hdl)
-            return self.getContents() if nofile else None
-
     def setTypeMap(self, mol):
         """
         Set the type map for atom.
         """
-        atomic_num = [x.GetAtomicNum() for x in mol.GetAtoms()]
-        self.atm_types[atomic_num] = True
-
-    @property
-    @functools.cache
-    def ff(self):
-        """
-        Force field object by name and arguments.
-
-        :return str or `oplsua.Parser`: the force field file or parser.
-        """
-        if self.options is None:
-            return
-        return forcefield.get(*self.options.force_field, struct=self)
-
-    def simulation(self, *arg, **kwargs):
-        """
-        Write command to further equilibrate the system with structure
-        information considered.
-        """
-        super().simulation(*arg, atom_total=self.atom_total, **kwargs)
-
-    def getContents(self):
-        """
-        Return datafile contents in base64 encoding.
-
-        :return `bytes`: the contents of the data file in base64 encoding.
-        """
-        self.hdl.seek(0)
-        contents = base64.b64encode(self.hdl.read().encode("utf-8"))
-        return b','.join([b'lammps_datafile', contents])
+        self.atm_types[[x.GetAtomicNum() for x in mol.GetAtoms()]] = True
 
     @property
     @functools.cache
@@ -410,6 +364,18 @@ class Struct(structure.Struct):
         """
         vdws = self.ff.vdws.loc[self.atm_types.on]
         return PairCoeff([[x.ene, x.dist] for x in vdws.itertuples()])
+
+    @property
+    @functools.cache
+    def ff(self):
+        """
+        Force field object by name and arguments.
+
+        :return str or `oplsua.Parser`: the force field file or parser.
+        """
+        if self.options is None:
+            return
+        return forcefield.get(*self.options.force_field, struct=self)
 
 
 class Reader:

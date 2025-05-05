@@ -39,7 +39,7 @@ class GriddedConf(lmpfull.Conformer):
         """
         Compute the centroid of the whole conformer ar the selected atoms.
 
-        :param atom_ids list: the selected atom ids
+        :param aids list: the selected atom ids
         :param ignoreHs bool: whether to ignore Hs in the calculation.
         :return np.ndarray: the centroid of the selected atoms.
         """
@@ -58,9 +58,8 @@ class GriddedConf(lmpfull.Conformer):
         """
         Rotate the conformer by three initial vectors and three target vectors.
 
-        :param ivect 3x3 'numpy.ndarray': Each row is one initial vector
-        :param tvect 3x3 'numpy.ndarray': Each row is one corresponding target
-            vector
+        :param ivect 3x3 'np.ndarray': Each row is one initial vector
+        :param tvect 3x3 'np.ndarray': Each row is one target vector
         """
         mtrx = np.identity(4)
         rot, _ = scipy.spatial.transform.Rotation.align_vectors(tvect, ivect)
@@ -197,8 +196,8 @@ class GrownConf(PackedConf):
         """
         Get the angle degree of the given dihedral.
 
-        :param dihe tuple of int: the dihedral atom indices.
-        :param return float: the angle degree.
+        :param dihe tuple: the dihedral atom indices.
+        :return float: the angle degree.
         """
         return Chem.rdMolTransforms.GetDihedralDeg(self, *dihe)
 
@@ -517,7 +516,6 @@ class Struct(lmpfull.Struct):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.density = None
-        self.box = None
 
 
 class GriddedStruct(Struct):
@@ -527,25 +525,14 @@ class GriddedStruct(Struct):
 
     MolClass = GriddedMol
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.size = np.zeros([3])
-
     def run(self):
         """
         Set conformers for all molecules.
         """
-        self.setSize()
         self.setVectors()
         self.setBox()
         self.setConformers()
         self.setDensity()
-
-    def setSize(self):
-        """
-        Set the size as the maximum size over all molecules.
-        """
-        self.size = np.array([x.size for x in self.mols]).max(axis=0)
 
     def setVectors(self):
         """
@@ -555,26 +542,30 @@ class GriddedStruct(Struct):
             mol.setConfNumPerEdge(self.size)
             mol.setVecs(self.size)
 
+    @property
+    @functools.cache
+    def size(self):
+        """
+        Return the maximum size over all molecules.
+
+        :return `np.ndarray`: the maximum size.
+        """
+        return np.array([x.size for x in self.mols]).max(axis=0)
+
     def setBox(self):
         """
         Set the over-all periodic boundary box.
         """
-        # vectors shifts molecules by the largest box size
         total_box_num = sum(x.box_num for x in self.mols)
         edges = self.size * math.ceil(math.pow(total_box_num, 1. / 3))
         self.box = pbc.Box.fromParams(*edges, tilted=False)
-        span = self.box.span.max()
-        logger.debug(f'Cubic box of {span:.2f} {symbols.ANGSTROM} is created.')
+        logger.debug(f'Box: {self.box.span.max():.2f} {symbols.ANGSTROM}.')
 
     def setConformers(self):
         """
         Set coordinates.
         """
-        # idxes = (self.box.span / self.size).round().astype(int)
-        # idxes = [list(range(x)) for x in idxes]
-        # vectors = np.array([x * self.size for x in itertools.product(*idxes)])
         grids = [np.arange(0, x, y) for x, y in zip(self.box.span, self.size)]
-        # vectors shifts molecules by the largest box size
         meshgrid = np.meshgrid(*grids, indexing='ij')
         vectors = np.stack(meshgrid, axis=-1).reshape(-1, 3)
         np.random.shuffle(vectors)
@@ -587,7 +578,7 @@ class GriddedStruct(Struct):
         """
         vol = self.box.span.prod()
         vol *= math.pow(scipy.constants.centi / scipy.constants.angstrom, 3)
-        self.density = self.mw * scipy.constants.Avogadro / vol
+        self.density = self.molecular_weight * scipy.constants.Avogadro / vol
 
 
 class DensityError(RuntimeError):
@@ -652,7 +643,7 @@ class PackedStruct(Struct):
         """
         Set periodic boundary box.
         """
-        vol = self.mw / self.density / scipy.constants.Avogadro
+        vol = self.molecular_weight / self.density / scipy.constants.Avogadro
         edge = math.pow(vol, 1 / 3)  # centimeter
         edge *= scipy.constants.centi / scipy.constants.angstrom
         self.box = self.Box.fromParams(edge, tilted=False)
