@@ -23,7 +23,6 @@ import rdkit
 import scipy
 from rdkit import Chem
 
-from nemd import constants
 from nemd import dist
 from nemd import lmpfull
 from nemd import logutils
@@ -45,10 +44,10 @@ class GriddedConf(lmpfull.Conformer):
         """
         weights = None
         if aids is not None:
-            bv = rdkit.DataStructs.ExplicitBitVect(self.GetNumAtoms())
-            bv.SetBitsFromList(aids)
+            vec = rdkit.DataStructs.ExplicitBitVect(self.GetNumAtoms())
+            vec.SetBitsFromList(aids)
             weights = rdkit.rdBase._vectd()
-            weights.extend(bv.ToList())
+            weights.extend(vec.ToList())
         centroid = Chem.rdMolTransforms.ComputeCentroid(self,
                                                         weights=weights,
                                                         ignoreHs=ignoreHs)
@@ -70,10 +69,11 @@ class GriddedConf(lmpfull.Conformer):
         """
         Do translation on this conformer using this vector.
 
-        :param vect 'numpy.ndarray': 3D translational vector
+        :param vec 'np.ndarray': 3D translational vector
+        :param transform 'np.ndarray': 3D transformation matrix
         """
         if transform is None:
-            transform = constants.EYE4.copy()
+            transform = np.eye(4)
         if vec is not None:
             transform[:-1, -1] = vec
         Chem.rdMolTransforms.TransformConformer(self, transform)

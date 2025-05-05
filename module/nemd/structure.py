@@ -334,21 +334,9 @@ class Struct:
         return (x for y in self.mols for x in y.confs)
 
     @property
-    def atom(self):
-        """
-        Return generator of all atoms from mols.
-
-        Note: the number of these atoms is different atom_total as atom_total
-        includes atoms from all conformers.
-
-        :return generator of Chem.rdchem.Atom: the atoms from all molecules.
-        """
-        return (y for x in self.mols for y in x.GetAtoms())
-
-    @property
     def atom_total(self):
         """
-        The total number of atoms in all conformers across all molecules.
+        Return The total number of atoms in all conformers across all molecules.
 
         :return int: the total number of atoms in all conformers.
         """
@@ -357,7 +345,7 @@ class Struct:
     @property
     def conformer_total(self):
         """
-        Get the total number of conformers.
+        Return the total number of conformers.
 
         :return int: the total number of conformers.
         """

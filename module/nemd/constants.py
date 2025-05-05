@@ -5,10 +5,8 @@
 """
 Shared numerical constants.
 """
-import numpy as np
 from scipy import constants
 
-EYE4 = np.eye(4)
 ANG_TO_CM = constants.angstrom / constants.centi
 NANO_TO_FEMTO = constants.nano / constants.femto
 FEMTO_TO_PICO = constants.femto / constants.pico

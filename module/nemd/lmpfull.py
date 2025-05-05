@@ -7,7 +7,6 @@ Atoms section: atom-ID molecule-ID atom-type q x y z
 """
 import collections
 import functools
-import io
 import itertools
 
 import numpy as np
@@ -31,7 +30,6 @@ class Mass(lmpatomic.Mass):
     Decorate the parent class with additional comments.
     """
 
-    CMT_FMT = "{descr} {symbol} {idx}"
     CMT_RE = r'(\w+)\s+\d+$'
 
     @classmethod
@@ -42,11 +40,8 @@ class Mass(lmpatomic.Mass):
         :param atoms `pd.DataFrame`: the atoms.
         :return `cls`: the mass instance.
         """
-        mass = [x.mass for x in atoms.itertuples()]
-        cmt = [
-            f"{x.descr} {x.symbol} {x.Index + 1}" for x in atoms.itertuples()
-        ]
-        return cls({cls.MASS: mass, cls.COMMENT: cmt})
+        return cls([[x.mass, f"{x.descr} {x.symbol} {x.Index + 1}"]
+                    for x in atoms.itertuples()])
 
 
 class BondCoeff(lmpatomic.PairCoeff):
@@ -176,9 +171,7 @@ class Angle(Bond):
     ID_COLS = [ATOM1, ATOM2, ATOM3]
     COLUMNS = [TYPE_ID] + ID_COLS
     LABEL = 'angles'
-    # https://pandas.pydata.org/docs/development/extending.html
-    _internal_names = pd.DataFrame._internal_names + ['id_map']
-    _internal_names_set = set(_internal_names)
+    _metadata = ['id_map']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -190,11 +183,11 @@ class Angle(Bond):
         """
         return super(Angle, self).getPairs(step=step)
 
-    def select(self, atom_ids):
+    def select(self, aids):
         """
         Get the angles indexes from atom ids.
 
-        :param atom_ids `numpy.ndarray`: each row is atom ids from one angle
+        :param aids `numpy.ndarray`: each row is atom ids from one angle
         :return Angle: the selected angles matching the input atom ids.
         """
         if self.id_map is None:
@@ -204,13 +197,13 @@ class Angle(Bond):
             self.id_map[col1, col2, col3] = self.index
             self.id_map[col3, col2, col1] = self.index
 
-        return self.loc[self.id_map[tuple(np.transpose(atom_ids))]]
+        return self.loc[self.id_map[tuple(np.transpose(aids))]]
 
     def getIndex(self, func):
         """
         Get the index of the angle with the lowest energy.
 
-        :param key func: a function to get the angle energy from the type.
+        :param func `func`: a function to get the angle energy from the type.
         :return int: the index of the angle with the lowest energy.
         """
         return min(self.index, key=lambda x: func(self.loc[x].type_id))

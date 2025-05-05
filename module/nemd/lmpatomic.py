@@ -9,6 +9,7 @@ import base64
 import functools
 import re
 
+import methodtools
 import numpy as np
 import pandas as pd
 
@@ -33,7 +34,7 @@ class Base(pbc.Base):
         """
         Write the count with the label appended.
 
-        :param hdl `_io.TextIOWrapper` or `_io.StringIO`: write to this handler
+        :param hdl `_io.TextIOWrapper`: write to this handler
         """
         fh.write(f'{self.shape[0]} {self.LABEL}\n')
 
@@ -52,17 +53,10 @@ class Mass(Base):
     """
     The masses class for each type of atoms.
     """
-
     NAME = 'Masses'
-    MASS = 'mass'
-    COMMENT = 'comment'
-    COLUMNS = [MASS, COMMENT]
+    COLUMNS = ['mass', 'comment']
     CMT_RE = r'^(\w+)$'
     LABEL = 'atom types'
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._element = None
 
     @classmethod
     def fromAtoms(cls, atoms):
@@ -74,18 +68,15 @@ class Mass(Base):
         """
         return cls([[x.atomic_weight, x.Index] for x in atoms.itertuples()])
 
+    @methodtools.lru_cache()
     @property
     def element(self):
         """
         Set and cache the element of the atom types.
 
-        :return: the element of the atom types.
-        :rtype: 'numpy.ndarray'
+        :return 'numpy.ndarray': the element of the atom types.
         """
-        if self._element is not None:
-            return self._element
-        self._element = self.comment.str.extract(self.CMT_RE).values.flatten()
-        return self._element
+        return self.comment.str.extract(self.CMT_RE).values.flatten()
 
     def write(self, *args, **kwargs):
         """
@@ -198,12 +189,10 @@ class Atom(XYZ):
         """
         Concatenate the instances and re-index the row from 1.
 
-        :param objs: the instances to concatenate.
-        :type objs: list of (sub-)class instances.
-        :return: the concatenated data
-        :rtype: (sub-)class instances
+        :param objs `list`: the (sub-)class instances to concatenate.
+        :return (sub-)class instances: the concatenated data
         """
-        if not len(objs):
+        if not objs:
             return cls()
         return pd.concat(objs, ignore_index=ignore_index, **kwargs)
 
@@ -268,10 +257,6 @@ class Mol(structure.Mol):
         aids = [x.GetIdx() for x in self.GetAtoms()]
         self.atoms = Atom({ATOM1: aids, TYPE_ID: type_ids})
 
-    def GetPositions(self):
-        return np.concatenate([x.GetPositions() for x in self.confs],
-                              dtype=np.float32)
-
     @property
     @functools.cache
     def ff(self):
@@ -324,7 +309,7 @@ class Struct(structure.Struct):
 
         :return `Atom`: information such as global ids, type ids, and coordinates.
         """
-        return AtomBlock(self.atoms.astype(np.float32).join(self.xyz))
+        return AtomBlock(self.atoms.astype(float).join(self.xyz))
 
     @property
     @functools.cache
@@ -579,16 +564,11 @@ class Reader:
         """
         Returns a boolean where two arrays are equal within a tolerance
 
-        :param other: the other data reader to compare against.
-        :type other: float
-        :param atol: The relative tolerance parameter (see Notes).
-        :type atol: float
-        :param rtol: The absolute tolerance parameter (see Notes).
-        :type rtol: float
-        :param equal_nan: If True, NaNs are considered close.
-        :type equal_nan: bool
-        :return: whether two data are close.
-        :rtype: bool
+        :param other `float`: the other data reader to compare against.
+        :param atol `float`: The relative tolerance parameter (see Notes).
+        :param rtol `float`: The absolute tolerance parameter (see Notes).
+        :param equal_nan `bool`: If True, NaNs are considered close.
+        :return `bool`: whether two data are close.
         """
         if not isinstance(other, Reader):
             return False
