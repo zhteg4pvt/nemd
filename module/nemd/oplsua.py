@@ -601,7 +601,7 @@ class Parser:
         :return float: the total molecular weight.
         """
         tids = [x.GetIntProp(TYPE_ID) for x in mol.GetAtoms()]
-        return round(sum(self.atoms.mass.values[tids]), 4)
+        return round(sum(self.atoms.atomic_weight.values[tids]), 4)
 
     @classmethod
     @functools.cache

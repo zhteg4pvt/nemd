@@ -55,7 +55,6 @@ class Mass(Base):
     """
     NAME = 'Masses'
     COLUMNS = ['mass', 'comment']
-    CMT_RE = r'^(\w+)$'
     LABEL = 'atom types'
 
     @classmethod
@@ -66,17 +65,18 @@ class Mass(Base):
         :param atoms `pd.DataFrame`: the atoms.
         :return `cls`: the mass instance.
         """
-        return cls([[x.atomic_weight, x.Index] for x in atoms.itertuples()])
+        return cls([[x.atomic_weight, x.symbol] for x in atoms.itertuples()])
 
     @methodtools.lru_cache()
     @property
-    def element(self):
+    def element(self, rex=r'^(\w+)'):
         """
         Set and cache the element of the atom types.
 
+        :param rex str: the regular expression to extract the symbol
         :return 'numpy.ndarray': the element of the atom types.
         """
-        return self.comment.str.extract(self.CMT_RE).values.flatten()
+        return self.comment.str.extract(rex).values.flatten()
 
     def write(self, *args, **kwargs):
         """
@@ -338,7 +338,7 @@ class Struct(structure.Struct):
 
         :return `Mass`: mass of each type of atom.
         """
-        return Mass.fromAtoms(table.TABLE.iloc[self.atm_types.on])
+        return Mass.fromAtoms(table.TABLE.iloc[self.atm_types.on].reset_index())
 
     @property
     def pair_coeffs(self):

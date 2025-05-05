@@ -18,17 +18,17 @@ LAMMPS Description # full
 
 Masses
 
-1 15.0350 # CH3 Isobutane C 84 #
-2 14.0270 # CH2 n-Butane C 86 #
-3 13.0190 # CH Isobutane C 88 #
-4 12.0110 # C Carboxylic Acid C 133 #
-5 15.9990 # =O Carboxylic Acid O 134 #
-6 15.9990 # -O- Carboxylic Acid O 135 #
-7 1.0080 # H Carboxylic Acid H 136 #
-8 14.0070 # NR2 Tertiary Amide N 148 #
-9 15.9990 # O Amide Carbonyl O 151 #
-10 13.0190 # CH Formamide C 153 #
-11 15.0350 # CH3 N,N-DiMe Amide C 156 #
+1 15.0350 # C CH3 Isobutane 84 #
+2 14.0270 # C CH2 n-Butane 86 #
+3 13.0190 # C CH Isobutane 88 #
+4 12.0110 # C C Carboxylic Acid 133 #
+5 15.9990 # O =O Carboxylic Acid 134 #
+6 15.9990 # O -O- Carboxylic Acid 135 #
+7 1.0080 # H H Carboxylic Acid 136 #
+8 14.0070 # N NR2 Tertiary Amide 148 #
+9 15.9990 # O O Amide Carbonyl 151 #
+10 13.0190 # C CH Formamide 153 #
+11 15.0350 # C CH3 N,N-DiMe Amide 156 #
 
 Pair Coeffs
 
@@ -170,7 +170,7 @@ Atoms
 85 5 2 0.0000 10.4558 10.5619 12.7744
 86 5 2 0.0800 9.9948 10.3745 14.2170
 87 5 4 0.5500 8.9262 9.2989 14.3494
-88 5 5 -0.5000 8.0417 9.2133 13.5003
+88 5 5 -0.5000 8.0418 9.2133 13.5003
 89 5 6 -0.5800 9.0634 8.5013 15.4473
 90 5 7 0.4500 8.7329 7.6264 15.3118
 91 6 11 0.2850 7.0484 2.1628 2.8158

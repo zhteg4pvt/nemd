@@ -18,7 +18,7 @@ LAMMPS Description # full
 
 Masses
 
-1 39.9480 # Argon Atom Ar 211 #
+1 39.9480 # Ar Argon Atom 211 #
 
 Pair Coeffs
 

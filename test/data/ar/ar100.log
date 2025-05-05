@@ -1,0 +1,35 @@
+..........Options..........
+cru: [Ar]
+cru_num: 1
+mol_num: 100
+buffer: None
+density: 0.0016
+method: grow
+substruct: None
+force_field: OPLSUA TIP3P
+timestep: 1
+stemp: 10
+temp: 300
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 0.1
+prod_time: 0.1
+prod_ens: NVE
+seed: 6
+no_minimize: False
+rigid_bond: None
+rigid_angle: None
+NAME: ar100
+JOBNAME: ar100
+INTERAC: False
+PYTHON: 2
+CPU: None
+DEBUG: False
+JobStart: 18:27:26 05/05/2025
+...........................
+[18:27:26] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
+Data file written into ar100.data
+In script written into ar100.in
+Finished.
+18:27:35 05/05/2025

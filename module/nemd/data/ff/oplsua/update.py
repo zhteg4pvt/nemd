@@ -152,7 +152,7 @@ class Atom(Vdw):
     """
     The class to hold VDW information.
     """
-    COLS = [IDX, 'formula', 'descr', 'Z', 'mass', 'conn', 'symbol']
+    COLS = [IDX, 'formula', 'descr', 'Z', 'atomic_weight', 'conn', 'symbol']
     MARKER = 'Atom Type Definitions'
 
     def __init__(self, *args, **kwargs):

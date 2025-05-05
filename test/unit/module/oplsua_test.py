@@ -258,7 +258,7 @@ class TestParser:
 class TestTyper:
 
     @pytest.fixture
-    def typer(self, smiles, mol):
+    def typer(self, mol):
         typer = oplsua.Typer()
         typer.setUp(mol)
         return typer

@@ -30,18 +30,15 @@ class Mass(lmpatomic.Mass):
     Decorate the parent class with additional comments.
     """
 
-    CMT_RE = r'(\w+)\s+\d+$'
-
     @classmethod
     def fromAtoms(cls, atoms):
         """
-        Construct a mass instance from atoms.
-
-        :param atoms `pd.DataFrame`: the atoms.
-        :return `cls`: the mass instance.
+        See parent.
         """
-        return cls([[x.mass, f"{x.descr} {x.symbol} {x.Index}"]
-                    for x in atoms.itertuples()])
+        masses = super().fromAtoms(atoms)
+        masses.comment = masses.comment.str.cat(atoms.descr.values, sep=' ')
+        masses.comment = masses.comment.str.cat(map(str, atoms.index), sep=' ')
+        return masses
 
 
 class BondCoeff(lmpatomic.PairCoeff):

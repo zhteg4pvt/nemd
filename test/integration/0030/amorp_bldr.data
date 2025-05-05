@@ -18,10 +18,10 @@ LAMMPS Description # full
 
 Masses
 
-1 85.4680 # Rb+ Rubidium Ion Rb 200 #
-2 132.9050 # Cs+ Cesium Ion Cs 201 #
-3 35.4530 # Cl- Chloride Ion Cl 207 #
-4 79.9040 # Br- Bromide Ion Br 208 #
+1 85.4680 # Rb Rb+ Rubidium Ion 200 #
+2 132.9050 # Cs Cs+ Cesium Ion 201 #
+3 35.4530 # Cl Cl- Chloride Ion 207 #
+4 79.9040 # Br Br- Bromide Ion 208 #
 
 Pair Coeffs
 

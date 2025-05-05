@@ -18,7 +18,7 @@ LAMMPS Description # full
 
 Masses
 
-1 16.0430 # CH4 Methane C 81 #
+1 16.0430 # C CH4 Methane 81 #
 
 Pair Coeffs
 
