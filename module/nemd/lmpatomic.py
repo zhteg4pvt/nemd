@@ -301,18 +301,13 @@ class Struct(structure.Struct):
         # Atomic number of Og element
         self.atm_types = numpyutils.IntArray(shape=119)
 
-    def addMol(self, mol):
+    def setUp(self, *arg, **kwargs):
         """
-        Add a molecule to the structure.
-
-        :param mol: add this molecule to the structure
-        :type mol: Mol
-        :return: the added molecule
-        :rtype: Mol
+        See parent.
         """
-        mol = super().addMol(mol)
-        self.setTypeMap(mol)
-        return mol
+        super().setUp(*arg, **kwargs)
+        for mol in self.mols:
+            self.setTypeMap(mol)
 
     def writeData(self, nofile=False):
         """
@@ -395,7 +390,7 @@ class Struct(structure.Struct):
 
         :return `XYZ`: the atom coordinates.
         """
-        return XYZ(np.concatenate([x.GetPositions() for x in self.molecules]))
+        return XYZ(np.concatenate([x.GetPositions() for x in self.mols]))
 
     @property
     def masses(self):

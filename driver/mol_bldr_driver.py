@@ -64,7 +64,7 @@ class Grid(logutils.Base):
         """
         if not self.options.substruct or self.options.substruct[1] is not None:
             return
-        val = self.struct.molecules[0].GetConformer().measure()
+        val = self.struct.mols[0].GetConformer().measure()
         if val is not None:
             self.log(f"{self.options.substruct[0]} {val}")
             return

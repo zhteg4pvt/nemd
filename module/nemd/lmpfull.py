@@ -988,7 +988,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return 'np.ndarray': bond types and bonded atom ids.
         """
-        bonds = [x.getBonds() for x in self.molecules]
+        bonds = [x.getBonds() for x in self.mols]
         return Bond.concatenate(bonds, type_map=self.bnd_types)
 
     @property
@@ -999,7 +999,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return 'np.ndarray': angle types and connected atom ids.
         """
-        angles = [x.getAngles() for x in self.molecules]
+        angles = [x.getAngles() for x in self.mols]
         return Angle.concatenate(angles, type_map=self.ang_types)
 
     @property
@@ -1010,7 +1010,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return 'np.ndarray': dihedral types and connected atom ids.
         """
-        dihes = [x.getDihedrals() for x in self.molecules]
+        dihes = [x.getDihedrals() for x in self.mols]
         return Dihedral.concatenate(dihes, type_map=self.dihe_types)
 
     @property
@@ -1021,7 +1021,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return 'np.ndarray': improper types and connected atom ids.
         """
-        imprps = [x.getImpropers() for x in self.molecules]
+        imprps = [x.getImpropers() for x in self.mols]
         return Improper.concatenate(imprps, type_map=self.impr_types)
 
     @property
@@ -1085,7 +1085,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return float: the total weight.
         """
-        return sum([x.mw * len(x.confs) for x in self.molecules])
+        return sum([x.mw * len(x.confs) for x in self.mols])
 
     mw = molecular_weight
 
@@ -1103,7 +1103,7 @@ class Struct(lmpatomic.Struct, In):
         """
         if self.options.substruct is None or self.options.substruct[1] is None:
             return
-        gids = self.molecules[0].getSubstructMatch(gid=True)
+        gids = self.mols[0].getSubstructMatch(gid=True)
         if gids is None:
             return None
         geo = f"{gids.name} {' '.join(map(str, gids + 1))}"
@@ -1114,7 +1114,7 @@ class Struct(lmpatomic.Struct, In):
         Write fix shake command to enforce constant bond length and angel values.
         """
         if self.options.rigid_bond is None and self.options.rigid_angle is None:
-            data = [x.getRigid() for x in self.molecules]
+            data = [x.getRigid() for x in self.mols]
             bonds, angles = list(map(list, zip(*data)))
             bonds = Bond.concat([x for x in bonds if not x.empty])
             angles = Angle.concat([x for x in angles if not x.empty])
@@ -1273,7 +1273,7 @@ class Reader(lmpatomic.Reader):
 
     @property
     @functools.cache
-    def molecules(self):
+    def mols(self):
         """
         The atom ids grouped by molecules.
 

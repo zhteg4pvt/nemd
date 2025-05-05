@@ -7,8 +7,7 @@ from nemd import sw
 
 class TestFunc:
 
-    STRUCT = stillinger.Struct()
-    STRUCT.addMol(Chem.MolFromSmiles('[Si]'))
+    STRUCT = stillinger.Struct.fromMols([Chem.MolFromSmiles('[Si]')])
 
     @pytest.mark.parametrize('elements,struct,expected',
                              [(('Si', ), None, 'Si.sw'),

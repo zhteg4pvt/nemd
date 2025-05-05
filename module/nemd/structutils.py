@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 import rdkit
 import scipy
+from rdkit import Chem
 
 from nemd import constants
 from nemd import dist
@@ -48,8 +49,9 @@ class GriddedConf(lmpfull.Conformer):
             bv.SetBitsFromList(aids)
             weights = rdkit.rdBase._vectd()
             weights.extend(bv.ToList())
-        centroid = rdkit.Chem.rdMolTransforms.ComputeCentroid(
-            self, weights=weights, ignoreHs=ignoreHs)
+        centroid = Chem.rdMolTransforms.ComputeCentroid(self,
+                                                        weights=weights,
+                                                        ignoreHs=ignoreHs)
         return np.array([centroid.x, centroid.y, centroid.z])
 
     def rotate(self, ivect, tvect):
@@ -63,7 +65,7 @@ class GriddedConf(lmpfull.Conformer):
         mtrx = np.identity(4)
         rot, _ = scipy.spatial.transform.Rotation.align_vectors(tvect, ivect)
         mtrx[:-1, :-1] = rot.as_matrix()
-        rdkit.Chem.rdMolTransforms.TransformConformer(self, mtrx)
+        Chem.rdMolTransforms.TransformConformer(self, mtrx)
 
     def translate(self, vec=None, transform=None):
         """
@@ -75,7 +77,7 @@ class GriddedConf(lmpfull.Conformer):
             transform = constants.EYE4.copy()
         if vec is not None:
             transform[:-1, -1] = vec
-        rdkit.Chem.rdMolTransforms.TransformConformer(self, transform)
+        Chem.rdMolTransforms.TransformConformer(self, transform)
 
 
 class ConfError(RuntimeError):
@@ -127,7 +129,7 @@ class PackedConf(GriddedConf):
         mtrx = np.identity(4)
         rotation = scipy.spatial.transform.Rotation.random(random_state=seed)
         mtrx[:-1, :-1] = rotation.as_matrix()
-        rdkit.Chem.rdMolTransforms.TransformConformer(self, mtrx)
+        Chem.rdMolTransforms.TransformConformer(self, mtrx)
 
     def hasClash(self):
         """
@@ -198,7 +200,7 @@ class GrownConf(PackedConf):
         :param dihe tuple of int: the dihedral atom indices.
         :param return float: the angle degree.
         """
-        return rdkit.Chem.rdMolTransforms.GetDihedralDeg(self, *dihe)
+        return Chem.rdMolTransforms.GetDihedralDeg(self, *dihe)
 
     @functools.cache
     def getNumFrags(self):
@@ -335,7 +337,7 @@ class GrownConf(PackedConf):
 
 class GriddedMol(lmpfull.Mol):
     """
-    A subclass of rdkit.Chem.rdchem.Mol to handle gridded conformers.
+    A subclass of Chem.rdchem.Mol to handle gridded conformers.
     """
 
     ConfClass = GriddedConf
@@ -414,7 +416,7 @@ class GriddedMol(lmpfull.Mol):
 
 class PackedMol(lmpfull.Mol):
     """
-    A subclass of rdkit.Chem.rdchem.Mol with additional attributes and methods.
+    A subclass of Chem.rdchem.Mol with additional attributes and methods.
     """
 
     ConfClass = PackedConf
@@ -543,13 +545,13 @@ class GriddedStruct(Struct):
         """
         Set the size as the maximum size over all molecules.
         """
-        self.size = np.array([x.size for x in self.molecules]).max(axis=0)
+        self.size = np.array([x.size for x in self.mols]).max(axis=0)
 
     def setVectors(self):
         """
         Set translational vectors based on the box for all molecules.
         """
-        for mol in self.molecules:
+        for mol in self.mols:
             mol.setConfNumPerEdge(self.size)
             mol.setVecs(self.size)
 
@@ -558,7 +560,7 @@ class GriddedStruct(Struct):
         Set the over-all periodic boundary box.
         """
         # vectors shifts molecules by the largest box size
-        total_box_num = sum(x.box_num for x in self.molecules)
+        total_box_num = sum(x.box_num for x in self.mols)
         edges = self.size * math.ceil(math.pow(total_box_num, 1. / 3))
         self.box = pbc.Box.fromParams(*edges, tilted=False)
         span = self.box.span.max()
@@ -576,7 +578,7 @@ class GriddedStruct(Struct):
         meshgrid = np.meshgrid(*grids, indexing='ij')
         vectors = np.stack(meshgrid, axis=-1).reshape(-1, 3)
         np.random.shuffle(vectors)
-        for mol in self.molecules:
+        for mol in self.mols:
             vectors = mol.setConformers(vectors)
 
     def setDensity(self):
@@ -880,20 +882,13 @@ class GrownStruct(PackedStruct):
     MAX_TRIAL_PER_DENSITY = 10
     Box = GrownBox
 
-    def finalize(self):
+    def setUp(self, *args, **kwargs):
         """
-        See parent class.
+        See parent.
         """
-        super().finalize()
-        self.fragmentize()
-
-    def fragmentize(self):
-        """
-        Break the molecule into the smallest rigid fragments.
-        """
+        super().setUp(*args, **kwargs)
         if all([x.ifrag for x in self.conformer]):
             return
-
         for conf in self.conformer:
             conf.fragmentize()
         total_frag_num = sum([x.getNumFrags() for x in self.conformer])
@@ -1225,7 +1220,7 @@ class GridConfWrapper(lmpfull.Conformer):
 
 class GriddedMol2(GriddedMol):
     """
-    A subclass of rdkit.Chem.rdchem.Mol to handle gridded conformers.
+    A subclass of Chem.rdchem.Mol to handle gridded conformers.
     """
 
     ConfWrapper = GridConfWrapper

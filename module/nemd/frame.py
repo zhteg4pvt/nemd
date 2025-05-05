@@ -122,7 +122,7 @@ class Frame(Base):
         if dreader is None:
             return
         # The unwrapped xyz can directly perform molecule center operation
-        for gids in dreader.molecules.values():
+        for gids in dreader.mols.values():
             center = self[gids, :].mean(axis=0)
             self[gids, :] += (center % self.box.span) - center
 

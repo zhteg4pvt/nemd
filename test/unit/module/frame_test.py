@@ -80,7 +80,7 @@ class TestFrame:
         assert broken_bonds == (mbond > 2)
         if mbond > 2:
             return
-        centers = [frm[x, :].mean(axis=0) for x in dreader.molecules.values()]
+        centers = [frm[x, :].mean(axis=0) for x in dreader.mols.values()]
         centers = np.array(centers)
         inbox = (centers.max(axis=0) - centers.min(axis=0)) < frm.box.span
         assert inbox.all()

@@ -142,7 +142,7 @@ class Moiety(cru.Moiety):
                 atom.SetBoolProp(structutils.GrownMol.POLYM_HT, True)
                 implicit_h = atom.GetIntProp(symbols.IMPLICIT_H) + 1
                 atom.SetIntProp(symbols.IMPLICIT_H, implicit_h)
-        # FIXME: support multiple tails bonded to the copies of mols
+        # FIXME: support multiple tails bonded to the copies of molecules
         # Increase the residue number of the mol
         nums = [x.GetMonomerInfo().GetResidueNumber() for x in self.GetAtoms()]
         res_num = max(nums or [0]) + 1
