@@ -9,6 +9,7 @@ import collections
 import functools
 import itertools
 
+import methodtools
 import numpy as np
 import pandas as pd
 from rdkit import Chem
@@ -16,6 +17,7 @@ from rdkit import Chem
 from nemd import lammpsin
 from nemd import lmpatomic
 from nemd import numpyutils
+from nemd import oplsua
 from nemd import symbols
 
 TYPE_ID = lmpatomic.TYPE_ID
@@ -27,7 +29,7 @@ ATOM4 = 'atom4'
 
 class Mass(lmpatomic.Mass):
     """
-    Decorate the parent class with additional comments.
+    See parent.
     """
 
     @classmethod
@@ -43,7 +45,7 @@ class Mass(lmpatomic.Mass):
 
 class BondCoeff(lmpatomic.PairCoeff):
     """
-    The bond coefficients between bonded atoms in the system.
+    The bond coefficients between bonded atoms.
     """
     NAME = 'Bond Coeffs'
     LABEL = 'bond types'
@@ -51,20 +53,20 @@ class BondCoeff(lmpatomic.PairCoeff):
 
 class AngleCoeff(lmpatomic.Base):
     """
-    The angle coefficients between bonded atoms in the system.
+    The angle coefficients between bonded atoms.
     """
     NAME = 'Angle Coeffs'
-    COLUMNS = [lmpatomic.ENE, 'deg']
     LABEL = 'angle types'
+    COLUMNS = [lmpatomic.ENE, 'deg']
 
 
 class DihedralCoeff(AngleCoeff):
     """
-    The dihedral coefficients between bonded atoms in the system.
+    The dihedral coefficients between bonded atoms.
     """
     NAME = 'Dihedral Coeffs'
-    COLUMNS = ['k1', 'k2', 'k3', 'k4']
     LABEL = 'dihedral types'
+    COLUMNS = ['k1', 'k2', 'k3', 'k4']
 
 
 class ImproperCoeff(AngleCoeff):
@@ -72,31 +74,40 @@ class ImproperCoeff(AngleCoeff):
     The improper coefficients between bonded atoms in the system.
     """
     NAME = 'Improper Coeffs'
-    COLUMNS = ['k', 'd', 'n']
     LABEL = 'improper types'
+    COLUMNS = ['k', 'd', 'n']
 
 
 class Charge(lmpatomic.XYZ):
     """
     The charge of every atom.
     """
-
     NAME = 'Charge'
     COLUMNS = ['charge']
 
 
 class Atom(lmpatomic.Atom):
     """
-    See parent class.
+    See parent.
     """
-
     MOL_ID = 'mol_id'
     COLUMNS = [ATOM1, MOL_ID, TYPE_ID]
+
+    @classmethod
+    def fromAtoms(cls, atoms, idx=0):
+        """
+        Construct an instance from atoms.
+
+        :param atoms `iterator` of 'rdkit.Chem.rdchem.Atom': the atoms.
+        :param idx int: the molecule id.
+        :return `cls`: the instance.
+        """
+        return cls([[x.GetIdx(), idx, x.GetIntProp(TYPE_ID)] for x in atoms])
 
 
 class AtomBlock(lmpatomic.AtomBlock):
     """
-    See parent class.
+    See parent.
     """
     ID_COLS = [Atom.MOL_ID]
     TYPE_COL = [TYPE_ID]
@@ -104,39 +115,36 @@ class AtomBlock(lmpatomic.AtomBlock):
     FMT = '%i %i %i %.4f %.4f %.4f %.4f'
 
 
-class Bond(Atom):
+class Bond(lmpatomic.Atom):
     """
     The bond information including the bond type and the atom ids.
     """
-
     NAME = 'Bonds'
+    LABEL = 'bonds'
     ID_COLS = [ATOM1, ATOM2]
     COLUMNS = [TYPE_ID] + ID_COLS
-    DEFAULT_DTYPE = np.uint32
-    LABEL = 'bonds'
     FMT = '%i'
+    SLICE = slice(1, None)
 
-    def __init__(self,
-                 data=None,
-                 type_ids=None,
-                 aids=None,
-                 dtype=DEFAULT_DTYPE,
-                 **kwargs):
+    def __init__(self, data=None, dtype=np.uint32, **kwargs):
         """
-        :param data: ndarray, Iterable, dict, or DataFrame
-        :type data: the content to create dataframe
-        :param type_ids: type ids of the aids
-        :type type_ids: list of int
-        :param aids: each sublist contains atom ids matching with one type id
-        :type aids: list of list
-        :param dtype: 'the data type of the Series
-        :type dtype: 'type'
+        :param data ndarray, dict, or DataFrame: the content to create dataframe
+        :param dtype 'type': the data type of the Series
         """
-        if data is None and type_ids is not None and aids is not None:
-            data = [[x] + y for x, y in zip(type_ids, aids)]
         if data is None:
             data = {x: pd.Series(dtype=dtype) for x in self.COLUMNS}
-        super().__init__(data=data, **kwargs)
+        super().__init__(data=data, **kwargs, dtype=dtype)
+
+    @classmethod
+    def fromAtoms(cls, atoms, ff):
+        """
+        Type the topology.
+
+        :param atoms list: each sublist contains atoms of certain topology.
+        :param ff `oplsua.[Bond|Angle|Dihedral|Improper]`: force field block.
+        :return `cls`: the bond | angle | diehdral | improper information.
+        """
+        return cls([[ff.match(x)] + [y.GetIdx() for y in x] for x in atoms])
 
     def getPairs(self, step=1):
         """
@@ -165,14 +173,9 @@ class Angle(Bond):
     """
 
     NAME = 'Angles'
+    LABEL = 'angles'
     ID_COLS = [ATOM1, ATOM2, ATOM3]
     COLUMNS = [TYPE_ID] + ID_COLS
-    LABEL = 'angles'
-    _metadata = ['id_map']
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.id_map = None
 
     def getPairs(self, step=2):
         """
@@ -180,50 +183,64 @@ class Angle(Bond):
         """
         return super(Angle, self).getPairs(step=step)
 
-    def select(self, aids):
+    @classmethod
+    def fromAtoms(cls, atoms, ff, impropers):
         """
-        Get the angles indexes from atom ids.
-
-        :param aids `numpy.ndarray`: each row is atom ids from one angle
-        :return Angle: the selected angles matching the input atom ids.
+        See parent.
         """
-        if self.id_map is None:
-            shape = 0 if self.empty else self[self.ID_COLS].max().max() + 1
-            self.id_map = np.zeros([shape] * len(self.ID_COLS), dtype=int)
-            col1, col2, col3 = tuple(np.transpose(self[self.ID_COLS].values))
-            self.id_map[col1, col2, col3] = self.index
-            self.id_map[col3, col2, col1] = self.index
+        angles = super().fromAtoms(atoms, ff)
+        # Drop angles due to the improper angles
+        angles.dropImproper(impropers.getAngles(), ff.ene.to_dict())
+        return angles
 
-        return self.loc[self.id_map[tuple(np.transpose(aids))]]
-
-    def getIndex(self, func):
+    def dropImproper(self, angles, ene):
         """
-        Get the index of the angle with the lowest energy.
+        Drop the angle of the lowest energy in each row.
 
-        :param func `func`: a function to get the angle energy from the type.
-        :return int: the index of the angle with the lowest energy.
+        e.g. NH3 if all three H-N-H angles are defined, you cannot control out
+        of plane mode.
+
+        Two conditions are satisfied:
+            1) the number of internal geometry variables is Nv= 3N_atom – 6
+            2) each variable can be perturbed independently of the other variables
+        For the case of ammonia, 3 bond lengths N-H1, N-H2, N-H3, the two bond
+        angles θ1 = H1-N-H2 and θ2 = H1-N-H3, and the ω = H2-H1-N-H3
+        ref: Atomic Forces for Geometry-Dependent Point Multi-pole and Gaussian
+        Multi-xpole Models
+
+        :param angles nx3x3 np.ndarray: each sublist contains three angles.
+        :param ene `pd.Series`: type ids -> the energy.
         """
-        return min(self.index, key=lambda x: func(self.loc[x].type_id))
+        indices = [[self.row.index(tuple(y)) for y in x] for x in angles]
+        index = [self.type_id.loc[x].map(ene).idxmin() for x in indices]
+        self.drop(index=index, inplace=True)
+
+    @methodtools.lru_cache()
+    @property
+    def row(self):
+        """
+        The mapping from the values of a row to the index.
+
+        :return `oplsua.BondIndex` (sub-)class: the mapping object.
+        """
+        return oplsua.AngleIndex(self[self.ID_COLS].reset_index())
 
 
 class Dihedral(Bond):
     """
     The dihedral angle information including the dihedral type and the atom ids.
     """
-
     NAME = 'Dihedrals'
+    LABEL = 'dihedrals'
     ID_COLS = [ATOM1, ATOM2, ATOM3, ATOM4]
     COLUMNS = [TYPE_ID] + ID_COLS
-    LABEL = 'dihedrals'
 
     def getPairs(self, step=3):
         """
         Get the atom pairs from each topology connectivity.
 
-        :param step: the step when slicing the atom ids
-        :type step: int
-        :return: the atom pairs
-        :rtype: list of tuple
+        :param step int: the step when slicing the atom ids
+        :return list of tuple: the atom pairs
         """
         return super(Dihedral, self).getPairs(step=step)
 
@@ -232,32 +249,24 @@ class Improper(Dihedral):
     """
     The improper angle information including the improper type and the atom ids.
     """
-
     NAME = 'Impropers'
     LABEL = 'impropers'
 
     def getPairs(self):
         """
-        Get the atom pairs from each topology connectivity.
-
-        :param step: the step when slicing the atom ids
-        :type step: int
-        :return: the atom pairs
-        :rtype: list of tuple
+        See parent.
         """
         ids = [itertools.combinations(x, 2) for x in self[self.ID_COLS].values]
         return [tuple(sorted(y)) for x in ids for y in x]
 
-    def getAngles(self):
+    def getAngles(self, columns=(ATOM2, ATOM1, ATOM4)):
         """
-        Get the atom pairs from each topology connectivity.
+        Get the angle from each topology connectivity.
 
-        :return: each row contains three angles by one improper angle atoms.
-        :rtype: ndarray
+        :return nx3x3 ndarray: each sublist contains three angles.
         """
-        columns = [ATOM2, ATOM1, ATOM4]
         cols = [[x, ATOM3, y] for x, y in itertools.combinations(columns, 2)]
-        return np.array([x for x in zip(*[self[x].values for x in cols])])
+        return np.stack([self[x].values for x in cols], axis=1)
 
 
 class Conformer(lmpatomic.Conformer):
@@ -269,7 +278,7 @@ class Conformer(lmpatomic.Conformer):
     @property
     def atoms(self):
         """
-        Atoms in the conformer.
+        Atoms.
 
         :return 'numpy.ndarray': information such as global ids, molecule
             ids, atom type ids, charges, coordinates.
@@ -281,36 +290,36 @@ class Conformer(lmpatomic.Conformer):
     @property
     def bonds(self):
         """
-        Bonds in the conformer.
+        Bonds.
 
-        :return `Bond`: information such as bond ids and bonded atom ids.
+        :return `Bond`: bond ids and bonded atom ids.
         """
         return self.GetOwningMol().bonds.to_numpy(id_map=self.id_map)
 
     @property
     def angles(self):
         """
-        Angles in the conformer.
+        Angles.
 
-        :return `Angle`: information such as angle ids and connected atom ids.
+        :return `Angle`: angle ids and connected atom ids.
         """
         return self.GetOwningMol().angles.to_numpy(id_map=self.id_map)
 
     @property
     def dihedrals(self):
         """
-        Dihedral angles in the conformer.
+        Dihedral angles.
 
-        :return `Dihedral`: information such as dihedral ids and connected atom ids.
+        :return `Dihedral`: dihedral ids and connected atom ids.
         """
         return self.GetOwningMol().dihedrals.to_numpy(id_map=self.id_map)
 
     @property
     def impropers(self):
         """
-        Improper angles in the conformer.
+        Improper angles.
 
-        :return `Improper`: information such as improper ids and connected atom ids.
+        :return `Improper`: improper ids and connected atom ids.
         """
         return self.GetOwningMol().impropers.to_numpy(id_map=self.id_map)
 
@@ -319,7 +328,7 @@ class Conformer(lmpatomic.Conformer):
         Set bond length of the given dihedral.
 
         :param bonded tuple of int: the bonded atom indices.
-        :param val: the bond distance.
+        :param val float: the bond distance.
         """
         Chem.rdMolTransforms.SetBondLength(self, *bonded, val)
 
@@ -328,7 +337,7 @@ class Conformer(lmpatomic.Conformer):
         Set bond length of the given dihedral.
 
         :param aids tuple of int: the atom indices in one angle.
-        :param val: the angle degree.
+        :param val float: the angle degree.
         """
         Chem.rdMolTransforms.SetAngleDeg(self, *aids, val)
 
@@ -346,7 +355,7 @@ class Conformer(lmpatomic.Conformer):
         Measure the bond length, angle degree, or dihedral angle.
 
         :param aids list of int: the atoms defining the bond or angle.
-        :return float or str: the measurement.
+        :return float: the measurement.
         """
         if not aids:
             aids = self.GetOwningMol().getSubstructMatch()
@@ -369,34 +378,29 @@ class Float(float):
     A float class providing unit and name in string representation.
     """
 
-    FMT = '{name}: {value:.2f} {unit}'
-    NAME = {2: 'distance', 3: 'angle', 4: 'dihedral'}
-    UNIT = {2: 'angstrom', 3: 'degree', 4: 'degree'}
-
-    def __new__(self, value, num=None):
+    def __init__(self, *args, num=None):
         """
-        :param value float: the measured float value.
         :param num int: the number of atoms involved in the measurement.
         """
-        return float.__new__(self, value)
-
-    def __init__(self, value, num=None):
-        """
-        :param value float: the measured float value.
-        :param num int: the number of atoms involved in the measurement.
-        """
-        float.__init__(value)
         self.num = num
 
-    def __str__(self):
+    def __new__(cls, *args, **kwargs):
+        return super().__new__(cls, *args)
+
+    def __str__(self, fmt='{name}: {value:.2f} {unit}'):
         """
+        :param fmt str: string format.
         :return str: the string representation with name and unit.
         """
-        if self.num is None:
-            return super().__str__()
-        return self.FMT.format(name=self.NAME[self.num],
-                               value=self,
-                               unit=self.UNIT[self.num])
+        match self.num:
+            case None:
+                return super().__str__()
+            case 2:
+                return fmt.format(name='distance', value=self, unit='angstrom')
+            case 3:
+                return fmt.format(name='angle', value=self, unit='degree')
+            case 4:
+                return fmt.format(name='dihedral', value=self, unit='degree')
 
 
 class Mol(lmpatomic.Mol):
@@ -404,24 +408,13 @@ class Mol(lmpatomic.Mol):
     In addition to the parent, additional methods are added for internal
     coordinate manipulations, force field parsing, and substructure matching.
     """
-
     ConfClass = Conformer
-    RES_NUM = symbols.RES_NUM
+    AtomClass = Atom
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.charges = None
-        self.bonds = None
-        self.angles = None
-        self.dihedrals = None
-        self.impropers = None
         if self.delay:
             return
-        self.setCharges()
-        self.setBonds()
-        self.setDihedrals()
-        self.setImpropers()
-        self.setAngles()
         self.setInternal()
         self.setSubstructure()
         self.updateAll()
@@ -491,62 +484,40 @@ class Mol(lmpatomic.Mol):
         for conf in self.GetConformers():
             conf.setPositions(xyz)
 
-    def setAtoms(self):
+    @property
+    @functools.cache
+    def charges(self):
         """
-        The atoms of the molecules.
-
-        :return Atom: Atoms with type ids and charges
-        """
-        super().setAtoms()
-        self.atoms.insert(1, Atom.MOL_ID, 0)
-        self.atoms = Atom(self.atoms)
-
-    def setCharges(self):
-        """
-        The charges of the molecules.
+        The charges.
 
         :return list of float: the atomic charges.
         """
         type_ids = [x.GetIntProp(TYPE_ID) for x in self.GetAtoms()]
         fchrg = [self.ff.charges.loc[x] for x in type_ids]
         nchrg = [self.nbr_charge[x.GetIdx()] for x in self.GetAtoms()]
-        self.charges = [sum(x) for x in zip(fchrg, nchrg)]
+        return [sum(x) for x in zip(fchrg, nchrg)]
 
-    def setBonds(self):
+    @property
+    @functools.cache
+    def bonds(self):
         """
-        The bonds of the molecule.
+        The bonds.
+
+        :return `Bond`: the bonds
         """
         atoms = [[x.GetBeginAtom(), x.GetEndAtom()] for x in self.GetBonds()]
-        type_ids = [self.ff.bonds.getMatched(x) for x in atoms]
-        aids = [[y.GetIdx() for y in x] for x in atoms]
-        self.bonds = Bond(type_ids=type_ids, aids=aids)
+        return Bond.fromAtoms(atoms, self.ff.bonds)
 
-    def setAngles(self):
+    @property
+    @functools.cache
+    def angles(self):
         """
-        Angle force of the molecules after removal due to improper angles.
+        The angles.
 
-        e.g. NH3 if all three H-N-H angles are defined, you cannot control out
-        of plane mode.
-
-        Two conditions are satisfied:
-            1) the number of internal geometry variables is Nv= 3N_atom – 6
-            2) each variable can be perturbed independently of the other variables
-        For the case of ammonia, 3 bond lengths N-H1, N-H2, N-H3, the two bond
-        angles θ1 = H1-N-H2 and θ2 = H1-N-H3, and the ω = H2-H1-N-H3
-        ref: Atomic Forces for Geometry-Dependent Point Multi-pole and Gaussian
-        Multi-xpole Models
-
-        :return Angle: the angle types and atoms forming each angle.
+        :return Angle: the angles.
         """
-        angles = [y for x in self.GetAtoms() for y in self.getAngleAtoms(x)]
-        type_ids = [self.ff.angles.getMatched(x) for x in angles]
-        aids = [[y.GetIdx() for y in x] for x in angles]
-        angles = Angle(type_ids=type_ids, aids=aids)
-        matches = [angles.select(x) for x in self.impropers.getAngles()]
-        index = [
-            x.getIndex(lambda x: self.ff.angles.loc[x].ene) for x in matches
-        ]
-        self.angles = angles.drop(index=index)
+        atoms = [y for x in self.GetAtoms() for y in self.getAngleAtoms(x)]
+        return Angle.fromAtoms(atoms, self.ff.angles, self.impropers)
 
     def getAngleAtoms(self, atom, unique=True):
         """
@@ -562,38 +533,36 @@ class Mol(lmpatomic.Mol):
         angles = [[x, atom, y] for x, y in itertools.combinations(nbrs, 2)]
         return angles if unique else angles + [x[::-1] for x in angles]
 
-    def setDihedrals(self):
+    @property
+    @functools.cache
+    def dihedrals(self):
         """
-        Dihedral angles of the molecules.
+        The dihedral angles.
 
         :return Dihedral: the dihedral types and atoms forming each dihedral.
         """
-        dihes = [x for x in self.getDihAtoms()]
-        type_ids = [self.ff.dihedrals.getMatched(x) for x in dihes]
-        aids = [[y.GetIdx() for y in x] for x in dihes]
-        self.dihedrals = Dihedral(type_ids=type_ids, aids=aids)
+        atoms = [x for x in self.getDihAtoms()]
+        return Dihedral.fromAtoms(atoms, self.ff.dihedrals)
 
-    def setImpropers(self):
+    @property
+    @functools.cache
+    def impropers(self):
         """
-        Improper angles of the molecules.
+        The improper angles.
 
         :return Improper: the improper types and atoms forming each improper.
         """
-        imprps = [x for x in self.getImproperAtoms()]
-        type_ids = [self.ff.impropers.getMatched(x) for x in imprps]
-        aids = [[y.GetIdx() for y in x] for x in imprps]
-        self.impropers = Improper(type_ids=type_ids, aids=aids)
+        atoms = [x for x in self.getImproperAtoms()]
+        return Improper.fromAtoms(atoms, self.ff.impropers)
 
     @property
     def molecular_weight(self):
         """
-        The molecular weight of the polymer.
+        The molecular weight.
 
-        :return float: the total weight.
+        :return float: the total molecular weight.
         """
         return self.ff.molecular_weight(self)
-
-    mw = molecular_weight
 
     @property
     @functools.cache
@@ -601,12 +570,13 @@ class Mol(lmpatomic.Mol):
         """
         Balance the charge when residues are not neutral.
 
+        :return prop str:
         :return dict: the atom id and its charge due to connected neighbors.
         """
         # residual num: residual charge
         res_charge = collections.defaultdict(float)
         for atom in self.GetAtoms():
-            res_num = atom.GetIntProp(self.RES_NUM)
+            res_num = atom.GetIntProp(symbols.RES_NUM)
             type_id = atom.GetIntProp(TYPE_ID)
             res_charge[res_num] += self.ff.charges.loc[type_id].q
 
@@ -614,13 +584,13 @@ class Mol(lmpatomic.Mol):
         res_atom = {}
         for bond in self.GetBonds():
             batom, eatom = bond.GetBeginAtom(), bond.GetEndAtom()
-            bres_num = batom.GetIntProp(self.RES_NUM)
-            eres_num = eatom.GetIntProp(self.RES_NUM)
+            bres_num = batom.GetIntProp(symbols.RES_NUM)
+            eres_num = eatom.GetIntProp(symbols.RES_NUM)
             if bres_num == eres_num:
                 continue
             # Bonded atoms in different residuals
             for atom, natom in [[batom, eatom], [eatom, batom]]:
-                nres_num = natom.GetIntProp(self.RES_NUM)
+                nres_num = natom.GetIntProp(symbols.RES_NUM)
                 ncharge = res_charge[nres_num]
                 if not ncharge:
                     continue
@@ -757,40 +727,32 @@ class Mol(lmpatomic.Mol):
         """
         Bonds in the conformer.
 
-        :return `Bond`: information such as bond ids and bonded atom ids.
+        :return `Bond`: bond ids and bonded atom ids.
         """
-        if self.bonds.empty:
-            return
         return np.concatenate([x.bonds for x in self.confs])
 
     def getAngles(self):
         """
         Angles in the conformer.
 
-        :return `Angle`: information such as angle ids and connected atom ids.
+        :return `Angle`: angle ids and connected atom ids.
         """
-        if self.angles.empty:
-            return
         return np.concatenate([x.angles for x in self.confs])
 
     def getDihedrals(self):
         """
         Dihedral angles in the conformer.
 
-        :return `Dihedral`: information such as dihedral ids and connected atom ids.
+        :return `Dihedral`: dihedral ids and connected atom ids.
         """
-        if self.dihedrals.empty:
-            return
         return np.concatenate([x.dihedrals for x in self.confs])
 
     def getImpropers(self):
         """
         Improper angles in the conformer.
 
-        :return `Improper`: information such as improper ids and connected atom ids.
+        :return `Improper`: improper ids and connected atom ids.
         """
-        if self.impropers.empty:
-            return
         return np.concatenate([x.impropers for x in self.confs])
 
 
@@ -798,7 +760,6 @@ class In(lammpsin.In):
     """
     Class to write out LAMMPS in script.
     """
-
     BOND_STYLE = 'bond_style'
     ANGLE_STYLE = 'angle_style'
     DIHEDRAL_STYLE = 'dihedral_style'
@@ -865,7 +826,6 @@ class Struct(lmpatomic.Struct, In):
     """
     The structure class with interface to LAMMPS data file and in script.
     """
-
     Atom = Atom
 
     def __init__(self, *args, options=None, **kwargs):
@@ -1069,7 +1029,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return float: the total weight.
         """
-        return sum([x.mw * len(x.confs) for x in self.mols])
+        return sum([x.molecular_weight * len(x.confs) for x in self.mols])
 
     def hasCharge(self):
         """
@@ -1135,13 +1095,12 @@ class Reader(lmpatomic.Reader):
         Improper
     ]
 
-    def __init__(self, data_file=None, contents=None, delay=False):
+    def __init__(self, data_file=None, delay=False):
         """
-        :param data_file str: data file with path
-        :param contents `bytes`: parse the contents if data_file not provided.
+        :param data_file str: data file with path.
+        :param delay bool: delay the initiation.
         """
         self.data_file = data_file
-        self.contents = contents
         self.lines = None
         self.name = {}
         if delay:
@@ -1259,8 +1218,7 @@ class Reader(lmpatomic.Reader):
         """
         The atom ids grouped by molecules.
 
-        :return: keys are molecule ids and values are atom global ids.
-        :rtype: dict
+        :return dict: keys are molecule ids and values are atom global ids.
         """
         mols = collections.defaultdict(list)
         for gid, mid, in self.atoms.mol_id.items():
@@ -1276,22 +1234,15 @@ class Reader(lmpatomic.Reader):
         """
         return self.masses.mass[self.atoms.type_id].sum()
 
-    mw = molecular_weight
-
     def allClose(self, other, atol=1e-08, rtol=1e-05, equal_nan=True):
         """
         Returns a boolean where two arrays are equal within a tolerance
 
-        :param other: the other data reader to compare against.
-        :type other: float
-        :param atol: The relative tolerance parameter (see Notes).
-        :type atol: float
-        :param rtol: The absolute tolerance parameter (see Notes).
-        :type rtol: float
-        :param equal_nan: If True, NaNs are considered close.
-        :type equal_nan: bool
-        :return: whether two data are close.
-        :rtype: bool
+        :param other float: the other data reader to compare against.
+        :param atol float: The relative tolerance parameter.
+        :param rtol float: The absolute tolerance parameter.
+        :param equal_nan bool: If True, NaNs are considered close.
+        :return bool: whether two data are close.
         """
         kwargs = dict(atol=atol, rtol=rtol, equal_nan=equal_nan)
         if not super().allClose(other, **kwargs):

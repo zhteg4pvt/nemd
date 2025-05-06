@@ -369,7 +369,7 @@ class Parser(parserutils.Driver):
 
     def parse_args(self, *args, **kwargs):
         """
-        See parent class for details.
+        See parent.
         """
         options = super().parse_args(*args, **kwargs)
         if len(options.miller_indices) != 2:

@@ -142,7 +142,7 @@ class TestBond:
     @pytest.mark.parametrize('idx,expected', [(1, 143), (2, 149)])
     def testBond(self, bonds, mol, atoms, expected):
         oplsua.Typer().type(mol)
-        assert expected == bonds.getMatched(atoms)
+        assert expected == bonds.match(atoms)
 
     @pytest.mark.parametrize('smiles', ['CC(C)O'])
     @pytest.mark.parametrize('idx,expected', [(1, (107, 84)), (3, (104, 105))])
@@ -201,7 +201,7 @@ class TestImproper:
     @pytest.mark.parametrize('smiles,ids,expected',
                              [('CC(C)C', [0, 2, 1, 3], 30)])
     def testGetMatched(self, improper, atoms, expected):
-        assert expected == improper.getMatched(atoms)
+        assert expected == improper.match(atoms)
 
     def testRow(self, improper):
         assert 11 == len(improper.row)

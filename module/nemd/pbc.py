@@ -30,8 +30,6 @@ class Base(pandasutils.DataFrame):
 
     def __init__(self, data=None, columns=None, **kwargs):
         """
-        Initialize the Mass object.
-
         :param data `pandas.DataFrame` or int: the data or the row number.
         :param columns: `list`: the column labels to initialize the object.
         """

@@ -143,8 +143,7 @@ class TestCheck:
 
     @pytest.mark.parametrize('dirname,expected',
                              [('0001_test', True),
-                              ('0001_fail', 'is different from')
-                              ])
+                              ('0001_fail', 'is different from')])
     def testRun(self, check, expected):
         with osutils.chdir(check.job.dirname):
             check.run()

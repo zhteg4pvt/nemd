@@ -305,7 +305,7 @@ class Bond(Charge):
         super().__init__(*args, **kwargs)
         self.atoms = atoms
 
-    def getMatched(self, atoms):
+    def match(self, atoms):
         """
         Get force field matched bonds. The searching and approximation follows:
 
@@ -372,7 +372,7 @@ class Bond(Charge):
         The mapping from a row of atom type ids to the index of the exact match,
         or the indexes and head-tail of all partial matches.
 
-        :return `nemd.numpyutils.Bond` (sub-)class: the mapping object.
+        :return `BondIndex` (sub-)class: the mapping object.
         """
         return self.INDEX_CLASS(self[self.ID_COLS].reset_index().values)
 
@@ -469,7 +469,7 @@ class Improper(Bond):
     ID_COLS = ['id1', 'id2', 'id3', 'id4']
     ATOMIC_NUMBERS = [6, 1, 7, 8]
 
-    def getMatched(self, atoms):
+    def match(self, atoms):
         """
         Get force field matched improper by counting the symbols.
 

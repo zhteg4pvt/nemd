@@ -41,10 +41,7 @@ class Base(pbc.Base):
     @classmethod
     def fromLines(cls, *args, index_col=0, **kwargs):
         """
-        Construct an instance from a list of lines.
-
-        :param index_col int: Column(s) to use as row label(s)
-        :return 'Base' or subclass instance: an instance.
+        See parent.
         """
         return super().fromLines(*args, index_col=index_col, **kwargs)
 
@@ -80,19 +77,17 @@ class Mass(Base):
 
     def write(self, *args, **kwargs):
         """
-        In addition to the parent class, add a space before and after the
-        comment (e.g., 1 28.0860 # Si #).
+        See parent.
         """
         self.comment = ' ' + self.comment + ' '
+        # e.g., 1 28.0860 # Si #
         super().write(*args, **kwargs)
         self.comment = self.comment.str.strip()
 
     @classmethod
     def fromLines(cls, *args, **kwargs):
         """
-        In addition to the parent, strip the space wrapping the comment.
-
-        :return 'Mass': the mass.
+        See parent.
         """
         mass = super().fromLines(*args, **kwargs)
         mass.comment = mass.comment.str.strip()
@@ -103,56 +98,17 @@ class PairCoeff(Base):
     """
     The pair coefficients between non-bonded atoms in the system.
     """
-
     NAME = 'Pair Coeffs'
     COLUMNS = [ENE, 'dist']
     LABEL = 'atom types'
-
-    @classmethod
-    def fromLines(cls, *args, index_col=0, **kwargs):
-        """
-        Construct a mass instance from a list of lines.
-
-        :param index_col int: Column(s) to use as row label(s)
-        :return 'Mass' or subclass instance: the mass.
-        """
-        return super().fromLines(*args, index_col=index_col, **kwargs)
 
 
 class XYZ(PairCoeff):
     """
     The xyz coordinates of the atoms.
     """
-
     NAME = 'XYZ'
     COLUMNS = symbols.XYZU
-    # https://pandas.pydata.org/docs/development/extending.html
-    _metadata = ['_cached']
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._cached = None
-
-    def to_numpy(self, copy=True, id_map=None, index=None):
-        """
-        Covert the DataFrame to a NumPy array.
-
-        :param copy bool:the returned is not a view on another array if True
-        :param id_map 'np.ndarray': map the atom ids to global ids.
-        :return 'numpy.ndarray': the numpy array
-        """
-        if self._cached is None:
-            self._cached = super().values
-        if not self._cached.size:
-            return
-        array = self._cached.copy() if copy else self._cached
-        if not array.size or id_map is None:
-            return array
-        if index is None:
-            array[:, 1:] = id_map[array[:, 1:]]
-            return array
-        array[:, 0] = id_map[array[:, 0]]
-        return array
 
     @classmethod
     def concatenate(cls, arrays, type_map=None):
@@ -178,11 +134,11 @@ class Atom(XYZ):
     """
     The atomic information of the int data type.
     """
-
     NAME = 'Atoms'
     TYPE_COL = [TYPE_ID]
     COLUMNS = [ATOM1, TYPE_ID]
     LABEL = 'atoms'
+    SLICE = 0
 
     @classmethod
     def concat(cls, objs, ignore_index=True, **kwargs):
@@ -196,12 +152,32 @@ class Atom(XYZ):
             return cls()
         return pd.concat(objs, ignore_index=ignore_index, **kwargs)
 
+    def to_numpy(self, id_map=None):
+        """
+        Covert the DataFrame to a NumPy array.
+
+        :param id_map 'np.ndarray': map the atom ids to global ids.
+        :return 'numpy.ndarray': the numpy array
+        """
+        array = self.values.copy()
+        array[:, self.SLICE] = id_map[array[:, self.SLICE]]
+        return array
+
+    @classmethod
+    def fromAtoms(cls, atoms):
+        """
+        Construct an instance from atoms.
+
+        :param atoms `iterator` of 'Chem.rdchem.Atom': the atoms.
+        :return `cls`: the instance.
+        """
+        return cls([[x.GetIdx(), x.GetIntProp(TYPE_ID)] for x in atoms])
+
 
 class AtomBlock(Atom):
     """
     The total atomic information of all data types.
     """
-
     COLUMNS = Atom.COLUMNS + XYZ.COLUMNS
     FMT = '%i %i %.4f %.4f %.4f'
 
@@ -224,23 +200,21 @@ class Conformer(structure.Conformer):
 
         :return `'numpy.ndarray'`: information such as global ids, molecule ids.
         """
-        return self.GetOwningMol().atoms.to_numpy(id_map=self.id_map, index=0)
+        return self.GetOwningMol().atoms.to_numpy(id_map=self.id_map)
 
 
 class Mol(structure.Mol):
     """
     The molecule class for atom typing and int properties.
     """
-
     ConfClass = Conformer
+    AtomClass = Atom
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.atoms = None
         if self.delay:
             return
         self.type()
-        self.setAtoms()
 
     def type(self):
         """
@@ -249,13 +223,15 @@ class Mol(structure.Mol):
         for atom in self.GetAtoms():
             atom.SetIntProp(TYPE_ID, atom.GetAtomicNum())
 
-    def setAtoms(self):
+    @property
+    @functools.cache
+    def atoms(self):
         """
         The atoms of the molecules.
+
+        :return `Atom`: the atoms.
         """
-        type_ids = [x.GetIntProp(TYPE_ID) for x in self.GetAtoms()]
-        aids = [x.GetIdx() for x in self.GetAtoms()]
-        self.atoms = Atom({ATOM1: aids, TYPE_ID: type_ids})
+        return self.AtomClass.fromAtoms(self.GetAtoms())
 
     @property
     @functools.cache
@@ -272,7 +248,6 @@ class Struct(structure.Struct):
     """
     The structure class with interface to LAMMPS data file.
     """
-
     Atom = Atom
     MolClass = Mol
     DESCR = 'LAMMPS Description # {style}'
@@ -338,7 +313,8 @@ class Struct(structure.Struct):
 
         :return `Mass`: mass of each type of atom.
         """
-        return Mass.fromAtoms(table.TABLE.iloc[self.atm_types.on].reset_index())
+        atoms = table.TABLE.iloc[self.atm_types.on].reset_index()
+        return Mass.fromAtoms(atoms)
 
     @property
     def pair_coeffs(self):
