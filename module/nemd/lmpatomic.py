@@ -22,7 +22,6 @@ from nemd import table
 
 TYPE_ID = symbols.TYPE_ID
 ATOM1 = 'atom1'
-ENE = 'ene'
 
 
 class Base(pbc.Base):
@@ -51,8 +50,8 @@ class Mass(Base):
     The masses class for each type of atoms.
     """
     NAME = 'Masses'
-    COLUMNS = ['mass', 'comment']
     LABEL = 'atom types'
+    COLUMNS = ['mass', 'comment']
 
     @classmethod
     def fromAtoms(cls, atoms):
@@ -94,16 +93,7 @@ class Mass(Base):
         return mass
 
 
-class PairCoeff(Base):
-    """
-    The pair coefficients between non-bonded atoms in the system.
-    """
-    NAME = 'Pair Coeffs'
-    COLUMNS = [ENE, 'dist']
-    LABEL = 'atom types'
-
-
-class XYZ(PairCoeff):
+class XYZ(Base):
     """
     The xyz coordinates of the atoms.
     """
@@ -116,7 +106,7 @@ class XYZ(PairCoeff):
         Join a sequence of arrays along an existing axis.
 
         :param arrays sequence of array_like: the arrays to concatenate.
-        :param arrays 'IntArray': map the type ids as consecutive integers
+        :param type_map 'IntArray': map the type ids as consecutive integers
         :return 'pd.DataFrame': pandas DataFrame from the concatenated array.
         """
         arrays = [x for x in arrays if x is not None]
@@ -132,7 +122,7 @@ class XYZ(PairCoeff):
 
 class Atom(XYZ):
     """
-    The atomic information of the int data type.
+    The atomic information of the int type.
     """
     NAME = 'Atoms'
     TYPE_COL = [TYPE_ID]
@@ -246,7 +236,7 @@ class Mol(structure.Mol):
 
 class Struct(structure.Struct):
     """
-    The structure class with interface to LAMMPS data file.
+    The atomic structure.
     """
     Atom = Atom
     MolClass = Mol
@@ -282,7 +272,7 @@ class Struct(structure.Struct):
         """
         The total atomic information of all data types.
 
-        :return `Atom`: information such as global ids, type ids, and coordinates.
+        :return `Atom`: global ids, type ids, and coordinates.
         """
         return AtomBlock(self.atoms.astype(float).join(self.xyz))
 
@@ -315,16 +305,6 @@ class Struct(structure.Struct):
         """
         atoms = table.TABLE.iloc[self.atm_types.on].reset_index()
         return Mass.fromAtoms(atoms)
-
-    @property
-    def pair_coeffs(self):
-        """
-        Non-bonded atom pair coefficients.
-
-        :return `PairCoeff`: the interaction between non-bond atoms.
-        """
-        vdws = self.ff.vdws.loc[self.atm_types.on]
-        return PairCoeff([[x.ene, x.dist] for x in vdws.itertuples()])
 
     @property
     @functools.cache
@@ -512,16 +492,6 @@ class Reader:
         :return `XYZ`: the atom coordinates.
         """
         return self.atom_blk[XYZ.COLUMNS]
-
-    @property
-    @functools.cache
-    def pair_coeffs(self):
-        """
-        Paser the pair coefficient section.
-
-        :return `PairCoeff`: the pair coefficients between non-bonded atoms.
-        """
-        return self.fromLines(PairCoeff)
 
     def fromLines(self, BlockClass):
         """

@@ -10,7 +10,9 @@ from nemd import symbols
 
 
 class Struct(lmpatomic.Struct, lammpsin.In):
-
+    """
+    The Stillinger structure.
+    """
     V_UNITS = lammpsin.In.METAL
     V_ATOM_STYLE = lammpsin.In.ATOMIC
     V_PAIR_STYLE = lammpsin.In.SW

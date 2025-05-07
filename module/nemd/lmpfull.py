@@ -1,7 +1,7 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
-This module generates and parses a LAMMPS data file in the full atom_style.
+This module generates and parses a LAMMPS data file in the atomic atom_style.
 
 Atoms section: atom-ID molecule-ID atom-type q x y z
 """
@@ -25,6 +25,7 @@ ATOM1 = lmpatomic.ATOM1
 ATOM2 = 'atom2'
 ATOM3 = 'atom3'
 ATOM4 = 'atom4'
+ENE = 'ene'
 
 
 class Mass(lmpatomic.Mass):
@@ -43,7 +44,16 @@ class Mass(lmpatomic.Mass):
         return masses
 
 
-class BondCoeff(lmpatomic.PairCoeff):
+class PairCoeff(lmpatomic.Base):
+    """
+    The pair coefficients between non-bonded atoms.
+    """
+    NAME = 'Pair Coeffs'
+    LABEL = Mass.LABEL
+    COLUMNS = [ENE, 'dist']
+
+
+class BondCoeff(PairCoeff):
     """
     The bond coefficients between bonded atoms.
     """
@@ -51,13 +61,13 @@ class BondCoeff(lmpatomic.PairCoeff):
     LABEL = 'bond types'
 
 
-class AngleCoeff(lmpatomic.Base):
+class AngleCoeff(BondCoeff):
     """
     The angle coefficients between bonded atoms.
     """
     NAME = 'Angle Coeffs'
     LABEL = 'angle types'
-    COLUMNS = [lmpatomic.ENE, 'deg']
+    COLUMNS = [ENE, 'deg']
 
 
 class DihedralCoeff(AngleCoeff):
@@ -125,6 +135,7 @@ class Bond(lmpatomic.Atom):
     COLUMNS = [TYPE_ID] + ID_COLS
     FMT = '%i'
     SLICE = slice(1, None)
+    PAIR_STEP = 1
 
     def __init__(self, data=None, dtype=np.uint32, **kwargs):
         """
@@ -138,7 +149,7 @@ class Bond(lmpatomic.Atom):
     @classmethod
     def fromAtoms(cls, atoms, ff):
         """
-        Type the topology.
+        Construct instance from atoms and force field block.
 
         :param atoms list: each sublist contains atoms of certain topology.
         :param ff `oplsua.[Bond|Angle|Dihedral|Improper]`: force field block.
@@ -146,14 +157,13 @@ class Bond(lmpatomic.Atom):
         """
         return cls([[ff.match(x)] + [y.GetIdx() for y in x] for x in atoms])
 
-    def getPairs(self, step=1):
+    def getPairs(self):
         """
-        Get the atom pairs from each topology connectivity.
+        Get the atom pairs from topology connectivity.
 
-        :param step int: the step when slicing the atom ids
         :return list of tuple: the atom pairs
         """
-        slices = slice(None, None, step)
+        slices = slice(None, None, self.PAIR_STEP)
         return [tuple(sorted(x[slices])) for x in self[self.ID_COLS].values]
 
     def getRigid(self, has_h):
@@ -176,12 +186,7 @@ class Angle(Bond):
     LABEL = 'angles'
     ID_COLS = [ATOM1, ATOM2, ATOM3]
     COLUMNS = [TYPE_ID] + ID_COLS
-
-    def getPairs(self, step=2):
-        """
-        Set parent.
-        """
-        return super(Angle, self).getPairs(step=step)
+    PAIR_STEP = 2
 
     @classmethod
     def fromAtoms(cls, atoms, ff, impropers):
@@ -190,10 +195,10 @@ class Angle(Bond):
         """
         angles = super().fromAtoms(atoms, ff)
         # Drop angles due to the improper angles
-        angles.dropImproper(impropers.getAngles(), ff.ene.to_dict())
+        angles.dropLowest(impropers.getAngles(), ff.ene.to_dict())
         return angles
 
-    def dropImproper(self, angles, ene):
+    def dropLowest(self, angles, ene):
         """
         Drop the angle of the lowest energy in each row.
 
@@ -234,15 +239,7 @@ class Dihedral(Bond):
     LABEL = 'dihedrals'
     ID_COLS = [ATOM1, ATOM2, ATOM3, ATOM4]
     COLUMNS = [TYPE_ID] + ID_COLS
-
-    def getPairs(self, step=3):
-        """
-        Get the atom pairs from each topology connectivity.
-
-        :param step int: the step when slicing the atom ids
-        :return list of tuple: the atom pairs
-        """
-        return super(Dihedral, self).getPairs(step=step)
+    PAIR_STEP = 3
 
 
 class Improper(Dihedral):
@@ -263,6 +260,7 @@ class Improper(Dihedral):
         """
         Get the angle from each topology connectivity.
 
+        :param columns tuple: non-vertex atoms
         :return nx3x3 ndarray: each sublist contains three angles.
         """
         cols = [[x, ATOM3, y] for x, y in itertools.combinations(columns, 2)]
@@ -280,8 +278,7 @@ class Conformer(lmpatomic.Conformer):
         """
         Atoms.
 
-        :return 'numpy.ndarray': information such as global ids, molecule
-            ids, atom type ids, charges, coordinates.
+        :return 'np.ndarray': gids, mol ids, type ids, charges, xyz.
         """
         atoms = super().atoms
         atoms[:, 1] = self.gid
@@ -824,7 +821,7 @@ class In(lammpsin.In):
 
 class Struct(lmpatomic.Struct, In):
     """
-    The structure class with interface to LAMMPS data file and in script.
+    The oplsua structure.
     """
     Atom = Atom
 
@@ -834,17 +831,6 @@ class Struct(lmpatomic.Struct, In):
         """
         super().__init__(*args, options=options, **kwargs)
         In.__init__(self, options=options)
-        self.atm_types = None
-        self.bnd_types = None
-        self.ang_types = None
-        self.dihe_types = None
-        self.impr_types = None
-        self.initTypeMap()
-
-    def initTypeMap(self):
-        """
-        Initiate type map.
-        """
         self.atm_types = numpyutils.IntArray(self.ff.atoms.index.size)
         self.bnd_types = numpyutils.IntArray(self.ff.bonds.index.size)
         self.ang_types = numpyutils.IntArray(self.ff.angles.index.size)
@@ -855,15 +841,13 @@ class Struct(lmpatomic.Struct, In):
         """
         Set the type map for atoms, bonds, angles, dihedrals, and impropers.
 
-        :param mol: add this molecule to the structure
-        :type mol: Mol
+        :param mol `Mol`: add this molecule to the structure
         """
-        atypes = [x.GetIntProp(TYPE_ID) for x in mol.GetAtoms()]
-        self.atm_types[atypes] = True
-        self.bnd_types[mol.bonds[TYPE_ID]] = True
-        self.ang_types[mol.angles[TYPE_ID]] = True
-        self.dihe_types[mol.dihedrals[TYPE_ID]] = True
-        self.impr_types[mol.impropers[TYPE_ID]] = True
+        self.atm_types[[x.GetIntProp(TYPE_ID) for x in mol.GetAtoms()]] = True
+        self.bnd_types[mol.bonds.type_id] = True
+        self.ang_types[mol.angles.type_id] = True
+        self.dihe_types[mol.dihedrals.type_id] = True
+        self.impr_types[mol.impropers.type_id] = True
 
     def writeData(self):
         """
@@ -905,13 +889,9 @@ class Struct(lmpatomic.Struct, In):
     @functools.cache
     def atom_blk(self):
         """
-        The total atomic information of all data types.
-
-        :return `Atom`: information such as global ids, type ids, charges, and
-            coordinates.
+        See parent.
         """
-        return AtomBlock(
-            self.atoms.astype(np.float32).join(self.charges).join(self.xyz))
+        return AtomBlock(self.atoms.astype(float).join(self.charges).join(self.xyz))
 
     @property
     @functools.cache
@@ -976,6 +956,16 @@ class Struct(lmpatomic.Struct, In):
         :return `Mass`: mass of each type of atom.
         """
         return Mass.fromAtoms(self.ff.atoms.loc[self.atm_types.on])
+
+    @ property
+    def pair_coeffs(self):
+        """
+        Non-bonded atom pair coefficients.
+
+        :return `PairCoeff`: the interaction between non-bond atoms.
+        """
+        vdws = self.ff.vdws.loc[self.atm_types.on]
+        return PairCoeff([[x.ene, x.dist] for x in vdws.itertuples()])
 
     @property
     def bond_coeffs(self):
@@ -1090,7 +1080,7 @@ class Reader(lmpatomic.Reader):
     Mass = Mass
     AtomBlock = AtomBlock
     BLOCK_CLASSES = [
-        lmpatomic.Mass, lmpatomic.PairCoeff, BondCoeff, AngleCoeff,
+        lmpatomic.Mass, PairCoeff, BondCoeff, AngleCoeff,
         DihedralCoeff, ImproperCoeff, AtomBlock, Bond, Angle, Dihedral,
         Improper
     ]
@@ -1126,7 +1116,7 @@ class Reader(lmpatomic.Reader):
 
         :return `PairCoeff`: the pair coefficients between non-bonded atoms.
         """
-        return self.fromLines(lmpatomic.PairCoeff)
+        return self.fromLines(PairCoeff)
 
     @property
     @functools.cache
