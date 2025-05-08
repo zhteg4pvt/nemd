@@ -125,22 +125,20 @@ class Atom(XYZ):
     The atomic information of the int type.
     """
     NAME = 'Atoms'
+    LABEL = 'atoms'
     TYPE_COL = [TYPE_ID]
     COLUMNS = [ATOM1, TYPE_ID]
-    LABEL = 'atoms'
     SLICE = 0
 
     @classmethod
-    def concat(cls, objs, ignore_index=True, **kwargs):
+    def fromAtoms(cls, atoms):
         """
-        Concatenate the instances and re-index the row from 1.
+        Construct an instance from atoms.
 
-        :param objs `list`: the (sub-)class instances to concatenate.
-        :return (sub-)class instances: the concatenated data
+        :param atoms `iterator` of 'Chem.rdchem.Atom': the atoms.
+        :return `cls`: the instance.
         """
-        if not objs:
-            return cls()
-        return pd.concat(objs, ignore_index=ignore_index, **kwargs)
+        return cls([[x.GetIdx(), x.GetIntProp(TYPE_ID)] for x in atoms])
 
     def to_numpy(self, id_map=None):
         """
@@ -154,14 +152,16 @@ class Atom(XYZ):
         return array
 
     @classmethod
-    def fromAtoms(cls, atoms):
+    def concat(cls, objs, ignore_index=True, **kwargs):
         """
-        Construct an instance from atoms.
+        Concatenate the instances and re-index the row from 1.
 
-        :param atoms `iterator` of 'Chem.rdchem.Atom': the atoms.
-        :return `cls`: the instance.
+        :param objs `list`: the (sub-)class instances to concatenate.
+        :return (sub-)class instances: the concatenated data
         """
-        return cls([[x.GetIdx(), x.GetIntProp(TYPE_ID)] for x in atoms])
+        if not objs:
+            return cls()
+        return pd.concat(objs, ignore_index=ignore_index, **kwargs)
 
 
 class AtomBlock(Atom):
@@ -208,7 +208,7 @@ class Mol(structure.Mol):
 
     def type(self):
         """
-        Type atoms and set charges.
+        Type atoms.
         """
         for atom in self.GetAtoms():
             atom.SetIntProp(TYPE_ID, atom.GetAtomicNum())

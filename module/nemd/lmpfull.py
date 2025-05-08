@@ -106,13 +106,22 @@ class Atom(lmpatomic.Atom):
     @classmethod
     def fromAtoms(cls, atoms, idx=0):
         """
-        Construct an instance from atoms.
+        See parent.
 
-        :param atoms `iterator` of 'rdkit.Chem.rdchem.Atom': the atoms.
         :param idx int: the molecule id.
-        :return `cls`: the instance.
         """
         return cls([[x.GetIdx(), idx, x.GetIntProp(TYPE_ID)] for x in atoms])
+
+    def to_numpy(self, id_map=None, col_id=COLUMNS.index(MOL_ID), gid=0):
+        """
+        See parent.
+
+        :param col_id int: the column index of the molecule id
+        :param idx int: the molecule id.
+        """
+        array = super().to_numpy(id_map)
+        array[:, col_id] = gid
+        return array
 
 
 class AtomBlock(lmpatomic.AtomBlock):
@@ -120,7 +129,6 @@ class AtomBlock(lmpatomic.AtomBlock):
     See parent.
     """
     ID_COLS = [Atom.MOL_ID]
-    TYPE_COL = [TYPE_ID]
     COLUMNS = Atom.COLUMNS + Charge.COLUMNS + lmpatomic.XYZ.COLUMNS
     FMT = '%i %i %i %.4f %.4f %.4f %.4f'
 
@@ -280,9 +288,8 @@ class Conformer(lmpatomic.Conformer):
 
         :return 'np.ndarray': gids, mol ids, type ids, charges, xyz.
         """
-        atoms = super().atoms
-        atoms[:, 1] = self.gid
-        return atoms
+        return self.GetOwningMol().atoms.to_numpy(id_map=self.id_map,
+                                                  gid=self.gid)
 
     @property
     def bonds(self):
@@ -347,15 +354,12 @@ class Conformer(lmpatomic.Conformer):
         """
         Chem.rdMolTransforms.SetDihedralDeg(self, *dihe, val)
 
-    def measure(self, *aids):
+    def measure(self):
         """
         Measure the bond length, angle degree, or dihedral angle.
-
-        :param aids list of int: the atoms defining the bond or angle.
         :return float: the measurement.
         """
-        if not aids:
-            aids = self.GetOwningMol().getSubstructMatch()
+        aids = self.GetOwningMol().getSubstructMatch()
         if aids is None:
             return
 
@@ -367,7 +371,9 @@ class Conformer(lmpatomic.Conformer):
                 value = Chem.rdMolTransforms.GetAngleDeg(self, *aids)
             case 4:
                 value = Chem.rdMolTransforms.GetDihedralDeg(self, *aids)
-        return Float(value, num=num)
+            case _:
+                return
+        return Float(value, name=aids.name)
 
 
 class Float(float):
@@ -375,35 +381,25 @@ class Float(float):
     A float class providing unit and name in string representation.
     """
 
-    def __init__(self, *args, num=None):
+    def __init__(self, *args, name=None):
         """
         :param num int: the number of atoms involved in the measurement.
         """
-        self.num = num
+        self.fmt = f'{name}: {{value:.2f}}' if name else None
 
     def __new__(cls, *args, **kwargs):
         return super().__new__(cls, *args)
 
-    def __str__(self, fmt='{name}: {value:.2f} {unit}'):
+    def __str__(self):
         """
-        :param fmt str: string format.
         :return str: the string representation with name and unit.
         """
-        match self.num:
-            case None:
-                return super().__str__()
-            case 2:
-                return fmt.format(name='distance', value=self, unit='angstrom')
-            case 3:
-                return fmt.format(name='angle', value=self, unit='degree')
-            case 4:
-                return fmt.format(name='dihedral', value=self, unit='degree')
+        return self.fmt.format(value=self) if self.fmt else super().__str__()
 
 
 class Mol(lmpatomic.Mol):
     """
-    In addition to the parent, additional methods are added for internal
-    coordinate manipulations, force field parsing, and substructure matching.
+    See parent.
     """
     ConfClass = Conformer
     AtomClass = Atom
@@ -413,28 +409,26 @@ class Mol(lmpatomic.Mol):
         if self.delay:
             return
         self.setInternal()
-        self.setSubstructure()
+        self.setSubstruct()
         self.updateAll()
 
     def type(self):
         """
-        Type atoms and set charges.
+        See parent.
         """
         self.ff.type(self)
 
     def setInternal(self):
         """
-        Set the internal coordinates by adjusting bonds and angles.
+        Set the internal coordinates.
         """
-        # Set the bond lengths of one conformer
         tpl = self.GetConformer()
         for tid, *ids in self.bonds.values:
             tpl.setBondLength(list(map(int, ids)), self.ff.bonds.loc[tid].dist)
-        # Set the angle degree of one conformer
         for tid, *ids in self.angles.values:
             tpl.setAngleDeg(list(map(int, ids)), self.ff.angles.loc[tid].deg)
 
-    def setSubstructure(self):
+    def setSubstruct(self):
         """
         Set substructure.
         """
@@ -467,11 +461,14 @@ class Mol(lmpatomic.Mol):
             ids = self.GetConformer().id_map[list(ids)]
         match len(ids):
             case 2:
-                return pd.Series(ids, name='bond')
+                name = 'distance (angstrom)'
             case 3:
-                return pd.Series(ids, name='angle')
+                name = 'angle (degree)'
             case 4:
-                return pd.Series(ids, name='dihedral')
+                name = 'dihedral (degree)'
+            case _:
+                name = None
+        return pd.Series(ids, name=name)
 
     def updateAll(self):
         """
@@ -516,19 +513,15 @@ class Mol(lmpatomic.Mol):
         atoms = [y for x in self.GetAtoms() for y in self.getAngleAtoms(x)]
         return Angle.fromAtoms(atoms, self.ff.angles, self.impropers)
 
-    def getAngleAtoms(self, atom, unique=True):
+    def getAngleAtoms(self, atom):
         """
-        Get all three angle atoms from the input middle atom. The first atom has
-        a TYPE_ID smaller than the third.
+        Get all three angle atoms from the input middle atom.
 
         :param atom 'rdkit.Chem.rdchem.Atom': the middle atom
-        :return list of list: each sublist contains three atoms.
+        :return list: each sublist contains three atoms.
         """
-        nbrs = atom.GetNeighbors()
-        if len(nbrs) < 2:
-            return []
-        angles = [[x, atom, y] for x, y in itertools.combinations(nbrs, 2)]
-        return angles if unique else angles + [x[::-1] for x in angles]
+        pairs = itertools.combinations(atom.GetNeighbors(), 2)
+        return [[x, atom, y] for x, y in pairs]
 
     @property
     @functools.cache
@@ -538,8 +531,29 @@ class Mol(lmpatomic.Mol):
 
         :return Dihedral: the dihedral types and atoms forming each dihedral.
         """
-        atoms = [x for x in self.getDihAtoms()]
-        return Dihedral.fromAtoms(atoms, self.ff.dihedrals)
+        return Dihedral.fromAtoms(self.getDihAtoms(), self.ff.dihedrals)
+
+    def getDihAtoms(self):
+        """
+        Get the dihedral atoms of this molecule.
+
+        :return generator: each sublist has four atoms forming a dihedral angle.
+        """
+        to_skip = set()
+        for atom in self.GetAtoms():
+            vertex = atom.GetIdx()
+            if vertex in to_skip:
+                continue
+            to_skip.update(x.GetIdx() for x in atom.GetNeighbors())
+            # With vertex found, extend angle to dihedral
+            for angle in self.getAngleAtoms(atom):
+                for idx, point in enumerate(angle[::2]):
+                    for other in point.GetNeighbors():
+                        if other.GetIdx() != vertex:
+                            dihe = angle + [other] if idx else [other] + angle
+                            if dihe[1].GetIdx() > dihe[2].GetIdx():
+                                dihe = dihe[::-1]
+                            yield dihe
 
     @property
     @functools.cache
@@ -549,107 +563,7 @@ class Mol(lmpatomic.Mol):
 
         :return Improper: the improper types and atoms forming each improper.
         """
-        atoms = [x for x in self.getImproperAtoms()]
-        return Improper.fromAtoms(atoms, self.ff.impropers)
-
-    @property
-    def molecular_weight(self):
-        """
-        The molecular weight.
-
-        :return float: the total molecular weight.
-        """
-        return self.ff.molecular_weight(self)
-
-    @property
-    @functools.cache
-    def nbr_charge(self):
-        """
-        Balance the charge when residues are not neutral.
-
-        :return prop str:
-        :return dict: the atom id and its charge due to connected neighbors.
-        """
-        # residual num: residual charge
-        res_charge = collections.defaultdict(float)
-        for atom in self.GetAtoms():
-            res_num = atom.GetIntProp(symbols.RES_NUM)
-            type_id = atom.GetIntProp(TYPE_ID)
-            res_charge[res_num] += self.ff.charges.loc[type_id].q
-
-        res_snacharge = {x: 0 for x, y in res_charge.items() if y}
-        res_atom = {}
-        for bond in self.GetBonds():
-            batom, eatom = bond.GetBeginAtom(), bond.GetEndAtom()
-            bres_num = batom.GetIntProp(symbols.RES_NUM)
-            eres_num = eatom.GetIntProp(symbols.RES_NUM)
-            if bres_num == eres_num:
-                continue
-            # Bonded atoms in different residuals
-            for atom, natom in [[batom, eatom], [eatom, batom]]:
-                nres_num = natom.GetIntProp(symbols.RES_NUM)
-                ncharge = res_charge[nres_num]
-                if not ncharge:
-                    continue
-                # The natom lives in nres with total charge
-                snatom_charge = abs(
-                    self.ff.charges.loc[natom.GetIntProp(TYPE_ID)].q)
-                if snatom_charge > res_snacharge[nres_num]:
-                    res_atom[nres_num] = atom.GetIdx()
-                    res_snacharge[nres_num] = snatom_charge
-
-        nbr_charge = collections.defaultdict(float)
-        for res, idx in res_atom.items():
-            nbr_charge[idx] -= res_charge[res]
-        return nbr_charge
-
-    def getRigid(self):
-        """
-        The bond and angle are rigid during simulation.
-
-        :return DataFrame, DataFrame: the type ids of the rigid bonds and angles
-        """
-        bnd_types = self.bonds.getRigid(self.ff.bonds.has_h)
-        ang_types = self.angles.getRigid(self.ff.angles.has_h)
-        return bnd_types, ang_types
-
-    def getDihAtoms(self):
-        """
-        Get the dihedral atoms of this molecule.
-
-        NOTE: Flipping the order the four dihedral atoms yields the same dihedral,
-        and only one of them is returned.
-
-        :return list of list: each sublist has four atom ids forming a dihedral angle.
-        """
-        atomss = [y for x in self.GetAtoms() for y in self.getDihedralAtoms(x)]
-        # 1-2-3-4 and 4-3-2-1 are the same dihedral
-        atomss_no_flip = []
-        atom_idss = set()
-        for atoms in atomss:
-            atom_ids = tuple(x.GetIdx() for x in atoms)
-            if atom_ids in atom_idss:
-                continue
-            atom_idss.add(atom_ids)
-            atom_idss.add(atom_ids[::-1])
-            atomss_no_flip.append(atoms)
-        return atomss_no_flip
-
-    def getDihedralAtoms(self, atom):
-        """
-        Get the dihedral atoms whose torsion bonded atoms contain this atom.
-
-        :param atom 'rdkit.Chem.rdchem.Atom': the middle atom of the dihedral
-        :return generator: four atoms forming a dihedral angle at a time
-        """
-        atomss = self.getAngleAtoms(atom, unique=False)
-        for satom, matom, eatom in atomss:
-            idx = matom.GetIdx()
-            dihe_4ths = [y for x in self.getAngleAtoms(eatom) for y in x[::2]]
-            for dihe_4th in dihe_4ths:
-                if dihe_4th.GetIdx() == idx:
-                    continue
-                yield satom, matom, eatom, dihe_4th
+        return Improper.fromAtoms(self.getImproperAtoms(), self.ff.impropers)
 
     def getImproperAtoms(self):
         """
@@ -719,6 +633,67 @@ class Mol(lmpatomic.Mol):
                         atoms.append(atom)
         neighbors = [x.GetNeighbors() for x in atoms]
         return [[y[0], y[1], x, y[2]] for x, y in zip(atoms, neighbors)]
+
+    @property
+    def molecular_weight(self):
+        """
+        The molecular weight.
+
+        :return float: the total molecular weight.
+        """
+        return self.ff.molecular_weight(self)
+
+    @property
+    @functools.cache
+    def nbr_charge(self):
+        """
+        Balance the charge when residues are not neutral.
+
+        :return prop str:
+        :return dict: the atom id and its charge due to connected neighbors.
+        """
+        # residual num: residual charge
+        res_charge = collections.defaultdict(float)
+        for atom in self.GetAtoms():
+            res_num = atom.GetIntProp(symbols.RES_NUM)
+            type_id = atom.GetIntProp(TYPE_ID)
+            res_charge[res_num] += self.ff.charges.loc[type_id].q
+
+        res_snacharge = {x: 0 for x, y in res_charge.items() if y}
+        res_atom = {}
+        for bond in self.GetBonds():
+            batom, eatom = bond.GetBeginAtom(), bond.GetEndAtom()
+            bres_num = batom.GetIntProp(symbols.RES_NUM)
+            eres_num = eatom.GetIntProp(symbols.RES_NUM)
+            if bres_num == eres_num:
+                continue
+            # Bonded atoms in different residuals
+            for atom, natom in [[batom, eatom], [eatom, batom]]:
+                nres_num = natom.GetIntProp(symbols.RES_NUM)
+                ncharge = res_charge[nres_num]
+                if not ncharge:
+                    continue
+                # The natom lives in nres with total charge
+                snatom_charge = abs(
+                    self.ff.charges.loc[natom.GetIntProp(TYPE_ID)].q)
+                if snatom_charge > res_snacharge[nres_num]:
+                    res_atom[nres_num] = atom.GetIdx()
+                    res_snacharge[nres_num] = snatom_charge
+
+        nbr_charge = collections.defaultdict(float)
+        for res, idx in res_atom.items():
+            nbr_charge[idx] -= res_charge[res]
+        return nbr_charge
+
+    def getRigid(self):
+        """
+        The bond and angle are rigid during simulation.
+
+        :return DataFrame, DataFrame: the type ids of the rigid bonds and angles
+        """
+        bnd_types = self.bonds.getRigid(self.ff.bonds.has_h)
+        ang_types = self.angles.getRigid(self.ff.angles.has_h)
+        return bnd_types, ang_types
 
     def getBonds(self):
         """
@@ -891,7 +866,8 @@ class Struct(lmpatomic.Struct, In):
         """
         See parent.
         """
-        return AtomBlock(self.atoms.astype(float).join(self.charges).join(self.xyz))
+        return AtomBlock(
+            self.atoms.astype(float).join(self.charges).join(self.xyz))
 
     @property
     @functools.cache
@@ -957,7 +933,7 @@ class Struct(lmpatomic.Struct, In):
         """
         return Mass.fromAtoms(self.ff.atoms.loc[self.atm_types.on])
 
-    @ property
+    @property
     def pair_coeffs(self):
         """
         Non-bonded atom pair coefficients.
@@ -1038,7 +1014,7 @@ class Struct(lmpatomic.Struct, In):
         gids = self.mols[0].getSubstructMatch(gid=True)
         if gids is None:
             return None
-        geo = f"{gids.name} {' '.join(map(str, gids + 1))}"
+        geo = f"{gids.name.split()[0]} {' '.join(map(str, gids + 1))}"
         return self.FIX_RESTRAIN.format(geo=geo, val=self.options.substruct[1])
 
     def shake(self):
@@ -1080,9 +1056,8 @@ class Reader(lmpatomic.Reader):
     Mass = Mass
     AtomBlock = AtomBlock
     BLOCK_CLASSES = [
-        lmpatomic.Mass, PairCoeff, BondCoeff, AngleCoeff,
-        DihedralCoeff, ImproperCoeff, AtomBlock, Bond, Angle, Dihedral,
-        Improper
+        lmpatomic.Mass, PairCoeff, BondCoeff, AngleCoeff, DihedralCoeff,
+        ImproperCoeff, AtomBlock, Bond, Angle, Dihedral, Improper
     ]
 
     def __init__(self, data_file=None, delay=False):
@@ -1164,8 +1139,7 @@ class Reader(lmpatomic.Reader):
         """
         Parse the atom section for atom id and molecule id.
 
-        :return `Bond`: the bond information such as id, type id, and bonded
-            atom ids.
+        :return `Bond`: bond id, type id, and bonded atom ids.
         """
         return self.fromLines(Bond)
 
@@ -1175,8 +1149,7 @@ class Reader(lmpatomic.Reader):
         """
         Parse the angle section for angle id and constructing atoms.
 
-        :return `Angle`: the angle information such as id, type id, and atom ids
-            in the angle.
+        :return `Angle`: angle id, type id, and atom ids.
         """
         return self.fromLines(Angle)
 
@@ -1186,8 +1159,7 @@ class Reader(lmpatomic.Reader):
         """
         Parse the dihedral section for dihedral id and constructing atoms.
 
-        :return `Dihedral`: the dihedral angle information such as id, type id,
-            and atom ids in the dihedral angle.
+        :return `Dihedral`: dihedral id, type id, and atom ids.
         """
         return self.fromLines(Dihedral)
 
@@ -1197,8 +1169,7 @@ class Reader(lmpatomic.Reader):
         """
         Parse the improper section for dihedral id and constructing atoms.
 
-        :return `Improper`: the improper angle information such as id, type id,
-            and atom ids in the improper angle.
+        :return `Improper`: improper id, type id, and atom ids.
         """
         return self.fromLines(Improper)
 
