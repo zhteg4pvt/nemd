@@ -5,7 +5,6 @@ This module generates and parses a LAMMPS data file in the atomic atom_style.
 
 Atoms section: atom-ID atom-type x y z
 """
-import base64
 import functools
 import re
 
@@ -79,8 +78,7 @@ class Mass(Base):
         See parent.
         """
         self.comment = ' ' + self.comment + ' '
-        # e.g., 1 28.0860 # Si #
-        super().write(*args, **kwargs)
+        super().write(*args, **kwargs)  # e.g., 1 28.0860 # Si #
         self.comment = self.comment.str.strip()
 
     @classmethod
@@ -109,12 +107,7 @@ class XYZ(Base):
         :param type_map 'IntArray': map the type ids as consecutive integers
         :return 'pd.DataFrame': pandas DataFrame from the concatenated array.
         """
-        arrays = [x for x in arrays if x is not None]
-        if not arrays:
-            return cls()
         array = np.concatenate(arrays)
-        if type_map is None:
-            return cls(array)
         index = cls.COLUMNS.index(TYPE_ID)
         array[:, index] = type_map.index(array[:, index])
         return cls(array)
@@ -145,23 +138,11 @@ class Atom(XYZ):
         Covert the DataFrame to a NumPy array.
 
         :param id_map 'np.ndarray': map the atom ids to global ids.
-        :return 'numpy.ndarray': the numpy array
+        :return 'np.ndarray': the numpy array
         """
         array = self.values.copy()
         array[:, self.SLICE] = id_map[array[:, self.SLICE]]
         return array
-
-    @classmethod
-    def concat(cls, objs, ignore_index=True, **kwargs):
-        """
-        Concatenate the instances and re-index the row from 1.
-
-        :param objs `list`: the (sub-)class instances to concatenate.
-        :return (sub-)class instances: the concatenated data
-        """
-        if not objs:
-            return cls()
-        return pd.concat(objs, ignore_index=ignore_index, **kwargs)
 
 
 class AtomBlock(Atom):
@@ -328,71 +309,35 @@ class Reader:
     Atom = Atom
     Mass = Mass
     AtomBlock = AtomBlock
-    BLOCK_CLASSES = [Mass, AtomBlock]
+    NAMES = {x.NAME: x.LABEL for x in [Mass, AtomBlock]}
     DESCR_RE = Struct.DESCR.replace('{style}', '(.*)$')
 
-    def __init__(self, data_file=None, contents=None, delay=False):
+    def __init__(self, data_file=None):
         """
         :param data_file str: data file with path
-        :param contents `bytes`: parse the contents if data_file not provided.
-        :param delay bool: delay the reading and indexing.
         """
         self.data_file = data_file
-        self.contents = contents
-        self.lines = None
-        self.name = {}
-        if delay:
-            return
-        self.read()
-        self.index()
 
-    def read(self):
+    @property
+    @functools.cache
+    def lines(self):
         """
-        Read the data file or content into lines.
+        Return the lines.
         """
-        if self.data_file:
-            with open(self.data_file, 'r') as df_fh:
-                self.lines = df_fh.readlines()
-                return
-
-        content_type, content_string = self.contents.split(b',')
-        decoded = base64.b64decode(content_string)
-        self.lines = decoded.decode("utf-8").splitlines()
-
-    def index(self):
-        """
-        Index the lines by block markers, and Parse the descr section for
-        topo counts and type counts.
-        """
-
-        names = {}
-        for idx, line in enumerate(self.lines):
-            match = self.name_re.match(line)
-            if not match:
-                continue
-            # The block name occupies one lien and there is one empty line below
-            names[match.group()] = idx + 2
-
-        counts = {}
-        for line in self.lines[:min(names.values())]:
-            match = self.count_re.match(line)
-            if not match:
-                continue
-            # 'atoms': 1620, 'bonds': 1593, 'angles': 1566 ...
-            # 'atom types': 7, 'bond types': 6, 'angle types': 5 ...
-            counts[match.group(1)] = int(line.split(match.group(1))[0])
-
-        for block_class in self.BLOCK_CLASSES:
-            if block_class.NAME not in names:
-                continue
-            idx = names[block_class.NAME]
-            count = counts[block_class.LABEL]
-            self.name[block_class.NAME] = slice(idx, idx + count)
-
-        lines = self.lines[:min(names.values())]
+        with open(self.data_file, 'r') as df_fh:
+            raw = df_fh.readlines()
+        lines = {i: self.name_re.match(x) for i, x in enumerate(raw)}
+        # The block name occupies one lien and there is one empty line below
+        lines = {x.group(): i + 2 for i, x in lines.items() if x}
+        header = raw[:min(lines.values())]
+        # 'atoms': 1620, 'bonds': 1593, 'angles': 1566 ...
+        # 'atom types': 7, 'bond types': 6, 'angle types': 5 ...
+        matches = [self.count_re.match(x) for x in header]
+        counts = {x.group(2): int(x.group(1)) for x in matches if x}
+        lines = {x: raw[y:y + counts[self.NAMES[x]]] for x, y in lines.items()}
         # 'xlo xhi': [-7.12, 35.44], 'ylo yhi': [-7.53, 34.26], ..
-        box_lines = [i for i, x in enumerate(lines) if self.box_re.match(x)]
-        self.name[pbc.Box.LABEL] = slice(min(box_lines), max(box_lines) + 1)
+        lines[pbc.Box.LABEL] = [x for x in header if self.box_re.match(x)]
+        return lines
 
     @property
     @functools.cache
@@ -402,8 +347,7 @@ class Reader:
 
         :return 're.pattern': the name regular expression
         """
-        names = [x.NAME for x in self.BLOCK_CLASSES]
-        return re.compile(f"^{'|'.join(names)}$")
+        return re.compile(f"^{'|'.join([x for x in self.NAMES])}$")
 
     @property
     @functools.cache
@@ -413,8 +357,8 @@ class Reader:
 
         :return 're.pattern': the count regular expression
         """
-        labels = [x.LABEL for x in self.BLOCK_CLASSES]
-        return re.compile(rf"^[0-9]+\s+({'|'.join(labels)})$")
+        labels = [x for x in self.NAMES.values()]
+        return re.compile(rf"^([0-9]+)\s+({'|'.join(labels)})$")
 
     @property
     @functools.cache
@@ -478,8 +422,7 @@ class Reader:
         """
         The atom block.
 
-        :return `AtomBlock`: the atom information such as atom id, molecule id,
-            type id, charge, position, etc.
+        :return `AtomBlock`: atom id, molecule id, type id, charge, and position.
         """
         return self.fromLines(self.AtomBlock).reset_index(names=[ATOM1])
 
@@ -495,16 +438,12 @@ class Reader:
 
     def fromLines(self, BlockClass):
         """
-        Parse a block of lines from the datafile.
+        Parse a block of lines.
 
         :param BlockClass: the class to handle a block.
         :return BlockClass: the parsed block.
         """
-        name = BlockClass.NAME if BlockClass.NAME else BlockClass.LABEL
-        if name not in self.name:
-            return BlockClass.fromLines([])
-        lines = self.lines[self.name[name]]
-        return BlockClass.fromLines(lines)
+        return BlockClass.fromLines(self.lines.get(BlockClass.NAME, []))
 
     def allClose(self, other, atol=1e-08, rtol=1e-05, equal_nan=True):
         """
@@ -522,8 +461,6 @@ class Reader:
         if not self.box.allClose(other.box, **kwargs):
             return False
         if not self.masses.allClose(other.masses, **kwargs):
-            return False
-        if not self.pair_coeffs.allClose(other.pair_coeffs, **kwargs):
             return False
         if not self.atom_blk.allClose(other.atom_blk, **kwargs):
             return False

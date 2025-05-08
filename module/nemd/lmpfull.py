@@ -184,6 +184,16 @@ class Bond(lmpatomic.Atom):
         ids = self[TYPE_ID].unique()
         return pd.DataFrame({self.NAME: ids[has_h[ids]] if len(ids) else []})
 
+    @classmethod
+    def concat(cls, objs, **kwargs):
+        """
+        Concatenate the instances and re-index the row from 1.
+
+        :param objs `list`: the (sub-)class instances to concatenate.
+        :return (sub-)class instances: the concatenated data
+        """
+        return pd.concat(objs, **kwargs) if objs else cls()
+
 
 class Angle(Bond):
     """
@@ -202,24 +212,13 @@ class Angle(Bond):
         See parent.
         """
         angles = super().fromAtoms(atoms, ff)
-        # Drop angles due to the improper angles
+        # Drop angles due to the improper angles (see Mol.getImproperAtoms)
         angles.dropLowest(impropers.getAngles(), ff.ene.to_dict())
         return angles
 
     def dropLowest(self, angles, ene):
         """
         Drop the angle of the lowest energy in each row.
-
-        e.g. NH3 if all three H-N-H angles are defined, you cannot control out
-        of plane mode.
-
-        Two conditions are satisfied:
-            1) the number of internal geometry variables is Nv= 3N_atom – 6
-            2) each variable can be perturbed independently of the other variables
-        For the case of ammonia, 3 bond lengths N-H1, N-H2, N-H3, the two bond
-        angles θ1 = H1-N-H2 and θ2 = H1-N-H3, and the ω = H2-H1-N-H3
-        ref: Atomic Forces for Geometry-Dependent Point Multi-pole and Gaussian
-        Multi-xpole Models
 
         :param angles nx3x3 np.ndarray: each sublist contains three angles.
         :param ene `pd.Series`: type ids -> the energy.
@@ -296,7 +295,7 @@ class Conformer(lmpatomic.Conformer):
         """
         Bonds.
 
-        :return `Bond`: bond ids and bonded atom ids.
+        :return `np.ndarray`: bond ids and bonded atom ids.
         """
         return self.GetOwningMol().bonds.to_numpy(id_map=self.id_map)
 
@@ -305,7 +304,7 @@ class Conformer(lmpatomic.Conformer):
         """
         Angles.
 
-        :return `Angle`: angle ids and connected atom ids.
+        :return `np.ndarray`: angle ids and connected atom ids.
         """
         return self.GetOwningMol().angles.to_numpy(id_map=self.id_map)
 
@@ -314,7 +313,7 @@ class Conformer(lmpatomic.Conformer):
         """
         Dihedral angles.
 
-        :return `Dihedral`: dihedral ids and connected atom ids.
+        :return `np.ndarray`: dihedral ids and connected atom ids.
         """
         return self.GetOwningMol().dihedrals.to_numpy(id_map=self.id_map)
 
@@ -323,7 +322,7 @@ class Conformer(lmpatomic.Conformer):
         """
         Improper angles.
 
-        :return `Improper`: improper ids and connected atom ids.
+        :return `np.ndarray`: improper ids and connected atom ids.
         """
         return self.GetOwningMol().impropers.to_numpy(id_map=self.id_map)
 
@@ -357,12 +356,10 @@ class Conformer(lmpatomic.Conformer):
     def measure(self):
         """
         Measure the bond length, angle degree, or dihedral angle.
+
         :return float: the measurement.
         """
         aids = self.GetOwningMol().getSubstructMatch()
-        if aids is None:
-            return
-
         num = len(aids)
         match num:
             case 2:
@@ -433,7 +430,7 @@ class Mol(lmpatomic.Mol):
         Set substructure.
         """
         aids = self.getSubstructMatch()
-        if aids is None or self.struct.options.substruct[1] is None:
+        if aids.empty or self.struct.options.substruct[1] is None:
             return
         template = self.GetConformer()
         match len(aids):
@@ -452,10 +449,10 @@ class Mol(lmpatomic.Mol):
         :return Series: the atom ids of the substructure match.
         """
         if self.struct.options.substruct is None:
-            return
+            return pd.Series([])
         struct = Chem.MolFromSmiles(self.struct.options.substruct[0])
         if not self.HasSubstructMatch(struct):
-            return
+            return pd.Series([])
         ids = self.GetSubstructMatch(struct)
         if gid:
             ids = self.GetConformer().id_map[list(ids)]
@@ -533,27 +530,20 @@ class Mol(lmpatomic.Mol):
         """
         return Dihedral.fromAtoms(self.getDihAtoms(), self.ff.dihedrals)
 
-    def getDihAtoms(self):
+    def getDihAtoms(self, key=lambda x: x.GetBeginAtom().GetIdx()):
         """
         Get the dihedral atoms of this molecule.
 
+        :param key func: to sort the bonds.
         :return generator: each sublist has four atoms forming a dihedral angle.
         """
-        to_skip = set()
-        for atom in self.GetAtoms():
-            vertex = atom.GetIdx()
-            if vertex in to_skip:
-                continue
-            to_skip.update(x.GetIdx() for x in atom.GetNeighbors())
-            # With vertex found, extend angle to dihedral
-            for angle in self.getAngleAtoms(atom):
-                for idx, point in enumerate(angle[::2]):
-                    for other in point.GetNeighbors():
-                        if other.GetIdx() != vertex:
-                            dihe = angle + [other] if idx else [other] + angle
-                            if dihe[1].GetIdx() > dihe[2].GetIdx():
-                                dihe = dihe[::-1]
-                            yield dihe
+        for bond in sorted(self.GetBonds(), key=key):
+            second, third = bond.GetBeginAtom(), bond.GetEndAtom()
+            for first in second.GetNeighbors():
+                if first.GetIdx() != third.GetIdx():
+                    for fourth in third.GetNeighbors():
+                        if fourth.GetIdx() != second.GetIdx():
+                            yield first, second, third, fourth
 
     @property
     @functools.cache
@@ -569,21 +559,18 @@ class Mol(lmpatomic.Mol):
         """
         Set improper angles based on center atoms and neighbor symbols.
 
-        :param csymbols str: each Char is one possible center element
-
-        In short:
         1) sp2 sites and united atom CH groups (sp3 carbons) needs improper
-         (though I saw a reference using improper for sp3 N)
+        FIXME: missing improper for sp3 N with lone pair (e.g. ammonia)
         2) No rules for a center atom. (Charmm asks order for symmetricity)
         3) Number of internal geometry variables (3N_atom – 6) deletes one angle
 
-        The details are the following:
-
+        1) Improper Senario
         When the Weiner et al. (1984,1986) force field was developed, improper
         torsions were designated for specific sp2 sites, as well as for united
         atom CH groups - sp3 carbons with one implicit hydrogen.
         Ref: http://ambermd.org/Questions/improp.html
 
+        2) Center Definition
         There are no rules for a center atom. You simply define two planes, each
         defined by three atoms. The angle is given by the angle between these
         two planes. (from hess)
@@ -595,6 +582,10 @@ class Mol(lmpatomic.Mol):
         to order the other three atoms.
         ref: Symmetrization of the AMBER and CHARMM Force Fields, J. Comput. Chem.
 
+        "A New Force Field for Molecular Mechanical Simulation of Nucleic Acids
+        and Proteins" uses the third as the center.
+
+        3) Angle Deletion
         Two conditions are satisfied:
             1) the number of internal geometry variables is Nv= 3N_atom – 6
             2) each variable can be perturbed independently of the other variables
@@ -602,22 +593,17 @@ class Mol(lmpatomic.Mol):
         angles θ1 = H1-N-H2 and θ2 = H1-N-H3, and the ω = H2-H1-N-H3
         ref: Atomic Forces for Geometry-Dependent Point Multipole and Gaussian
         Multipole Models
+
+        :return generator: four atoms forming an improper angle.
         """
-        # FIXME: LAMMPS recommends the first to be the center, while the prm
-        # and literature order the third as the center.
-        # My Implementation:
-        # Use the center as the third according to "A New Force Field for
-        # Molecular Mechanical Simulation of Nucleic Acids and Proteins"
-        # No special treatment to the order of other atoms.
+        # LAMMPS recommends the first to be the center, while the prm and
+        # literature take the third as the center.
 
-        # My Reasoning: first or third functions the same for planar
-        # scenario as both 0 deg and 180 deg implies in plane. However,
-        # center as first or third defines different planes, leading to
-        # eiter ~45 deg or 120 deg as the equilibrium improper angle.
-        # 120 deg sounds more plausible and thus the third is chosen to be
-        # the center.
-
-        atoms = []
+        # First or third acts exactly the same for planar scenario as both 0 deg
+        # and 180 deg imply in plane. The chosen center defines the plane. The
+        # third as center uses 120 deg as the equilibrium improper angle, which
+        # the first as center uses 45 deg. We take the third as the center, and
+        # there is no special treatment to the order of other atoms.
         for atom in self.GetAtoms():
             if atom.GetTotalDegree() != 3:
                 continue
@@ -625,14 +611,17 @@ class Mol(lmpatomic.Mol):
                 case symbols.CARBON:
                     # Planar Sp2 carbonyl carbon (R-COOH)
                     # tetrahedral Sp3 carbon with one implicit H (CHR1R2R3)
-                    atoms.append(atom)
+                    pass
                 case symbols.NITROGEN:
                     if atom.GetHybridization(
-                    ) == Chem.rdchem.HybridizationType.SP2:
-                        # Sp2 N in Amino Acid or Dimethylformamide
-                        atoms.append(atom)
-        neighbors = [x.GetNeighbors() for x in atoms]
-        return [[y[0], y[1], x, y[2]] for x, y in zip(atoms, neighbors)]
+                    ) != Chem.rdchem.HybridizationType.SP2:
+                        continue
+                    # Sp2 N in Amino Acid or Dimethylformamide
+                case _:
+                    continue
+            atoms = list(atom.GetNeighbors())
+            atoms.insert(2, atom)
+            yield atoms
 
     @property
     def molecular_weight(self):
@@ -649,7 +638,6 @@ class Mol(lmpatomic.Mol):
         """
         Balance the charge when residues are not neutral.
 
-        :return prop str:
         :return dict: the atom id and its charge due to connected neighbors.
         """
         # residual num: residual charge
@@ -659,7 +647,7 @@ class Mol(lmpatomic.Mol):
             type_id = atom.GetIntProp(TYPE_ID)
             res_charge[res_num] += self.ff.charges.loc[type_id].q
 
-        res_snacharge = {x: 0 for x, y in res_charge.items() if y}
+        # residual num: largest atomic charge, connected atom in another residual
         res_atom = {}
         for bond in self.GetBonds():
             batom, eatom = bond.GetBeginAtom(), bond.GetEndAtom()
@@ -669,20 +657,19 @@ class Mol(lmpatomic.Mol):
                 continue
             # Bonded atoms in different residuals
             for atom, natom in [[batom, eatom], [eatom, batom]]:
-                nres_num = natom.GetIntProp(symbols.RES_NUM)
-                ncharge = res_charge[nres_num]
-                if not ncharge:
+                res_num = atom.GetIntProp(symbols.RES_NUM)
+                charge = res_charge[res_num]
+                if not charge:
                     continue
-                # The natom lives in nres with total charge
-                snatom_charge = abs(
-                    self.ff.charges.loc[natom.GetIntProp(TYPE_ID)].q)
-                if snatom_charge > res_snacharge[nres_num]:
-                    res_atom[nres_num] = atom.GetIdx()
-                    res_snacharge[nres_num] = snatom_charge
+                acharge = abs(self.ff.charges.loc[atom.GetIntProp(TYPE_ID)].q)
+                if acharge > res_atom.get(res_num, (0, 0))[0]:
+                    res_atom[res_num] = (acharge, natom.GetIdx())
 
+        # The atom of the largest charge in a residual holds the total residual
+        # charge so that connected atom in another residue can subtract it.
         nbr_charge = collections.defaultdict(float)
-        for res, idx in res_atom.items():
-            nbr_charge[idx] -= res_charge[res]
+        for res_num, (_, idx) in res_atom.items():
+            nbr_charge[idx] -= res_charge[res_num]
         return nbr_charge
 
     def getRigid(self):
@@ -695,80 +682,26 @@ class Mol(lmpatomic.Mol):
         ang_types = self.angles.getRigid(self.ff.angles.has_h)
         return bnd_types, ang_types
 
-    def getBonds(self):
-        """
-        Bonds in the conformer.
-
-        :return `Bond`: bond ids and bonded atom ids.
-        """
-        return np.concatenate([x.bonds for x in self.confs])
-
-    def getAngles(self):
-        """
-        Angles in the conformer.
-
-        :return `Angle`: angle ids and connected atom ids.
-        """
-        return np.concatenate([x.angles for x in self.confs])
-
-    def getDihedrals(self):
-        """
-        Dihedral angles in the conformer.
-
-        :return `Dihedral`: dihedral ids and connected atom ids.
-        """
-        return np.concatenate([x.dihedrals for x in self.confs])
-
-    def getImpropers(self):
-        """
-        Improper angles in the conformer.
-
-        :return `Improper`: improper ids and connected atom ids.
-        """
-        return np.concatenate([x.impropers for x in self.confs])
-
 
 class In(lammpsin.In):
     """
     Class to write out LAMMPS in script.
     """
-    BOND_STYLE = 'bond_style'
-    ANGLE_STYLE = 'angle_style'
-    DIHEDRAL_STYLE = 'dihedral_style'
-    IMPROPER_STYLE = 'improper_style'
-    SPECIAL_BONDS = 'special_bonds'
-    LJ_COUL = 'lj/coul'
-    KSPACE_STYLE = 'kspace_style'
-
-    PAIR_MODIFY = 'pair_modify'
-    GEOMETRIC = 'geometric'
-    ARITHMETIC = 'arithmetic'
-    SIXTHPOWER = 'sixthpower'
-
-    MIX = 'mix'
-    PPPM = 'pppm'
-    OPLS = 'opls'
-    CVFF = 'cvff'
-
-    HARMONIC = 'harmonic'
-
     V_UNITS = lammpsin.In.REAL
     V_ATOM_STYLE = lammpsin.In.FULL
-    V_BOND_STYLE = HARMONIC
-    V_ANGLE_STYLE = HARMONIC
-    V_DIHEDRAL_STYLE = OPLS
-    V_IMPROPER_STYLE = CVFF
 
-    def setup(self):
+    def setup(self, harmonic='harmonic'):
         """
         Write the setup section including unit, topology styles, and specials.
+
+        :param harmonic str: the harmonic style.
         """
         super().setup()
-        self.fh.write(f"{self.BOND_STYLE} {self.V_BOND_STYLE}\n")
-        self.fh.write(f"{self.ANGLE_STYLE} {self.V_ANGLE_STYLE}\n")
-        self.fh.write(f"{self.DIHEDRAL_STYLE} {self.V_DIHEDRAL_STYLE}\n")
-        self.fh.write(f"{self.IMPROPER_STYLE} {self.V_IMPROPER_STYLE}\n")
-        self.fh.write(f"{self.SPECIAL_BONDS} {self.LJ_COUL} 0 0 0.5\n")
+        self.fh.write(f"bond_style {harmonic}\n")
+        self.fh.write(f"angle_style {harmonic}\n")
+        self.fh.write("dihedral_style opls\n")
+        self.fh.write("improper_style cvff\n")
+        self.fh.write("special_bonds lj/coul 0 0 0.5\n")
 
     def pair(self):
         """
@@ -779,18 +712,16 @@ class In(lammpsin.In):
             pair_style = self.LJ_CUT_COUL_LONG
             cuts = self.DEFAULT_COUL_CUT
         self.fh.write(f"{self.PAIR_STYLE} {pair_style} {cuts}\n")
-        self.fh.write(f"{self.PAIR_MODIFY} {self.MIX} {self.GEOMETRIC}\n")
+        self.fh.write(f"pair_modify mix geometric\n")
         if self.hasCharge():
-            self.fh.write(f"{self.KSPACE_STYLE} {self.PPPM} 0.0001\n")
+            self.fh.write(f"kspace_style pppm 0.0001\n")
 
     def hasCharge(self):
         """
-        Whether any atom has non-zero charge. This method should be overwritten
-        when force field and structure are available.
+        Whether any atom has non-zero charge.
 
         :return bool: True if any atom has non-zero charge.
         """
-
         return True
 
 
@@ -888,7 +819,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return 'np.ndarray': bond types and bonded atom ids.
         """
-        bonds = [x.getBonds() for x in self.mols]
+        bonds = [y.bonds for x in self.mols for y in x.confs]
         return Bond.concatenate(bonds, type_map=self.bnd_types)
 
     @property
@@ -899,7 +830,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return 'np.ndarray': angle types and connected atom ids.
         """
-        angles = [x.getAngles() for x in self.mols]
+        angles = [y.angles for x in self.mols for y in x.confs]
         return Angle.concatenate(angles, type_map=self.ang_types)
 
     @property
@@ -910,7 +841,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return 'np.ndarray': dihedral types and connected atom ids.
         """
-        dihes = [x.getDihedrals() for x in self.mols]
+        dihes = [y.dihedrals for x in self.mols for y in x.confs]
         return Dihedral.concatenate(dihes, type_map=self.dihe_types)
 
     @property
@@ -921,7 +852,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return 'np.ndarray': improper types and connected atom ids.
         """
-        imprps = [x.getImpropers() for x in self.mols]
+        imprps = [y.impropers for x in self.mols for y in x.confs]
         return Improper.concatenate(imprps, type_map=self.impr_types)
 
     @property
@@ -984,9 +915,8 @@ class Struct(lmpatomic.Struct, In):
         imprps = self.ff.impropers.loc[self.impr_types.on]
         # LAMMPS: K in K[1+d*cos(nx)] vs OPLS: [1 + cos(nx-gama)]
         # due to cos (θ - 180°) = cos (180° - θ) = - cos θ
-        imprps = [[x.ene, 1 if x.deg == 0. else -1, x.n_parm]
-                  for x in imprps.itertuples()]
-        return ImproperCoeff(imprps)
+        ks = imprps.deg.map(lambda x: 1 if x == 0. else -1)
+        return ImproperCoeff(list(zip(*[imprps.ene, ks, imprps.n_parm])))
 
     @property
     def molecular_weight(self):
@@ -1012,8 +942,8 @@ class Struct(lmpatomic.Struct, In):
         if self.options.substruct is None or self.options.substruct[1] is None:
             return
         gids = self.mols[0].getSubstructMatch(gid=True)
-        if gids is None:
-            return None
+        if gids.empty:
+            return
         geo = f"{gids.name.split()[0]} {' '.join(map(str, gids + 1))}"
         return self.FIX_RESTRAIN.format(geo=geo, val=self.options.substruct[1])
 
@@ -1022,8 +952,7 @@ class Struct(lmpatomic.Struct, In):
         Write fix shake command to enforce constant bond length and angel values.
         """
         if self.options.rigid_bond is None and self.options.rigid_angle is None:
-            data = [x.getRigid() for x in self.mols]
-            bonds, angles = list(map(list, zip(*data)))
+            bonds, angles = list(zip(*[x.getRigid() for x in self.mols]))
             bonds = Bond.concat([x for x in bonds if not x.empty])
             angles = Angle.concat([x for x in angles if not x.empty])
             bond_types = self.bnd_types.index(bonds.values.flatten()) + 1
@@ -1055,23 +984,11 @@ class Reader(lmpatomic.Reader):
     Atom = Atom
     Mass = Mass
     AtomBlock = AtomBlock
-    BLOCK_CLASSES = [
+    NAMES = [
         lmpatomic.Mass, PairCoeff, BondCoeff, AngleCoeff, DihedralCoeff,
         ImproperCoeff, AtomBlock, Bond, Angle, Dihedral, Improper
     ]
-
-    def __init__(self, data_file=None, delay=False):
-        """
-        :param data_file str: data file with path.
-        :param delay bool: delay the initiation.
-        """
-        self.data_file = data_file
-        self.lines = None
-        self.name = {}
-        if delay:
-            return
-        self.read()
-        self.index()
+    NAMES = {x.NAME: x.LABEL for x in NAMES}
 
     @property
     @functools.cache
@@ -1182,9 +1099,9 @@ class Reader(lmpatomic.Reader):
         :return dict: keys are molecule ids and values are atom global ids.
         """
         mols = collections.defaultdict(list)
-        for gid, mid, in self.atoms.mol_id.items():
-            mols[mid].append(gid)
-        return dict(mols)
+        for gid, mol_id, in self.atoms.mol_id.items():
+            mols[mol_id].append(gid)
+        return mols
 
     @property
     def molecular_weight(self):
@@ -1207,6 +1124,8 @@ class Reader(lmpatomic.Reader):
         """
         kwargs = dict(atol=atol, rtol=rtol, equal_nan=equal_nan)
         if not super().allClose(other, **kwargs):
+            return False
+        if not self.pair_coeffs.allClose(other.pair_coeffs, **kwargs):
             return False
         if not self.bond_coeffs.allClose(other.bond_coeffs, **kwargs):
             return False
