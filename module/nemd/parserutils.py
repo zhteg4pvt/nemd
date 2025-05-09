@@ -714,8 +714,6 @@ class Md(Driver):
     FLAG_PROD_TIME = '-prod_time'
     FLAG_PROD_ENS = '-prod_ens'
     FLAG_NO_MINIMIZE = '-no_minimize'
-    FLAG_RIGID_BOND = '-rigid_bond'
-    FLAG_RIGID_ANGLE = '-rigid_angle'
 
     @classmethod
     def add(cls, parser, **kwargs):
@@ -775,16 +773,6 @@ class Md(Driver):
         # Skip the structure minimization step
         parser.add_argument(cls.FLAG_NO_MINIMIZE,
                             action='store_true',
-                            help=argparse.SUPPRESS)
-        # The lengths of these types are fixed during the simulation
-        parser.add_argument(cls.FLAG_RIGID_BOND,
-                            type=type_positive_int,
-                            nargs='+',
-                            help=argparse.SUPPRESS)
-        # The angles of these types are fixed during the simulation
-        parser.add_argument(cls.FLAG_RIGID_ANGLE,
-                            type=type_positive_int,
-                            nargs='+',
                             help=argparse.SUPPRESS)
 
 

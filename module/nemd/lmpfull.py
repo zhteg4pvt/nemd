@@ -174,16 +174,6 @@ class Bond(lmpatomic.Atom):
         slices = slice(None, None, self.PAIR_STEP)
         return [tuple(sorted(x[slices])) for x in self[self.ID_COLS].values]
 
-    def getRigid(self, has_h):
-        """
-        Get the rigid topology types.
-
-        :param has_h `ndarray`: whether each type has hydrogen involved
-        :return `DataFrame`: the rigid topology types.
-        """
-        ids = self[TYPE_ID].unique()
-        return pd.DataFrame({self.NAME: ids[has_h[ids]] if len(ids) else []})
-
     @classmethod
     def concat(cls, objs, **kwargs):
         """
@@ -672,16 +662,6 @@ class Mol(lmpatomic.Mol):
             nbr_charge[idx] -= res_charge[res_num]
         return nbr_charge
 
-    def getRigid(self):
-        """
-        The bond and angle are rigid during simulation.
-
-        :return DataFrame, DataFrame: the type ids of the rigid bonds and angles
-        """
-        bnd_types = self.bonds.getRigid(self.ff.bonds.has_h)
-        ang_types = self.angles.getRigid(self.ff.angles.has_h)
-        return bnd_types, ang_types
-
 
 class In(lammpsin.In):
     """
@@ -951,15 +931,21 @@ class Struct(lmpatomic.Struct, In):
         """
         Write fix shake command to enforce constant bond length and angel values.
         """
-        if self.options.rigid_bond is None and self.options.rigid_angle is None:
-            bonds, angles = list(zip(*[x.getRigid() for x in self.mols]))
-            bonds = Bond.concat([x for x in bonds if not x.empty])
-            angles = Angle.concat([x for x in angles if not x.empty])
-            bond_types = self.bnd_types.index(bonds.values.flatten()) + 1
-            angle_types = self.ang_types.index(angles.values.flatten()) + 1
-            self.options.rigid_bond = ' '.join(map(str, bond_types))
-            self.options.rigid_angle = ' '.join(map(str, angle_types))
-        super().shake()
+        bonds = self.getRigid(self.bnd_types, self.ff.bonds)
+        angles = self.getRigid(self.ang_types, self.ff.angles)
+        super().shake(bonds=bonds, angles=angles)
+
+    def getRigid(self, type_map, ff):
+        """
+        Get the rigid topology types.
+
+        :param type_map `np.ndarray`: the bond or angle map.
+        :param ff `oplsua.[Bond|Angle]`: force field block for hydrogen info.
+        :return str: the rigid topology types.
+        """
+        type_ids = type_map.on[ff.has_h[type_map.on]]
+        # type_map starts from 0, but lammps starts from 1
+        return ' '.join(map(str, type_map.index(type_ids) + 1))
 
     def getWarnings(self):
         """

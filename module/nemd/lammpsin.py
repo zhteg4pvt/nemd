@@ -167,15 +167,18 @@ class In(builtinsutils.Object):
         """
         pass
 
-    def shake(self):
+    def shake(self, bonds=None, angles=None):
         """
         Write fix shake command to enforce constant bond length and angel values.
+
+        :param bonds list: the rigid bond type ids.
+        :param angles list: the rigid angle type ids.
         """
         fixed_types = ''
-        if self.options.rigid_bond:
-            fixed_types += f' b {self.options.rigid_bond}'
-        if self.options.rigid_bond:
-            fixed_types += f' a {self.options.rigid_bond}'
+        if bonds:
+            fixed_types += f' b {bonds}'
+        if angles:
+            fixed_types += f' a {angles}'
         if not fixed_types:
             return
         self.fh.write(self.FIX_RIGID_SHAKE.format(types=fixed_types))
