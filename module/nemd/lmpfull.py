@@ -174,22 +174,11 @@ class Bond(lmpatomic.Atom):
         slices = slice(None, None, self.PAIR_STEP)
         return [tuple(sorted(x[slices])) for x in self[self.ID_COLS].values]
 
-    @classmethod
-    def concat(cls, objs, **kwargs):
-        """
-        Concatenate the instances and re-index the row from 1.
-
-        :param objs `list`: the (sub-)class instances to concatenate.
-        :return (sub-)class instances: the concatenated data
-        """
-        return pd.concat(objs, **kwargs) if objs else cls()
-
 
 class Angle(Bond):
     """
     The angle information including the angle type and the atom ids.
     """
-
     NAME = 'Angles'
     LABEL = 'angles'
     ID_COLS = [ATOM1, ATOM2, ATOM3]

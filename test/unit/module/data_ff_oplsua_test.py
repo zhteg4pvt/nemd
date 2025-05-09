@@ -35,22 +35,22 @@ class TestSmiles:
 class TestCharge:
 
     def testInit(self, lines):
-        assert (215, 1) == update.Charge(lines).shape
+        assert (216, 1) == update.Charge(lines).shape
 
     def testGetLines(self, lines):
-        assert 215 == len(update.Charge.getLines(lines))
+        assert 216 == len(update.Charge.getLines(lines))
 
 
 class TestVdw:
 
     def testInit(self, lines):
-        assert (215, 2) == update.Vdw(lines).shape
+        assert (216, 2) == update.Vdw(lines).shape
 
 
 class TestAtom:
 
     def testInit(self, lines):
-        assert (215, 6) == update.Atom(lines).shape
+        assert (216, 6) == update.Atom(lines).shape
 
 
 class TestImproper:
@@ -70,7 +70,7 @@ class TestBond:
         return update.Bond(lines)
 
     def testInit(self, bond):
-        assert (150, 4) == bond.shape
+        assert (151, 4) == bond.shape
         assert 13 == len(bond.TMAP)
         assert 3 == len(bond.MAP)
 
@@ -87,7 +87,7 @@ class TestAngle:
         return update.Angle(lines)
 
     def testInit(self, angle):
-        assert (309, 5) == angle.shape
+        assert (310, 5) == angle.shape
         assert 10 == len(angle.TMAP)
         assert 3 == len(angle.MAP)
 
@@ -99,7 +99,7 @@ class TestDihedral:
         return update.Dihedral(lines)
 
     def testInit(self, dihedral):
-        assert (630, 8) == dihedral.shape
+        assert (631, 8) == dihedral.shape
         assert 12 == len(dihedral.TMAP)
         assert 6 == len(dihedral.MAP)
 
@@ -123,15 +123,15 @@ class TestRaw:
 
     def testInit(self, raw):
         assert (35, 5) == raw.smiles.shape
-        assert (215, 1) == raw.charges.shape
-        assert (215, 2) == raw.vdws.shape
-        assert (215, 6) == raw.atoms.shape
-        assert (309, 5) == raw.angles.shape
-        assert (630, 8) == raw.dihedrals.shape
+        assert (216, 1) == raw.charges.shape
+        assert (216, 2) == raw.vdws.shape
+        assert (216, 6) == raw.atoms.shape
+        assert (310, 5) == raw.angles.shape
+        assert (631, 8) == raw.dihedrals.shape
         assert (76, 7) == raw.impropers.shape
 
     def testGetLines(self, lines):
-        assert 2806 == len(lines)
+        assert 2812 == len(lines)
 
     def testWrite(self, raw, tmp_dir):
         with mock.patch.object(oplsua, 'DIRNAME', os.curdir):

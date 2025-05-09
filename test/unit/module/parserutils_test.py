@@ -387,21 +387,19 @@ class TestAdd:
 
     @pytest.mark.parametrize(
         'args,expected',
-        [([], [1, 10, 300, 1, 1000, 1, 1, 'NVE', False, None, None]),
+        [([], [1, 10, 300, 1, 1000, 1, 1, 'NVE', False]),
          ([
              '-timestep', '1.2', '-stemp', '3.1', '-temp', '275', '-press',
              '3.6', '-pdamp', '777', '-relax_time', '4', '-prod_time', '5',
-             '-prod_ens', 'NVT', '-no_minimize', '-rigid_bond', '4', '6',
-             '-rigid_angle', '3', '5'
-         ], [1.2, 3.1, 275, 3.6, 777, 4, 5, 'NVT', True, [4, 6], [3, 5]])])
+             '-prod_ens', 'NVT', '-no_minimize'
+         ], [1.2, 3.1, 275, 3.6, 777, 4, 5, 'NVT', True])])
     def testMd(self, args, expected, parser):
         parserutils.Md.add(parser)
         options = parser.parse_args(args)
         assert expected == [
             options.timestep, options.stemp, options.temp, options.press,
             options.pdamp, options.relax_time, options.prod_time,
-            options.prod_ens, options.no_minimize, options.rigid_bond,
-            options.rigid_angle
+            options.prod_ens, options.no_minimize
         ]
 
     def testMolBldr(self, parser):
