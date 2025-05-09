@@ -112,14 +112,14 @@ class Atom(lmpatomic.Atom):
         """
         return cls([[x.GetIdx(), idx, x.GetIntProp(TYPE_ID)] for x in atoms])
 
-    def to_numpy(self, id_map=None, col_id=COLUMNS.index(MOL_ID), gid=0):
+    def to_numpy(self, gids=None, col_id=COLUMNS.index(MOL_ID), gid=0):
         """
         See parent.
 
         :param col_id int: the column index of the molecule id
         :param idx int: the molecule id.
         """
-        array = super().to_numpy(id_map)
+        array = super().to_numpy(gids)
         array[:, col_id] = gid
         return array
 
@@ -266,8 +266,7 @@ class Conformer(lmpatomic.Conformer):
 
         :return 'np.ndarray': gids, mol ids, type ids, charges, xyz.
         """
-        return self.GetOwningMol().atoms.to_numpy(id_map=self.id_map,
-                                                  gid=self.gid)
+        return self.GetOwningMol().atoms.to_numpy(gids=self.gids, gid=self.gid)
 
     @property
     def bonds(self):
@@ -276,7 +275,7 @@ class Conformer(lmpatomic.Conformer):
 
         :return `np.ndarray`: bond ids and bonded atom ids.
         """
-        return self.GetOwningMol().bonds.to_numpy(id_map=self.id_map)
+        return self.GetOwningMol().bonds.to_numpy(gids=self.gids)
 
     @property
     def angles(self):
@@ -285,7 +284,7 @@ class Conformer(lmpatomic.Conformer):
 
         :return `np.ndarray`: angle ids and connected atom ids.
         """
-        return self.GetOwningMol().angles.to_numpy(id_map=self.id_map)
+        return self.GetOwningMol().angles.to_numpy(gids=self.gids)
 
     @property
     def dihedrals(self):
@@ -294,7 +293,7 @@ class Conformer(lmpatomic.Conformer):
 
         :return `np.ndarray`: dihedral ids and connected atom ids.
         """
-        return self.GetOwningMol().dihedrals.to_numpy(id_map=self.id_map)
+        return self.GetOwningMol().dihedrals.to_numpy(gids=self.gids)
 
     @property
     def impropers(self):
@@ -303,7 +302,7 @@ class Conformer(lmpatomic.Conformer):
 
         :return `np.ndarray`: improper ids and connected atom ids.
         """
-        return self.GetOwningMol().impropers.to_numpy(id_map=self.id_map)
+        return self.GetOwningMol().impropers.to_numpy(gids=self.gids)
 
     def setBondLength(self, bonded, val):
         """
@@ -434,7 +433,7 @@ class Mol(lmpatomic.Mol):
             return pd.Series([])
         ids = self.GetSubstructMatch(struct)
         if gid:
-            ids = self.GetConformer().id_map[list(ids)]
+            ids = self.GetConformer().gids[list(ids)]
         match len(ids):
             case 2:
                 name = 'distance (angstrom)'

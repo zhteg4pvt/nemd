@@ -227,7 +227,7 @@ class GrownConf(PackedConf):
             self.mol.struct.dist[self.gids, :] = self.GetPositions()
             if self.hasClash(self.init_aids):
                 continue
-            self.mol.struct.dist.set(self.id_map[self.init_aids], init=True)
+            self.mol.struct.dist.set(self.gids[self.init_aids], init=True)
             return
 
         # FIXME: Failed to fill the void with initiator too often
@@ -241,7 +241,7 @@ class GrownConf(PackedConf):
         :param aids list: the conformer atom ids.
         :return bool: True if clashes are found.
         """
-        return self.mol.struct.dist.hasClash(self.id_map[aids])
+        return self.mol.struct.dist.hasClash(self.gids[aids])
 
     def setFrag(self, max_trial=MAX_TRIAL_PER_CONF):
         """
@@ -288,7 +288,7 @@ class GrownConf(PackedConf):
             self.mol.struct.dist[self.gids, :] = self.GetPositions()
             if self.hasClash(frag.aids):
                 continue
-            self.mol.struct.dist.set(self.id_map[frag.aids])
+            self.mol.struct.dist.set(self.gids[frag.aids])
             self.frags += frag.nfrags
             return True
 
@@ -311,7 +311,7 @@ class GrownConf(PackedConf):
         ratom_aids = [y for x in nxt_frags for y in x.aids] + frag.aids
         if not found:
             ratom_aids += frag.conf.init_aids
-        self.mol.struct.dist.set(self.id_map[ratom_aids], state=False)
+        self.mol.struct.dist.set(self.gids[ratom_aids], state=False)
         # 3）The next fragments of the frag may have been added to the growing
         # self.frags before this backmove step. These added next fragments
         # may have never been growed even once.
@@ -324,7 +324,7 @@ class GrownConf(PackedConf):
         Report the status after relocate an initiator fragment.
         """
         idists = self.mol.struct.dist.initDists()
-        grp = self.id_map[self.init_aids]
+        grp = self.gids[self.init_aids]
         other = list(self.mol.struct.dist.gids.diff(grp))
         grps = [other for _ in grp]
         min_dist = self.mol.struct.dist.getDists(grp, grps=grps).min()
@@ -451,8 +451,7 @@ class GrownMol(PackedMol):
         # dihe is not known and will be handled in setFragments()
         self.ifrag = Fragment(self.GetConformer())
         aids = [y for x in self.ifrag.fragments() for y in x.aids]
-        self.init_aids = list(
-            set(range(self.id_map.shape[0])).difference(aids))
+        self.init_aids = list(set(range(self.gids.shape[0])).difference(aids))
 
     def findHeadTailPair(self):
         """

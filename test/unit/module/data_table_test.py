@@ -13,6 +13,6 @@ class TestSmiles:
         return update.Table()
 
     def testWrite(self, table, tmp_dir):
-        (119, 3) == table.data.shape
+        assert (119, 3) == table.data.shape
         table.write()
         assert os.path.exists('table.parquet')

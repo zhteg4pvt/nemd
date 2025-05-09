@@ -27,17 +27,7 @@ class Conformer(Chem.rdchem.Conformer):
         super().__init__(*args, **kwargs)
         self.mol = mol
         self.gid = gid
-        self.id_map = self.mol.id_map + start if self.mol else None
-
-    @property
-    @functools.cache
-    def gids(self):
-        """
-        Return the global atom ids of this conformer.
-
-        :return list of int: the global atom ids of this conformer.
-        """
-        return self.id_map.tolist()
+        self.gids = self.mol.gids + start if self.mol else None
 
     def HasOwningMol(self):
         """
@@ -92,7 +82,7 @@ class Mol(Chem.rdchem.Mol):
         self.struct = struct
         self.delay = delay
         self.confs = []
-        self.id_map = None
+        self.gids = None
         mol = next(iter(args), None)
         if not mol:
             return
@@ -122,7 +112,7 @@ class Mol(Chem.rdchem.Mol):
         #  the virtual in tip4p water https://docs.lammps.org/Howto_tip4p.html)
         #  coarse-grained may have multiple aids mapping to one single gid
         #  united atom may have hydrogen aid mapping to None
-        self.id_map = np.arange(0, self.GetNumAtoms(), dtype=np.uint32)
+        self.gids = np.arange(0, self.GetNumAtoms(), dtype=np.uint32)
         for cid, conf in enumerate(confs, start=gid):
             conf = ConfClass(conf, mol=self, gid=np.uint32(cid), start=start)
             self.confs.append(conf)
@@ -321,7 +311,7 @@ class Struct:
         :return int, int: the conformer gid, the global atom id.
         """
         gid = max([x.gid for x in self.conformer] or [-1]) + 1
-        start = max([x.id_map.max() for x in self.conformer] or [-1]) + 1
+        start = max([x.gids.max() for x in self.conformer] or [-1]) + 1
         return gid, start
 
     @property

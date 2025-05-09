@@ -133,15 +133,15 @@ class Atom(XYZ):
         """
         return cls([[x.GetIdx(), x.GetIntProp(TYPE_ID)] for x in atoms])
 
-    def to_numpy(self, id_map=None):
+    def to_numpy(self, gids=None):
         """
         Covert the DataFrame to a NumPy array.
 
-        :param id_map 'np.ndarray': map the atom ids to global ids.
+        :param gids 'np.ndarray': map the atom ids to global ids.
         :return 'np.ndarray': the numpy array
         """
         array = self.values.copy()
-        array[:, self.SLICE] = id_map[array[:, self.SLICE]]
+        array[:, self.SLICE] = gids[array[:, self.SLICE]]
         return array
 
 
@@ -171,7 +171,7 @@ class Conformer(structure.Conformer):
 
         :return `'numpy.ndarray'`: information such as global ids, molecule ids.
         """
-        return self.GetOwningMol().atoms.to_numpy(id_map=self.id_map)
+        return self.GetOwningMol().atoms.to_numpy(gids=self.gids)
 
 
 class Mol(structure.Mol):
