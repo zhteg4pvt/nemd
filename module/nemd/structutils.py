@@ -375,11 +375,6 @@ class GriddedMol(lmpfull.Mol):
         """
         self.conf_num = np.floor(size / self.size).astype(int)
 
-    def GetPositions(self):
-        xyz = self.confs[0].GetPositions()
-        return np.concatenate([xyz + x for x in self.vectors],
-                              dtype=np.float32)
-
     @property
     def size(self):
         """
@@ -460,7 +455,7 @@ class GrownMol(PackedMol):
 
         :return list or iterator of int tuple: each tuple is an atom id pair
         """
-        if not self.is_polym:
+        if not self.polym:
             return [(None, None)]
 
         head_tail = [x for x in self.GetAtoms() if x.HasProp(self.POLYM_HT)]
@@ -579,6 +574,12 @@ class GriddedStruct(Struct):
         vol *= math.pow(scipy.constants.centi / scipy.constants.angstrom, 3)
         self.density = self.molecular_weight * scipy.constants.Avogadro / vol
 
+    def GetPositions(self):
+        xyzs = [
+            x.confs[0].GetPositions() + y for x in self.mols for y in x.vectors
+        ]
+        return np.concatenate(xyzs, dtype=np.float32)
+
 
 class DensityError(RuntimeError):
     """
@@ -647,8 +648,7 @@ class PackedStruct(Struct):
         edge *= scipy.constants.centi / scipy.constants.angstrom
         self.box = self.Box.fromParams(edge, tilted=False)
         logger.debug(f'Cubic box of size {edge:.2f} angstrom is created.')
-        self.dist = Frame(np.concatenate(
-            [x.GetPositions() for x in self.conformer]),
+        self.dist = Frame(self.GetPositions(),
                           box=self.box,
                           struct=self,
                           gids=[])
@@ -695,6 +695,15 @@ class PackedStruct(Struct):
                     raise DensityError
         self.reset()
         raise DensityError
+
+    @property
+    def conformer_total(self):
+        """
+        Return the total number of conformers.
+
+        :return int: the total number of conformers.
+        """
+        return sum([len(x.confs) for x in self.mols])
 
     def reset(self):
         """

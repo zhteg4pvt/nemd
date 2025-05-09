@@ -23,3 +23,8 @@ class TestConformer:
     def testSetPositions(self, conf, xyz):
         conf.setPositions(xyz)
         np.testing.assert_equal(xyz, conf.GetPositions())
+
+
+class TestMol:
+
+    def

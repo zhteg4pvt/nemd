@@ -57,48 +57,56 @@ class Conformer(Chem.rdchem.Conformer):
 
 class Mol(Chem.rdchem.Mol):
     """
-    A subclass of Chem.rdchem.Mol with additional attributes and methods.
+    Customized Chem.rdchem.Mol.
     """
     ConfWrapper = None
     ConfClass = Conformer
 
     def __init__(self,
                  *args,
-                 is_polym=None,
-                 vecs=None,
                  struct=None,
+                 polym=None,
+                 vecs=None,
                  delay=False,
                  **kwargs):
         """
-        :param struct 'Mol': the molecule instance
-        :param is_polym bool: whether the molecule is built from moieties.
-        :param vecs list: scaled lattice vectors
+        :param args[0] 'Chem.rdchem.Mol': the molecule instance
         :param struct 'Struct': owning structure
+        :param polym bool: whether the molecule is built from moieties.
+        :param vecs list: scaled lattice vectors
         :param delay bool: customization is delayed for later setup or testing.
         """
         super().__init__(*args, **kwargs)
-        self.is_polym = is_polym
-        self.vecs = vecs
         self.struct = struct
+        self.polym = polym
+        self.vecs = vecs
         self.delay = delay
-        self.confs = []
         self.gids = None
-        mol = next(iter(args), None)
-        if not mol:
-            return
-        if self.is_polym is None:
-            self.is_polym = getattr(mol, 'is_polym', False)
-        if self.vecs is None:
-            self.vecs = getattr(mol, 'vecs', None)
+        self.confs = []
         if self.delay:
             return
-        self.setUp(mol.GetConformers())
+        self.setUp(next(iter(args), None))
 
-    def setUp(self, confs, gid=0, start=0):
+    def setUp(self, mol):
         """
-        Set up the conformers including global ids and references.
+        Set up.
 
-        :param confs `Chem.rdchem.Conformers`: the conformers to set up.
+        :param mol `Chem.rdchem.Mol`: the original molecule.
+        """
+        if mol is None:
+            return
+        self.gids = np.arange(mol.GetNumAtoms(), dtype=np.uint32)
+        if self.polym is None:
+            self.polym = getattr(mol, 'polym', False)
+        if self.vecs is None:
+            self.vecs = getattr(mol, 'vecs', None)
+        self.setConfs(mol.GetConformers())
+
+    def setConfs(self, confs, gid=0, start=0):
+        """
+        Set the conformers.
+
+        :param confs `Chem.rdchem.Conformers`: the original conformers.
         :param gid int: the conformer gid.
         :param start int: the starting global atom id.
         """
@@ -112,20 +120,10 @@ class Mol(Chem.rdchem.Mol):
         #  the virtual in tip4p water https://docs.lammps.org/Howto_tip4p.html)
         #  coarse-grained may have multiple aids mapping to one single gid
         #  united atom may have hydrogen aid mapping to None
-        self.gids = np.arange(0, self.GetNumAtoms(), dtype=np.uint32)
         for cid, conf in enumerate(confs, start=gid):
             conf = ConfClass(conf, mol=self, gid=np.uint32(cid), start=start)
             self.confs.append(conf)
             start += np.uint32(self.GetNumAtoms())
-
-    def GetConformer(self, idx=0):
-        """
-        Get the conformer of the molecule.
-
-        :param idx int: the conformer id to get.
-        :return `Conformer`: the selected conformer.
-        """
-        return self.confs[idx]
 
     def GetConformers(self):
         """
@@ -135,14 +133,6 @@ class Mol(Chem.rdchem.Mol):
         """
         return self.confs
 
-    def GetNumConformers(self):
-        """
-        Get the number of conformers of the molecule.
-
-        :return int: the number of conformers.
-        """
-        return len(self.confs)
-
     def AddConformer(self, conf, **kwargs):
         """
         Add conformer to the molecule.
@@ -150,7 +140,16 @@ class Mol(Chem.rdchem.Mol):
         :param conf `Chem.rdchem.Conformer`: the conformer to add.
         """
         idx = super().AddConformer(conf, **kwargs)
-        self.setUp([super().GetConformer(idx)])
+        self.setConfs([super().GetConformer(idx)])
+
+    def GetConformer(self, idx=0):
+        """
+        Get the conformer of the molecule.
+
+        :param idx int: the conformer id to get.
+        :return `Conformer`: the selected conformer.
+        """
+        return self.confs[idx]
 
     def EmbedMolecule(self, randomSeed=-1, max_seed=2**31 - 1, **kwargs):
         """
@@ -165,7 +164,7 @@ class Mol(Chem.rdchem.Mol):
         Chem.GetSymmSSSR(self)
         # Parent EmbedMolecule add one after clearing previous conformers.
         self.confs.clear()
-        self.setUp(super().GetConformers())
+        self.setConfs(super().GetConformers())
 
     @classmethod
     def MolFromSmiles(cls, smiles, united=True, **kwargs):
@@ -204,16 +203,13 @@ class Mol(Chem.rdchem.Mol):
         """
         return Chem.Descriptors.ExactMolWt(self)
 
-    mw = molecular_weight
-
-    @property
-    def atom_total(self):
+    def GetNumConformers(self):
         """
-        The total number of atoms in all conformers.
+        Get the number of conformers of the molecule.
 
-        :return int: the total number of atoms in all conformers.
+        :return int: the number of conformers.
         """
-        return self.GetNumAtoms() * self.GetNumConformers()
+        return len(self.confs)
 
     @property
     @functools.cache
@@ -237,11 +233,11 @@ class Mol(Chem.rdchem.Mol):
         """
         Whether the bond between the two atoms is rotatable.
 
-        :param bond list or tuple of two ints: the atom ids of two bonded atoms
+        :param bond tuple: the atom ids of two bonded atoms
         :return bool: Whether the bond is rotatable.
         """
-        in_ring = self.GetBondBetweenAtoms(*bond).IsInRing()
-        return not in_ring and tuple(sorted(bond)) in self.rotatable
+        return not self.GetBondBetweenAtoms(*bond).IsInRing() and \
+            tuple(sorted(bond)) in self.rotatable
 
     @property
     @functools.cache
@@ -250,30 +246,21 @@ class Mol(Chem.rdchem.Mol):
         mol=Chem.MolFromSmarts(
             '[!$([NH]!@C(=O))&!D1&!$(*#*)]-&!@[!$([NH]!@C(=O))&!D1&!$(*#*)]')):
         """
-        Get the rotatable bonds of the molecule.
+        Return all rotatable bonds.
 
         https://ctr.fandom.com/wiki/Break_rotatable_and_report_the_fragments
 
-        :param mol `Chem.rdchem.Mol`: the rotatable mols
+        :param mol `Chem.rdchem.Mol`: the rotatable molecules
         :return list of tuples of two ints: the atom ids of two bonded atoms.
         """
         # https://ctr.fandom.com/wiki/Break_rotatable_and_report_the_fragments
         return self.GetSubstructMatches(mol, maxMatches=1000000)
-
-    def GetPositions(self):
-        """
-        Get the position of all conformers.
-
-        :return `np.ndarray`: the coordinates of all conformers.
-        """
-        return np.concatenate([x.GetPositions() for x in self.confs])
 
 
 class Struct:
     """
     A class to handle multiple molecules and their conformers.
     """
-
     MolClass = Mol
 
     def __init__(self, struct=None):
@@ -330,13 +317,4 @@ class Struct:
 
         :return int: the total number of atoms in all conformers.
         """
-        return sum([x.atom_total for x in self.mols])
-
-    @property
-    def conformer_total(self):
-        """
-        Return the total number of conformers.
-
-        :return int: the total number of conformers.
-        """
-        return sum([len(x.confs) for x in self.mols])
+        return sum([x.GetNumAtoms() * x.GetNumConformers() for x in self.mols])

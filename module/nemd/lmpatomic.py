@@ -275,7 +275,10 @@ class Struct(structure.Struct):
 
         :return `XYZ`: the atom coordinates.
         """
-        return XYZ(np.concatenate([x.GetPositions() for x in self.mols]))
+        return XYZ(self.GetPositions())
+
+    def GetPositions(self):
+        return np.concatenate([x.GetPositions() for x in self.conformer])
 
     @property
     def masses(self):

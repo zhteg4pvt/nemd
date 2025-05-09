@@ -434,7 +434,7 @@ class Mol(structure.Mol, logutils.Base):
         self.options = options
         if delay:
             return
-        super().__init__(mol, is_polym=bool(self.moieties.mers), delay=delay)
+        super().__init__(mol, polym=bool(self.moieties.mers), delay=delay)
         if self.moieties.mers:
             self.log(f"Polymer SMILES: {Chem.MolToSmiles(self)}")
             self.embedMoieties()
@@ -469,7 +469,7 @@ class Mol(structure.Mol, logutils.Base):
         """
         Build and set the conformer.
         """
-        if not self.is_polym:
+        if not self.polym:
             return
         Chem.GetSymmSSSR(self)
         conf = structure.Conformer(self.GetNumAtoms())

@@ -31,6 +31,35 @@ class TestRunner:
         runner.runProj()
         return runner
 
+    @pytest.fixture
+    def Cmd(self, file):
+        """
+        Return a simple Cmd class that runs under jobcontrol.
+
+        :return `taskbase.Cmd`: the Cmd class
+        """
+
+        class Cmd(taskbase.Cmd):
+            FILE = (f"-c 'from nemd import jobutils;"
+                    f"jobutils.Job.reg(jobutils.JOB, file={file})'")
+
+        return Cmd
+
+    @pytest.fixture
+    def Job(self, status):
+        """
+        Return a simple non-cmd class that runs under jobcontrol.
+
+        :return `taskbase.Job`: the Cmd class
+        """
+
+        class Job(taskbase.Job):
+
+            def run(self, *args, **kwargs):
+                self.out = status
+
+        return Job
+
     @pytest.mark.parametrize('cpu_count', [8])
     @pytest.mark.parametrize('original,expected',
                              [(['-DEBUG', 'off'], 6), (['-DEBUG', 'on'], 1),

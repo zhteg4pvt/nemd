@@ -17,7 +17,6 @@ from nemd import jobutils
 from nemd import osutils
 from nemd import pytestutils
 from nemd import structure
-from nemd import taskbase
 
 
 @pytest.fixture
@@ -120,37 +119,6 @@ def job(jobname, copied):
     :return `jobutils.Job`: Job loaded from a job json file
     """
     return jobutils.Job(jobname)
-
-
-@pytest.fixture
-def Cmd(file):
-    """
-    Return a simple Cmd class that runs under jobcontrol.
-
-    :return `taskbase.Cmd`: the Cmd class
-    """
-
-    class Cmd(taskbase.Cmd):
-        FILE = (f"-c 'from nemd import jobutils;"
-                f"jobutils.Job.reg(jobutils.JOB, file={file})'")
-
-    return Cmd
-
-
-@pytest.fixture
-def Job(status):
-    """
-    Return a simple non-cmd class that runs under jobcontrol.
-
-    :return `taskbase.Job`: the Cmd class
-    """
-
-    class Job(taskbase.Job):
-
-        def run(self, *args, **kwargs):
-            self.out = status
-
-    return Job
 
 
 @pytest.fixture
