@@ -173,4 +173,4 @@ def mol(smiles):
     :param smiles str: the input smiles
     :return `structure.Mol`: the molecule
     """
-    return structure.Mol.MolFromSmiles(smiles)
+    return structure.Mol.MolFromSmiles(smiles) if smiles else None

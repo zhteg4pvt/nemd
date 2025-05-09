@@ -1,7 +1,7 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
-This module handles conformer, molecule and structure.
+Conformer, molecule and structure.
 """
 import functools
 
@@ -15,12 +15,12 @@ from nemd import symbols
 
 class Conformer(Chem.rdchem.Conformer):
     """
-    A subclass of Chem.rdchem.Conformer with additional attributes and methods.
+    Customized Chem.rdchem.Conformer.
     """
 
     def __init__(self, *args, mol=None, gid=0, start=0, **kwargs):
         """
-        :param mol:  `Chem.rdchem.Mol`: the molecule this conformer belongs to.
+        :param mol: `Mol`: the molecule this conformer belongs to.
         :param gid int: the conformer gid.
         :param start int: the starting global atom id.
         """
