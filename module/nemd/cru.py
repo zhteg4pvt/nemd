@@ -25,7 +25,6 @@ class Moiety(structure.Mol):
     """
     Class to hold and validate a moiety.
     """
-
     HEAD_ID = 0
     TAIL_ID = 1
 

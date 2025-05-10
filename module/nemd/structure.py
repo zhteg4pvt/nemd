@@ -59,7 +59,6 @@ class Mol(Chem.rdchem.Mol):
     """
     Customized Chem.rdchem.Mol.
     """
-    ConfWrapper = None
     ConfClass = Conformer
 
     def __init__(self,
@@ -81,8 +80,8 @@ class Mol(Chem.rdchem.Mol):
         self.polym = polym
         self.vecs = vecs
         self.delay = delay
-        self.gids = None
         self.confs = []
+        self.gids = np.arange(self.GetNumAtoms(), dtype=np.uint32)
         if self.delay:
             return
         self.setUp(next(iter(args), None))
@@ -95,35 +94,36 @@ class Mol(Chem.rdchem.Mol):
         """
         if mol is None:
             return
-        self.gids = np.arange(mol.GetNumAtoms(), dtype=np.uint32)
         if self.polym is None:
             self.polym = getattr(mol, 'polym', False)
         if self.vecs is None:
-            self.vecs = getattr(mol, 'vecs', None)
+            self.vecs = getattr(mol, 'vecs', False)
         self.setConfs(mol.GetConformers())
 
-    def setConfs(self, confs, gid=0, start=0):
+    def setConfs(self, confs):
         """
         Set the conformers.
 
         :param confs `Chem.rdchem.Conformers`: the original conformers.
-        :param gid int: the conformer gid.
-        :param start int: the starting global atom id.
         """
-        if self.struct:
-            gid, start = self.struct.getGid()
-        ConfClass = self.ConfClass
-        if self.ConfWrapper is not None:
-            ConfClass = self.ConfWrapper
-            confs[0] = self.ConfClass(confs[0], mol=self)
+        gid, start = self.struct.getNext() if self.struct else self.getNext()
         # FIXME: every aid maps to a gid, but some gids may not map back (e.g.
         #  the virtual in tip4p water https://docs.lammps.org/Howto_tip4p.html)
         #  coarse-grained may have multiple aids mapping to one single gid
         #  united atom may have hydrogen aid mapping to None
-        for cid, conf in enumerate(confs, start=gid):
-            conf = ConfClass(conf, mol=self, gid=np.uint32(cid), start=start)
+        for cid, conf in enumerate(list(confs), start=gid):
+            conf = self.ConfClass(conf, mol=self, gid=cid, start=start)
             self.confs.append(conf)
-            start += np.uint32(self.GetNumAtoms())
+            start += self.GetNumAtoms()
+
+    def getNext(self):
+        """
+        Get the next ids on extending with the conformer.
+
+        :return int, int: the conformer gid, the global atom id.
+        """
+        ids = np.array([[x.gid, x.gids.max()] for x in self.confs])
+        return ids.max(axis=0) + 1 if ids.size else [0, 0]
 
     def GetConformers(self):
         """
@@ -253,7 +253,6 @@ class Mol(Chem.rdchem.Mol):
         :param mol `Chem.rdchem.Mol`: the rotatable molecules
         :return list of tuples of two ints: the atom ids of two bonded atoms.
         """
-        # https://ctr.fandom.com/wiki/Break_rotatable_and_report_the_fragments
         return self.GetSubstructMatches(mol, maxMatches=1000000)
 
 
@@ -282,7 +281,7 @@ class Struct:
     @classmethod
     def fromMols(cls, mols, *args, **kwargs):
         """
-        Create structure instance from mols.
+        Create structure instance from molecules.
 
         :param mols list of 'Chem.rdchem.Mol': the molecules to add.
         :return 'Struct': the structure containing the molecules.
@@ -291,15 +290,14 @@ class Struct:
         struct.setUp(mols)
         return struct
 
-    def getGid(self):
+    def getNext(self):
         """
-        Get the global ids to start with.
+        Get the next ids on extending with the conformer.
 
         :return int, int: the conformer gid, the global atom id.
         """
-        gid = max([x.gid for x in self.conformer] or [-1]) + 1
-        start = max([x.gids.max() for x in self.conformer] or [-1]) + 1
-        return gid, start
+        ids = np.array([x.getNext() for x in self.mols])
+        return ids.max(axis=0) if ids.size else [0, 0]
 
     @property
     def conformer(self):
