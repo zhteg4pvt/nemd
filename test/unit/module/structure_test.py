@@ -24,9 +24,10 @@ class TestConformer:
         conf.setPositions(xyz)
         np.testing.assert_equal(xyz, conf.GetPositions())
 
-@pytest.mark.parametrize('smiles', ['O'])
+
 class TestMol:
 
+    @pytest.mark.parametrize('smiles', ['O'])
     @pytest.mark.parametrize('polym,vecs',
                              [(None, None), (False, None),
                               (True, (5.43, 5.43, 5.43, 90.0, 90.0, 90.0))])
@@ -39,12 +40,68 @@ class TestMol:
         mol = structure.Mol(mol)
         assert expected == (mol.polym, mol.vecs)
 
-    def testSetConformers(self, mol):
-        assert 0 == len(mol.confs)
-        mol.EmbedMolecule()
-        assert 1 == len(mol.confs)
-        mol.setConfs(mol.confs)
-        assert 2 == len(mol.confs)
-        np.testing.assert_equal(mol.confs[-1].gids, [3, 4, 5])
-        assert 1 == mol.confs[-1].gid
+    @pytest.mark.parametrize('smiles', ['O'])
+    @pytest.mark.parametrize('cnum,expected', [(1, 1), (0, 0)])
+    def testGetConformers(self, emol, expected):
+        assert expected == len(emol.GetConformers())
 
+    @pytest.mark.parametrize('smiles,cnum,expected1,expected2',
+                             [('O', 1, [[0, 2]], [[0, 2], [1, 5]])])
+    def testAppend(self, emol, expected1, expected2):
+        assert expected1 == [[x.gid, x.gids.max()] for x in emol.confs]
+        emol.append(emol.confs[0])
+        assert expected2 == [[x.gid, x.gids.max()] for x in emol.confs]
+
+    @pytest.mark.parametrize('smiles,cnum,expected1,expected2',
+                             [('O', 1, [[0, 2]], [[1, 5]])])
+    def testShift(self, emol, expected1, expected2):
+        assert expected1 == [[x.gid, x.gids.max()] for x in emol.confs]
+        emol.shift(emol.confs[0])
+        assert expected2 == [[x.gid, x.gids.max()] for x in emol.confs]
+
+    @pytest.mark.parametrize('smiles', ['O'])
+    @pytest.mark.parametrize('cnum,expected', [(1, 1), (2, 2)])
+    def testAddConformer(self, emol, expected):
+        assert expected == len(emol.confs)
+
+    @pytest.mark.parametrize('smiles,cnum', [('O', 2)])
+    @pytest.mark.parametrize('idx,expected', [(0, 0), (1, 1)])
+    def testGetConformer(self, emol, idx, expected):
+        emol.AddConformer(emol.confs[0])
+        assert expected == emol.GetConformer(idx).gid
+
+    @pytest.mark.parametrize('smiles', ['O'])
+    @pytest.mark.parametrize('cnum,expected', [(1, 1), (0, 0)])
+    def testGetNumConformers(self, emol, expected):
+        assert expected == emol.GetNumConformers()
+
+    @pytest.mark.parametrize('smiles', ['O'])
+    @pytest.mark.parametrize('cnum,randomSeed,clearConfs,expected',
+                             [(1, -1, True, 1), (1, 2**31, False, 2)])
+    def testEmbedMolecule(self, emol, randomSeed, clearConfs, expected):
+        emol.EmbedMolecule(randomSeed=randomSeed, clearConfs=clearConfs)
+        assert expected == len(emol.confs)
+
+    @pytest.mark.parametrize('smiles,united,expected', [('O', True, 3),
+                                                        ('C', True, 1),
+                                                        ('C', False, 5)])
+    def testMolFromSmiles(sel, smiles, united, expected):
+        mol = structure.Mol.MolFromSmiles(smiles, united=united)
+        assert expected == mol.GetNumAtoms()
+
+    @pytest.mark.parametrize(
+        'smiles,expected',
+        [('O', [3, 2]), ['C', [1, 0]], ['C1CCCCC1', [6, 6]]])
+    def testGraph(sel, mol, expected):
+        assert expected == [len(x) for x in [mol.graph.nodes, mol.graph.edges]]
+
+    @pytest.mark.parametrize('smiles', ['CCCC'])
+    @pytest.mark.parametrize('bond,expected', [((0, 1), False), ((1, 2), True),
+                                               ((2, 1), True)])
+    def testIsRotatable(sel, mol, bond, expected):
+        assert expected == mol.isRotatable(bond)
+
+    @pytest.mark.parametrize('smiles,expected',
+                             [('CCCC', 1), ['C=C', 0], ['C1CCCCC1', 0]])
+    def testRotatable(sel, mol, expected):
+        assert expected == len(mol.rotatable)

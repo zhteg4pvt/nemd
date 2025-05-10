@@ -98,32 +98,8 @@ class Mol(Chem.rdchem.Mol):
             self.polym = getattr(mol, 'polym', False)
         if self.vecs is None:
             self.vecs = getattr(mol, 'vecs', False)
-        self.setConfs(mol.GetConformers())
-
-    def setConfs(self, confs):
-        """
-        Set the conformers.
-
-        :param confs `Chem.rdchem.Conformers`: the original conformers.
-        """
-        gid, start = self.struct.getNext() if self.struct else self.getNext()
-        # FIXME: every aid maps to a gid, but some gids may not map back (e.g.
-        #  the virtual in tip4p water https://docs.lammps.org/Howto_tip4p.html)
-        #  coarse-grained may have multiple aids mapping to one single gid
-        #  united atom may have hydrogen aid mapping to None
-        for cid, conf in enumerate(list(confs), start=gid):
-            conf = self.ConfClass(conf, mol=self, gid=cid, start=start)
-            self.confs.append(conf)
-            start += self.GetNumAtoms()
-
-    def getNext(self):
-        """
-        Get the next ids on extending with the conformer.
-
-        :return int, int: the conformer gid, the global atom id.
-        """
-        ids = np.array([[x.gid, x.gids.max()] for x in self.confs])
-        return ids.max(axis=0) + 1 if ids.size else [0, 0]
+        for conf in mol.GetConformers():
+            self.append(conf)
 
     def GetConformers(self):
         """
@@ -133,6 +109,35 @@ class Mol(Chem.rdchem.Mol):
         """
         return self.confs
 
+    def append(self, conf):
+        """
+        Append one conformer.
+
+        :param conf `Chem.rdchem.Conformers`: the conformer to append.
+        """
+        pre = next(reversed(self.confs), None)
+        gid = pre.gid + 1 if pre else 0
+        start = pre.gids.max() + 1 if pre else 0
+        # FIXME: every aid maps to a gid, but some gids may not map back (e.g.
+        #  the virtual in tip4p water https://docs.lammps.org/Howto_tip4p.html)
+        #  coarse-grained may have multiple aids mapping to one single gid
+        #  united atom may have hydrogen aid mapping to None
+        conf = self.ConfClass(conf, mol=self, gid=gid, start=start)
+        self.confs.append(conf)
+
+    def shift(self, pre):
+        """
+        Shift the ids of the conformers.
+
+        :param pre `Conformer`: the previous conformer.
+        """
+        if pre is None:
+            return
+        gid, start = pre.gid + 1, pre.gids.max() + 1
+        for conf in self.confs:
+            conf.gid += gid
+            conf.gids += start
+
     def AddConformer(self, conf, **kwargs):
         """
         Add conformer to the molecule.
@@ -140,7 +145,7 @@ class Mol(Chem.rdchem.Mol):
         :param conf `Chem.rdchem.Conformer`: the conformer to add.
         """
         idx = super().AddConformer(conf, **kwargs)
-        self.setConfs([super().GetConformer(idx)])
+        self.append(super().GetConformer(idx))
 
     def GetConformer(self, idx=0):
         """
@@ -151,20 +156,34 @@ class Mol(Chem.rdchem.Mol):
         """
         return self.confs[idx]
 
-    def EmbedMolecule(self, randomSeed=-1, max_seed=2**31 - 1, **kwargs):
+    def GetNumConformers(self):
+        """
+        Get the number of conformers of the molecule.
+
+        :return int: the number of conformers.
+        """
+        return len(self.confs)
+
+    def EmbedMolecule(self,
+                      randomSeed=-1,
+                      size=2**31 + 1,
+                      clearConfs=True,
+                      **kwargs):
         """
         Embed the molecule to generate a conformer.
 
         :param randomSeed int: the random seed for the embedding.
-        :param max_seed int: the maximum random seed.
+        :param clearConfs bool: clear all existing conformations.
+        :param size int: the maximum random seed - the minimum seed + 1.
+        :return int: the added conformer id.
         """
-        if randomSeed > max_seed:
-            randomSeed = np.random.randint(0, max_seed)
-        AllChem.EmbedMolecule(self, randomSeed=randomSeed, **kwargs)
+        randomSeed = -1 + (randomSeed + 1) % size
+        idx = AllChem.EmbedMolecule(self, randomSeed=randomSeed, **kwargs)
         Chem.GetSymmSSSR(self)
-        # Parent EmbedMolecule add one after clearing previous conformers.
-        self.confs.clear()
-        self.setConfs(super().GetConformers())
+        if clearConfs:
+            self.confs.clear()
+        self.append(super().GetConformer(idx))
+        return idx
 
     @classmethod
     def MolFromSmiles(cls, smiles, united=True, **kwargs):
@@ -195,23 +214,6 @@ class Mol(Chem.rdchem.Mol):
         return cls(Chem.AddHs(mol), **kwargs)
 
     @property
-    def molecular_weight(self):
-        """
-        The molecular weight of the polymer.
-
-        :return float: the total weight.
-        """
-        return Chem.Descriptors.ExactMolWt(self)
-
-    def GetNumConformers(self):
-        """
-        Get the number of conformers of the molecule.
-
-        :return int: the number of conformers.
-        """
-        return len(self.confs)
-
-    @property
     @functools.cache
     def graph(self):
         """
@@ -236,8 +238,7 @@ class Mol(Chem.rdchem.Mol):
         :param bond tuple: the atom ids of two bonded atoms
         :return bool: Whether the bond is rotatable.
         """
-        return not self.GetBondBetweenAtoms(*bond).IsInRing() and \
-            tuple(sorted(bond)) in self.rotatable
+        return tuple(sorted(bond)) in self.rotatable
 
     @property
     @functools.cache
@@ -275,8 +276,12 @@ class Struct:
 
         :param mols list of 'Chem.rdchem.Mol': the molecules to add.
         """
-        for mol in mols:
-            self.mols.append(self.MolClass(mol, struct=self))
+        pre = None
+        for original in mols:
+            mol = self.MolClass(original, struct=self)
+            mol.shift(pre)
+            self.mols.append(mol)
+            pre = next(reversed(mol.confs), None)
 
     @classmethod
     def fromMols(cls, mols, *args, **kwargs):
@@ -290,14 +295,13 @@ class Struct:
         struct.setUp(mols)
         return struct
 
-    def getNext(self):
+    def getLast(self):
         """
         Get the next ids on extending with the conformer.
 
         :return int, int: the conformer gid, the global atom id.
         """
-        ids = np.array([x.getNext() for x in self.mols])
-        return ids.max(axis=0) if ids.size else [0, 0]
+        return self.mols[-1].getLast() if self.mols else [-1, -1]
 
     @property
     def conformer(self):

@@ -134,6 +134,21 @@ def frm(file):
 
 
 @pytest.fixture
+def emol(mol, cnum):
+    """
+    Return a molecule with conformers.
+
+    :param smiles str: the input smiles
+    :return `structure.Mol`: the molecule
+    """
+    if cnum:
+        mol.EmbedMolecule()
+    for _ in range(cnum - 1):
+        mol.AddConformer(mol.confs[0])
+    return mol
+
+
+@pytest.fixture
 def mol(smiles):
     """
     Return a molecule.
