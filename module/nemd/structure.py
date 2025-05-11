@@ -276,7 +276,7 @@ class Struct:
 
         :param mols list of 'Chem.rdchem.Mol': the molecules to add.
         """
-        pre = None
+        pre = next(reversed(list(self.conformer)), None)
         for original in mols:
             mol = self.MolClass(original, struct=self)
             mol.shift(pre)
@@ -294,14 +294,6 @@ class Struct:
         struct = cls(*args, **kwargs)
         struct.setUp(mols)
         return struct
-
-    def getLast(self):
-        """
-        Get the next ids on extending with the conformer.
-
-        :return int, int: the conformer gid, the global atom id.
-        """
-        return self.mols[-1].getLast() if self.mols else [-1, -1]
 
     @property
     def conformer(self):

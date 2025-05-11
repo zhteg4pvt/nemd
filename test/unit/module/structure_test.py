@@ -105,3 +105,45 @@ class TestMol:
                              [('CCCC', 1), ['C=C', 0], ['C1CCCCC1', 0]])
     def testRotatable(sel, mol, expected):
         assert expected == len(mol.rotatable)
+
+
+class TestStruct:
+
+    RING = structure.Mol.MolFromSmiles('C1CCCCC1')
+    RING.EmbedMolecule()
+    RING.EmbedMolecule(clearConfs=False)
+
+    @pytest.fixture
+    def struct(self, smiles):
+        mols = [structure.Mol.MolFromSmiles(x) for x in smiles]
+        for mol in mols:
+            mol.EmbedMolecule()
+        return structure.Struct.fromMols(mols)
+
+    @pytest.mark.parametrize(
+        'smiles,expected', [([], [1, range(2), range(12)]),
+                            (['O', 'CC'], [3, range(4), range(17)])])
+    def testSetUp(self, struct, expected):
+        struct.setUp([self.RING])
+        mol_num, gid, gids = expected
+        assert mol_num == len(struct.mols)
+        assert list(gid) == [x.gid for x in struct.conformer]
+        assert list(gids) == [y for x in struct.conformer for y in x.gids]
+
+    @pytest.mark.parametrize(
+        'smiles,expected', [([], [0, range(0), range(0)]),
+                            (['O', 'CC'], [2, range(2), range(5)])])
+    def testFromMols(self, struct, expected):
+        mol_num, gid, gids = expected
+        assert mol_num == len(struct.mols)
+        assert list(gid) == [x.gid for x in struct.conformer]
+        assert list(gids) == [y for x in struct.conformer for y in x.gids]
+
+    @pytest.mark.parametrize('smiles,expected', [([], 0), (['O', 'CC'], 2)])
+    def testConformer(self, struct, expected):
+        assert expected == len(list(struct.conformer))
+
+    @pytest.mark.parametrize('smiles,expected', [([], 12), (['O', 'CC'], 17)])
+    def testConformer(self, struct, expected):
+        struct.setUp([self.RING])
+        assert expected == struct.atom_total
