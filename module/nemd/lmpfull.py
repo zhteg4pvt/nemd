@@ -88,15 +88,7 @@ class ImproperCoeff(AngleCoeff):
     COLUMNS = ['k', 'd', 'n']
 
 
-class Charge(lmpatomic.XYZ):
-    """
-    The charge of every atom.
-    """
-    NAME = 'Charge'
-    COLUMNS = ['charge']
-
-
-class Atom(lmpatomic.Atom):
+class Id(lmpatomic.Id):
     """
     See parent.
     """
@@ -124,16 +116,16 @@ class Atom(lmpatomic.Atom):
         return array
 
 
-class AtomBlock(lmpatomic.AtomBlock):
+class Atom(lmpatomic.Atom):
     """
     See parent.
     """
-    ID_COLS = [Atom.MOL_ID]
-    COLUMNS = Atom.COLUMNS + Charge.COLUMNS + lmpatomic.XYZ.COLUMNS
+    ID_COLS = [Id.MOL_ID]
+    COLUMNS = Id.COLUMNS + ['Charge'] + symbols.XYZU
     FMT = '%i %i %i %.4f %.4f %.4f %.4f'
 
 
-class Bond(lmpatomic.Atom):
+class Bond(lmpatomic.Id):
     """
     The bond information including the bond type and the atom ids.
     """
@@ -260,13 +252,13 @@ class Conformer(lmpatomic.Conformer):
     """
 
     @property
-    def atoms(self):
+    def ids(self):
         """
-        Atoms.
+        The ids of this conformer.
 
-        :return 'np.ndarray': gids, mol ids, type ids, charges, xyz.
+        :return `np.ndarray`: global, molecule, and type ids.
         """
-        return self.GetOwningMol().atoms.to_numpy(gids=self.gids, gid=self.gid)
+        return self.GetOwningMol().ids.to_numpy(gid=self.gid, gids=self.gids)
 
     @property
     def bonds(self):
@@ -377,7 +369,8 @@ class Mol(lmpatomic.Mol):
     See parent.
     """
     ConfClass = Conformer
-    AtomClass = Atom
+    Atom = Atom
+    Id = Id
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -462,7 +455,7 @@ class Mol(lmpatomic.Mol):
         :return list of float: the atomic charges.
         """
         type_ids = [x.GetIntProp(TYPE_ID) for x in self.GetAtoms()]
-        fchrg = [self.ff.charges.loc[x] for x in type_ids]
+        fchrg = self.ff.charges.loc[type_ids].values
         nchrg = [self.nbr_charge[x.GetIdx()] for x in self.GetAtoms()]
         return [sum(x) for x in zip(fchrg, nchrg)]
 
@@ -697,6 +690,7 @@ class Struct(lmpatomic.Struct, In):
     """
     The oplsua structure.
     """
+    Id = Id
     Atom = Atom
 
     def __init__(self, *args, options=None, **kwargs):
@@ -753,20 +747,19 @@ class Struct(lmpatomic.Struct, In):
             self.dihedral_coeffs.write(self.hdl)
             self.improper_coeffs.write(self.hdl)
             # Topology details
-            self.atom_blk.write(self.hdl)
+            self.atoms.write(self.hdl)
             self.bonds.write(self.hdl)
             self.angles.write(self.hdl)
             self.dihedrals.write(self.hdl)
             self.impropers.write(self.hdl)
 
-    @property
-    @functools.cache
-    def atom_blk(self):
+    def getFloats(self):
         """
-        See parent.
+        Get the atomic information.
+
+        :return tuple: the atomic information.
         """
-        return AtomBlock(
-            self.atoms.astype(float).join(self.charges).join(self.xyz))
+        return np.concatenate((self.charges, self.GetPositions()), axis=1)
 
     @property
     @functools.cache
@@ -777,13 +770,13 @@ class Struct(lmpatomic.Struct, In):
         :return `Charge`: the charges of all atoms.
         """
         charges = [x.GetOwningMol().charges for x in self.conformer]
-        return Charge(np.concatenate(charges).reshape(-1, 1))
+        return np.concatenate(charges)
 
     @property
     @functools.cache
     def bonds(self):
         """
-        Bonds in the structure.
+        Bonds.
 
         :return 'np.ndarray': bond types and bonded atom ids.
         """
@@ -794,7 +787,7 @@ class Struct(lmpatomic.Struct, In):
     @functools.cache
     def angles(self):
         """
-        Angle in the structure.
+        Angle.
 
         :return 'np.ndarray': angle types and connected atom ids.
         """
@@ -805,7 +798,7 @@ class Struct(lmpatomic.Struct, In):
     @functools.cache
     def dihedrals(self):
         """
-        Dihedral angles in the structure.
+        Dihedral angles.
 
         :return 'np.ndarray': dihedral types and connected atom ids.
         """
@@ -816,7 +809,7 @@ class Struct(lmpatomic.Struct, In):
     @functools.cache
     def impropers(self):
         """
-        Improper angles in the structure.
+        Improper angles.
 
         :return 'np.ndarray': improper types and connected atom ids.
         """
@@ -957,10 +950,9 @@ class Reader(lmpatomic.Reader):
     """
     Atom = Atom
     Mass = Mass
-    AtomBlock = AtomBlock
     NAMES = [
         lmpatomic.Mass, PairCoeff, BondCoeff, AngleCoeff, DihedralCoeff,
-        ImproperCoeff, AtomBlock, Bond, Angle, Dihedral, Improper
+        ImproperCoeff, Atom, Bond, Angle, Dihedral, Improper
     ]
     NAMES = {x.NAME: x.LABEL for x in NAMES}
 

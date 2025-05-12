@@ -91,29 +91,7 @@ class Mass(Base):
         return mass
 
 
-class XYZ(Base):
-    """
-    The xyz coordinates of the atoms.
-    """
-    NAME = 'XYZ'
-    COLUMNS = symbols.XYZU
-
-    @classmethod
-    def concatenate(cls, arrays, type_map=None):
-        """
-        Join a sequence of arrays along an existing axis.
-
-        :param arrays sequence of array_like: the arrays to concatenate.
-        :param type_map 'IntArray': map the type ids as consecutive integers
-        :return 'pd.DataFrame': pandas DataFrame from the concatenated array.
-        """
-        array = np.concatenate(arrays)
-        index = cls.COLUMNS.index(TYPE_ID)
-        array[:, index] = type_map.index(array[:, index])
-        return cls(array)
-
-
-class Atom(XYZ):
+class Id(Base):
     """
     The atomic information of the int type.
     """
@@ -144,12 +122,26 @@ class Atom(XYZ):
         array[:, self.SLICE] = gids[array[:, self.SLICE]]
         return array
 
+    @classmethod
+    def concatenate(cls, arrays, type_map=None):
+        """
+        Join a sequence of arrays along an existing axis.
 
-class AtomBlock(Atom):
+        :param arrays sequence of array_like: the arrays to concatenate.
+        :param type_map 'IntArray': map the type ids as consecutive integers
+        :return 'pd.DataFrame': pandas DataFrame from the concatenated array.
+        """
+        array = np.concatenate(arrays)
+        index = cls.COLUMNS.index(TYPE_ID)
+        array[:, index] = type_map.index(array[:, index])
+        return cls(array)
+
+
+class Atom(Id):
     """
     The total atomic information of all data types.
     """
-    COLUMNS = Atom.COLUMNS + XYZ.COLUMNS
+    COLUMNS = Id.COLUMNS + symbols.XYZU
     FMT = '%i %i %.4f %.4f %.4f'
 
     def write(self, *args, index_column=ATOM1, **kwargs):
@@ -165,13 +157,13 @@ class Conformer(structure.Conformer):
     """
 
     @property
-    def atoms(self):
+    def ids(self):
         """
-        Atoms for this conformer.
+        The ids of this conformer.
 
-        :return `'numpy.ndarray'`: information such as global ids, molecule ids.
+        :return `np.ndarray`: global and type ids.
         """
-        return self.GetOwningMol().atoms.to_numpy(gids=self.gids)
+        return self.GetOwningMol().ids.to_numpy(gids=self.gids)
 
 
 class Mol(structure.Mol):
@@ -179,7 +171,7 @@ class Mol(structure.Mol):
     The molecule class for atom typing and int properties.
     """
     ConfClass = Conformer
-    AtomClass = Atom
+    Id = Id
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -196,13 +188,13 @@ class Mol(structure.Mol):
 
     @property
     @functools.cache
-    def atoms(self):
+    def ids(self):
         """
-        The atoms of the molecules.
+        The ids of the molecules.
 
-        :return `Atom`: the atoms.
+        :return `Id`: the atom ids.
         """
-        return self.AtomClass.fromAtoms(self.GetAtoms())
+        return self.Id.fromAtoms(self.GetAtoms())
 
     @property
     @functools.cache
@@ -219,6 +211,7 @@ class Struct(structure.Struct):
     """
     The atomic structure.
     """
+    Id = Id
     Atom = Atom
     MolClass = Mol
     DESCR = 'LAMMPS Description # {style}'
@@ -248,36 +241,40 @@ class Struct(structure.Struct):
         self.atm_types[[x.GetAtomicNum() for x in mol.GetAtoms()]] = True
 
     @property
-    @functools.cache
-    def atom_blk(self):
-        """
-        The total atomic information of all data types.
-
-        :return `Atom`: global ids, type ids, and coordinates.
-        """
-        return AtomBlock(self.atoms.astype(float).join(self.xyz))
-
-    @property
-    @functools.cache
     def atoms(self):
         """
-        The atomic information of the int data type such as ids and types.
+        Atoms.
 
-        :return `Atom`: information such as global ids and type ids.
+        :return `Atom`: atoms.
         """
-        atoms = [x.atoms for x in self.conformer]
-        return self.Atom.concatenate(atoms, type_map=self.atm_types)
+        zipped = zip(self.ids.values, self.getFloats())
+        return self.Atom([list(x) + list(y) for x, y in zipped])
+
+    def getFloats(self):
+        """
+        Get the float data of the atoms.
+
+        :return `np.ndarray`: the float atomic data.
+        """
+        return self.GetPositions()
 
     @property
-    def xyz(self):
+    @functools.cache
+    def ids(self):
         """
-        The atom coordinates.
+        The ids of the atoms.
 
-        :return `XYZ`: the atom coordinates.
+        :return `Id`: information such as global ids and type ids.
         """
-        return XYZ(self.GetPositions())
+        ids = [x.ids for x in self.conformer]
+        return self.Id.concatenate(ids, type_map=self.atm_types)
 
     def GetPositions(self):
+        """
+        The xyz coordinates of atoms.
+
+        :return 'np.ndarray': the coordinates.
+        """
         return np.concatenate([x.GetPositions() for x in self.conformer])
 
     @property
@@ -309,10 +306,10 @@ class Reader:
 
     https://docs.lammps.org/read_data.html#format-of-a-data-file
     """
-    Atom = Atom
+    Id = Id
     Mass = Mass
-    AtomBlock = AtomBlock
-    NAMES = {x.NAME: x.LABEL for x in [Mass, AtomBlock]}
+    Atom = Atom
+    NAMES = {x.NAME: x.LABEL for x in [Mass, Atom]}
     DESCR_RE = Struct.DESCR.replace('{style}', '(.*)$')
 
     def __init__(self, data_file=None):
@@ -427,7 +424,7 @@ class Reader:
 
         :return `AtomBlock`: atom id, molecule id, type id, charge, and position.
         """
-        return self.fromLines(self.AtomBlock).reset_index(names=[ATOM1])
+        return self.fromLines(self.Atom).reset_index(names=[ATOM1])
 
     @property
     @functools.cache

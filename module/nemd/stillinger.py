@@ -45,4 +45,4 @@ class Struct(lmpatomic.Struct, lammpsin.In):
             self.hdl.write("\n")
             self.box.write(self.hdl)
             self.masses.write(self.hdl)
-            self.atom_blk.write(self.hdl)
+            self.atoms.write(self.hdl)
