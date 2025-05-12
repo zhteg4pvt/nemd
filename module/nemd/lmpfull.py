@@ -753,13 +753,11 @@ class Struct(lmpatomic.Struct, In):
             self.dihedrals.write(self.hdl)
             self.impropers.write(self.hdl)
 
-    def getFloats(self):
+    def getAtomic(self):
         """
-        Get the atomic information.
-
-        :return tuple: the atomic information.
+        See parent.
         """
-        return np.concatenate((self.charges, self.GetPositions()), axis=1)
+        return zip(self.ids.values, self.charges, self.GetPositions())
 
     @property
     @functools.cache
@@ -769,7 +767,7 @@ class Struct(lmpatomic.Struct, In):
 
         :return `Charge`: the charges of all atoms.
         """
-        charges = [x.GetOwningMol().charges for x in self.conformer]
+        charges = [x.GetOwningMol().charges for x in self.conf]
         return np.concatenate(charges)
 
     @property

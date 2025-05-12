@@ -276,7 +276,7 @@ class Struct:
 
         :param mols list of 'Chem.rdchem.Mol': the molecules to add.
         """
-        pre = next(reversed(list(self.conformer)), None)
+        pre = next(reversed(list(self.conf)), None)
         for original in mols:
             mol = self.MolClass(original, struct=self)
             mol.shift(pre)
@@ -296,7 +296,7 @@ class Struct:
         return struct
 
     @property
-    def conformer(self):
+    def conf(self):
         """
         Return generator of all conformers from all molecules.
 

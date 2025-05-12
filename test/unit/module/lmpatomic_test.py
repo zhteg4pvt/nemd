@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from nemd import lmpatomic
+from nemd import table
 
 
 class TestBase:
@@ -24,72 +25,31 @@ class TestBase:
         assert expected == [*base.index, *base.values]
 
 
-# class TestConformer:
-#
-#     @pytest.fixture
-#     def conf(self):
-#         mol = lmpatomic.Mol.MolFromSmiles('CCCC(C)C')
-#         mol.EmbedMolecule()
-#         return mol.GetConformer()
-#
-#     def testAtoms(self, conf):
-#         assert conf.atoms.shape == (6, 6)
-#
-#     def testBonds(self, conf):
-#         assert conf.bonds.shape == (5, 3)
-#
-#     def testAngles(self, conf):
-#         assert conf.angles.shape == (4, 4)
-#
-#     def testDihedrals(self, conf):
-#         assert conf.dihedrals.shape == (3, 5)
-#
-#     def testImpropers(self, conf):
-#         assert conf.impropers.shape == (1, 5)
-#
-#
-# class TestMol:
-#
-#     @pytest.fixture
-#     def raw_mol(self):
-#         mol = lmpatomic.Mol.MolFromSmiles('[H]OC(=O)CC', delay=True)
-#         mol.EmbedMolecule()
-#         return mol
-#
-#     def testTypeAtoms(self, raw_mol):
-#         raw_mol.typeAtoms()
-#         assert len([x.GetIntProp('type_id') for x in raw_mol.GetAtoms()]) == 6
-#
-#     def testBalanceCharge(self, raw_mol):
-#         raw_mol.typeAtoms()
-#         raw_mol.balanceCharge()
-#         np.testing.assert_almost_equal(raw_mol.nbr_charge[1], 0.08, 5)
-#
-#     @pytest.fixture
-#     def mol(self):
-#         mol = lmpatomic.Mol.MolFromSmiles('[H]OC(=O)CC')
-#         mol.EmbedMolecule()
-#         return mol
-#
-#     def testAtoms(self, mol):
-#         assert mol.atoms.shape == (6, 6)
-#
-#     def testBonds(self, mol):
-#         assert mol.bonds.shape == (5, 3)
-#
-#     def testAngles(self, mol):
-#         assert mol.angles.shape == (4, 4)
-#
-#     def testDihedrals(self, mol):
-#         assert mol.dihedrals.shape == (4, 5)
-#
-#     def testImpropers(self, mol):
-#         assert mol.impropers.shape == (1, 5)
-#
-#     def testSetFixGeom(self, mol):
-#         bonds, angles = mol.getRigid()
-#         assert all(bonds == 86)
-#         assert all(angles == 296)
-#
-#     def testMolecularWeight(self, mol):
-#         assert mol.mw == 74.079
+class TestMass:
+
+    TABLE = table.TABLE.reset_index()
+
+    @pytest.fixture
+    def masses(self, indices):
+        return lmpatomic.Mass.fromAtoms(self.TABLE.iloc[indices])
+
+    @pytest.mark.parametrize('indices', [([1, 2]), ([4, 2, 112])])
+    def testFromAtoms(self, masses, indices):
+        assert len(indices) == masses.shape[0]
+
+    @pytest.mark.parametrize('indices,expected',
+                             [([1, 2], ['H', 'He']),
+                              ([4, 2, 112], ['Be', 'He', 'Cn'])])
+    def testElement(self, masses, expected):
+        np.testing.assert_equal(masses.element, expected)
+
+    @pytest.mark.parametrize('indices', [([1, 2]), ([4, 2, 112])])
+    def testWrite(self, masses, tmp_dir):
+        with open('file', 'w') as fh:
+            masses.write(fh)
+        assert os.path.isfile('file')
+
+    @pytest.mark.parametrize('lines',
+                             [(['1 1.0080 # H #\n', '2 4.0030 # He #\n'])])
+    def testFromLines(self, lines, tmp_dir):
+        assert len(lines) == lmpatomic.Mass.fromLines(lines).shape[0]

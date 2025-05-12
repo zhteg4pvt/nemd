@@ -127,7 +127,7 @@ class TestStruct:
         struct.setUp([self.RING])
         mol_num, gid, gids = expected
         assert mol_num == len(struct.mols)
-        assert list(gid) == [x.gid for x in struct.conformer]
+        assert list(gid) == [x.gid for x in struct.conf]
         assert list(gids) == [y for x in struct.conformer for y in x.gids]
 
     @pytest.mark.parametrize(
@@ -136,12 +136,12 @@ class TestStruct:
     def testFromMols(self, struct, expected):
         mol_num, gid, gids = expected
         assert mol_num == len(struct.mols)
-        assert list(gid) == [x.gid for x in struct.conformer]
+        assert list(gid) == [x.gid for x in struct.conf]
         assert list(gids) == [y for x in struct.conformer for y in x.gids]
 
     @pytest.mark.parametrize('smiles,expected', [([], 0), (['O', 'CC'], 2)])
     def testConformer(self, struct, expected):
-        assert expected == len(list(struct.conformer))
+        assert expected == len(list(struct.conf))
 
     @pytest.mark.parametrize('smiles,expected', [([], 12), (['O', 'CC'], 17)])
     def testConformer(self, struct, expected):

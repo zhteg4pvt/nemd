@@ -247,16 +247,15 @@ class Struct(structure.Struct):
 
         :return `Atom`: atoms.
         """
-        zipped = zip(self.ids.values, self.getFloats())
-        return self.Atom([list(x) + list(y) for x, y in zipped])
+        return self.Atom([[z for y in x for z in y] for x in self.getAtomic()])
 
-    def getFloats(self):
+    def getAtomic(self):
         """
-        Get the float data of the atoms.
+        Get the atomic information.
 
-        :return `np.ndarray`: the float atomic data.
+        :return `tuple: the atomic information.
         """
-        return self.GetPositions()
+        return zip(self.ids.values, self.GetPositions())
 
     @property
     @functools.cache
@@ -266,8 +265,8 @@ class Struct(structure.Struct):
 
         :return `Id`: information such as global ids and type ids.
         """
-        ids = [x.ids for x in self.conformer]
-        return self.Id.concatenate(ids, type_map=self.atm_types)
+        return self.Id.concatenate([x.ids for x in self.conf],
+                                   type_map=self.atm_types)
 
     def GetPositions(self):
         """
@@ -275,7 +274,7 @@ class Struct(structure.Struct):
 
         :return 'np.ndarray': the coordinates.
         """
-        return np.concatenate([x.GetPositions() for x in self.conformer])
+        return np.concatenate([x.GetPositions() for x in self.conf])
 
     @property
     def masses(self):

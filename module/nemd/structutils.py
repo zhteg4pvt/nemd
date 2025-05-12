@@ -665,7 +665,7 @@ class PackedStruct(Struct):
         for trial_id in range(1, max_trial + 1):
             with logger.oneLine(logging.DEBUG) as log:
                 nth = -1
-                for conf_id, conf in enumerate(self.conformer):
+                for conf_id, conf in enumerate(self.conf):
                     try:
                         conf.setConformer()
                     except ConfError:
@@ -709,10 +709,10 @@ class PackedStruct(Struct):
         """
         Reset the state so that a new attempt can happen.
         """
-        for conf in self.conformer:
+        for conf in self.conf:
             conf.reset()
-        self.dist = Frame(np.concatenate(
-            [x.GetPositions() for x in self.conformer]),
+        self.dist = Frame(np.concatenate([x.GetPositions()
+                                          for x in self.conf]),
                           box=self.box,
                           struct=self,
                           gids=[])
@@ -886,11 +886,11 @@ class GrownStruct(PackedStruct):
         See parent.
         """
         super().setUp(*args, **kwargs)
-        if all([x.ifrag for x in self.conformer]):
+        if all([x.ifrag for x in self.conf]):
             return
-        for conf in self.conformer:
+        for conf in self.conf:
             conf.fragmentize()
-        total_frag_num = sum([x.getNumFrags() for x in self.conformer])
+        total_frag_num = sum([x.getNumFrags() for x in self.conf])
         logger.debug(f"{total_frag_num} fragments in total.")
 
     def setBox(self):
@@ -907,7 +907,7 @@ class GrownStruct(PackedStruct):
         logger.debug(f'Placing {self.conformer_total} initiators...')
         with logger.oneLine(logging.DEBUG) as log:
             tenth, threshold, = self.conformer_total / 10., 0
-            for index, conf in enumerate(self.conformer, start=1):
+            for index, conf in enumerate(self.conf, start=1):
                 conf.placeInitFrag()
                 if index >= threshold:
                     log(f"{int(index / self.conformer_total * 100)}%")
@@ -935,7 +935,7 @@ class GrownStruct(PackedStruct):
             except ConfError:
                 self.reset()
                 continue
-            conformers = list(self.conformer)
+            conformers = list(self.conf)
             while conformers:
                 conf = conformers.pop(0)
                 try:
@@ -952,7 +952,7 @@ class GrownStruct(PackedStruct):
                     continue
                 # Successfully placed all fragments of one conformer
                 finished_num = self.conformer_total - len(conformers)
-                failed_num = sum([x.failed_num for x in self.conformer])
+                failed_num = sum([x.failed_num for x in self.conf])
                 logger.debug(f'{finished_num} finished; {failed_num} failed.')
                 if not conformers:
                     # Successfully placed all conformers.
