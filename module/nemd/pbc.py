@@ -147,35 +147,35 @@ class Base(pandasutils.DataFrame):
             hdl.write('\n')
         self.shift(data, delta=-1)
 
-    def allClose(self, other, **kwargs):
+    def allClose(self, other, floats=('float', 'int'), **kwargs):
         """
         Returns a boolean where two arrays are equal within a tolerance
 
         :param other float: the other data reader to compare against.
+        :param floats tuple: the float-lick data types
         :return bool: whether two data are close.
         """
-        included = self.select_dtypes(include=['float'])
-        others = other.select_dtypes(include=['float'])
+        included = self.select_dtypes(include=floats)
+        others = other.select_dtypes(include=floats)
         if included.shape != others.shape:
             return False
         if not np.allclose(included, others, **kwargs):
             return False
-        excluded = self.select_dtypes(exclude=['float'])
-        return excluded.equals(other.select_dtypes(exclude=['float']))
+        excluded = self.select_dtypes(exclude=floats)
+        return excluded.equals(other.select_dtypes(exclude=floats))
 
 
 class BoxNumba(Base):
     """
     The simulation box (e.g., periodic boundary conditions).
     """
-
-    NAME = None
-    LABEL = 'box'
+    NAME = 'box'
     LO, HI = 'lo', 'hi'
     LIMIT_CMT = '{limit}_cmt'
     LO_LABEL = LIMIT_CMT.format(limit=LO)
     HI_LABEL = LIMIT_CMT.format(limit=HI)
     COLUMNS = [LO, HI, LO_LABEL, HI_LABEL]
+    TILT_LABEL = ['xy', 'xz', 'yz']
 
     # https://pandas.pydata.org/docs/development/extending.html
     _metadata = ['tilt']
@@ -217,6 +217,16 @@ class BoxNumba(Base):
         :return 'numpy.ndarray': the span of the box.
         """
         return self[[self.LO, self.HI]].mean(axis=1).values
+
+    @classmethod
+    def fromLines(cls, lines, *args, **kwargs):
+        """
+        See parent.
+        """
+        box = super().fromLines(lines[:3], *args, **kwargs)
+        if len(lines) > 3:
+            box.tilt = list(map(float, lines[3].split()[:3]))
+        return box
 
     @classmethod
     def fromParams(cls,
@@ -281,7 +291,7 @@ class BoxNumba(Base):
         super().write(fh, index=index, as_block=as_block, **kwargs)
         if self.tilt:
             tilt = [symbols.FLOAT_FMT % x for x in self.tilt]
-            fh.write(' '.join(tilt + ['xy', 'xz', 'yz']) + "\n")
+            fh.write(' '.join(tilt + self.TILT_LABEL) + "\n")
         fh.write("\n")
 
     @property

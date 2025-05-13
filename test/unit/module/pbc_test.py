@@ -70,11 +70,14 @@ class TestBase:
         assert shape == data.shape
 
     @pytest.mark.parametrize('TYPE_COL,ID_COLS,FMT', [('b', ['c'], None)])
-    @pytest.mark.parametrize('dtype,expected', [(int, True), (float, False)])
-    def testAllClose(self, base, dtype, expected):
+    @pytest.mark.parametrize('dtype,floats,expected',
+                             [(int, ('float', 'int'), True),
+                              (float, ('float', 'int'), True),
+                              (float, ('float', ), False)])
+    def testAllClose(self, base, dtype, floats, expected):
         other = np.zeros((3, 3), dtype=dtype)
         other = pd.DataFrame(other, columns=['a', 'b', 'c'])
-        assert expected == base.allClose(other)
+        assert expected == base.allClose(other, floats=floats)
 
 
 class TestBoxNumba:

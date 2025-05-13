@@ -1,12 +1,13 @@
+import copy
 import os
 import types
 
 import numpy as np
 import pytest
 
+from nemd import envutils
 from nemd import lmpatomic
 from nemd import numpyutils
-from nemd import oplsua
 from nemd import parserutils
 from nemd import table
 
@@ -162,3 +163,58 @@ class TestStruct:
     @pytest.mark.parametrize('cnum,expected', [(0, str)])
     def testFf(self, struct, expected):
         assert isinstance(struct.ff, expected)
+
+
+@pytest.mark.parametrize(
+    'data_file', [envutils.test_data('0033_test', 'crystal_builder.data')])
+class TestReader:
+
+    @pytest.fixture
+    def rdr(self, data_file):
+        return lmpatomic.Reader(data_file)
+
+    def testLines(self, rdr):
+        assert 3 == len(rdr.lines)
+
+    @pytest.mark.parametrize('line', ['Masses', 'Atoms'])
+    def testNameRe(self, rdr, line):
+        assert rdr.name_re.match(line)
+
+    @pytest.mark.parametrize('line', ['48 atoms', '1 atom types'])
+    def testCountRe(self, rdr, line):
+        assert rdr.count_re.match(line)
+
+    @pytest.mark.parametrize(
+        'line', ['0 5.1592 xlo xhi', '0 10.3183 ylo yhi', '0 15.4775 zlo zhi'])
+    def testBoxRe(self, rdr, line):
+        assert rdr.box_re.match(line)
+
+    @pytest.mark.parametrize('line', ['0.0000 0.0000 0.0000 xy xz yz'])
+    def testTiltRe(self, rdr, line):
+        assert rdr.tilt_re.match(line)
+
+    def testBox(self, rdr):
+        assert (3, 4) == rdr.box.shape
+        assert [0, 0, 0] == rdr.box.tilt
+
+    def testMasses(self, rdr):
+        assert (1, 2) == rdr.masses.shape
+
+    def testElements(self, rdr):
+        assert (48, 1) == rdr.elements.shape
+
+    def testAtoms(self, rdr):
+        assert (48, 5) == rdr.atoms.shape
+
+    def testFromLines(self, rdr):
+        assert (48, 4) == rdr.fromLines(lmpatomic.Atom).shape
+
+    @pytest.mark.parametrize('atol,rtol,expected', [(1e-08, 1e-05, False),
+                                                    (1e-06, 1e-05, True)])
+    def testFromLines(self, rdr, atol, rtol, expected):
+        other = copy.deepcopy(rdr)
+        other.box.lo = 1e-07
+        assert expected == rdr.allClose(other, atol=atol, rtol=rtol)
+
+    def testGetStyle(self, rdr):
+        assert 'atomic' == rdr.getStyle(rdr.data_file)

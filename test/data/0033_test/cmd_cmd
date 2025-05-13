@@ -1,0 +1,2 @@
+echo "0033: Crystal builder on Si with scaled lattice parameters"
+nemd_run xtal_bldr_driver.py -dimension 1 2 3 -JOBNAME crystal_builder -seed 0 -scale_factor 0.95 -CPU 1 -DEBUG False

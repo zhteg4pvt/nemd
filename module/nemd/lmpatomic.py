@@ -308,6 +308,7 @@ class Reader:
     Atom = Atom
     NAMES = {x.NAME: x.LABEL for x in [Mass, Atom]}
     DESCR_RE = Struct.DESCR.replace('{style}', '(.*)$')
+    FLOAT_RE = r"[+-]?[\d\.]+"
 
     def __init__(self, data_file=None):
         """
@@ -333,7 +334,8 @@ class Reader:
         counts = {x.group(2): int(x.group(1)) for x in matches if x}
         lines = {x: raw[y:y + counts[self.NAMES[x]]] for x, y in lines.items()}
         # 'xlo xhi': [-7.12, 35.44], 'ylo yhi': [-7.53, 34.26], ..
-        lines[pbc.Box.LABEL] = [x for x in header if self.box_re.match(x)]
+        lines[pbc.Box.NAME] = [x for x in header if self.box_re.match(x)]
+        lines[pbc.Box.NAME] += [x for x in header if self.tilt_re.match(x)]
         return lines
 
     @property
@@ -359,16 +361,26 @@ class Reader:
 
     @property
     @functools.cache
-    def box_re(self, float_re=r"[+-]?[\d\.]+"):
+    def box_re(self):
         """
         The regular expression of any box lines. (e.g. 'xlo xhi', 'ylo yhi')
 
         :return 're.pattern': the count regular expression
         """
-        # FIXME: read tilt factors of the triclinic box
         values = pbc.Box.getLabels().values()
         labels = '|'.join([f'{x}{symbols.SPACE}{y}' for x, y in zip(*values)])
-        return re.compile(rf"^{float_re}\s+{float_re}\s+({labels}).*$")
+        return re.compile(rf"^{self.FLOAT_RE}\s{self.FLOAT_RE}\s({labels}).*$")
+
+    @property
+    @functools.cache
+    def tilt_re(self):
+        """
+        The regular expression of any box lines. (e.g. 'xlo xhi', 'ylo yhi')
+
+        :return 're.pattern': the count regular expression
+        """
+        rex = r'\s'.join([self.FLOAT_RE] * 3 + pbc.Box.TILT_LABEL)
+        return re.compile(rf"^{rex}.*$")
 
     @property
     @functools.cache
@@ -411,16 +423,6 @@ class Reader:
         :return `Atom`: the atom information such as atom id, molecule id,
             type id, charge, position, etc.
         """
-        return self.atom_blk[self.Atom.COLUMNS]
-
-    @property
-    @functools.cache
-    def atom_blk(self):
-        """
-        The atom block.
-
-        :return `AtomBlock`: atom id, molecule id, type id, charge, and position.
-        """
         return self.fromLines(self.Atom).reset_index(names=[ATOM1])
 
     def fromLines(self, BlockClass):
@@ -449,7 +451,7 @@ class Reader:
             return False
         if not self.masses.allClose(other.masses, **kwargs):
             return False
-        if not self.atom_blk.allClose(other.atom_blk, **kwargs):
+        if not self.atoms.allClose(other.atoms, **kwargs):
             return False
         return True
 
