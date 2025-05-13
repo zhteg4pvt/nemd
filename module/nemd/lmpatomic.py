@@ -123,7 +123,7 @@ class Id(Base):
         return array
 
     @classmethod
-    def concatenate(cls, arrays, type_map=None):
+    def concatenate(cls, arrays, type_map):
         """
         Join a sequence of arrays along an existing axis with mapping.
 
@@ -265,8 +265,8 @@ class Struct(structure.Struct):
 
         :return `Id`: information such as global ids and type ids.
         """
-        return self.Id.concatenate([x.ids for x in self.conf],
-                                   type_map=self.atm_types)
+        ids = [x.ids for x in self.conf]
+        return self.Id.concatenate(ids, self.atm_types) if ids else self.Id()
 
     def GetPositions(self):
         """
@@ -274,17 +274,17 @@ class Struct(structure.Struct):
 
         :return 'np.ndarray': the coordinates.
         """
-        return np.concatenate([x.GetPositions() for x in self.conf])
+        return np.concatenate([x.GetPositions() for x in self.conf] or [[]])
 
     @property
-    def masses(self):
+    def masses(self, atoms=table.TABLE.reset_index()):
         """
         Atom masses.
 
+        :param atoms `pd.DataFrame`: atoms from the periodic table.
         :return `Mass`: mass of each type of atom.
         """
-        atoms = table.TABLE.iloc[self.atm_types.on].reset_index()
-        return Mass.fromAtoms(atoms)
+        return Mass.fromAtoms(atoms.iloc[self.atm_types.on])
 
     @property
     @functools.cache

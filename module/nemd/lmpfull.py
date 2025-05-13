@@ -779,7 +779,7 @@ class Struct(lmpatomic.Struct, In):
         :return 'np.ndarray': bond types and bonded atom ids.
         """
         bonds = [y.bonds for x in self.mols for y in x.confs]
-        return Bond.concatenate(bonds, type_map=self.bnd_types)
+        return Bond.concatenate(bonds, self.bnd_types)
 
     @property
     @functools.cache
@@ -790,7 +790,7 @@ class Struct(lmpatomic.Struct, In):
         :return 'np.ndarray': angle types and connected atom ids.
         """
         angles = [y.angles for x in self.mols for y in x.confs]
-        return Angle.concatenate(angles, type_map=self.ang_types)
+        return Angle.concatenate(angles, self.ang_types)
 
     @property
     @functools.cache
@@ -801,7 +801,7 @@ class Struct(lmpatomic.Struct, In):
         :return 'np.ndarray': dihedral types and connected atom ids.
         """
         dihes = [y.dihedrals for x in self.mols for y in x.confs]
-        return Dihedral.concatenate(dihes, type_map=self.dihe_types)
+        return Dihedral.concatenate(dihes, self.dihe_types)
 
     @property
     @functools.cache
@@ -812,7 +812,7 @@ class Struct(lmpatomic.Struct, In):
         :return 'np.ndarray': improper types and connected atom ids.
         """
         imprps = [y.impropers for x in self.mols for y in x.confs]
-        return Improper.concatenate(imprps, type_map=self.impr_types)
+        return Improper.concatenate(imprps, self.impr_types)
 
     @property
     def masses(self):

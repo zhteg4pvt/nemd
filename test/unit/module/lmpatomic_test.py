@@ -81,7 +81,7 @@ class TestId:
         [(([[1, 2]], [[3, 4]]), [1, 2, 4], [[1, 1], [3, 2]])])
     def testConcatenate(self, arrays, on, expected):
         type_map = numpyutils.IntArray(on=on)
-        ids = lmpatomic.Id.concatenate(arrays, type_map=type_map)
+        ids = lmpatomic.Id.concatenate(arrays, type_map)
         np.testing.assert_equal(ids.values, expected)
 
 
@@ -128,3 +128,37 @@ class TestMol:
         options = parserutils.MolBase().parse_args([smiles])
         struct = lmpatomic.Struct.fromMols([mol], options=options)
         assert isinstance(struct.mols[0].ff, class_type)
+
+
+@pytest.mark.parametrize('smiles', ['[Si]'])
+class TestStruct:
+
+    @pytest.fixture
+    def struct(self, emol):
+        return lmpatomic.Struct.fromMols([emol])
+
+    @pytest.mark.parametrize('cnum,expected', [(1, [14])])
+    def testSetTypeMap(self, struct, expected):
+        np.testing.assert_equal(struct.atm_types.on, expected)
+
+    @pytest.mark.parametrize('cnum,expected', [(0, (0, 5)), (1, (1, 5)),
+                                               (2, (2, 5))])
+    def testAtoms(self, struct, expected):
+        assert expected == struct.atoms.shape
+
+    @pytest.mark.parametrize('cnum,expected', [(0, 0), (1, 1), (2, 2)])
+    def testGetAtomic(self, struct, expected):
+        assert expected == len(list(struct.getAtomic()))
+
+    @pytest.mark.parametrize('cnum,expected', [(0, (0, 2)), (1, (1, 2)),
+                                               (2, (2, 2))])
+    def testIds(self, struct, expected):
+        assert expected == struct.ids.shape
+
+    @pytest.mark.parametrize('cnum,expected', [(0, 0), (1, 1), (2, 2)])
+    def testGetPositions(self, struct, expected):
+        assert expected == len(struct.GetPositions())
+
+    @pytest.mark.parametrize('cnum,expected', [(0, str)])
+    def testFf(self, struct, expected):
+        assert isinstance(struct.ff, expected)
