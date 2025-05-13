@@ -941,6 +941,15 @@ class Struct(lmpatomic.Struct, In):
                   f' is smaller than {self.DEFAULT_CUT * 2:.2f} ' \
                   f'{symbols.ANGSTROM} (Lennard-Jones Cutoff x 2) '
 
+    @property
+    @functools.cache
+    def ff(self):
+        """
+        See parent.
+        """
+        ff = self.options.force_field if self.options else symbols.OPLSUA_TIP3P
+        return oplsua.Parser.get(*ff[1:])
+
 
 class Reader(lmpatomic.Reader):
     """

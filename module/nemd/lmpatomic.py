@@ -12,10 +12,10 @@ import methodtools
 import numpy as np
 import pandas as pd
 
-from nemd import forcefield
 from nemd import numpyutils
 from nemd import pbc
 from nemd import structure
+from nemd import sw
 from nemd import symbols
 from nemd import table
 
@@ -290,13 +290,11 @@ class Struct(structure.Struct):
     @functools.cache
     def ff(self):
         """
-        Force field object by name and arguments.
+        Force field object.
 
-        :return str or `oplsua.Parser`: the force field file or parser.
+        :return str: the force field file or parser.
         """
-        if self.options is None:
-            return
-        return forcefield.get(*self.options.force_field, struct=self)
+        return sw.get_file(*self.masses.element.tolist())
 
 
 class Reader:

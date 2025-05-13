@@ -122,10 +122,9 @@ class TestMol:
     def testIds(self, mol, expected):
         np.testing.assert_equal(mol.ids.values, expected)
 
-    @pytest.mark.parametrize('smiles,args,class_type',
-                             [('O', ['O'], oplsua.Parser),
-                              ('C', None, types.NoneType)])
-    def testFf(self, mol, args, class_type):
-        options = parserutils.MolBase().parse_args(args) if args else None
-        mol = lmpatomic.Mol(mol, struct=lmpatomic.Struct(options=options))
-        assert isinstance(mol.ff, class_type)
+    @pytest.mark.parametrize('smiles,class_type', [('[Si]', str),
+                                                   ('C', types.NoneType)])
+    def testFf(self, mol, smiles, class_type):
+        options = parserutils.MolBase().parse_args([smiles])
+        struct = lmpatomic.Struct.fromMols([mol], options=options)
+        assert isinstance(struct.mols[0].ff, class_type)

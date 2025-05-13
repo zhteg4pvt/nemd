@@ -8,7 +8,7 @@ from nemd import sw
 from nemd import symbols
 
 
-def get(name, *args, **kwargs):
+def get(name, *args):
     """
     Get the force field object.
 
@@ -17,6 +17,6 @@ def get(name, *args, **kwargs):
     """
     match name:
         case symbols.SW:
-            return sw.get_file(*args, **kwargs)
+            return sw.get_file(*args)
         case symbols.OPLSUA:
             return oplsua.Parser.get(*args)

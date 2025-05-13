@@ -8,23 +8,19 @@ import functools
 from nemd import envutils
 
 SI = 'Si'
-SW_ELEMENTS = [SI]
-NAME_ELEMENTS = {SI: [SI]}
+NAME_ELEMENTS = {SI: {SI}}
 
 
 @functools.cache
-def get_file(elements=None, struct=None):
+def get_file(*args):
     """
     Get the force field file for the given elements.
 
     https://docs.lammps.org/pair_sw.html
 
-    :param elements tuple: the elements to be included in the force field.
-    :param struct `stillinger.Struct`: the structure to retrieve elements from.
     :return str: the force field pathname.
     """
-    elements = set(elements if elements else struct.masses.element)
-    for name, supported in NAME_ELEMENTS.items():
-        if elements.difference(supported):
-            continue
+    elements = set(args)
+    name = next((x for x, y in NAME_ELEMENTS.items() if y == elements), None)
+    if name:
         return envutils.get_data('potentials', f'{name}.sw', module='lammps')

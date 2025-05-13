@@ -1,17 +1,12 @@
 import pytest
-from rdkit import Chem
 
-from nemd import stillinger
 from nemd import sw
 
 
 class TestFunc:
 
-    STRUCT = stillinger.Struct.fromMols([Chem.MolFromSmiles('[Si]')])
-
-    @pytest.mark.parametrize('elements,struct,expected',
-                             [(('Si', ), None, 'Si.sw'),
-                              (None, STRUCT, 'Si.sw'), (('Ar', ), None, None)])
-    def testGetFile(self, elements, struct, expected):
-        file = sw.get_file(elements, struct=struct)
+    @pytest.mark.parametrize('elements,expected', [(('Si', ), 'Si.sw'),
+                                                   (('Ar', ), None)])
+    def testGetFile(self, elements, expected):
+        file = sw.get_file(*elements)
         assert file is None if expected is None else file.endswith('.sw')
