@@ -425,16 +425,6 @@ class Reader:
         """
         return self.fromLines(self.Atom).reset_index(names=[ATOM1])
 
-    @property
-    @functools.cache
-    def xyz(self):
-        """
-        Parse the atom section.
-
-        :return `XYZ`: the atom coordinates.
-        """
-        return self.atom_blk[XYZ.COLUMNS]
-
     def fromLines(self, BlockClass):
         """
         Parse a block of lines.

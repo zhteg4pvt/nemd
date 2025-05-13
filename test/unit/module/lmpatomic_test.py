@@ -1,10 +1,13 @@
 import os
+import types
 
 import numpy as np
 import pytest
 
 from nemd import lmpatomic
 from nemd import numpyutils
+from nemd import oplsua
+from nemd import parserutils
 from nemd import table
 
 
@@ -80,3 +83,49 @@ class TestId:
         type_map = numpyutils.IntArray(on=on)
         ids = lmpatomic.Id.concatenate(arrays, type_map=type_map)
         np.testing.assert_equal(ids.values, expected)
+
+
+class TestAtom:
+
+    @pytest.mark.parametrize('atomic,expected', [([[0, 0, 0.1, 0.2, 0.3]], 1)])
+    def testWrite(self, atomic, expected, tmp_dir):
+        with open('file', 'w') as fh:
+            lmpatomic.Atom(atomic).write(fh)
+        assert os.path.isfile('file')
+
+
+class TestConformer:
+
+    @pytest.mark.parametrize(
+        'smiles,expected',
+        [('O', [[0, 8], [1, 1], [2, 1], [3, 8], [4, 1], [5, 1]])])
+    def testIds(self, smiles, expected):
+        mol = lmpatomic.Mol.MolFromSmiles(smiles)
+        mol.EmbedMolecule()
+        mol.EmbedMolecule(clearConfs=False)
+        ids = np.concatenate([x.ids for x in mol.GetConformers()])
+        np.testing.assert_equal(ids, expected)
+
+
+class TestMol:
+
+    @pytest.fixture
+    def mol(self, smiles):
+        return lmpatomic.Mol.MolFromSmiles(smiles)
+
+    @pytest.mark.parametrize('smiles,expected', [('O', [8, 1, 1])])
+    def testType(self, mol, expected):
+        assert expected == [x.GetIntProp('type_id') for x in mol.GetAtoms()]
+
+    @pytest.mark.parametrize('smiles,expected',
+                             [('O', [[0, 8], [1, 1], [2, 1]])])
+    def testIds(self, mol, expected):
+        np.testing.assert_equal(mol.ids.values, expected)
+
+    @pytest.mark.parametrize('smiles,args,class_type',
+                             [('O', ['O'], oplsua.Parser),
+                              ('C', None, types.NoneType)])
+    def testFf(self, mol, args, class_type):
+        options = parserutils.MolBase().parse_args(args) if args else None
+        mol = lmpatomic.Mol(mol, struct=lmpatomic.Struct(options=options))
+        assert isinstance(mol.ff, class_type)
