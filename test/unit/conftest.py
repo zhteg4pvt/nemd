@@ -14,6 +14,7 @@ import pytest
 from nemd import envutils
 from nemd import frame
 from nemd import jobutils
+from nemd import oplsua
 from nemd import osutils
 from nemd import pytestutils
 from nemd import structure
@@ -138,7 +139,8 @@ def emol(mol, cnum):
     """
     Return a molecule with conformers.
 
-    :param smiles str: the input smiles
+    :param mol `Mol`: the input molecule.
+    :param cnum `int`: the number of conformers.
     :return `structure.Mol`: the molecule
     """
     if cnum:
@@ -157,3 +159,16 @@ def mol(smiles):
     :return `structure.Mol`: the molecule
     """
     return structure.Mol.MolFromSmiles(smiles) if smiles else None
+
+
+@pytest.fixture
+def tmol(mol, ff=oplsua.Parser.get()):
+    """
+    Return a molecule.
+
+    :param mol `Mol`: the input molecule.
+    :param ff `oplsua.Parser`: the force field parser.
+    :return `structure.Mol`: the molecule
+    """
+    ff.type(mol)
+    return mol

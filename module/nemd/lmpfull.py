@@ -104,7 +104,7 @@ class Id(lmpatomic.Id):
         """
         return cls([[x.GetIdx(), idx, x.GetIntProp(TYPE_ID)] for x in atoms])
 
-    def to_numpy(self, gids=None, col_id=COLUMNS.index(MOL_ID), gid=0):
+    def to_numpy(self, gids, col_id=COLUMNS.index(MOL_ID), gid=0):
         """
         See parent.
 
@@ -258,7 +258,7 @@ class Conformer(lmpatomic.Conformer):
 
         :return `np.ndarray`: global, molecule, and type ids.
         """
-        return self.GetOwningMol().ids.to_numpy(gid=self.gid, gids=self.gids)
+        return self.GetOwningMol().ids.to_numpy(self.gids, gid=self.gid)
 
     @property
     def bonds(self):
@@ -267,7 +267,7 @@ class Conformer(lmpatomic.Conformer):
 
         :return `np.ndarray`: bond ids and bonded atom ids.
         """
-        return self.GetOwningMol().bonds.to_numpy(gids=self.gids)
+        return self.GetOwningMol().bonds.to_numpy(self.gids)
 
     @property
     def angles(self):
@@ -276,7 +276,7 @@ class Conformer(lmpatomic.Conformer):
 
         :return `np.ndarray`: angle ids and connected atom ids.
         """
-        return self.GetOwningMol().angles.to_numpy(gids=self.gids)
+        return self.GetOwningMol().angles.to_numpy(self.gids)
 
     @property
     def dihedrals(self):
@@ -285,7 +285,7 @@ class Conformer(lmpatomic.Conformer):
 
         :return `np.ndarray`: dihedral ids and connected atom ids.
         """
-        return self.GetOwningMol().dihedrals.to_numpy(gids=self.gids)
+        return self.GetOwningMol().dihedrals.to_numpy(self.gids)
 
     @property
     def impropers(self):

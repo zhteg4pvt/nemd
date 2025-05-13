@@ -66,10 +66,10 @@ class Mass(Base):
     @property
     def element(self, rex=r'^(\w+)'):
         """
-        Set and cache the element of the atom types.
+        The element of each atom type.
 
         :param rex str: the regular expression to extract the symbol
-        :return 'numpy.ndarray': the element of the atom types.
+        :return 'np.ndarray': the element of the atom types.
         """
         return self.comment.str.extract(rex).values.flatten()
 
@@ -111,9 +111,9 @@ class Id(Base):
         """
         return cls([[x.GetIdx(), x.GetIntProp(TYPE_ID)] for x in atoms])
 
-    def to_numpy(self, gids=None):
+    def to_numpy(self, gids):
         """
-        Covert the DataFrame to a NumPy array.
+        Covert the DataFrame to a NumPy array with mapping.
 
         :param gids 'np.ndarray': map the atom ids to global ids.
         :return 'np.ndarray': the numpy array
@@ -125,7 +125,7 @@ class Id(Base):
     @classmethod
     def concatenate(cls, arrays, type_map=None):
         """
-        Join a sequence of arrays along an existing axis.
+        Join a sequence of arrays along an existing axis with mapping.
 
         :param arrays sequence of array_like: the arrays to concatenate.
         :param type_map 'IntArray': map the type ids as consecutive integers
@@ -163,7 +163,7 @@ class Conformer(structure.Conformer):
 
         :return `np.ndarray`: global and type ids.
         """
-        return self.GetOwningMol().ids.to_numpy(gids=self.gids)
+        return self.GetOwningMol().ids.to_numpy(self.gids)
 
 
 class Mol(structure.Mol):
