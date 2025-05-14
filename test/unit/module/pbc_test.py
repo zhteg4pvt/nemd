@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from nemd import numpyutils
 from nemd import pbc
 
 
@@ -123,10 +124,7 @@ class TestBoxNumba:
         if his is None:
             return
         np.testing.assert_almost_equal(his, box['hi'], decimal=2)
-        if expected:
-            np.testing.assert_almost_equal(box.tilt, expected, decimal=2)
-        else:
-            assert box.tilt is None
+        numpyutils.assert_almost_equal(box.tilt, expected, decimal=2)
 
     def testGetLables(self):
         labels = pbc.BoxOrig.getLabels()

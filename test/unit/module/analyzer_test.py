@@ -427,8 +427,8 @@ class TestAgg:
     def testSet(self, agg, expected):
         agg.read()
         agg.set()
-        np.testing.assert_almost_equal(
-            agg.data.astype(float).fillna(0), expected)
+        filled = agg.data.astype(float).fillna(0)
+        np.testing.assert_almost_equal(filled, expected)
 
     @pytest.mark.parametrize('args,dirname', [(None, None)])
     @pytest.mark.parametrize('tsk,expected', [('rdf', 'rdf'),

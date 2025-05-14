@@ -29,3 +29,10 @@ class TestDict:
         mydict.value = 2
         assert 1 == mydict.key
         assert 2 == mydict.value
+
+
+class TestFloat:
+
+    @pytest.mark.parametrize('name,number', [('hi', 1.2)])
+    def testStr(self, name, number):
+        assert 'hi: 1.20' == str(builtinsutils.Float(number, name=name))

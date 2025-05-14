@@ -57,3 +57,24 @@ class Dict(dict):
             return super().__getattr__(key)
         except AttributeError:
             return self[key]
+
+
+class Float(float):
+    """
+    A float class providing leading name in string representation.
+    """
+
+    def __init__(self, *args, name=None):
+        """
+        :param num int: the number of atoms involved in the measurement.
+        """
+        self.fmt = f'{name}: {{value:.2f}}' if name else None
+
+    def __new__(cls, *args, **kwargs):
+        return super().__new__(cls, *args)
+
+    def __str__(self):
+        """
+        :return str: the string representation with name and unit.
+        """
+        return self.fmt.format(value=self) if self.fmt else super().__str__()

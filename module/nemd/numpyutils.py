@@ -65,3 +65,13 @@ class IntArray(np.ndarray):
         copied = self.copy()
         copied[value:] = False
         return copied.on
+
+
+def assert_almost_equal(actual, desired, **kwargs):
+    """
+    See np.testing.assert_almost_equal.
+    """
+    if desired is None:
+        assert actual is None
+        return
+    np.testing.assert_almost_equal(actual, desired, **kwargs)

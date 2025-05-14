@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 from rdkit import Chem
 
+from nemd import builtinsutils
 from nemd import lammpsin
 from nemd import lmpatomic
 from nemd import numpyutils
@@ -334,28 +335,7 @@ class Conformer(lmpatomic.Conformer):
                 value = Chem.rdMolTransforms.GetDihedralDeg(self, *aids)
             case _:
                 return
-        return Float(value, name=aids.name)
-
-
-class Float(float):
-    """
-    A float class providing unit and name in string representation.
-    """
-
-    def __init__(self, *args, name=None):
-        """
-        :param num int: the number of atoms involved in the measurement.
-        """
-        self.fmt = f'{name}: {{value:.2f}}' if name else None
-
-    def __new__(cls, *args, **kwargs):
-        return super().__new__(cls, *args)
-
-    def __str__(self):
-        """
-        :return str: the string representation with name and unit.
-        """
-        return self.fmt.format(value=self) if self.fmt else super().__str__()
+        return builtinsutils.Float(value, name=aids.name)
 
 
 class Mol(lmpatomic.Mol):
@@ -448,12 +428,11 @@ class Mol(lmpatomic.Mol):
         """
         The charges.
 
-        :return list of float: the atomic charges.
+        :return `np.ndarray`: the atomic charges.
         """
         type_ids = [x.GetIntProp(TYPE_ID) for x in self.GetAtoms()]
-        fchrg = self.ff.charges.loc[type_ids].values
-        nchrg = [self.nbr_charge[x.GetIdx()] for x in self.GetAtoms()]
-        return [sum(x) for x in zip(fchrg, nchrg)]
+        charges = self.ff.charges.loc[type_ids].values
+        return charges + self.nbr_charge
 
     @property
     @functools.cache
@@ -519,9 +498,9 @@ class Mol(lmpatomic.Mol):
 
         :return Improper: the improper types and atoms forming each improper.
         """
-        return Improper.fromAtoms(self.getImproperAtoms(), self.ff.impropers)
+        return Improper.fromAtoms(self.getImproper(), self.ff.impropers)
 
-    def getImproperAtoms(self):
+    def getImproper(self):
         """
         Set improper angles based on center atoms and neighbor symbols.
 
@@ -604,7 +583,7 @@ class Mol(lmpatomic.Mol):
         """
         Balance the charge when residues are not neutral.
 
-        :return dict: the atom id and its charge due to connected neighbors.
+        :return np.ndarray: the atom id and its charge due to connected neighbors.
         """
         # residual num: residual charge
         res_charge = collections.defaultdict(float)
@@ -633,10 +612,11 @@ class Mol(lmpatomic.Mol):
 
         # The atom of the largest charge in a residual holds the total residual
         # charge so that connected atom in another residue can subtract it.
-        nbr_charge = collections.defaultdict(float)
+
+        nbr_charge = np.zeros(self.GetNumAtoms())
         for res_num, (_, idx) in res_atom.items():
             nbr_charge[idx] -= res_charge[res_num]
-        return nbr_charge
+        return nbr_charge.reshape(-1, 1)
 
 
 class In(lammpsin.In):
@@ -683,7 +663,7 @@ class In(lammpsin.In):
 
 class Struct(lmpatomic.Struct, In):
     """
-    The oplsua structure.
+    Customized for molecules with bonds.
     """
     Id = Id
     Atom = Atom
@@ -949,7 +929,7 @@ class Struct(lmpatomic.Struct, In):
 
 class Reader(lmpatomic.Reader):
     """
-    See the parent class for docstring.
+    See parent.
     """
     Atom = Atom
     Mass = Mass
@@ -958,16 +938,6 @@ class Reader(lmpatomic.Reader):
         ImproperCoeff, Atom, Bond, Angle, Dihedral, Improper
     ]
     NAMES = {x.NAME: x.LABEL for x in NAMES}
-
-    @property
-    @functools.cache
-    def charges(self):
-        """
-        Parse the atom section.
-
-        :return `Charge`: the atomic charges.
-        """
-        return self.atom_blk[Charge.COLUMNS]
 
     @property
     @functools.cache

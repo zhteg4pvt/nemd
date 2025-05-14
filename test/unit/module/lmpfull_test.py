@@ -3,6 +3,7 @@ from rdkit import Chem
 
 from nemd import lmpfull
 from nemd import np
+from nemd import numpyutils
 from nemd import oplsua
 from nemd import parserutils
 
@@ -149,8 +150,96 @@ class TestConformer:
         args = [smiles, '-substruct'] + args if args else [smiles]
         options = parserutils.MolBase().parse_args(args)
         strt = lmpfull.Struct.fromMols([conf.GetOwningMol()], options=options)
-        measured = next(strt.conf).measure()
-        if expected is None:
-            assert measured is None
-        else:
-            np.testing.assert_almost_equal(measured, expected)
+        numpyutils.assert_almost_equal(next(strt.conf).measure(), expected)
+
+
+class TestMol:
+
+    @pytest.fixture
+    def fmol(self, emol):
+        return lmpfull.Mol(emol)
+
+    @pytest.mark.parametrize('smiles,cnum,expected', [('O', 0, [77, 78, 78])])
+    def testType(self, fmol, expected):
+        assert expected == [x.GetIntProp('type_id') for x in fmol.GetAtoms()]
+
+    @pytest.mark.parametrize('smiles,cnum,aids,expected',
+                             [('O', 1, [0, 1], 0.9572)])
+    def testSetInternal(self, fmol, aids, expected):
+        length = Chem.rdMolTransforms.GetBondLength(fmol.GetConformer(), *aids)
+        np.testing.assert_almost_equal(length, expected)
+
+    @pytest.mark.parametrize('smiles,cnum', [('CCC(C)C', 1)])
+    @pytest.mark.parametrize('args,expected', [([], None),
+                                               (['CC', '1.6'], 1.6),
+                                               (['CCC', '120'], 120),
+                                               (['CCCC', '30'], 30)])
+    def testSetSubstruct(self, fmol, smiles, args, expected):
+        args = [smiles, '-substruct'] + args if args else [smiles]
+        options = parserutils.MolBase().parse_args(args)
+        struct = lmpfull.Struct.fromMols([fmol], options=options)
+        numpyutils.assert_almost_equal(next(struct.conf).measure(), expected)
+
+    @pytest.mark.parametrize('smiles,cnum', [('CCC(C)C', 1)])
+    @pytest.mark.parametrize('args,expected', [([], []), (['CC'], [0, 1]),
+                                               (['CCC'], [0, 1, 2]),
+                                               (['CCCC'], [0, 1, 2, 3])])
+    def testGetSubstructMatch(self, fmol, smiles, args, expected):
+        args = [smiles, '-substruct'] + args if args else [smiles]
+        options = parserutils.MolBase().parse_args(args)
+        struct = lmpfull.Struct.fromMols([fmol], options=options)
+        match = struct.mols[0].getSubstructMatch()
+        np.testing.assert_almost_equal(match.values, expected)
+
+    @pytest.mark.parametrize('smiles,cnum,aids,expected',
+                             [('O', 2, [0, 1], 0.9572)])
+    def testUpdateAll(self, fmol, aids, expected):
+        for conf in fmol.GetConformers():
+            assert expected == Chem.rdMolTransforms.GetBondLength(conf, *aids)
+
+    @pytest.mark.parametrize('smiles,cnum,expected',
+                             [('O', 0, [[-0.834], [0.417], [0.417]])])
+    def testCharges(self, fmol, expected):
+        np.testing.assert_almost_equal(fmol.charges, expected)
+
+    @pytest.mark.parametrize('smiles,cnum,expected', [('O', 0, (2, 3))])
+    def testBonds(self, fmol, expected):
+        assert expected == fmol.bonds.shape
+
+    @pytest.mark.parametrize('smiles,cnum,expected', [('O', 0, (1, 4))])
+    def testAngles(self, fmol, expected):
+        assert expected == fmol.angles.shape
+
+    @pytest.mark.parametrize('smiles,cnum,expected', [('O', 0, 1)])
+    def testGetAngle(self, fmol, expected):
+        assert expected == len(list(fmol.getAngle()))
+
+    @pytest.mark.parametrize('smiles,cnum,expected', [('CCCC', 0, (1, 5))])
+    def testDihedrals(self, fmol, expected):
+        assert expected == fmol.dihedrals.shape
+
+    @pytest.mark.parametrize('smiles,cnum,expected', [('CCCC', 0, 1)])
+    def testGetDehedral(self, fmol, expected):
+        assert expected == len(list(fmol.getDehedral()))
+
+    @pytest.mark.parametrize('smiles,cnum,expected', [('CC(C)C', 0, (1, 5))])
+    def testImpropers(self, fmol, expected):
+        assert expected == fmol.impropers.shape
+
+    @pytest.mark.parametrize('cnum', [0])
+    @pytest.mark.parametrize('smiles,expected', [('CC(C)C', 1),
+                                                 ('[C]N([C])[C]=O', 1)])
+    def testGetImproper(self, fmol, expected):
+        assert expected == len(list(fmol.getImproper()))
+
+    @pytest.mark.parametrize('cnum', [0])
+    @pytest.mark.parametrize('smiles,expected', [('CC(C)C', 58.124),
+                                                 ('[C]N([C])[C]=O', 73.095)])
+    def testMolecularWeight(self, fmol, expected):
+        assert expected == fmol.molecular_weight
+
+    @pytest.mark.parametrize('cnum', [0])
+    @pytest.mark.parametrize('smiles,expected', [('CC(C)C', (4, 1)),
+                                                 ('[C]N([C])[C]=O', (5, 1))])
+    def testNbrCharge(self, fmol, expected):
+        assert expected == fmol.nbr_charge.shape
