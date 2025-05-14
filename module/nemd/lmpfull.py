@@ -104,14 +104,14 @@ class Id(lmpatomic.Id):
         """
         return cls([[x.GetIdx(), idx, x.GetIntProp(TYPE_ID)] for x in atoms])
 
-    def to_numpy(self, gids, col_id=COLUMNS.index(MOL_ID), gid=0):
+    def to_numpy(self, *args, col_id=COLUMNS.index(MOL_ID), gid=0):
         """
         See parent.
 
         :param col_id int: the column index of the molecule id
         :param idx int: the molecule id.
         """
-        array = super().to_numpy(gids)
+        array = super().to_numpy(*args)
         array[:, col_id] = gid
         return array
 
@@ -135,16 +135,12 @@ class Bond(lmpatomic.Id):
     COLUMNS = [TYPE_ID] + ID_COLS
     FMT = '%i'
     SLICE = slice(1, None)
-    PAIR_STEP = 1
 
-    def __init__(self, data=None, dtype=np.uint32, **kwargs):
+    def __init__(self, *args, dtype=np.uint32, **kwargs):
         """
-        :param data ndarray, dict, or DataFrame: the content to create dataframe
         :param dtype 'type': the data type of the Series
         """
-        if data is None:
-            data = {x: pd.Series(dtype=dtype) for x in self.COLUMNS}
-        super().__init__(data=data, **kwargs, dtype=dtype)
+        super().__init__(*args, dtype=dtype, **kwargs)
 
     @classmethod
     def fromAtoms(cls, atoms, ff):
@@ -159,12 +155,12 @@ class Bond(lmpatomic.Id):
 
     def getPairs(self):
         """
-        Get the atom pairs from topology connectivity.
+        Get atom pairs from the topology connectivity.
 
         :return list of tuple: the atom pairs
         """
-        slices = slice(None, None, self.PAIR_STEP)
-        return [tuple(sorted(x[slices])) for x in self[self.ID_COLS].values]
+        head_tail = self[[self.ID_COLS[0], self.ID_COLS[-1]]].values
+        return list(map(tuple, np.sort(head_tail, axis=1)))
 
 
 class Angle(Bond):
@@ -175,7 +171,6 @@ class Angle(Bond):
     LABEL = 'angles'
     ID_COLS = [ATOM1, ATOM2, ATOM3]
     COLUMNS = [TYPE_ID] + ID_COLS
-    PAIR_STEP = 2
 
     @classmethod
     def fromAtoms(cls, atoms, ff, impropers):
@@ -217,7 +212,6 @@ class Dihedral(Bond):
     LABEL = 'dihedrals'
     ID_COLS = [ATOM1, ATOM2, ATOM3, ATOM4]
     COLUMNS = [TYPE_ID] + ID_COLS
-    PAIR_STEP = 3
 
 
 class Improper(Dihedral):
@@ -374,7 +368,7 @@ class Mol(lmpatomic.Mol):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.delay:
+        if self.delay or not self.GetNumConformers():
             return
         self.setInternal()
         self.setSubstruct()
@@ -419,7 +413,7 @@ class Mol(lmpatomic.Mol):
         :param gid bool: whether to return global atom ids.
         :return Series: the atom ids of the substructure match.
         """
-        if self.struct.options.substruct is None:
+        if self.struct is None or self.struct.options.substruct is None:
             return pd.Series([])
         struct = Chem.MolFromSmiles(self.struct.options.substruct[0])
         if not self.HasSubstructMatch(struct):
@@ -478,18 +472,17 @@ class Mol(lmpatomic.Mol):
 
         :return Angle: the angles.
         """
-        atoms = [y for x in self.GetAtoms() for y in self.getAngleAtoms(x)]
-        return Angle.fromAtoms(atoms, self.ff.angles, self.impropers)
+        return Angle.fromAtoms(self.getAngle(), self.ff.angles, self.impropers)
 
-    def getAngleAtoms(self, atom):
+    def getAngle(self):
         """
         Get all three angle atoms from the input middle atom.
 
-        :param atom 'rdkit.Chem.rdchem.Atom': the middle atom
-        :return list: each sublist contains three atoms.
+        :return generator: each sublist contains three atoms.
         """
-        pairs = itertools.combinations(atom.GetNeighbors(), 2)
-        return [[x, atom, y] for x, y in pairs]
+        for atom in self.GetAtoms():
+            for atom1, atom3 in itertools.combinations(atom.GetNeighbors(), 2):
+                yield atom1, atom, atom3
 
     @property
     @functools.cache
@@ -499,9 +492,9 @@ class Mol(lmpatomic.Mol):
 
         :return Dihedral: the dihedral types and atoms forming each dihedral.
         """
-        return Dihedral.fromAtoms(self.getDihAtoms(), self.ff.dihedrals)
+        return Dihedral.fromAtoms(self.getDehedral(), self.ff.dihedrals)
 
-    def getDihAtoms(self, key=lambda x: x.GetBeginAtom().GetIdx()):
+    def getDehedral(self, key=lambda x: x.GetBeginAtom().GetIdx()):
         """
         Get the dihedral atoms of this molecule.
 

@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 from nemd import numpyutils
+from nemd import oplsua
 from nemd import pbc
 from nemd import structure
 from nemd import sw
@@ -198,13 +199,14 @@ class Mol(structure.Mol):
 
     @property
     @functools.cache
-    def ff(self):
+    def ff(self, ff=oplsua.Parser.get()):
         """
         Force field parser for atoms, charges, and other parameters.
 
+        :param ff `oplsua.Parser`: the default force field parser.
         :return `oplsua.Parser`: the force field parser.
         """
-        return self.struct.ff if self.struct else None
+        return self.struct.ff if self.struct else ff
 
 
 class Struct(structure.Struct):
@@ -375,7 +377,7 @@ class Reader:
     @functools.cache
     def tilt_re(self):
         """
-        The regular expression of any box lines. (e.g. 'xlo xhi', 'ylo yhi')
+        The regular expression of tge tilt line. (e.g. 'xy xz yz')
 
         :return 're.pattern': the count regular expression
         """

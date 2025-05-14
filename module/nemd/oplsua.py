@@ -648,12 +648,17 @@ class Typer:
         self.mol = mol
         self.mx = min([symbols.MAX_INT32, self.mol.GetNumAtoms()])
 
-    def doTyping(self):
+    def doTyping(self, clear=True):
         """
         Match the substructure with SMILES and assign atom type.
 
+        :param clear bool: clear the previous types.
         :raise KeyError: if any atoms are not marked.
         """
+        if clear:
+            for atom in self.mol.GetAtoms():
+                atom.ClearProp(TYPE_ID)
+                atom.ClearProp(self.RES_NUM)
         unmarked, res_num = self.mol.GetNumAtoms(), 0
         for idx, sml in self.smiles.iterrows():
             if unmarked <= 0:
