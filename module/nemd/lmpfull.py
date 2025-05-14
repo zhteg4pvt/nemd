@@ -225,8 +225,9 @@ class Improper(Dihedral):
         """
         See parent.
         """
-        ids = [itertools.combinations(x, 2) for x in self[self.ID_COLS].values]
-        return [tuple(sorted(y)) for x in ids for y in x]
+        nvertices = self[self.ID_COLS].drop(columns=[ATOM3]).values
+        pairs = (y for x in nvertices for y in itertools.combinations(x, 2))
+        return [tuple(sorted(x)) for x in pairs]
 
     def getAngles(self, columns=(ATOM2, ATOM1, ATOM4)):
         """
@@ -241,8 +242,7 @@ class Improper(Dihedral):
 
 class Conformer(lmpatomic.Conformer):
     """
-    The customized conformer class with additional methods for atom information,
-    topology information, measurement, and internal coordinate manipulations.
+    Customized with id, topology, measurement, and internal coordinate.
     """
 
     @property
@@ -413,9 +413,11 @@ class Mol(lmpatomic.Mol):
         :param gid bool: whether to return global atom ids.
         :return Series: the atom ids of the substructure match.
         """
-        if self.struct is None or self.struct.options.substruct is None:
+        try:
+            struct = self.struct.options.substruct[0]
+        except (TypeError, AttributeError):
             return pd.Series([])
-        struct = Chem.MolFromSmiles(self.struct.options.substruct[0])
+        struct = Chem.MolFromSmiles(struct)
         if not self.HasSubstructMatch(struct):
             return pd.Series([])
         ids = self.GetSubstructMatch(struct)
@@ -685,6 +687,7 @@ class Struct(lmpatomic.Struct, In):
     """
     Id = Id
     Atom = Atom
+    MolClass = Mol
 
     def __init__(self, *args, options=None, **kwargs):
         """
