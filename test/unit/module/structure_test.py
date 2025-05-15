@@ -8,7 +8,7 @@ class TestConformer:
 
     @pytest.fixture
     def conf(self, mol):
-        return structure.Conformer(mol=mol)
+        return structure.Conf(mol=mol)
 
     @pytest.mark.parametrize('smiles,expected', [('O', True), (None, False)])
     def testHasOwningMol(self, conf, expected):

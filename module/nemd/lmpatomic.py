@@ -152,7 +152,7 @@ class Atom(Id):
         super().write(*args, index_column=index_column, **kwargs)
 
 
-class Conformer(structure.Conformer):
+class Conf(structure.Conf):
     """
     The conformer class for global ids and types.
     """
@@ -171,7 +171,7 @@ class Mol(structure.Mol):
     """
     The molecule class for atom typing and int properties.
     """
-    ConfClass = Conformer
+    Conf = Conf
     Id = Id
 
     def __init__(self, *args, **kwargs):
@@ -215,7 +215,7 @@ class Struct(structure.Struct):
     """
     Id = Id
     Atom = Atom
-    MolClass = Mol
+    Mol = Mol
     DESCR = 'LAMMPS Description # {style}'
 
     def __init__(self, *args, options=None, **kwargs):

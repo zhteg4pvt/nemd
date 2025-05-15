@@ -63,7 +63,7 @@ class Crystal(crystals.Crystal):
         vecs += lattice_params[3:]
         mol = structure.Mol(mol, vecs=vecs)
         # Add conformer
-        conf = structure.Conformer(mol.GetNumAtoms())
+        conf = structure.Conf(mol.GetNumAtoms())
         xyz = np.array([x.coords_cartesian for x in atoms])
         conf.setPositions(xyz)
         mol.AddConformer(conf)

@@ -53,7 +53,7 @@ def tmp_dir(tmpdir):
 @pytest.fixture
 def tmp_line(tmp_dir):
     """
-    Create a temporary directory and change to it for the duration of the test.
+    Get the handler to write and written lines.
 
     :return 'function': The function to get handler to write and written lines.
     """

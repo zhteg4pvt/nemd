@@ -62,7 +62,7 @@ class TestIn(Base):
         lmp_in.writeRun()
         assert 'velocity' in self.getContents(lmp_in)
 
-    def testWriteIn(self, tmp_dir, lmp_in):
+    def testWriteIn(self, lmp_in, tmp_dir):
         lmp_in.writeIn()
         assert os.path.exists('test.in')
 

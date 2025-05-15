@@ -13,7 +13,7 @@ from rdkit.Chem import AllChem
 from nemd import symbols
 
 
-class Conformer(Chem.rdchem.Conformer):
+class Conf(Chem.rdchem.Conformer):
     """
     Customized Chem.rdchem.Conformer.
     """
@@ -59,7 +59,7 @@ class Mol(Chem.rdchem.Mol):
     """
     Customized Chem.rdchem.Mol.
     """
-    ConfClass = Conformer
+    Conf = Conf
 
     def __init__(self,
                  *args,
@@ -122,7 +122,7 @@ class Mol(Chem.rdchem.Mol):
         #  the virtual in tip4p water https://docs.lammps.org/Howto_tip4p.html)
         #  coarse-grained may have multiple aids mapping to one single gid
         #  united atom may have hydrogen aid mapping to None
-        conf = self.ConfClass(conf, mol=self, gid=gid, start=start)
+        conf = self.Conf(conf, mol=self, gid=gid, start=start)
         self.confs.append(conf)
 
     def shift(self, pre):
@@ -261,7 +261,7 @@ class Struct:
     """
     A class to handle multiple molecules and their conformers.
     """
-    MolClass = Mol
+    Mol = Mol
 
     def __init__(self, struct=None):
         """
@@ -278,7 +278,7 @@ class Struct:
         """
         pre = next(reversed(list(self.conf)), None)
         for original in mols:
-            mol = self.MolClass(original, struct=self)
+            mol = self.Mol(original, struct=self)
             mol.shift(pre)
             self.mols.append(mol)
             pre = next(reversed(mol.confs), None)

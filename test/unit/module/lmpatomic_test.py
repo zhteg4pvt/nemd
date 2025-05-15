@@ -18,10 +18,10 @@ class TestBase:
     def base(self):
         return lmpatomic.Base()
 
-    def testWriteCount(self, base, tmp_dir):
-        with open('file', 'w') as fh:
+    def testWriteCount(self, base, tmp_line):
+        with tmp_line() as (fh, lines):
             base.writeCount(fh)
-        assert os.path.exists('file')
+        assert ['0 label\n'] == lines
 
     @pytest.mark.parametrize('lines,expected', [(['1 2'], [0, 2])])
     def testFromLines(self, base, lines, expected):
@@ -47,11 +47,12 @@ class TestMass:
     def testElement(self, masses, expected):
         np.testing.assert_equal(masses.element, expected)
 
-    @pytest.mark.parametrize('indices', [([1, 2]), ([4, 2, 112])])
-    def testWrite(self, masses, tmp_dir):
-        with open('file', 'w') as fh:
+    @pytest.mark.parametrize('indices,expected', [([1, 2], 5),
+                                                  ([4, 2, 112], 6)])
+    def testWrite(self, masses, expected, tmp_line):
+        with tmp_line() as (fh, lines):
             masses.write(fh)
-        assert os.path.isfile('file')
+        assert expected == len(lines)
 
     @pytest.mark.parametrize('lines',
                              [(['1 1.0080 # H #\n', '2 4.0030 # He #\n'])])
@@ -88,11 +89,11 @@ class TestId:
 
 class TestAtom:
 
-    @pytest.mark.parametrize('atomic,expected', [([[0, 0, 0.1, 0.2, 0.3]], 1)])
-    def testWrite(self, atomic, expected, tmp_dir):
-        with open('file', 'w') as fh:
+    @pytest.mark.parametrize('atomic,expected', [([[0, 0, 0.1, 0.2, 0.3]], 4)])
+    def testWrite(self, atomic, expected, tmp_line):
+        with tmp_line() as (fh, lines):
             lmpatomic.Atom(atomic).write(fh)
-        assert os.path.isfile('file')
+        assert expected == len(lines)
 
 
 class TestConformer:

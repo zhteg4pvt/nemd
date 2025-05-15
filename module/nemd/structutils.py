@@ -32,7 +32,7 @@ from nemd import symbols
 logger = logutils.Logger.get(__file__)
 
 
-class GriddedConf(lmpfull.Conformer):
+class GriddedConf(lmpfull.Conf):
 
     def centroid(self, aids=None, ignoreHs=False):
         """
@@ -339,7 +339,7 @@ class GriddedMol(lmpfull.Mol):
     A subclass of Chem.rdchem.Mol to handle gridded conformers.
     """
 
-    ConfClass = GriddedConf
+    Conf = GriddedConf
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -413,7 +413,7 @@ class PackedMol(lmpfull.Mol):
     A subclass of Chem.rdchem.Mol with additional attributes and methods.
     """
 
-    ConfClass = PackedConf
+    Conf = PackedConf
 
     def updateAll(self):
         """
@@ -427,7 +427,7 @@ class PackedMol(lmpfull.Mol):
 
 class GrownMol(PackedMol):
 
-    ConfClass = GrownConf
+    Conf = GrownConf
     POLYM_HT = 'polym_ht'
     MAID = 'maid'
     EDGES = 'edges'
@@ -517,7 +517,7 @@ class GriddedStruct(Struct):
     Grid the space and fill sub-cells with molecules as rigid bodies.
     """
 
-    MolClass = GriddedMol
+    Mol = GriddedMol
 
     def run(self):
         """
@@ -608,7 +608,7 @@ class PackedStruct(Struct):
     Pack molecules by random rotation and translation.
     """
 
-    MolClass = PackedMol
+    Mol = PackedMol
     MAX_TRIAL_PER_DENSITY = 50
     Box = PackedBox
 
@@ -877,7 +877,7 @@ class Frame(dist.Frame):
 
 class GrownStruct(PackedStruct):
 
-    MolClass = GrownMol
+    Mol = GrownMol
     MAX_TRIAL_PER_DENSITY = 10
     Box = GrownBox
 

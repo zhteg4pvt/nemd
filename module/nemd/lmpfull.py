@@ -241,7 +241,7 @@ class Improper(Dihedral):
         return np.stack([self[x].values for x in cols], axis=1)
 
 
-class Conformer(lmpatomic.Conformer):
+class Conf(lmpatomic.Conf):
     """
     Customized with id, topology, measurement, and internal coordinate.
     """
@@ -342,7 +342,7 @@ class Mol(lmpatomic.Mol):
     """
     See parent.
     """
-    ConfClass = Conformer
+    Conf = Conf
     Atom = Atom
     Id = Id
 
@@ -665,7 +665,7 @@ class Struct(lmpatomic.Struct, In):
     """
     Id = Id
     Atom = Atom
-    MolClass = Mol
+    Mol = Mol
 
     def __init__(self, *args, options=None, **kwargs):
         """

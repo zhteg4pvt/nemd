@@ -47,7 +47,7 @@ class Moiety(cru.Moiety):
     """
     Class to hold a moiety.
     """
-    ConfClass = structutils.GriddedConf
+    Conf = structutils.GriddedConf
     ONE_ZERO_ZERO = np.array([1, 0, 0])
     RES_NAME = 'res_name'
     RES_NUM = 'res_num'
@@ -176,7 +176,7 @@ class Moiety(cru.Moiety):
         mol.EmbedMolecule(*args, **kwargs)
         xyz = mol.GetConformer().GetPositions()
         # Create conformer and set XYZ
-        conf = structure.Conformer(self.GetNumAtoms())
+        conf = structure.Conf(self.GetNumAtoms())
         for atom in self.GetAtoms():
             maid = atom.GetIntProp(MAID)
             conf.SetAtomPosition(atom.GetIdx(), xyz[maid])
@@ -472,7 +472,7 @@ class Mol(structure.Mol, logutils.Base):
         if not self.polym:
             return
         Chem.GetSymmSSSR(self)
-        conf = structure.Conformer(self.GetNumAtoms())
+        conf = structure.Conf(self.GetNumAtoms())
         bonds = [None]
         while bonds:
             bond = bonds.pop()
@@ -483,7 +483,7 @@ class Mol(structure.Mol, logutils.Base):
         """
         Set the positions of this conformer.
 
-        :param conf structure.Conformer: the conformer to set the positions
+        :param conf structure.Conf: the conformer to set the positions
         :param bond Chem.rdchem.Bond: the residue starts from this bond
         :return list: the bonds between the current and next moieties
         """
