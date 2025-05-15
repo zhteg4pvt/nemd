@@ -348,7 +348,7 @@ class Mol(lmpatomic.Mol):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.delay or not self.GetNumConformers():
+        if self.delay:
             return
         self.setInternal()
         self.setSubstruct()
@@ -364,6 +364,8 @@ class Mol(lmpatomic.Mol):
         """
         Set the internal coordinates.
         """
+        if not self.GetNumConformers():
+            return
         tpl = self.GetConformer()
         for tid, *ids in self.bonds.values:
             tpl.setBondLength(list(map(int, ids)), self.ff.bonds.loc[tid].dist)
@@ -374,6 +376,8 @@ class Mol(lmpatomic.Mol):
         """
         Set substructure.
         """
+        if not self.GetNumConformers():
+            return
         aids = self.getSubstructMatch()
         if aids.empty or self.struct.options.substruct[1] is None:
             return
@@ -418,6 +422,8 @@ class Mol(lmpatomic.Mol):
         """
         Update all conformers.
         """
+        if not self.GetNumConformers():
+            return
         xyz = self.GetConformer().GetPositions()
         for conf in self.GetConformers():
             conf.setPositions(xyz)
@@ -742,7 +748,7 @@ class Struct(lmpatomic.Struct, In):
         :return `np.ndarray`: the charges of all atoms.
         """
         charges = [x.GetOwningMol().charges for x in self.conf]
-        return np.concatenate(charges) if charges else []
+        return np.concatenate(charges or [[]])
 
     @property
     @functools.cache
@@ -863,8 +869,10 @@ class Struct(lmpatomic.Struct, In):
     def hasCharge(self):
         """
         Whether any atom has charge.
+
+        :return `bool`: Whether any atom has charge
         """
-        return not np.isclose(self.charges, 0, 0.001).any()
+        return self.charges.size and not np.isclose(self.charges, 0).any()
 
     @property
     @functools.cache
@@ -872,10 +880,11 @@ class Struct(lmpatomic.Struct, In):
         """
         See the parent class for docstring.
         """
-        if self.options.substruct is None or self.options.substruct[1] is None:
+        mol = next((x for x in self.mols if x.GetNumConformers()), None)
+        if not mol:
             return
-        gids = self.mols[0].getSubstructMatch(gid=True)
-        if gids.empty:
+        gids = mol.getSubstructMatch(gid=True)
+        if gids.empty or self.options.substruct[1] is None:
             return
         geo = f"{gids.name.split()[0]} {' '.join(map(str, gids + 1))}"
         return self.FIX_RESTRAIN.format(geo=geo, val=self.options.substruct[1])
@@ -909,11 +918,12 @@ class Struct(lmpatomic.Struct, In):
         net_charge = round(self.charges.sum().sum(), 4)
         if net_charge:
             yield f'The system has a net charge of {net_charge:.4f}'
+        if self.box.empty:
+            return
         min_span = self.box.span.min()
         if min_span < self.DEFAULT_CUT * 2:
-            yield f'The minimum box span ({min_span:.2f} {symbols.ANGSTROM})' \
-                  f' is smaller than {self.DEFAULT_CUT * 2:.2f} ' \
-                  f'{symbols.ANGSTROM} (Lennard-Jones Cutoff x 2) '
+            yield f'Box span ({min_span:.2f} {symbols.ANGSTROM}) < ' \
+                  f'{self.DEFAULT_CUT * 2:.2f} {symbols.ANGSTROM} (cutoff x 2)'
 
     @property
     @functools.cache

@@ -166,24 +166,30 @@ class Mol(Chem.rdchem.Mol):
 
     def embedMultipleConfs(self,
                            *args,
+                           randomSeed=-1,
                            numConfs=10,
                            clearConfs=True,
                            **kwargs):
         """
-        Embed the molecule to generate a multiple conformers.
-        FIXME: when randomSeed != 1, same EmbedMolecule due to the same seed.
+        Embed the molecule with multiple conformers.
 
+        :param randomSeed int: the random seed for the embedding.
         :param numConfs int: the number of conformers.
         :param clearConfs bool: clear all existing conformations.
         """
         if clearConfs:
             self.confs.clear()
-        for _ in range(numConfs):
-            self.EmbedMolecule(*args, clearConfs=False, **kwargs)
+        for idx in range(numConfs):
+            if randomSeed != -1:
+                randomSeed += idx
+            self.EmbedMolecule(*args,
+                               randomSeed=randomSeed,
+                               clearConfs=False,
+                               **kwargs)
 
     def EmbedMolecule(self,
                       randomSeed=-1,
-                      size=2**31 + 1,
+                      size=2**31,
                       clearConfs=True,
                       **kwargs):
         """
@@ -194,7 +200,8 @@ class Mol(Chem.rdchem.Mol):
         :param size int: the maximum random seed - the minimum seed + 1.
         :return int: the added conformer id.
         """
-        randomSeed = -1 + (randomSeed + 1) % size
+        if randomSeed != -1:
+            randomSeed = randomSeed % size
         idx = AllChem.EmbedMolecule(self, randomSeed=randomSeed, **kwargs)
         Chem.GetSymmSSSR(self)
         if clearConfs:

@@ -8,6 +8,7 @@ from nemd import np
 from nemd import numpyutils
 from nemd import oplsua
 from nemd import parserutils
+from nemd import pbc
 
 PARSER = oplsua.Parser.get()
 
@@ -305,3 +306,119 @@ class TestStruct:
         struct.writeData()
         with open(struct.datafile) as fh:
             assert expected == len(fh.readlines())
+
+    @pytest.mark.parametrize('smiless,expected', [(['O'], 0),
+                                                  (['O', 'CC(C)CC'], 5)])
+    def testGetAtomic(self, struct, expected):
+        assert expected == len(list(struct.getAtomic()))
+
+    @pytest.mark.parametrize(
+        'smiless,expected',
+        [(['O'], []), (['O', 'CC(C)CC'], [0.0]),
+         (['O', 'CC(C)CC', 'C(=O)O'], [0.0, -0.5, -0.58, 0.55, 0.45])])
+    def testCharges(self, struct, expected):
+        assert set(expected) == set(struct.charges.flatten().tolist())
+
+    @pytest.mark.parametrize('smiless,expected', [(['[Ar]'], (0, 3)),
+                                                  (['O', 'CC(C)CC'], (4, 3))])
+    def testBonds(self, struct, expected):
+        assert expected == struct.bonds.shape
+
+    @pytest.mark.parametrize('smiless,expected', [(['[Ar]'], (0, 4)),
+                                                  (['O', 'CC(C)CC'], (3, 4))])
+    def testAngles(self, struct, expected):
+        assert expected == struct.angles.shape
+
+    @pytest.mark.parametrize('smiless,expected', [(['[Ar]'], (0, 5)),
+                                                  (['O', 'CC(C)CC'], (2, 5))])
+    def testDihedrals(self, struct, expected):
+        assert expected == struct.dihedrals.shape
+
+    @pytest.mark.parametrize('smiless,expected', [(['[Ar]'], (0, 5)),
+                                                  (['O', 'CC(C)CC'], (1, 5))])
+    def testImpropers(self, struct, expected):
+        assert expected == struct.impropers.shape
+
+    @pytest.mark.parametrize('smiless,expected', [(['[Ar]'], (1, 2)),
+                                                  (['O', 'CC(C)CC'], (6, 2))])
+    def testMasses(self, struct, expected):
+        assert expected == struct.masses.shape
+
+    @pytest.mark.parametrize('smiless,expected', [(['[Ar]'], (1, 2)),
+                                                  (['O', 'CC(C)CC'], (6, 2))])
+    def testPairCoeffs(self, struct, expected):
+        assert expected == struct.pair_coeffs.shape
+
+    @pytest.mark.parametrize('smiless,expected', [(['[Ar]'], (0, 2)),
+                                                  (['O', 'CC(C)CC'], (3, 2))])
+    def testBondCoeffs(self, struct, expected):
+        assert expected == struct.bond_coeffs.shape
+
+    @pytest.mark.parametrize('smiless,expected', [(['[Ar]'], (0, 2)),
+                                                  (['O', 'CC(C)CC'], (3, 2))])
+    def testAngleCoeffs(self, struct, expected):
+        assert expected == struct.angle_coeffs.shape
+
+    @pytest.mark.parametrize('smiless,expected', [(['[Ar]'], (0, 4)),
+                                                  (['O', 'CC(C)CC'], (1, 4))])
+    def testDihedralCoeffs(self, struct, expected):
+        assert expected == struct.dihedral_coeffs.shape
+
+    @pytest.mark.parametrize('smiless,expected', [(['[Ar]'], (0, 3)),
+                                                  (['O', 'CC(C)CC'], (1, 3))])
+    def testImproperCoeffs(self, struct, expected):
+        assert expected == struct.improper_coeffs.shape
+
+    @pytest.mark.parametrize('smiless,expected', [(['[Ar]'], 0),
+                                                  (['O', 'CC(C)CC'], 72.151)])
+    def testMolecularWeight(self, struct, expected):
+        assert expected == struct.molecular_weight
+
+    @pytest.mark.parametrize('smiless,expected', [(['[Ar]'], False),
+                                                  (['[Ar]', 'O'], True)])
+    def testHasCharge(self, struct, expected):
+        assert expected == struct.hasCharge()
+
+    @pytest.mark.parametrize('smiless', [(['CCCC', 'CCC'])])
+    @pytest.mark.parametrize(
+        'args,expected',
+        [([], None), (['CCC'], None),
+         (['CCC', '120'
+           ], 'fix rest all restrain angle 1 2 3 -2000.0 -2000.0 120.0\n')])
+    def testRest(self, struct, smiless, args, expected):
+        args = smiless + ['-substruct'] + args if args else smiless
+        struct.options = parserutils.MolBase().parse_args(args)
+        assert expected == struct.rest
+
+    @pytest.mark.parametrize(
+        'smiless,expected',
+        [(['[Ar]'], []),
+         (['[Ar]', 'O'], ['fix rigid all shake 0.0001 10 10000  b 1 a 1\n'])])
+    def testShake(self, struct, expected, tmp_line):
+        with tmp_line() as (struct.fh, lines):
+            struct.shake()
+        assert expected == lines
+
+    @pytest.mark.parametrize('smiless,expected', [(['[Ar]'], ''),
+                                                  (['[Ar]', 'O'], '1')])
+    def testGetRigid(self, struct, expected):
+        assert expected == struct.getRigid(struct.bnd_types, struct.ff.bonds)
+
+    @pytest.mark.parametrize(
+        'smiless,edge,expected',
+        [(['[Na+]', 'O'], None, None), (['[Na+]', 'O'], 40, None),
+         (['[Na+]', 'O'], 10, 'Box span (10.00 Å) < 22.00 Å (cutoff x 2)'),
+         (['[Ar]', '[Na+]'], None, 'The system has a net charge of 1.0000')])
+    def testGetWarnings(self, struct, edge, expected):
+        if edge:
+            struct.box = pbc.Box.fromParams(edge)
+        assert expected == next(struct.getWarnings(), None)
+
+    @pytest.mark.parametrize('smiles,args,expected',
+                             [('O', None, 'TIP3P'),
+                              ('O', ['-force_field', 'OPLSUA', 'SPC'], 'SPC')])
+    def testFf(self, mol, smiles, args, expected, options=None):
+        if args:
+            options = parserutils.MolBase().parse_args([smiles] + args)
+        struct = lmpfull.Struct.fromMols([mol], options=options)
+        assert expected == struct.ff.wmodel
