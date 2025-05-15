@@ -132,6 +132,8 @@ class Id(Base):
         :param type_map 'IntArray': map the type ids as consecutive integers
         :return 'pd.DataFrame': pandas DataFrame from the concatenated array.
         """
+        if not arrays:
+            return cls()
         array = np.concatenate(arrays)
         index = cls.COLUMNS.index(TYPE_ID)
         array[:, index] = type_map.index(array[:, index])
@@ -226,7 +228,7 @@ class Struct(structure.Struct):
         self.options = options
         # Atomic number of Og element
         self.atm_types = numpyutils.IntArray(shape=119)
-        self.box = None
+        self.box = pbc.Box()
 
     def setUp(self, *arg, **kwargs):
         """

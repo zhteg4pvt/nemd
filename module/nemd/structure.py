@@ -164,6 +164,23 @@ class Mol(Chem.rdchem.Mol):
         """
         return len(self.confs)
 
+    def embedMultipleConfs(self,
+                           *args,
+                           numConfs=10,
+                           clearConfs=True,
+                           **kwargs):
+        """
+        Embed the molecule to generate a multiple conformers.
+        FIXME: when randomSeed != 1, same EmbedMolecule due to the same seed.
+
+        :param numConfs int: the number of conformers.
+        :param clearConfs bool: clear all existing conformations.
+        """
+        if clearConfs:
+            self.confs.clear()
+        for _ in range(numConfs):
+            self.EmbedMolecule(*args, clearConfs=False, **kwargs)
+
     def EmbedMolecule(self,
                       randomSeed=-1,
                       size=2**31 + 1,

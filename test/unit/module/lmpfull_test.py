@@ -197,7 +197,8 @@ class TestMol:
                              [('O', 2, [0, 1], 0.9572)])
     def testUpdateAll(self, fmol, aids, expected):
         for conf in fmol.GetConformers():
-            assert expected == Chem.rdMolTransforms.GetBondLength(conf, *aids)
+            length = Chem.rdMolTransforms.GetBondLength(conf, *aids)
+            np.testing.assert_almost_equal(length, expected)
 
     @pytest.mark.parametrize('smiles,cnum,expected',
                              [('O', 0, [[-0.834], [0.417], [0.417]])])
@@ -268,3 +269,39 @@ class TestIn:
 
     def testHasCharge(self, lmp_in):
         assert lmp_in.hasCharge()
+
+
+class TestStruct:
+
+    @pytest.fixture
+    def struct(self, smiless):
+        mols = [lmpfull.Mol.MolFromSmiles(x) for x in smiless]
+        for cnum, mol in enumerate(mols):
+            mol.embedMultipleConfs(numConfs=cnum)
+        return lmpfull.Struct.fromMols(mols)
+
+    @pytest.mark.parametrize('smiless,expected',
+                             [(['O'], [216, 151, 310, 631, 76])])
+    def testInit(self, struct, expected):
+        struct_types = [
+            struct.atm_types, struct.bnd_types, struct.ang_types,
+            struct.dihe_types, struct.impr_types
+        ]
+        assert expected == [len(x) for x in struct_types]
+
+    @pytest.mark.parametrize('smiless,expected',
+                             [(['O'], [2, 1, 1, 0, 0]),
+                              (['CC(C)CC'], [4, 2, 2, 1, 1])])
+    def testSetTypeMap(self, struct, expected):
+        ons = [
+            struct.atm_types.on, struct.bnd_types.on, struct.ang_types.on,
+            struct.dihe_types.on, struct.impr_types.on
+        ]
+        assert expected == [len(x) for x in ons]
+
+    @pytest.mark.parametrize('smiless,expected', [(['O'], 32),
+                                                  (['[Ar]', 'O'], 49)])
+    def testWrite(self, struct, expected, tmp_dir):
+        struct.writeData()
+        with open(struct.datafile) as fh:
+            assert expected == len(fh.readlines())

@@ -739,10 +739,10 @@ class Struct(lmpatomic.Struct, In):
         """
         Atoms charges.
 
-        :return `Charge`: the charges of all atoms.
+        :return `np.ndarray`: the charges of all atoms.
         """
         charges = [x.GetOwningMol().charges for x in self.conf]
-        return np.concatenate(charges)
+        return np.concatenate(charges) if charges else []
 
     @property
     @functools.cache

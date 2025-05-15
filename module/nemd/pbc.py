@@ -288,6 +288,8 @@ class BoxNumba(Base):
         :param index `bool`: whether to write the index.
         :param as_block `bool`: whether to write the data as a block.
         """
+        if not self.size:
+            return
         super().write(fh, index=index, as_block=as_block, **kwargs)
         if self.tilt:
             tilt = [symbols.FLOAT_FMT % x for x in self.tilt]

@@ -170,10 +170,7 @@ def emol(mol, cnum):
     :param cnum `int`: the number of conformers.
     :return `structure.Mol`: the molecule
     """
-    if cnum:
-        mol.EmbedMolecule()
-    for _ in range(cnum - 1):
-        mol.AddConformer(mol.confs[0])
+    mol.embedMultipleConfs(numConfs=cnum)
     return mol
 
 
