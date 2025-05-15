@@ -4,6 +4,7 @@
 Test configuration, such as global testing fixtures...
 """
 import collections
+import contextlib
 import os
 import shutil
 from unittest import mock
@@ -20,17 +21,43 @@ from nemd import pytestutils
 from nemd import structure
 
 
+@contextlib.contextmanager
+def lines(filename='filename'):
+    """
+    Get the lines written into the temporary file.
+
+    :param filename str: temporary filename
+    :yield '_io.TextIOWrapper', list: the file handler, the written lines.
+    """
+    lines = []
+    try:
+        with open(filename, 'w') as wfh:
+            yield wfh, lines
+    finally:
+        with open(filename, 'r') as rfh:
+            lines += rfh.readlines()
+
+
 @pytest.fixture
-def tmp_dir(request, tmpdir):
+def tmp_dir(tmpdir):
     """
     Create a temporary directory and change to it for the duration of the test.
 
-    :param request '_pytest.fixtures.SubRequest': The requested information.
     :param tmpdir '_pytest._py.path.LocalPath': The temporary directory factory.
     :return tmpdir '_pytest._py.path.LocalPath': The temporary directory.
     """
     with osutils.chdir(tmpdir, rmtree=True):
         yield tmpdir
+
+
+@pytest.fixture
+def tmp_line(tmp_dir):
+    """
+    Create a temporary directory and change to it for the duration of the test.
+
+    :return 'function': The function to get handler to write and written lines.
+    """
+    return lines
 
 
 @pytest.fixture
@@ -48,7 +75,7 @@ def env(ekey, evalue):
 
 
 @pytest.fixture
-def raises(request, expected):
+def raises(expected):
     """
     Return function to open context management for the exception assertion.
 
@@ -98,7 +125,7 @@ def copied(dirname, tmp_dir):
 
 
 @pytest.fixture
-def jobs(dirname, copied):
+def jobs(copied):
     """
     Return the signac jobs of a copied itest.
 

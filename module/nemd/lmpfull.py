@@ -431,8 +431,7 @@ class Mol(lmpatomic.Mol):
         :return `np.ndarray`: the atomic charges.
         """
         type_ids = [x.GetIntProp(TYPE_ID) for x in self.GetAtoms()]
-        charges = self.ff.charges.loc[type_ids].values
-        return charges + self.nbr_charge
+        return self.ff.charges.loc[type_ids].values + self.nbr_charge
 
     @property
     @functools.cache
@@ -583,7 +582,7 @@ class Mol(lmpatomic.Mol):
         """
         Balance the charge when residues are not neutral.
 
-        :return np.ndarray: the atom id and its charge due to connected neighbors.
+        :return `np.ndarray`: the charge of each atom due to connected neighbors.
         """
         # residual num: residual charge
         res_charge = collections.defaultdict(float)
@@ -603,12 +602,11 @@ class Mol(lmpatomic.Mol):
             # Bonded atoms in different residuals
             for atom, natom in [[batom, eatom], [eatom, batom]]:
                 res_num = atom.GetIntProp(symbols.RES_NUM)
-                charge = res_charge[res_num]
-                if not charge:
+                if not res_charge[res_num]:
                     continue
-                acharge = abs(self.ff.charges.loc[atom.GetIntProp(TYPE_ID)].q)
-                if acharge > res_atom.get(res_num, (0, 0))[0]:
-                    res_atom[res_num] = (acharge, natom.GetIdx())
+                charge = abs(self.ff.charges.loc[atom.GetIntProp(TYPE_ID)].q)
+                if charge > res_atom.get(res_num, (0, 0))[0]:
+                    res_atom[res_num] = (charge, natom.GetIdx())
 
         # The atom of the largest charge in a residual holds the total residual
         # charge so that connected atom in another residue can subtract it.

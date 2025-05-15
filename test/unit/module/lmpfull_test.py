@@ -1,3 +1,5 @@
+from unittest import mock
+
 import pytest
 from rdkit import Chem
 
@@ -243,3 +245,26 @@ class TestMol:
                                                  ('[C]N([C])[C]=O', (5, 1))])
     def testNbrCharge(self, fmol, expected):
         assert expected == fmol.nbr_charge.shape
+
+
+class TestIn:
+
+    @pytest.fixture
+    def lmp_in(self):
+        return lmpfull.In()
+
+    def testSetup(self, lmp_in, tmp_line):
+        with tmp_line() as (lmp_in.fh, lines):
+            lmp_in.setup()
+        assert 7 == len(lines)
+
+    @pytest.mark.parametrize('has_charge,expected', [(True, 3), (False, 2)])
+    def testPair(self, lmp_in, has_charge, expected, tmp_line):
+        with mock.patch.object(lmp_in, 'hasCharge') as mocked:
+            mocked.return_value = has_charge
+            with tmp_line() as (lmp_in.fh, lines):
+                lmp_in.pair()
+            assert expected == len(lines)
+
+    def testHasCharge(self, lmp_in):
+        assert lmp_in.hasCharge()
