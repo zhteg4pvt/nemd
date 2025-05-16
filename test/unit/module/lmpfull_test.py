@@ -3,6 +3,7 @@ from unittest import mock
 import pytest
 from rdkit import Chem
 
+from nemd import envutils
 from nemd import lmpfull
 from nemd import np
 from nemd import numpyutils
@@ -422,3 +423,83 @@ class TestStruct:
             options = parserutils.MolBase().parse_args([smiles] + args)
         struct = lmpfull.Struct.fromMols([mol], options=options)
         assert expected == struct.ff.wmodel
+
+
+class TestReader:
+
+    @pytest.fixture
+    def rdr(self, args):
+        return lmpfull.Reader(envutils.test_data(*args))
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['0022_test', 'amorp_bldr.data'], (4, 2))])
+    def testPairCoeffs(self, rdr, expected):
+        assert expected == rdr.pair_coeffs.shape
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['0022_test', 'amorp_bldr.data'], (3, 2)),
+                              (['0000', 'original.data'], (0, 2))])
+    def testBondCoeffs(self, rdr, expected):
+        assert expected == rdr.bond_coeffs.shape
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['0022_test', 'amorp_bldr.data'], (2, 2)),
+                              (['0000', 'original.data'], (0, 2))])
+    def testAngleCoeffs(self, rdr, expected):
+        assert expected == rdr.angle_coeffs.shape
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['0022_test', 'amorp_bldr.data'], (2, 4)),
+                              (['0000', 'original.data'], (0, 4))])
+    def testDihedralCoeffs(self, rdr, expected):
+        assert expected == rdr.dihedral_coeffs.shape
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['0022_test', 'amorp_bldr.data'], (1, 3)),
+                              (['0000', 'original.data'], (0, 3))])
+    def testImproperCoeffs(self, rdr, expected):
+        assert expected == rdr.improper_coeffs.shape
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['0022_test', 'amorp_bldr.data'], (5, 3)),
+                              (['0000', 'original.data'], (0, 3))])
+    def testBonds(self, rdr, expected):
+        assert expected == rdr.bonds.shape
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['0022_test', 'amorp_bldr.data'], (4, 4)),
+                              (['0000', 'original.data'], (0, 4))])
+    def testAngles(self, rdr, expected):
+        assert expected == rdr.angles.shape
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['0022_test', 'amorp_bldr.data'], (4, 5)),
+                              (['0000', 'original.data'], (0, 5))])
+    def testDihedrals(self, rdr, expected):
+        assert expected == rdr.dihedrals.shape
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['0022_test', 'amorp_bldr.data'], (1, 5)),
+                              (['0000', 'original.data'], (0, 5))])
+    def testImpropers(self, rdr, expected):
+        assert expected == rdr.impropers.shape
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['0022_test', 'amorp_bldr.data'], 1),
+                              (['0000', 'original.data'], 10)])
+    def testMols(self, rdr, expected):
+        assert expected == len(rdr.mols)
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['0022_test', 'amorp_bldr.data'], 86.134),
+                              (['0000', 'original.data'], 160.43)])
+    def testMolecularWeight(self, rdr, expected):
+        np.testing.assert_almost_equal(rdr.molecular_weight, expected)
+
+    @pytest.mark.parametrize('args', [(['0022_test', 'amorp_bldr.data'])])
+    @pytest.mark.parametrize('other,expected',
+                             [(['0022_test', 'amorp_bldr.data'], True),
+                              (['0000', 'original.data'], False)])
+    def testAllClose(self, rdr, other, expected):
+        pathname = envutils.test_data(*other)
+        assert expected == rdr.allClose(lmpfull.Reader(pathname))

@@ -68,7 +68,7 @@ class Base(pandasutils.DataFrame):
                          quotechar=quotechar,
                          **kwargs)
         if df.empty:
-            return cls(df)
+            return cls()
         cls.shift(df, delta=-1, index=index_col is not None)
         return cls(df)
 

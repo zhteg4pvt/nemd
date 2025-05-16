@@ -1,0 +1,2 @@
+echo "0022: Amorphous builder on Diethyl Ketone CCC(=O)CC"
+nemd_run amorp_bldr_driver.py 'CCC(=O)CC' -mol_num 1 -force_field OPLSUA SPC -seed 4321 -DEBUG False -CPU 1
