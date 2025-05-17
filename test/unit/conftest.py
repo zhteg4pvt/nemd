@@ -170,7 +170,7 @@ def emol(mol, cnum):
     :param cnum `int`: the number of conformers.
     :return `structure.Mol`: the molecule
     """
-    mol.embedMultipleConfs(numConfs=cnum)
+    mol.EmbedMultipleConfs(numConfs=cnum)
     return mol
 
 

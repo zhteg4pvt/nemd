@@ -82,19 +82,18 @@ class TestMol:
         emol.EmbedMolecule(randomSeed=randomSeed, clearConfs=clearConfs)
         assert expected == len(emol.confs)
 
-    @pytest.mark.parametrize('smiles', ['O'])
+    @pytest.mark.parametrize('smiles', ['c1=cc=cc=c1'])
     @pytest.mark.parametrize('cnum,randomSeed,numConfs,clearConfs,expected',
-                             [(1, -1, 1, False, 2), (2, 2**31, 2, True, 2)])
+                             [(1, -1, 1, False, (2, True)),
+                              (2, 2**31, 2, True, (2, True)),
+                              (2, 1, 2, True, (2, False))])
     def testEmbedMultipleConfs(self, emol, randomSeed, numConfs, clearConfs,
                                expected):
-        emol.embedMultipleConfs(randomSeed=randomSeed,
+        emol.EmbedMultipleConfs(randomSeed=randomSeed,
                                 numConfs=numConfs,
                                 clearConfs=clearConfs)
-        assert expected == len(emol.confs)
-        if clearConfs:
-            return
         xyzs1, xyzs2 = [x.GetPositions() for x in emol.confs]
-        assert (xyzs1 != xyzs2).any()
+        assert expected == (len(emol.confs), (xyzs1 == xyzs2).all())
 
     @pytest.mark.parametrize('smiles,united,expected', [('O', True, 3),
                                                         ('C', True, 1),

@@ -279,7 +279,7 @@ class TestStruct:
     def struct(self, smiless):
         mols = [lmpfull.Mol.MolFromSmiles(x) for x in smiless]
         for cnum, mol in enumerate(mols):
-            mol.embedMultipleConfs(numConfs=cnum)
+            mol.EmbedMultipleConfs(numConfs=cnum)
         return lmpfull.Struct.fromMols(mols)
 
     @pytest.mark.parametrize('smiless,expected',

@@ -26,6 +26,7 @@ from rdkit import Chem
 from nemd import dist
 from nemd import lmpfull
 from nemd import logutils
+from nemd import numpyutils
 from nemd import pbc
 from nemd import symbols
 
@@ -34,20 +35,19 @@ logger = logutils.Logger.get(__file__)
 
 class GriddedConf(lmpfull.Conf):
 
-    def centroid(self, aids=None, ignoreHs=False):
+    def centroid(self, weights=None, ignoreHs=False, aids=None):
         """
         Compute the centroid of the whole conformer ar the selected atoms.
 
-        :param aids list: the selected atom ids
+        :param weights _vectd: weight the atomic coordinates if provided.
         :param ignoreHs bool: whether to ignore Hs in the calculation.
+        :param aids list: the selected atom ids.
         :return np.ndarray: the centroid of the selected atoms.
         """
-        weights = None
         if aids is not None:
-            vec = rdkit.DataStructs.ExplicitBitVect(self.GetNumAtoms())
-            vec.SetBitsFromList(aids)
+            on_bits = numpyutils.IntArray(shape=self.GetNumAtoms(), on=aids)
             weights = rdkit.rdBase._vectd()
-            weights.extend(vec.ToList())
+            weights.extend(on_bits.astype(int).tolist())
         centroid = Chem.rdMolTransforms.ComputeCentroid(self,
                                                         weights=weights,
                                                         ignoreHs=ignoreHs)
@@ -344,7 +344,8 @@ class GriddedMol(lmpfull.Mol):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # size = xyz span + buffer
-        buffer = self.struct.options.buffer if self.struct.options.buffer else 4
+        buffer = self.struct.options.buffer if (
+            self.struct and self.struct.options.buffer) else 4
         self.buffer = np.array([buffer, buffer, buffer])
         # The number of molecules per box edge
         self.conf_num = np.array([1, 1, 1])
