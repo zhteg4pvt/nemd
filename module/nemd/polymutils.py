@@ -8,6 +8,7 @@ import functools
 
 import networkx as nx
 import numpy as np
+import scipy
 from rdkit import Chem
 
 from nemd import cru
@@ -43,14 +44,21 @@ class Cap(collections.UserList):
         return [x[1] for x in self]
 
 
+class Conf(structutils.Conf):
+
+    def align(self, tvec=(1, 0, 0), vec=(1, 0, 0)):
+        rotation, _ = scipy.spatial.transform.Rotation.align_vectors(tvec, vec)
+        self.rotate(rotation=rotation)
+
+
 class Moiety(cru.Moiety):
     """
     Class to hold a moiety.
     """
-    Conf = structutils.GriddedConf
-    ONE_ZERO_ZERO = np.array([1, 0, 0])
+    Conf = Conf
     RES_NAME = 'res_name'
     RES_NUM = 'res_num'
+    ONE_ZERO_ZERO = np.array([1, 0, 0])
 
     # CARBON_MOL = Chem.MolFromSmiles(symbols.CARBON)
 
@@ -204,11 +212,10 @@ class Moiety(cru.Moiety):
         conf = self.getConforer(idx=idx)
         if idx is None:
             return conf.GetPositions()
-        conf = structutils.GriddedConf(conf)
-        vec = np.array([bond.GetDoubleProp(x) for x in Moieties.VEC])
-        conf.rotate(self.ONE_ZERO_ZERO, vec)
-        xyz = np.array([bond.GetDoubleProp(x) for x in Moieties.XYZ])
-        conf.translate(xyz)
+
+        conf = self.Conf(conf)
+        conf.align(tvec=[bond.GetDoubleProp(x) for x in Moieties.VEC])
+        conf.translate(np.array([bond.GetDoubleProp(x) for x in Moieties.XYZ]))
         return conf.GetPositions()
 
     @functools.cache
@@ -217,7 +224,7 @@ class Moiety(cru.Moiety):
         Get the conformer rotated and translated according to the capping atoms.
 
         :param idx int: the index of the capping atoms.
-        :return structutils.GriddedConf: the rotated and translated conformer.
+        :return structutils.Conf: the rotated and translated conformer.
         """
         conf = super().GetConformer()
         if idx is None:
@@ -225,11 +232,8 @@ class Moiety(cru.Moiety):
             return conf
         cap = self.GetAtomWithIdx(idx)
         atom = cap.GetNeighbors()[0]
-        coords = conf.GetAtomPosition(atom.GetIdx())
-        conf.translate(-np.array([coords.x, coords.y, coords.z]))
-        coords = conf.GetAtomPosition(cap.GetIdx())
-        vec = -np.array([coords.x, coords.y, coords.z])
-        conf.rotate(vec, self.ONE_ZERO_ZERO)
+        conf.translate(-np.array(conf.GetAtomPosition(atom.GetIdx())))
+        conf.align(vec=-np.array(conf.GetAtomPosition(cap.GetIdx())))
         return conf
 
 

@@ -4,6 +4,7 @@
 # Authors: Teng Zhang (2022010236@hust.edu.cn)
 """
 This module provides conformer search using three methods.
+
 1) Grid: separate the conformers by a buffer distance via translation.
 2) Pack: pack the conformers without clashes by rotation and translation.
 3) Grow: break the molecule into the smallest rigid fragments, place the
@@ -33,7 +34,10 @@ from nemd import symbols
 logger = logutils.Logger.get(__file__)
 
 
-class GriddedConf(lmpfull.Conf):
+class Conf(lmpfull.Conf):
+    """
+    Customized for coordinate manipulations.
+    """
 
     def centroid(self, weights=None, ignoreHs=False, aids=None):
         """
@@ -51,92 +55,73 @@ class GriddedConf(lmpfull.Conf):
         centroid = Chem.rdMolTransforms.ComputeCentroid(self,
                                                         weights=weights,
                                                         ignoreHs=ignoreHs)
-        return np.array([centroid.x, centroid.y, centroid.z])
+        return np.array(centroid)
 
-    def rotate(self, ivect, tvect):
+    def rotate(self, rotation, mtrx=np.identity(4)):
         """
         Rotate the conformer by three initial vectors and three target vectors.
 
-        :param ivect 3x3 'np.ndarray': Each row is one initial vector
-        :param tvect 3x3 'np.ndarray': Each row is one target vector
+        :param rotation 'np.ndarray': Each row is one initial vector
+        :param mtrx 4x4 'np.ndarray': 3D transformation matrix
         """
-        mtrx = np.identity(4)
-        rot, _ = scipy.spatial.transform.Rotation.align_vectors(tvect, ivect)
-        mtrx[:-1, :-1] = rot.as_matrix()
+        mtrx[:-1, :-1] = rotation.as_matrix()
         Chem.rdMolTransforms.TransformConformer(self, mtrx)
 
-    def translate(self, vec=None, transform=None):
+    def translate(self, vec, mtrx=np.eye(4)):
         """
         Do translation on this conformer using this vector.
 
         :param vec 'np.ndarray': 3D translational vector
-        :param transform 'np.ndarray': 3D transformation matrix
+        :param mtrx 4x4 'np.ndarray': 3D transformation matrix
         """
-        if transform is None:
-            transform = np.eye(4)
-        if vec is not None:
-            transform[:-1, -1] = vec
-        Chem.rdMolTransforms.TransformConformer(self, transform)
+        mtrx[:-1, -1] = vec
+        Chem.rdMolTransforms.TransformConformer(self, mtrx)
 
 
 class ConfError(RuntimeError):
     """
-    When max number of the failure for this conformer has been reached.
+    When the last trial failed.
     """
     pass
 
 
-class PackedConf(GriddedConf):
-
-    MAX_TRIAL_PER_CONF = 1000
+class PackedConf(Conf):
+    """
+    Customized to pack without clashes by rotation and translation.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.oxyz = None
 
-    def setConformer(self, max_trial=MAX_TRIAL_PER_CONF):
+    def setConformer(self, max_trial=1000):
         """
-        Place molecules one molecule into the cell without clash.
+        Place this conformer into the cell without clash.
 
-        :param max_trial int: the max trial number for each molecule to be
-            placed into the cell.
-        :raise ConfError: if the conformer always has clashes with the existing
-            atoms in the cell after the maximum trial.
+        :param max_trial int: the max trial number when placing into the cell.
+        :raise ConfError: when the last trial failed.
         """
         for _ in range(max_trial):
-            centroid = self.centroid()
-            self.translate(-centroid)
+            self.translate(-self.centroid())
             self.rotateRandomly()
-            pnt = self.mol.struct.dist.box.getPoint()
-            self.translate(pnt)
+            self.translate(self.mol.struct.dist.box.getPoint())
             self.mol.struct.dist[self.gids, :] = self.GetPositions()
-            if self.hasClash():
+            if self.mol.struct.dist.hasClash(self.gids):
                 continue
             self.mol.struct.dist.set(self.gids)
             return
         raise ConfError
 
-    def rotateRandomly(self, seed=None):
+    def rotateRandomly(self, seed=None, high=2**32):
         """
         Randomly rotate the conformer.
 
-        NOTE: the random state is set according to the numpy random seed.
-        :param seed: the random seed to generate the rotation matrix.
+        :param seed int: the random seed to generate the rotation matrix.
+        :param high int: the exclusive upper limit of the random seed.
         """
-        if seed is None:
-            seed = np.random.randint(0, 2**32 - 1)
-        mtrx = np.identity(4)
-        rotation = scipy.spatial.transform.Rotation.random(random_state=seed)
-        mtrx[:-1, :-1] = rotation.as_matrix()
-        Chem.rdMolTransforms.TransformConformer(self, mtrx)
-
-    def hasClash(self):
-        """
-        Whether the conformer has any clashes with the existing atoms.
-
-        :return bool: True if clashes are found.
-        """
-        return self.mol.struct.dist.hasClash(self.gids)
+        # The random state determines the generated number.
+        seed = np.random.randint(0, high) if seed is None else seed % high
+        self.rotate(scipy.spatial.transform.Rotation.random(random_state=seed))
 
     def reset(self):
         """
@@ -146,8 +131,6 @@ class PackedConf(GriddedConf):
 
 
 class GrownConf(PackedConf):
-
-    MAX_TRIAL_PER_CONF = 5
 
     def __init__(self, *args, **kwargs):
         super(GrownConf, self).__init__(*args, **kwargs)
@@ -243,7 +226,7 @@ class GrownConf(PackedConf):
         """
         return self.mol.struct.dist.hasClash(self.gids[aids])
 
-    def setFrag(self, max_trial=MAX_TRIAL_PER_CONF):
+    def setFrag(self, max_trial=5):
         """
         Set part of the conformer by rotating the dihedral angle, back moving,
         and relocation.
@@ -339,19 +322,22 @@ class GriddedMol(lmpfull.Mol):
     A subclass of Chem.rdchem.Mol to handle gridded conformers.
     """
 
-    Conf = GriddedConf
+    Conf = Conf
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, buffer=4, **kwargs):
+        """
+        :param buffer float: the buffer between conformers.
+        """
         super().__init__(*args, **kwargs)
         # size = xyz span + buffer
-        buffer = self.struct.options.buffer if (
-            self.struct and self.struct.options.buffer) else 4
         self.buffer = np.array([buffer, buffer, buffer])
         # The number of molecules per box edge
         self.conf_num = np.array([1, 1, 1])
         # The xyz shift within one box
         self.vecs = []
         self.vectors = None
+        if self.struct and self.struct.options and self.struct.options.buffer:
+            self.buffer[:] = self.struct.options.buffer
 
     def setConformers(self, vectors):
         """
@@ -508,9 +494,9 @@ class GrownMol(PackedMol):
 
 class Struct(lmpfull.Struct):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, density=0.5, **kwargs):
         super().__init__(*args, **kwargs)
-        self.density = None
+        self.density = density
 
 
 class GriddedStruct(Struct):
@@ -608,9 +594,7 @@ class PackedStruct(Struct):
     """
     Pack molecules by random rotation and translation.
     """
-
     Mol = PackedMol
-    MAX_TRIAL_PER_DENSITY = 50
     Box = PackedBox
 
     def __init__(self, *args, **kwargs):
@@ -654,7 +638,7 @@ class PackedStruct(Struct):
                           struct=self,
                           gids=[])
 
-    def setConformers(self, max_trial=MAX_TRIAL_PER_DENSITY):
+    def setConformers(self, max_trial=50):
         """
         Place all molecules into the cell at certain density.
 
@@ -879,7 +863,6 @@ class Frame(dist.Frame):
 class GrownStruct(PackedStruct):
 
     Mol = GrownMol
-    MAX_TRIAL_PER_DENSITY = 10
     Box = GrownBox
 
     def setUp(self, *args, **kwargs):
@@ -920,7 +903,7 @@ class GrownStruct(PackedStruct):
         dist = self.dist.initDists().min()
         logger.debug(f'({dist:.2f} as the minimum pair distance)')
 
-    def setConformers(self, max_trial=MAX_TRIAL_PER_DENSITY):
+    def setConformers(self, max_trial=10):
         """
         Looping conformer one by one and set one fragment configuration each
         time until all to full length.
