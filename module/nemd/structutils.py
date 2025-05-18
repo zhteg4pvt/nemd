@@ -168,21 +168,12 @@ class GrownConf(PackedConf):
         :return list of ints: the swing atom ids when the dihedral angle changes.
         """
         oxyz = self.GetPositions()
-        oval = self.getDihedralDeg(dihe)
+        oval = Chem.rdMolTransforms.GetDihedralDeg(self, *dihe)
         self.setDihedralDeg(dihe, oval + 5)
         xyz = self.GetPositions()
         changed = np.isclose(oxyz, xyz)
         self.setDihedralDeg(dihe, oval)
         return [i for i, x in enumerate(changed) if not all(x)]
-
-    def getDihedralDeg(self, dihe):
-        """
-        Get the angle degree of the given dihedral.
-
-        :param dihe tuple: the dihedral atom indices.
-        :return float: the angle degree.
-        """
-        return Chem.rdMolTransforms.GetDihedralDeg(self, *dihe)
 
     @functools.cache
     def getNumFrags(self):
@@ -226,36 +217,33 @@ class GrownConf(PackedConf):
         """
         return self.mol.struct.dist.hasClash(self.gids[aids])
 
-    def setFrag(self, max_trial=5):
+    def setConformer(self, max_trial=5):
         """
-        Set part of the conformer by rotating the dihedral angle, back moving,
-        and relocation.
+        Set the conformer of one fragment by rotating the dihedral angle,
+        back moving, and relocation.
 
         :param max_trial int: the max number of trials for one conformer.
-        :raise ConfError: if the max number of trials for this conformer is
-            reached.
+        :raise ConfError: 1) max_trial reached; 2) init cannot be placed.
         """
         frag = self.frags.pop(0)
-        if not frag.dihe:
-            # ifrag without dihe means rigid body
+        if not frag.aids:
+            # Rigid-body init frag
             return
 
         if self.setDihedral(frag):
+            # Placed by rotating the bond.
             return
 
         if self.backMove(frag):
+            # Back to a previous frag (some gids removed and fragments added)
             return
 
-        # The molecule has grown to a dead end
-        if self.failed_num > max_trial:
-            logger.debug(
-                f'Placed {self.mol.struct.dist.ratio} atoms reaching max'
-                f' trial number for conformer {self.gid}.')
-            raise ConfError
+        # The relocate the init fragment as the molecule has grown to a dead end
         self.failed_num += 1
-        self.ifrag.reset()
-        # The method backmove() deletes some existing gids
-        self.mol.struct.dist.box.reset()
+        if self.failed_num == max_trial:
+            logger.debug(f'Placed {self.mol.struct.dist.ratio} atoms with  '
+                         f'conformer {self.gid} reaching the max trials.')
+            raise ConfError
         self.placeInitFrag()
         self.reportRelocation()
 
@@ -294,6 +282,9 @@ class GrownConf(PackedConf):
         ratom_aids = [y for x in nxt_frags for y in x.aids] + frag.aids
         if not found:
             ratom_aids += frag.conf.init_aids
+            frag.resetVals()
+            # The method backmove() deletes some existing gids
+            self.mol.struct.dist.box.reset()
         self.mol.struct.dist.set(self.gids[ratom_aids], state=False)
         # 3）The next fragments of the frag may have been added to the growing
         # self.frags before this backmove step. These added next fragments
@@ -905,12 +896,10 @@ class GrownStruct(PackedStruct):
 
     def setConformers(self, max_trial=10):
         """
-        Looping conformer one by one and set one fragment configuration each
-        time until all to full length.
+        Looping conformer and set one fragment configuration each time.
 
         :param max_trial int: the max number of trials at one density.
-        :raise DensityError: if the max number of trials at this density is
-            reached.
+        :raise DensityError: when the max number of trials is reached.
         """
         logger.debug("*" * 10 + f" {self.density} " + "*" * 10)
         for _ in range(max_trial):
@@ -919,26 +908,25 @@ class GrownStruct(PackedStruct):
             except ConfError:
                 self.reset()
                 continue
-            conformers = list(self.conf)
-            while conformers:
-                conf = conformers.pop(0)
+            confs = list(self.conf)
+            while confs:
+                conf = confs.pop(0)
                 try:
-                    conf.setFrag()
+                    conf.setConformer()
                 except ConfError:
                     # Reset and try again as this conformer cannot be placed.
-                    # 1 ) ifrag cannot be place; 2 ) failed_num reached maximum
                     self.reset()
                     break
                 # Successfully set one fragment of this conformer.
                 if conf.frags:
                     # The conformer has more fragments to grow.
-                    conformers.append(conf)
+                    confs.append(conf)
                     continue
                 # Successfully placed all fragments of one conformer
-                finished_num = self.conformer_total - len(conformers)
+                finished_num = self.conformer_total - len(confs)
                 failed_num = sum([x.failed_num for x in self.conf])
                 logger.debug(f'{finished_num} finished; {failed_num} failed.')
-                if not conformers:
+                if not confs:
                     # Successfully placed all conformers.
                     return
         # Max trial reached at this density.

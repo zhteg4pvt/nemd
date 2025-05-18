@@ -47,6 +47,12 @@ class Cap(collections.UserList):
 class Conf(structutils.Conf):
 
     def align(self, tvec=(1, 0, 0), vec=(1, 0, 0)):
+        """
+        Align the vec to the target vector by rotating the conformer.
+
+        :param tvec 3 x float: the target vector.
+        :param vec 3 x float: the input vector.
+        """
         rotation, _ = scipy.spatial.transform.Rotation.align_vectors(tvec, vec)
         self.rotate(rotation=rotation)
 
@@ -58,7 +64,6 @@ class Moiety(cru.Moiety):
     Conf = Conf
     RES_NAME = 'res_name'
     RES_NUM = 'res_num'
-    ONE_ZERO_ZERO = np.array([1, 0, 0])
 
     # CARBON_MOL = Chem.MolFromSmiles(symbols.CARBON)
 
