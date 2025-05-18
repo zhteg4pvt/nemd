@@ -254,7 +254,7 @@ class GrownConf(PackedConf):
         while frag.pfrag and not frag.vals:
             frag = frag.pfrag
         # 2）Find the next fragments who have been placed into the cell.
-        nxt_frags = list(frag.fragments(partial=True))
+        nxt_frags = list(frag.next(partial=True))
         [x.resetVals() for x in nxt_frags[1:]]
         ratom_aids = [y for x in nxt_frags for y in x.aids]
         self.mol.struct.dist.set(self.gids[ratom_aids], state=False)
@@ -310,7 +310,7 @@ class GrownConf(PackedConf):
         :return int: number of the total fragments.
         """
         # ifrag without dihe means rigid body and counts as 1 fragment
-        return len(list(self.ifrag.fragments())) + 1 if self.ifrag.dihe else 1
+        return len(list(self.ifrag.next())) + 1 if self.ifrag.dihe else 1
 
 
 class GriddedMol(lmpfull.Mol):
@@ -430,18 +430,39 @@ class GrownMol(PackedMol):
         """
         Break the molecule into the smallest rigid fragments.
         """
-        aids = [y for x in self.frag.fragments() for y in x.aids]
+        aids = [y for x in self.frag.next() for y in x.aids]
         return list(set(range(self.gids.shape[0])).difference(aids))
 
-    def findHeadTailPair(self):
+    def getDihes(self, sources, targets):
+        """
+        Get a list of dihedral angles.
+
+        :param sources list: source atom ids.
+        :param targets list: target atom ids.
+        :return list of list: each sublist has four atom ids.
+        """
+        if sources is None:
+            sources, targets = self.getHeadTail()
+        longest = []
+        for source, target in itertools.product(sources, targets):
+            _, _, dihes = self.findPath(source=source, target=target)
+            dihes = [
+                x for x in zip(dihes[:-3], dihes[1:-2], dihes[2:-1], dihes[3:])
+                if self.isRotatable(x[1:-1])
+            ]
+            if len(dihes) > len(longest):
+                longest = dihes
+        return longest
+
+    def getHeadTail(self):
         """
         If the molecule is built from monomers, the atom pairs from
         selected from the first and last monomers.
 
-        :return list or iterator of int tuple: each tuple is an atom id pair
+        :return tuple: sources and targets to search paths.
         """
         if not self.polym:
-            return [(None, None)]
+            return [None], [None]
 
         head_tail = [x for x in self.GetAtoms() if x.HasProp(self.POLYM_HT)]
         mono_ids = {x.GetProp(self.MAID): [] for x in head_tail}
@@ -452,10 +473,7 @@ class GrownMol(PackedMol):
             mono_ids[maid].append(atom.GetIdx())
 
         st_atoms = list(mono_ids.values())
-        sources = st_atoms[0]
-        targets = [y for x in st_atoms[1:] for y in x]
-
-        return itertools.product(sources, targets)
+        return st_atoms[0], [y for x in st_atoms[1:] for y in x]
 
     def findPath(self, source=None, target=None):
         """
@@ -467,7 +485,6 @@ class GrownMol(PackedMol):
         :param target int: the atom id that serves as the target.
         :return list of ints: the atom ids that form the shortest path.
         """
-
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             shortest_path = nx.shortest_path(self.graph,
@@ -941,20 +958,13 @@ class GrownStruct(PackedStruct):
 
 class Fragment:
     """
-    Class to set a portion of the conformer by rotating the dihedral angle.
+    Class to set the conformer by rotating the dihedral angle.
     """
-
-    def __str__(self):
-        """
-        Print the dihedral angle four-atom ids and the swing atom ids.
-        """
-        return f"{self.dihe}: {self.aids}"
 
     def __init__(self, conf, dihe=None, delay=False):
         """
         :param conf 'GrownConf': the conformer that this fragment belongs to
-        :param dihe list of dihedral atom ids: the dihedral that changes the
-            atom position in this fragment.
+        :param dihe list: the dihedral that changes the swinging atom position.
         :param delay bool: whether to delay the initialization of the fragment.
         """
         self.conf = conf  # Conformer object this fragment belongs to
@@ -962,19 +972,11 @@ class Fragment:
         self.aids = []  # Atom ids of the swing atoms
         self.pfrag = None  # Previous fragment
         self.nfrags = []  # Next fragments
-        self.ovals = np.linspace(0, 360, 36, endpoint=False)
+        self.ovals = np.linspace(0, 360, 36, endpoint=False)  # Original values
         self.vals = list(self.ovals)  # Available dihedral values candidates
         if delay:
             return
         self.setUp()
-
-    def isFull(self):
-        """
-        Whether the dihedral candidates is the full set.
-
-        :return bool: True if the dihedral candidates is the full set.
-        """
-        return len(self.vals) == self.ovals.shape[0]
 
     def setUp(self):
         """
@@ -988,70 +990,11 @@ class Fragment:
         # Set next fragments
         while frags:
             frag = frags.pop(0)
-            nfrags = frag.setNextFrags()
-            frags += nfrags
+            frags += frag.setNextFrags()
         # Set previous fragments
-        for frag in self.fragments():
+        for frag in self.next():
             for nfrag in frag.nfrags:
                 nfrag.pfrag = frag
-
-    def resetVals(self):
-        """
-        Reset the dihedral angle values and state.
-        """
-        self.vals = list(self.ovals)
-
-    def reset(self):
-        """
-        Reset the state of all fragments.
-        """
-        for frag in self.fragments():
-            frag.resetVals()
-
-    def getOwningMol(self):
-        """
-        Get the owning GrownMol object.
-
-        :return GrownMol: get the molecule this fragment belongs to.
-        """
-        return self.conf.GetOwningMol()
-
-    def copyInit(self, conf):
-        """
-        Copy the current initial fragment and all the fragments retrieved by it.
-        The connections between all new fragments are established as well.
-
-        :param mol GrownConf: the conformer object this initial fragment belongs to
-        :return Fragment: the copied initial fragment.
-        """
-        ifrag = self.copy(conf)
-        all_nfrags = [ifrag]
-        while all_nfrags:
-            frag = all_nfrags.pop()
-            nfrags = [x.copy(conf) for x in frag.nfrags]
-            frag.nfrags = nfrags
-            for nfrag in nfrags:
-                nfrag.pfrag = frag
-            all_nfrags += nfrags
-        return ifrag
-
-    def copy(self, conf, randomize=True):
-        """
-        Copy the current fragment to a new one.
-
-        :param conf GrownConf: the conformer object this fragment belongs to.
-        :param randomize bool: randomize the dihedral values candidates if True.
-        :return Fragment: the copied fragment.
-        """
-        frag = Fragment(conf, dihe=self.dihe, delay=True)
-        frag.aids = self.aids
-        frag.pfrag = self.pfrag
-        frag.nfrags = self.nfrags
-        frag.vals = self.vals[:]
-        if randomize:
-            np.random.shuffle(frag.ovals)
-            frag.vals = list(frag.ovals)
-        return frag
 
     def setNextFrags(self):
         """
@@ -1090,22 +1033,58 @@ class Fragment:
 
         :return list of list: each sublist has four atom ids.
         """
-        if self.dihe:
-            pairs = zip([self.dihe[1]] * len(self.aids), self.aids)
-        else:
-            pairs = self.getOwningMol().findHeadTailPair()
+        sources = self.dihe[1:2] if self.dihe else None
+        return self.conf.GetOwningMol().getDihes(sources, self.aids)
 
-        dihes, num = [], 0
-        for source, target in pairs:
-            mol = self.getOwningMol()
-            _, _, path = mol.findPath(source=source, target=target)
-            a_dihes = zip(path[:-3], path[1:-2], path[2:-1], path[3:])
-            a_dihes = [x for x in a_dihes if mol.isRotatable(x[1:-1])]
-            if len(a_dihes) < num:
-                continue
-            num = len(a_dihes)
-            dihes = a_dihes
-        return dihes
+    def resetVals(self):
+        """
+        Reset the dihedral angle values and state.
+        """
+        self.vals = list(self.ovals)
+
+    def reset(self):
+        """
+        Reset the state of all fragments.
+        """
+        for frag in self.next():
+            frag.resetVals()
+
+    def copyInit(self, conf):
+        """
+        Copy the current initial fragment and all the fragments retrieved by it.
+        The connections between all new fragments are established as well.
+
+        :param mol GrownConf: the conformer object this initial fragment belongs to
+        :return Fragment: the copied initial fragment.
+        """
+        ifrag = self.copy(conf)
+        all_nfrags = [ifrag]
+        while all_nfrags:
+            frag = all_nfrags.pop()
+            nfrags = [x.copy(conf) for x in frag.nfrags]
+            frag.nfrags = nfrags
+            for nfrag in nfrags:
+                nfrag.pfrag = frag
+            all_nfrags += nfrags
+        return ifrag
+
+    def copy(self, conf, randomize=True):
+        """
+        Copy the current fragment to a new one.
+
+        :param conf GrownConf: the conformer object this fragment belongs to.
+        :param randomize bool: randomize the dihedral values candidates if True.
+        :return Fragment: the copied fragment.
+        """
+        frag = Fragment(conf, dihe=self.dihe, delay=True)
+        frag.aids = self.aids
+        frag.pfrag = self.pfrag
+        frag.nfrags = self.nfrags
+        frag.vals = self.vals[:]
+        if randomize:
+            np.random.shuffle(frag.ovals)
+            frag.vals = list(frag.ovals)
+        return frag
 
     def setDihedralDeg(self, val=None):
         """
@@ -1118,11 +1097,12 @@ class Fragment:
             val = self.vals.pop()
         self.conf.setDihedralDeg(self.dihe, val)
 
-    def fragments(self, partial=False):
+    def next(self, partial=False):
         """
-        Return all fragments.
+        Return the fragment and fragments following this one.
 
-        :return list of Fragment: all fragment of this conformer.
+        :param partial bool: return fragments with incomplete dihedrals if True.
+        :return list of Fragment: the fragment and fragments following this one.
         """
         frags = [self]
         while frags:
@@ -1131,3 +1111,17 @@ class Fragment:
                 continue
             frags.extend(frag.nfrags)
             yield frag
+
+    def isFull(self):
+        """
+        Whether the dihedral candidates is the full set.
+
+        :return bool: True if the dihedral candidates is the full set.
+        """
+        return len(self.vals) == self.ovals.shape[0]
+
+    def __str__(self):
+        """
+        Print the dihedral angle four-atom ids and the swing atom ids.
+        """
+        return f"{self.dihe}: {self.aids}"
