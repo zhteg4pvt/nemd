@@ -215,7 +215,13 @@ class GrownConf(PackedConf):
         if self.failed_num == max_trial:
             logger.debug(f'Placed {self.mol.struct.dist.ratio} atoms with  '
                          f'conformer {self.gid} reaching the max trials.')
+            # FIXME: Failed conformer search should try to reduce clash criteria
             raise ConfError
+
+        self.mol.struct.dist.set(self.gids[self.init_aids], state=False)
+        self.ifrag.resetVals()
+        # The method backmove() deletes some existing gids
+        self.mol.struct.dist.box.reset()
         self.placeInitFrag()
         self.reportRelocation()
 
@@ -245,25 +251,19 @@ class GrownConf(PackedConf):
         :return bool: True if back move is successful.
         """
         # 1）Find the previous fragment with available dihedral candidates.
-        pfrag = frag.getPreAvailFrag()
-        found = bool(pfrag)
-        frag = pfrag if found else self.ifrag
+        while frag.pfrag and not frag.vals:
+            frag = frag.pfrag
         # 2）Find the next fragments who have been placed into the cell.
-        nxt_frags = frag.getNxtFrags()
-        [x.resetVals() for x in nxt_frags]
-        ratom_aids = [y for x in nxt_frags for y in x.aids] + frag.aids
-        if not found:
-            ratom_aids += frag.conf.init_aids
-            frag.resetVals()
-            # The method backmove() deletes some existing gids
-            self.mol.struct.dist.box.reset()
+        nxt_frags = list(frag.fragments(partial=True))
+        [x.resetVals() for x in nxt_frags[1:]]
+        ratom_aids = [y for x in nxt_frags for y in x.aids]
         self.mol.struct.dist.set(self.gids[ratom_aids], state=False)
         # 3）The next fragments of the frag may have been added to the growing
         # self.frags before this backmove step. These added next fragments
         # may have never been growed even once.
-        nnxt_frags = [y for x in nxt_frags for y in x.nfrags] + frag.nfrags
-        self.frags = [frag] + [x for x in self.frags if x not in nnxt_frags]
-        return found
+        nnxt_frags = [y for x in nxt_frags for y in x.nfrags]
+        self.frags = [frag] + list(set(self.frags).difference(nnxt_frags))
+        return frag.vals
 
     def placeInitFrag(self):
         """
@@ -310,7 +310,7 @@ class GrownConf(PackedConf):
         :return int: number of the total fragments.
         """
         # ifrag without dihe means rigid body and counts as 1 fragment
-        return len(self.ifrag.fragments()) + 1 if self.ifrag.dihe else 1
+        return len(list(self.ifrag.fragments())) + 1 if self.ifrag.dihe else 1
 
 
 class GriddedMol(lmpfull.Mol):
@@ -962,13 +962,19 @@ class Fragment:
         self.aids = []  # Atom ids of the swing atoms
         self.pfrag = None  # Previous fragment
         self.nfrags = []  # Next fragments
-        self.ovals = np.linspace(0, 360, 36, endpoint=False)  # shuffle on copy
+        self.ovals = np.linspace(0, 360, 36, endpoint=False)
         self.vals = list(self.ovals)  # Available dihedral values candidates
-        self.val = None  # Chosen dihedral angle value
-        self.fval = True  # All dihedral values are available (new frag)
         if delay:
             return
         self.setUp()
+
+    def isFull(self):
+        """
+        Whether the dihedral candidates is the full set.
+
+        :return bool: True if the dihedral candidates is the full set.
+        """
+        return len(self.vals) == self.ovals.shape[0]
 
     def setUp(self):
         """
@@ -993,7 +999,6 @@ class Fragment:
         """
         Reset the dihedral angle values and state.
         """
-        self.val, self.fval = None, True
         self.vals = list(self.ovals)
 
     def reset(self):
@@ -1042,10 +1047,6 @@ class Fragment:
         frag.aids = self.aids
         frag.pfrag = self.pfrag
         frag.nfrags = self.nfrags
-        frag.val = self.val
-        frag.fval = self.fval
-        # Another conformer may have different value and candidates
-        frag.ovals = self.ovals.copy()
         frag.vals = self.vals[:]
         if randomize:
             np.random.shuffle(frag.ovals)
@@ -1115,46 +1116,18 @@ class Fragment:
         """
         if val is None:
             val = self.vals.pop()
-            self.fval = False
-        self.val = val
-        self.conf.setDihedralDeg(self.dihe, self.val)
+        self.conf.setDihedralDeg(self.dihe, val)
 
-    def getPreAvailFrag(self):
-        """
-        Get the first previous fragment that has available dihedral candidates.
-
-        :return 'Fragment': The previous fragment found.
-        """
-        frag = self.pfrag
-        if frag is None:
-            return None
-        while frag.pfrag and not frag.vals:
-            frag = frag.pfrag
-        if frag.pfrag is None and not frag.vals:
-            # FIXME: Failed conformer search should try to reduce clash criteria
-            return None
-        return frag
-
-    def getNxtFrags(self):
-        """
-        Get the next fragments that don't have full dihedral value candidates.
-
-        :return list: list of next fragments
-        """
-        frags, nfrags = [], [self]
-        while nfrags:
-            nfrags = [y for x in nfrags for y in x.nfrags if not y.fval]
-            frags += nfrags
-        return frags
-
-    def fragments(self):
+    def fragments(self, partial=False):
         """
         Return all fragments.
 
         :return list of Fragment: all fragment of this conformer.
         """
-        frags, nfrags = [], [self]
-        while nfrags:
-            frags += nfrags
-            nfrags = [y for x in nfrags for y in x.nfrags]
-        return frags
+        frags = [self]
+        while frags:
+            frag = frags.pop()
+            if partial and frag.isFull():
+                continue
+            frags.extend(frag.nfrags)
+            yield frag
