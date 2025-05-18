@@ -11,6 +11,7 @@ This module provides conformer search using three methods.
   initiators with random rotations and large separation distances, and add back
   the connected fragments after rotating the bonds to avoid clashes.
 """
+import collections
 import functools
 import itertools
 import logging
@@ -154,10 +155,11 @@ class GrownConf(PackedConf):
         Break the molecule into the smallest rigid fragments if not, copy to
         current conformer, and set up the fragment objects.
         """
+        if self.ifrag:
+            return
         mol = self.GetOwningMol()
-        mol.fragmentize()
         self.init_aids = mol.init_aids
-        self.ifrag = mol.ifrag.copyInit(self)
+        self.ifrag = mol.frag.copyInit(self)
         self.frags = [self.ifrag]
 
     def getSwingAtoms(self, *dihe):
@@ -175,38 +177,8 @@ class GrownConf(PackedConf):
         self.setDihedralDeg(dihe, oval)
         return [i for i, x in enumerate(changed) if not all(x)]
 
-    @functools.cache
-    def getNumFrags(self):
-        """
-        Return the number of the total fragments.
-
-        :return int: number of the total fragments.
-        """
-        # ifrag without dihe means rigid body and counts as 1 fragment
-        return len(self.ifrag.fragments()) + 1 if self.ifrag.dihe else 1
-
-    def placeInitFrag(self):
-        """
-        Place the initiator fragment into the cell with random position, random
-        orientation, and large separation.
-
-        :raise ValueError: when no void to place the initiator fragment of the
-            dead molecule.
-        """
-        for point in self.mol.struct.dist.getVoid():
-            centroid = np.array(self.centroid(aids=self.init_aids))
-            self.translate(-centroid)
-            self.rotateRandomly()
-            self.translate(point)
-            self.mol.struct.dist[self.gids, :] = self.GetPositions()
-            if self.hasClash(self.init_aids):
-                continue
-            self.mol.struct.dist.set(self.gids[self.init_aids], init=True)
-            return
-
-        # FIXME: Failed to fill the void with initiator too often
-        logger.debug(f'Only {self.mol.struct.dist.ratio} placed')
-        raise ConfError
+    def centroid(self, **kwargs):
+        return super().centroid(aids=self.init_aids, **kwargs)
 
     def hasClash(self, aids):
         """
@@ -227,7 +199,7 @@ class GrownConf(PackedConf):
         """
         frag = self.frags.pop(0)
         if not frag.aids:
-            # Rigid-body init frag
+            # Rigid-body
             return
 
         if self.setDihedral(frag):
@@ -293,6 +265,28 @@ class GrownConf(PackedConf):
         self.frags = [frag] + [x for x in self.frags if x not in nnxt_frags]
         return found
 
+    def placeInitFrag(self):
+        """
+        Place the initiator fragment into the cell with random position, random
+        orientation, and large separation.
+
+        :raise ValueError: when no void to place the initiator fragment of the
+            dead molecule.
+        """
+        for point in self.mol.struct.dist.getVoid():
+            self.translate(-self.centroid())
+            self.rotateRandomly()
+            self.translate(point)
+            self.mol.struct.dist[self.gids, :] = self.GetPositions()
+            if self.hasClash(self.init_aids):
+                continue
+            self.mol.struct.dist.set(self.gids[self.init_aids], init=True)
+            return
+
+        # FIXME: Failed to fill the void with initiator too often
+        logger.debug(f'Only {self.mol.struct.dist.ratio} placed')
+        raise ConfError
+
     def reportRelocation(self):
         """
         Report the status after relocate an initiator fragment.
@@ -306,6 +300,17 @@ class GrownConf(PackedConf):
                      f"(initiator: {idists.min():.2f}-{idists.max():.2f}; "
                      f"close contact: {min_dist:.2f}) ")
         logger.debug(f'{self.mol.struct.dist.ratio} atoms placed.')
+
+    @property
+    @functools.cache
+    def frag_total(self):
+        """
+        Return the number of the total fragments.
+
+        :return int: number of the total fragments.
+        """
+        # ifrag without dihe means rigid body and counts as 1 fragment
+        return len(self.ifrag.fragments()) + 1 if self.ifrag.dihe else 1
 
 
 class GriddedMol(lmpfull.Mol):
@@ -410,21 +415,23 @@ class GrownMol(PackedMol):
     MAID = 'maid'
     EDGES = 'edges'
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.ifrag = None
-        self.init_aids = None
-
-    def fragmentize(self):
+    @property
+    @functools.cache
+    def frag(self):
         """
         Break the molecule into the smallest rigid fragments.
         """
-        if self.ifrag is not None:
-            return
         # dihe is not known and will be handled in setFragments()
-        self.ifrag = Fragment(self.GetConformer())
-        aids = [y for x in self.ifrag.fragments() for y in x.aids]
-        self.init_aids = list(set(range(self.gids.shape[0])).difference(aids))
+        return Fragment(self.GetConformer())
+
+    @property
+    @functools.cache
+    def init_aids(self):
+        """
+        Break the molecule into the smallest rigid fragments.
+        """
+        aids = [y for x in self.frag.fragments() for y in x.aids]
+        return list(set(range(self.gids.shape[0])).difference(aids))
 
     def findHeadTailPair(self):
         """
@@ -637,7 +644,7 @@ class PackedStruct(Struct):
         :raise DensityError: if the max number of trials at this density is
             reached or the chance of achieving the goal is too low.
         """
-        conf_num, placed = self.conformer_total, []
+        conf_num, placed = self.conf_total, []
         for trial_id in range(1, max_trial + 1):
             with logger.oneLine(logging.DEBUG) as log:
                 nth = -1
@@ -673,7 +680,7 @@ class PackedStruct(Struct):
         raise DensityError
 
     @property
-    def conformer_total(self):
+    def conf_total(self):
         """
         Return the total number of conformers.
 
@@ -861,38 +868,17 @@ class GrownStruct(PackedStruct):
         See parent.
         """
         super().setUp(*args, **kwargs)
-        if all([x.ifrag for x in self.conf]):
-            return
         for conf in self.conf:
             conf.fragmentize()
-        total_frag_num = sum([x.getNumFrags() for x in self.conf])
-        logger.debug(f"{total_frag_num} fragments in total.")
+        logger.debug(
+            f"Fragment total: {sum(x.frag_total for x in self.conf)}.")
 
     def setBox(self):
         """
         Set up the box in addition to the parent.
         """
         super().setBox()
-        self.box.setUp(self.conformer_total)
-
-    def placeInitFrags(self):
-        """
-        Place the initiators into cell.
-        """
-        logger.debug(f'Placing {self.conformer_total} initiators...')
-        with logger.oneLine(logging.DEBUG) as log:
-            tenth, threshold, = self.conformer_total / 10., 0
-            for index, conf in enumerate(self.conf, start=1):
-                conf.placeInitFrag()
-                if index >= threshold:
-                    log(f"{int(index / self.conformer_total * 100)}%")
-                    threshold = round(threshold + tenth, 1)
-
-        logger.debug(f'{self.conformer_total} initiators have been placed.')
-        if self.conformer_total == 1:
-            return
-        dist = self.dist.initDists().min()
-        logger.debug(f'({dist:.2f} as the minimum pair distance)')
+        self.box.setUp(self.conf_total)
 
     def setConformers(self, max_trial=10):
         """
@@ -904,34 +890,53 @@ class GrownStruct(PackedStruct):
         logger.debug("*" * 10 + f" {self.density} " + "*" * 10)
         for _ in range(max_trial):
             try:
-                self.placeInitFrags()
+                confs = collections.deque(self.setInits())
             except ConfError:
                 self.reset()
                 continue
-            confs = list(self.conf)
             while confs:
-                conf = confs.pop(0)
                 try:
-                    conf.setConformer()
+                    confs[0].setConformer()
                 except ConfError:
                     # Reset and try again as this conformer cannot be placed.
                     self.reset()
                     break
                 # Successfully set one fragment of this conformer.
-                if conf.frags:
-                    # The conformer has more fragments to grow.
-                    confs.append(conf)
+                if confs[0].frags:
+                    confs.rotate(-1)
                     continue
                 # Successfully placed all fragments of one conformer
-                finished_num = self.conformer_total - len(confs)
-                failed_num = sum([x.failed_num for x in self.conf])
-                logger.debug(f'{finished_num} finished; {failed_num} failed.')
-                if not confs:
-                    # Successfully placed all conformers.
-                    return
+                confs.popleft()
+                logger.debug(f'{self.conf_total - len(confs)} finished; '
+                             f'{sum(x.failed_num for x in self.conf)} failed.')
+            else:
+                # Successfully placed all conformers.
+                return
         # Max trial reached at this density.
         self.reset()
         raise DensityError
+
+    def setInits(self):
+        """
+        Place the initiators into cell.
+
+        :return generator of `GrownConf`: the non-rigid conformer.
+        """
+        logger.debug(f'Placing {self.conf_total} initiators...')
+        with logger.oneLine(logging.DEBUG) as log:
+            tenth, threshold, = self.conf_total / 10., 0
+            for index, conf in enumerate(self.conf, start=1):
+                conf.placeInitFrag()
+                if index >= threshold:
+                    log(f"{int(index / self.conf_total * 100)}%")
+                    threshold = round(threshold + tenth, 1)
+                if conf.ifrag.dihe:
+                    yield conf
+
+        logger.debug(f'{self.conf_total} initiators have been placed.')
+        if self.conf_total == 1:
+            return
+        logger.debug(f'Minimum separation: {self.dist.initDists().min():.2f}')
 
 
 class Fragment:
@@ -972,7 +977,17 @@ class Fragment:
         if self.dihe is not None:
             self.aids = self.conf.getSwingAtoms(*self.dihe)
             return
-        self.setFragments()
+        # Finish up the ifrag setup and set next fragments
+        frags = self.setNextFrags()
+        # Set next fragments
+        while frags:
+            frag = frags.pop(0)
+            nfrags = frag.setNextFrags()
+            frags += nfrags
+        # Set previous fragments
+        for frag in self.fragments():
+            for nfrag in frag.nfrags:
+                nfrag.pfrag = frag
 
     def resetVals(self):
         """
@@ -1036,23 +1051,6 @@ class Fragment:
             np.random.shuffle(frag.ovals)
             frag.vals = list(frag.ovals)
         return frag
-
-    def setFragments(self):
-        """
-        Set up fragments by iteratively searching for rotatable bond path and
-        adding them as next fragments.
-        """
-        # Finish up the ifrag setup and set next fragments
-        frags = self.setNextFrags()
-        # Set next fragments
-        while frags:
-            frag = frags.pop(0)
-            nfrags = frag.setNextFrags()
-            frags += nfrags
-        # Set previous fragments
-        for frag in self.fragments():
-            for nfrag in frag.nfrags:
-                nfrag.pfrag = frag
 
     def setNextFrags(self):
         """
