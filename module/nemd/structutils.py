@@ -20,7 +20,6 @@ import warnings
 
 import networkx as nx
 import numpy as np
-import pandas as pd
 import rdkit
 import scipy
 from rdkit import Chem
@@ -102,16 +101,28 @@ class PackedConf(Conf):
         :param max_trial int: the max trial number when placing into the cell.
         :raise ConfError: when the last trial failed.
         """
-        for _ in range(max_trial):
+        for point in self.mol.struct.dist.getPoint():
             self.translate(-self.centroid())
             self.rotateRandomly()
-            self.translate(self.mol.struct.dist.box.getPoint())
-            self.mol.struct.dist[self.gids, :] = self.GetPositions()
-            if self.mol.struct.dist.hasClash(self.gids):
-                continue
-            self.mol.struct.dist.set(self.gids)
-            return
+            self.translate(point)
+            if self.checkClash(self.gids):
+                return
+
+        # FIXME: Failed to fill the void with initiator too often
+        logger.debug(f'Only {self.mol.struct.dist.ratio} placed')
         raise ConfError
+
+    def checkClash(self, gids, init=False):
+        """
+        Check the clashes.
+
+        :param gids list: the global atom ids.
+        :return bool: True if no clashes are found.
+        """
+        self.mol.struct.dist[self.gids, :] = self.GetPositions()
+        if not self.mol.struct.dist.hasClash(gids):
+            self.mol.struct.dist.set(gids, init=init)
+            return True
 
     def rotateRandomly(self, seed=None, high=2**32):
         """
@@ -177,15 +188,6 @@ class GrownConf(PackedConf):
         self.setDihedralDeg(dihe, oval)
         return [i for i, x in enumerate(changed) if not all(x)]
 
-    def hasClash(self, aids):
-        """
-        Whether the conformer has any clashes with the existing atoms.
-
-        :param aids list: the conformer atom ids.
-        :return bool: True if clashes are found.
-        """
-        return self.mol.struct.dist.hasClash(self.gids[aids])
-
     def setConformer(self, max_trial=5):
         """
         Set the conformer of one fragment by rotating the dihedral angle,
@@ -195,9 +197,6 @@ class GrownConf(PackedConf):
         :raise ConfError: 1) max_trial reached; 2) init cannot be placed.
         """
         frag = self.frags.pop(0)
-        if not frag.aids:
-            # Rigid-body
-            return
 
         try:
             self.frags += frag.setDihedral()
@@ -256,15 +255,12 @@ class GrownConf(PackedConf):
         :raise ValueError: when no void to place the initiator fragment of the
             dead molecule.
         """
-        for point in self.mol.struct.dist.getVoid():
+        for point in self.mol.struct.dist.getPoint(void=True):
             self.translate(-self.centroid())
             self.rotateRandomly()
             self.translate(point)
-            self.mol.struct.dist[self.gids, :] = self.GetPositions()
-            if self.hasClash(self.init_aids):
-                continue
-            self.mol.struct.dist.set(self.gids[self.init_aids], init=True)
-            return
+            if self.checkClash(self.gids[self.init_aids], init=True):
+                return
 
         # FIXME: Failed to fill the void with initiator too often
         logger.debug(f'Only {self.mol.struct.dist.ratio} placed')
@@ -303,7 +299,6 @@ class GriddedMol(lmpfull.Mol):
     """
     A subclass of Chem.rdchem.Mol to handle gridded conformers.
     """
-
     Conf = Conf
 
     def __init__(self, *args, buffer=4, **kwargs):
@@ -712,12 +707,7 @@ class GrownBox(PackedBox):
     """
     Customized box class for grown structures.
     """
-
-    # https://pandas.pydata.org/docs/development/extending.html
-    _internal_names = pd.DataFrame._internal_names + [
-        'graph', 'orig_graph', 'cshape', 'cspan'
-    ]
-    _internal_names_set = set(_internal_names)
+    _metadata = ['graph', 'orig_graph', 'cshape', 'cspan']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -842,14 +832,16 @@ class Frame(dist.Frame):
             dat.append(self.getDists(grp, grps=grps))
         return np.concatenate(dat)
 
-    def getVoid(self):
+    def getPoint(self, void=False, max_trial=1000):
         """
         Remove nodes occupied by existing atoms.
 
-        :return `numpy.ndarray`: each value is one random point from the voids.
+        :return `numpy.ndarray`:
         """
-        self.box.rmGraphNodes(self[self.gids.on])
-        return (y for x in self.box.getVoid() for y in x)
+        if void:
+            self.box.rmGraphNodes(self[self.gids.on])
+            return (y for x in self.box.getVoid() for y in x)
+        return (self.box.getPoint() for _ in range(max_trial))
 
     @property
     def ratio(self):
@@ -1045,13 +1037,8 @@ class Monomer:
         """
         while self.vals:
             self.conf.setDihedralDeg(self.dihe, self.vals.pop())
-            self.conf.mol.struct.dist[
-                self.conf.gids, :] = self.conf.GetPositions()
-            if self.conf.hasClash(self.aids):
-                continue
-            self.conf.mol.struct.dist.set(self.conf.gids[self.aids])
-            return self.nfrags
-
+            if self.conf.checkClash(self.conf.gids[self.aids]):
+                return self.nfrags
         raise ConfError
 
     def __str__(self):
