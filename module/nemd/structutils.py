@@ -94,25 +94,26 @@ class PackedConf(Conf):
         super().__init__(*args, **kwargs)
         self.oxyz = None
 
-    def setConformer(self, max_trial=1000):
+    def setConformer(self, gids=None):
         """
         Place this conformer into the cell without clash.
 
-        :param max_trial int: the max trial number when placing into the cell.
         :raise ConfError: when the last trial failed.
         """
+        if gids is None:
+            gids = self.gids
         for point in self.mol.struct.dist.getPoint():
             self.translate(-self.centroid())
             self.rotateRandomly()
             self.translate(point)
-            if self.checkClash(self.gids):
+            if self.checkClash(gids):
                 return
 
         # FIXME: Failed to fill the void with initiator too often
-        logger.debug(f'Only {self.mol.struct.dist.ratio} placed')
+        logger.debug(f'Only {self.mol.struct.dist.ratio} placed.')
         raise ConfError
 
-    def checkClash(self, gids, init=False):
+    def checkClash(self, gids):
         """
         Check the clashes.
 
@@ -121,7 +122,7 @@ class PackedConf(Conf):
         """
         self.mol.struct.dist[self.gids, :] = self.GetPositions()
         if not self.mol.struct.dist.hasClash(gids):
-            self.mol.struct.dist.set(gids, init=init)
+            self.mol.struct.dist.set(gids)
             return True
 
     def rotateRandomly(self, seed=None, high=2**32):
@@ -249,22 +250,9 @@ class GrownConf(PackedConf):
 
     def placeInitFrag(self):
         """
-        Place the initiator fragment into the cell with random position, random
-        orientation, and large separation.
-
-        :raise ValueError: when no void to place the initiator fragment of the
-            dead molecule.
+        Place the initiator fragment into the cell without clashes.
         """
-        for point in self.mol.struct.dist.getPoint(void=True):
-            self.translate(-self.centroid())
-            self.rotateRandomly()
-            self.translate(point)
-            if self.checkClash(self.gids[self.init_aids], init=True):
-                return
-
-        # FIXME: Failed to fill the void with initiator too often
-        logger.debug(f'Only {self.mol.struct.dist.ratio} placed')
-        raise ConfError
+        super().setConformer(self.gids[self.init_aids])
 
     def centroid(self, **kwargs):
         return super().centroid(aids=self.init_aids, **kwargs)
@@ -273,7 +261,10 @@ class GrownConf(PackedConf):
         """
         Report the status after relocate an initiator fragment.
         """
-        idists = self.mol.struct.dist.initDists()
+        gid_grps = [
+            y.gids[y.init_aids] for x in self.mol.struct.mols for y in x.confs
+        ]
+        idists = self.mol.struct.dist.initDists(gid_grps)
         grp = self.gids[self.init_aids]
         other = list(self.mol.struct.dist.gids.diff(grp))
         grps = [other for _ in grp]
@@ -499,7 +490,6 @@ class GriddedStruct(Struct):
     """
     Grid the space and fill sub-cells with molecules as rigid bodies.
     """
-
     Mol = GriddedMol
 
     def run(self):
@@ -586,12 +576,56 @@ class PackedBox(pbc.Box):
         return point + self.lo
 
 
+class PackFrame(dist.Frame):
+
+    def getPoint(self, void=False, max_num=1000):
+        """
+        Get a point.
+
+        :param max_num int: the max number of points in the generator.
+        :return generator: each value is a point.
+        """
+        return (self.box.getPoint() for _ in range(max_num))
+
+    @property
+    def ratio(self):
+        """
+        The ratio of the existing atoms to the total atoms.
+
+        :return str: the ratio of the existing gids with respect to the total.
+        """
+        return f'{len(self.gids.on)} / {self.shape[0]}'
+
+
+class GrownFrame(PackFrame):
+
+    def getPoint(self, void=False):
+        """
+        See parent.
+        """
+        self.box.rmGraphNodes(self[self.gids.on])
+        return (y for x in self.box.getVoid() for y in x)
+
+    def initDists(self, grps):
+        """
+        Get the pair distances between gid groups.
+
+        :param grps: groups of the global atom ids.
+        :return 'np.ndarray': the pair distances between gid groups.
+        """
+        return np.concatenate([
+            self.getDists(grps[i], grps=[list(itertools.chain(*grps[:i]))])
+            for i in range(1, len(grps))
+        ])
+
+
 class PackedStruct(Struct):
     """
     Pack molecules by random rotation and translation.
     """
     Mol = PackedMol
     Box = PackedBox
+    Frame = PackFrame
 
     def __init__(self, *args, **kwargs):
         # Force field -> Molecular weight -> Box -> Frame -> Distance cell
@@ -629,10 +663,10 @@ class PackedStruct(Struct):
         edge *= scipy.constants.centi / scipy.constants.angstrom
         self.box = self.Box.fromParams(edge, tilted=False)
         logger.debug(f'Cubic box of size {edge:.2f} angstrom is created.')
-        self.dist = Frame(self.GetPositions(),
-                          box=self.box,
-                          struct=self,
-                          gids=[])
+        self.dist = self.Frame(self.GetPositions(),
+                               box=self.box,
+                               struct=self,
+                               gids=[])
 
     def setConformers(self, max_trial=50):
         """
@@ -692,15 +726,10 @@ class PackedStruct(Struct):
         """
         for conf in self.conf:
             conf.reset()
-        self.dist = Frame(np.concatenate([x.GetPositions()
-                                          for x in self.conf]),
-                          box=self.box,
-                          struct=self,
-                          gids=[])
-        try:
-            self.dist.box.reset()
-        except AttributeError:
-            pass
+        self.dist = self.Frame(self.GetPositions(),
+                               box=self.box,
+                               struct=self,
+                               gids=[])
 
 
 class GrownBox(PackedBox):
@@ -799,64 +828,11 @@ class GrownBox(PackedBox):
         self.graph = self.orig_graph.copy()
 
 
-class Frame(dist.Frame):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.init_gids = []
-
-    def set(self, gids, init=False, **kwargs):
-        """
-        Add a new atom to the distance cell.
-
-        :param gids list: the global atom ids to be added.
-        :param init bool: whether these atoms are from an initiator fragment.
-        """
-        super().set(gids, **kwargs)
-        if not init:
-            return
-        self.init_gids.append(gids)
-
-    def initDists(self):
-        """
-        Get the pair distances between existing atoms.
-
-        :return: the pair distances between
-        :rtype: 'numpy.ndarray'
-        """
-        dat = []
-        init_gids = sorted(self.init_gids, key=lambda x: x[0])
-        for idx in range(1, len(init_gids)):
-            grp = init_gids[idx]
-            grps = [list(itertools.chain(*init_gids[:idx]))]
-            dat.append(self.getDists(grp, grps=grps))
-        return np.concatenate(dat)
-
-    def getPoint(self, void=False, max_trial=1000):
-        """
-        Remove nodes occupied by existing atoms.
-
-        :return `numpy.ndarray`:
-        """
-        if void:
-            self.box.rmGraphNodes(self[self.gids.on])
-            return (y for x in self.box.getVoid() for y in x)
-        return (self.box.getPoint() for _ in range(max_trial))
-
-    @property
-    def ratio(self):
-        """
-        The ratio of the existing atoms to the total atoms.
-
-        :return str: the ratio of the existing gids with respect to the total.
-        """
-        return f'{len(self.gids.on)} / {self.shape[0]}'
-
-
 class GrownStruct(PackedStruct):
 
     Mol = GrownMol
     Box = GrownBox
+    Frame = GrownFrame
 
     def setUp(self, *args, **kwargs):
         """
@@ -930,7 +906,13 @@ class GrownStruct(PackedStruct):
         logger.debug(f'{self.conf_total} initiators have been placed.')
         if self.conf_total == 1:
             return
-        logger.debug(f'Minimum separation: {self.dist.initDists().min():.2f}')
+        gid_grps = [y.gids[y.init_aids] for x in self.mols for y in x.confs]
+        logger.debug(
+            f'Minimum separation: {self.dist.initDists(gid_grps).min():.2f}')
+
+    def reset(self):
+        super().reset()
+        self.box.reset()
 
 
 class Monomer:
