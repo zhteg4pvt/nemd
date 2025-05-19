@@ -159,7 +159,7 @@ class GrownConf(PackedConf):
             return
         mol = self.GetOwningMol()
         self.init_aids = mol.init_aids
-        self.ifrag = mol.frag.copyInit(self)
+        self.ifrag = mol.frag.copy(self)
         self.frags = [self.ifrag]
 
     def getSwingAtoms(self, *dihe):
@@ -202,7 +202,11 @@ class GrownConf(PackedConf):
             # Rigid-body
             return
 
-        if self.setDihedral(frag):
+        try:
+            self.frags += frag.setDihedral()
+        except ConfError:
+            pass
+        else:
             # Placed by rotating the bond.
             return
 
@@ -224,24 +228,6 @@ class GrownConf(PackedConf):
         self.mol.struct.dist.box.reset()
         self.placeInitFrag()
         self.reportRelocation()
-
-    def setDihedral(self, frag):
-        """
-        Set part of the conformer by rotating the dihedral angle.
-
-        :param frag 'fragments.Fragment': fragment to set the dihedral angle.
-        :return bool: True if successfully place one fragment.
-        """
-        while frag.vals:
-            frag.setDihedralDeg()
-            self.mol.struct.dist[self.gids, :] = self.GetPositions()
-            if self.hasClash(frag.aids):
-                continue
-            self.mol.struct.dist.set(self.gids[frag.aids])
-            self.frags += frag.nfrags
-            return True
-
-        return False
 
     def backMove(self, frag):
         """
@@ -422,7 +408,7 @@ class GrownMol(PackedMol):
         Break the molecule into the smallest rigid fragments.
         """
         # dihe is not known and will be handled in setFragments()
-        return Fragment(self.GetConformer())
+        return IFragment(self.GetConformer())
 
     @property
     @functools.cache
@@ -433,7 +419,7 @@ class GrownMol(PackedMol):
         aids = [y for x in self.frag.next() for y in x.aids]
         return list(set(range(self.gids.shape[0])).difference(aids))
 
-    def getDihes(self, sources, targets):
+    def getDihes(self, sources=None, targets=None):
         """
         Get a list of dihedral angles.
 
@@ -441,7 +427,7 @@ class GrownMol(PackedMol):
         :param targets list: target atom ids.
         :return list of list: each sublist has four atom ids.
         """
-        if sources is None:
+        if sources is None and targets is None:
             sources, targets = self.getHeadTail()
         longest = []
         for source, target in itertools.product(sources, targets):
@@ -968,13 +954,14 @@ class Fragment:
         :param delay bool: whether to delay the initialization of the fragment.
         """
         self.conf = conf  # Conformer object this fragment belongs to
-        self.dihe = dihe  # dihedral angle four-atom ids
+        self.delay = delay
         self.aids = []  # Atom ids of the swing atoms
-        self.pfrag = None  # Previous fragment
         self.nfrags = []  # Next fragments
+        self.dihe = dihe  # dihedral angle four-atom ids
+        self.pfrag = None  # Previous fragment
         self.ovals = np.linspace(0, 360, 36, endpoint=False)  # Original values
         self.vals = list(self.ovals)  # Available dihedral values candidates
-        if delay:
+        if self.delay:
             return
         self.setUp()
 
@@ -982,47 +969,22 @@ class Fragment:
         """
         Set up the fragment.
         """
-        if self.dihe is not None:
-            self.aids = self.conf.getSwingAtoms(*self.dihe)
-            return
-        # Finish up the ifrag setup and set next fragments
-        frags = self.setNextFrags()
-        # Set next fragments
-        while frags:
-            frag = frags.pop(0)
-            frags += frag.setNextFrags()
-        # Set previous fragments
-        for frag in self.next():
-            for nfrag in frag.nfrags:
-                nfrag.pfrag = frag
+        self.aids = self.conf.getSwingAtoms(*self.dihe)
 
-    def setNextFrags(self):
+    def setFrags(self):
         """
-        Set fragments by searching for rotatable bond path and adding them as
-        next fragments.
+        Set next fragments by searching for rotatable bond path.
 
-        FIXME: the initiator fragment broken by the first rotatable bond in the
-            longest path may not be the smallest rigid fragment. (side-groups
-            may contains rotatable bonds)
-
-        :return list of 'Fragment': fragment self and newly added fragments.
-            (the atom ids of the current fragments changed)
+        :return list of 'Fragment': fragment to be further fragmentize.
         """
-        dihes = self.getNewDihes()
-        if not dihes:
-            # This removes self frag out of the to_be_fragmentized list
-            return []
-        if not self.dihe:
-            # This is an initial fragment with unknown dihedral angle
-            self.dihe = dihes.pop(0)
-            self.setUp()
-        frags = [self] + [Fragment(self.conf, dihe=x) for x in dihes]
+        frags = [self] + [Fragment(self.conf, dihe=x) for x in self.getDihes()]
         for frag, nfrag in zip(frags[:-1], frags[1:]):
             frag.aids = sorted(set(frag.aids).difference(nfrag.aids))
+            nfrag.pfrag = frag
             frag.nfrags.append(nfrag)
-        return frags
+        return frags if len(frags) > 1 else []
 
-    def getNewDihes(self):
+    def getDihes(self):
         """
         Get a list of dihedral angles that travel along the fragment rotatable
         bond to one fragment atom ids so that the path has the most rotatable
@@ -1033,8 +995,7 @@ class Fragment:
 
         :return list of list: each sublist has four atom ids.
         """
-        sources = self.dihe[1:2] if self.dihe else None
-        return self.conf.GetOwningMol().getDihes(sources, self.aids)
+        return self.conf.GetOwningMol().getDihes(self.dihe[1:2], self.aids)
 
     def resetVals(self):
         """
@@ -1048,25 +1009,6 @@ class Fragment:
         """
         for frag in self.next():
             frag.resetVals()
-
-    def copyInit(self, conf):
-        """
-        Copy the current initial fragment and all the fragments retrieved by it.
-        The connections between all new fragments are established as well.
-
-        :param mol GrownConf: the conformer object this initial fragment belongs to
-        :return Fragment: the copied initial fragment.
-        """
-        ifrag = self.copy(conf)
-        all_nfrags = [ifrag]
-        while all_nfrags:
-            frag = all_nfrags.pop()
-            nfrags = [x.copy(conf) for x in frag.nfrags]
-            frag.nfrags = nfrags
-            for nfrag in nfrags:
-                nfrag.pfrag = frag
-            all_nfrags += nfrags
-        return ifrag
 
     def copy(self, conf, randomize=True):
         """
@@ -1125,3 +1067,62 @@ class Fragment:
         Print the dihedral angle four-atom ids and the swing atom ids.
         """
         return f"{self.dihe}: {self.aids}"
+
+    def setDihedral(self):
+        """
+        Set part of the conformer by rotating the dihedral angle.
+
+        :return bool: True if successfully place one fragment.
+        """
+        while self.vals:
+            self.setDihedralDeg()
+            self.conf.mol.struct.dist[
+                self.conf.gids, :] = self.conf.GetPositions()
+            if self.conf.hasClash(self.aids):
+                continue
+            self.conf.mol.struct.dist.set(self.conf.gids[self.aids])
+            return self.nfrags
+
+        raise ConfError
+
+
+class IFragment(Fragment):
+    """
+    Class to set the conformer by rotating the dihedral angle.
+    """
+
+    def setUp(self):
+        """
+        See parent.
+
+        FIXME: the initiator fragment broken by the first rotatable bond in the
+          longest path may not be the smallest rigid fragment. (side-groups
+          may contains rotatable bonds)
+        """
+        self.dihe = next(iter(self.conf.GetOwningMol().getDihes()), None)
+        if self.dihe is None:
+            # Rigid body
+            return
+        super().setUp()
+        frags = [self]
+        while frags:
+            frag = frags.pop(0)
+            frags += frag.setFrags()
+
+    def copy(self, conf):
+        """
+        Copy the current initial fragment and all the fragments retrieved by it.
+
+        :param conf GrownConf: the conformer object this initial fragment belongs to
+        :return Fragment: the copied initial fragment.
+        """
+        ifrag = super().copy(conf)
+        frags = [ifrag]
+        while frags:
+            frag = frags.pop()
+            nfrags = [x.copy(conf) for x in frag.nfrags]
+            frag.nfrags = nfrags
+            for nfrag in nfrags:
+                nfrag.pfrag = frag
+            frags += nfrags
+        return ifrag

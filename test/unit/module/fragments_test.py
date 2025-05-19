@@ -190,7 +190,7 @@ class TestFragment:
                               (CCCOOH, None, 2), (BENZENE, None, 0),
                               (CC3COOH, None, 8)])
     def testGetNewDihes(self, frag, num):
-        assert num == len(frag.getNewDihes())
+        assert num == len(frag.getDihes())
 
     @pytest.mark.parametrize(('smiles_str', 'data_file'), [(BUTANE, None),
                                                            (CCCOOH, None)])
