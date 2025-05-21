@@ -150,6 +150,7 @@ class GrownConf(PackedConf):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.init_aids = None
         self.frag = None
         self.frags = []
         self.failed_num = 0
@@ -158,7 +159,8 @@ class GrownConf(PackedConf):
         """
         Set Up.
         """
-        self.frag = self.mol.frag.copy(self)
+        self.init_aids = self.mol.init_aids
+        self.frag = self.mol.frag.new(self)
         self.frags = [self.frag]
 
     def setConformer(self, max_trial=5):
@@ -169,18 +171,7 @@ class GrownConf(PackedConf):
         :param max_trial int: the max number of trials for one conformer.
         :raise ConfError: 1) max_trial reached; 2) init cannot be placed.
         """
-        frag = self.frags.pop(0)
-
-        try:
-            self.frags += frag.setDihedral()
-        except ConfError:
-            pass
-        else:
-            # Placed by rotating the bond.
-            return
-
-        if self.backMove(frag):
-            # Back to a previous frag (some gids removed and fragments added)
+        if self.setDihedral(self.frags.pop(0)):
             return
 
         # The relocate the init fragment as the molecule has grown to a dead end
@@ -191,20 +182,32 @@ class GrownConf(PackedConf):
             # FIXME: Failed conformer search should try to reduce clash criteria
             raise ConfError
 
-        self.mol.struct.dist.set(self.gids[self.frag.init_aids], state=False)
+        self.mol.struct.dist.set(self.gids[self.init_aids], state=False)
         self.frag.reset()
         # The method backmove() deletes some existing gids
         self.mol.struct.dist.box.reset()
         self.placeInitFrag()
-        self.reportRelocation()
+        grps = [
+            y.gids[y.init_aids] for x in self.mol.struct.mols for y in x.confs
+        ]
+        idists = self.mol.struct.dist.initDists(grps)
+        grp = self.gids[self.init_aids]
+        other = list(self.mol.struct.dist.gids.diff(grp))
+        grps = [other for _ in grp]
+        min_dist = self.mol.struct.dist.getDists(grp, grps=grps).min()
+        logger.debug(f"Relocate the initiator of {self.gid} conformer "
+                     f"(initiator: {idists.min():.2f}-{idists.max():.2f}; "
+                     f"close contact: {min_dist:.2f}) ")
+        logger.debug(f'{self.mol.struct.dist.ratio} atoms placed.')
 
-    def backMove(self, frag):
-        """
-        Back move fragment so that the obstacle can be walked around later.
+    def setDihedral(self, frag):
 
-        :param frag 'fragments.Monomer': fragment to perform back move
-        :return bool: True if back move is successful.
-        """
+        while frag.vals:
+            self.setDihedralDeg(frag.dihe, frag.vals.pop())
+            if self.checkClash(self.gids[frag.aids]):
+                self.frags += frag.nfrags
+                return True
+
         # 1）Find the previous fragment with available dihedral candidates.
         while frag.pfrag and not frag.vals:
             frag = frag.pfrag
@@ -216,36 +219,18 @@ class GrownConf(PackedConf):
         # 3）The next fragments of the frag may have been added to the growing
         # self.frags before this backmove step. These added next fragments
         # may have never been growed even once.
-        nnxt_frags = [y for x in nxt_frags for y in x.nfrags]
-        self.frags = [frag] + list(set(self.frags).difference(nnxt_frags))
-        return frag.vals
+        nfrags = [y for x in nxt_frags for y in x.nfrags]
+        self.frags = [frag] + list(set(self.frags).difference(nfrags))
+        return bool(frag.vals)
 
     def placeInitFrag(self):
         """
         Place the initiator fragment into the cell without clashes.
         """
-        super().setConformer(self.gids[self.frag.init_aids])
+        super().setConformer(self.gids[self.init_aids])
 
     def centroid(self, **kwargs):
-        return super().centroid(aids=self.frag.init_aids, **kwargs)
-
-    def reportRelocation(self):
-        """
-        Report the status after relocate an initiator fragment.
-        """
-        gid_grps = [
-            y.gids[y.frag.init_aids] for x in self.mol.struct.mols
-            for y in x.confs
-        ]
-        idists = self.mol.struct.dist.initDists(gid_grps)
-        grp = self.gids[self.frag.init_aids]
-        other = list(self.mol.struct.dist.gids.diff(grp))
-        grps = [other for _ in grp]
-        min_dist = self.mol.struct.dist.getDists(grp, grps=grps).min()
-        logger.debug(f"Relocate the initiator of {self.gid} conformer "
-                     f"(initiator: {idists.min():.2f}-{idists.max():.2f}; "
-                     f"close contact: {min_dist:.2f}) ")
-        logger.debug(f'{self.mol.struct.dist.ratio} atoms placed.')
+        return super().centroid(aids=self.init_aids, **kwargs)
 
     def reset(self):
         """
@@ -256,6 +241,7 @@ class GrownConf(PackedConf):
             frag.reset()
         self.frags = [self.frag]
         self.failed_num = 0
+
 
 class GriddedMol(lmpfull.Mol):
     """
@@ -373,6 +359,12 @@ class GrownMol(PackedMol):
         Break the molecule into the smallest rigid fragments.
         """
         return Initiator(self.GetConformer())
+
+    @property
+    @functools.cache
+    def init_aids(self):
+        aids = [y for x in self.frag.next() for y in x.aids]
+        return list(set(range(self.gids.shape[0])).difference(aids))
 
     def getDihes(self, sources=None, targets=None):
         """
@@ -866,9 +858,7 @@ class GrownStruct(PackedStruct):
         logger.debug(f'{self.conf_total} initiators have been placed.')
         if self.conf_total == 1:
             return
-        gid_grps = [
-            y.gids[y.frag.init_aids] for x in self.mols for y in x.confs
-        ]
+        gid_grps = [y.gids[y.init_aids] for x in self.mols for y in x.confs]
         logger.debug(
             f'Minimum separation: {self.dist.initDists(gid_grps).min():.2f}')
 
@@ -908,7 +898,7 @@ class Monomer:
         oval = Chem.rdMolTransforms.GetDihedralDeg(self.conf, *self.dihe)
         self.conf.setDihedralDeg(self.dihe, oval + 5)
         changed = ~np.isclose(oxyz, self.conf.GetPositions()).all(axis=1)
-        self.aids = changed.nonzero()[0].tolist()
+        self.aids = self.conf.mol.gids[changed.nonzero()].tolist()
 
     def setFrags(self):
         """
@@ -921,15 +911,7 @@ class Monomer:
                 frag.nfrags.append(nfrag)
                 nfrag.pfrag = frag
 
-    def setCopies(self, conf):
-        """
-        Set the nfrags with copoies.
-
-        :param conf GrownConf: the conformer object this fragment belongs to.
-        """
-        self.nfrags = [x.copy(conf, pfrag=self) for x in self.nfrags]
-
-    def copy(self, conf, pfrag=None, randomize=True):
+    def new(self, conf, pfrag=None, randomize=True):
         """
         Copy the current fragment to a new one.
 
@@ -947,6 +929,14 @@ class Monomer:
             np.random.shuffle(frag.ovals)
             frag.vals = list(frag.ovals)
         return frag
+
+    def setNews(self, conf):
+        """
+        Set the nfrags with copoies.
+
+        :param conf GrownConf: the conformer object this fragment belongs to.
+        """
+        self.nfrags = [x.new(conf, pfrag=self) for x in self.nfrags]
 
     def next(self, partial=False):
         """
@@ -977,18 +967,6 @@ class Monomer:
         """
         self.vals = list(self.ovals)
 
-    def setDihedral(self):
-        """
-        Set part of the conformer by rotating the dihedral angle.
-
-        :return bool: True if successfully place one fragment.
-        """
-        while self.vals:
-            self.conf.setDihedralDeg(self.dihe, self.vals.pop())
-            if self.conf.checkClash(self.conf.gids[self.aids]):
-                return self.nfrags
-        raise ConfError
-
     def __str__(self):
         """
         Print the dihedral angle four-atom ids and the swing atom ids.
@@ -1000,12 +978,6 @@ class Initiator(Monomer):
     """
     Initiator fragment.
     """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        aids = [y for x in self.next() for y in x.aids]
-        self.init_aids = list(
-            set(range(self.conf.gids.shape[0])).difference(aids))
 
     def setUp(self):
         """
@@ -1022,15 +994,14 @@ class Initiator(Monomer):
             frag.setFrags()
         self.conf.xyz = self.conf.oxyz
 
-    def copy(self, conf):
+    def new(self, conf):
         """
         Copy the current initial fragment and all the fragments retrieved by it.
 
         :param conf GrownConf: the conformer object this fragment belongs to
         :return Initiator: the copied initial fragment.
         """
-        copied = super().copy(conf)
-        copied.init_aids = self.init_aids
-        for frag in copied.next():
-            frag.setCopies(conf)
-        return copied
+        ifrag = super().new(conf)
+        for frag in ifrag.next():
+            frag.setNews(conf)
+        return ifrag
