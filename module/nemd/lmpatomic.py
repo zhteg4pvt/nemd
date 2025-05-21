@@ -176,10 +176,8 @@ class Mol(structure.Mol):
     Conf = Conf
     Id = Id
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.delay:
-            return
+    def setUp(self, *args, **kwargs):
+        super().setUp(*args, **kwargs)
         self.type()
 
     def type(self):

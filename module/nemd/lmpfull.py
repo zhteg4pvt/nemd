@@ -346,10 +346,8 @@ class Mol(lmpatomic.Mol):
     Atom = Atom
     Id = Id
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.delay:
-            return
+    def setUp(self, *args, **kwargs):
+        super().setUp(*args, **kwargs)
         self.setInternal()
         self.setSubstruct()
         self.updateAll()

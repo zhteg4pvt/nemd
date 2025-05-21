@@ -61,7 +61,7 @@ class Conf(lmpfull.Conf):
         """
         Rotate the conformer by three initial vectors and three target vectors.
 
-        :param rotation 'np.ndarray': Each row is one initial vector
+        :param rotation 'scipy.spatial.transform.Rotation': Rotation in 3D.
         :param mtrx 4x4 'np.ndarray': 3D transformation matrix
         """
         mtrx[:-1, :-1] = rotation.as_matrix()
@@ -118,7 +118,7 @@ class PackedConf(Conf):
         Check the clashes.
 
         :param gids list: the global atom ids.
-        :return bool: True if no clashes are found.
+        :return bool: True if clashes not found.
         """
         self.mol.struct.dist[self.gids, :] = self.GetPositions()
         if not self.mol.struct.dist.hasClash(gids):
@@ -170,24 +170,9 @@ class GrownConf(PackedConf):
         if self.ifrag:
             return
         mol = self.GetOwningMol()
-        self.init_aids = mol.init_aids
         self.ifrag = mol.frag.copy(self)
+        self.init_aids = mol.frag.init_aids
         self.frags = [self.ifrag]
-
-    def getSwingAtoms(self, *dihe):
-        """
-        Get the swing atoms when the dihedral angle changes.
-
-        :param dihe list of four ints: the atom ids that form a dihedral angle
-        :return list of ints: the swing atom ids when the dihedral angle changes.
-        """
-        oxyz = self.GetPositions()
-        oval = Chem.rdMolTransforms.GetDihedralDeg(self, *dihe)
-        self.setDihedralDeg(dihe, oval + 5)
-        xyz = self.GetPositions()
-        changed = np.isclose(oxyz, xyz)
-        self.setDihedralDeg(dihe, oval)
-        return [i for i, x in enumerate(changed) if not all(x)]
 
     def setConformer(self, max_trial=5):
         """
@@ -273,17 +258,6 @@ class GrownConf(PackedConf):
                      f"(initiator: {idists.min():.2f}-{idists.max():.2f}; "
                      f"close contact: {min_dist:.2f}) ")
         logger.debug(f'{self.mol.struct.dist.ratio} atoms placed.')
-
-    @property
-    @functools.cache
-    def frag_total(self):
-        """
-        Return the number of the total fragments.
-
-        :return int: number of the total fragments.
-        """
-        # ifrag without dihe means rigid body and counts as 1 fragment
-        return len(list(self.ifrag.next())) + 1 if self.ifrag.dihe else 1
 
 
 class GriddedMol(lmpfull.Mol):
@@ -386,6 +360,14 @@ class GrownMol(PackedMol):
     POLYM_HT = 'polym_ht'
     MAID = 'maid'
     EDGES = 'edges'
+
+    def setUp(self, *args, **kwargs):
+        """
+        See parent.
+        """
+        super().setUp(*args, **kwargs)
+        for conf in self.confs:
+            conf.fragmentize()
 
     @property
     @functools.cache
@@ -811,7 +793,7 @@ class GrownBox(PackedBox):
         # The void is surrounded by atoms and thus the center is preferred
         imap = np.zeros(void_max + 1, dtype=bool)
         imap[tuple(np.transpose(void))] = True
-        # FIXME: PBC should be considered
+        # FIXME: PBC hasn't been considered
         center = void.mean(axis=0).astype(int)
         max_nth = np.abs(void - center).max(axis=0).sum()
         for nth in range(max_nth):
@@ -833,15 +815,6 @@ class GrownStruct(PackedStruct):
     Mol = GrownMol
     Box = GrownBox
     Frame = GrownFrame
-
-    def setUp(self, *args, **kwargs):
-        """
-        See parent.
-        """
-        super().setUp(*args, **kwargs)
-        for conf in self.conf:
-            conf.fragmentize()
-        logger.debug(f"Monomer total: {sum(x.frag_total for x in self.conf)}.")
 
     def setBox(self):
         """
@@ -942,7 +915,11 @@ class Monomer:
         """
         Set up the fragment.
         """
-        self.aids = self.conf.getSwingAtoms(*self.dihe)
+        oxyz = self.conf.GetPositions()
+        oval = Chem.rdMolTransforms.GetDihedralDeg(self.conf, *self.dihe)
+        self.conf.setDihedralDeg(self.dihe, oval + 5)
+        changed = ~np.isclose(oxyz, self.conf.GetPositions()).all(axis=1)
+        self.aids = changed.nonzero()[0].tolist()
 
     def setFrags(self):
         """
@@ -1035,6 +1012,13 @@ class Initiator(Monomer):
     Initiator fragment.
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        aids = [y for x in self.next() for y in x.aids]
+        self.init_aids = list(
+            set(range(self.conf.gids.shape[0])).difference(aids))
+        print('Initiator', self.init_aids)
+
     def setUp(self):
         """
         See parent.
@@ -1048,6 +1032,7 @@ class Initiator(Monomer):
         super().setUp()
         for frag in self.next():
             frag.setFrags()
+        self.conf.xyz = self.conf.oxyz
 
     def copy(self, conf):
         """
