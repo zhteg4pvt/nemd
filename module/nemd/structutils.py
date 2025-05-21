@@ -144,35 +144,22 @@ class PackedConf(Conf):
 
 
 class GrownConf(PackedConf):
+    """
+    Customized for fragments.
+    """
 
     def __init__(self, *args, **kwargs):
-        super(GrownConf, self).__init__(*args, **kwargs)
-        self.ifrag = None
-        self.init_aids = None
-        self.failed_num = 0
+        super().__init__(*args, **kwargs)
+        self.frag = None
         self.frags = []
-
-    def reset(self):
-        """
-        Rest the attributes that are changed during one grow attempt.
-        """
-        super().reset()
         self.failed_num = 0
-        self.frags = [self.ifrag]
-        for frag in self.ifrag.next():
-            frag.reset()
 
-    def fragmentize(self):
+    def setUp(self):
         """
-        Break the molecule into the smallest rigid fragments if not, copy to
-        current conformer, and set up the fragment objects.
+        Set Up.
         """
-        if self.ifrag:
-            return
-        mol = self.GetOwningMol()
-        self.ifrag = mol.frag.copy(self)
-        self.init_aids = mol.frag.init_aids
-        self.frags = [self.ifrag]
+        self.frag = self.mol.frag.copy(self)
+        self.frags = [self.frag]
 
     def setConformer(self, max_trial=5):
         """
@@ -204,8 +191,8 @@ class GrownConf(PackedConf):
             # FIXME: Failed conformer search should try to reduce clash criteria
             raise ConfError
 
-        self.mol.struct.dist.set(self.gids[self.init_aids], state=False)
-        self.ifrag.reset()
+        self.mol.struct.dist.set(self.gids[self.frag.init_aids], state=False)
+        self.frag.reset()
         # The method backmove() deletes some existing gids
         self.mol.struct.dist.box.reset()
         self.placeInitFrag()
@@ -237,20 +224,21 @@ class GrownConf(PackedConf):
         """
         Place the initiator fragment into the cell without clashes.
         """
-        super().setConformer(self.gids[self.init_aids])
+        super().setConformer(self.gids[self.frag.init_aids])
 
     def centroid(self, **kwargs):
-        return super().centroid(aids=self.init_aids, **kwargs)
+        return super().centroid(aids=self.frag.init_aids, **kwargs)
 
     def reportRelocation(self):
         """
         Report the status after relocate an initiator fragment.
         """
         gid_grps = [
-            y.gids[y.init_aids] for x in self.mol.struct.mols for y in x.confs
+            y.gids[y.frag.init_aids] for x in self.mol.struct.mols
+            for y in x.confs
         ]
         idists = self.mol.struct.dist.initDists(gid_grps)
-        grp = self.gids[self.init_aids]
+        grp = self.gids[self.frag.init_aids]
         other = list(self.mol.struct.dist.gids.diff(grp))
         grps = [other for _ in grp]
         min_dist = self.mol.struct.dist.getDists(grp, grps=grps).min()
@@ -259,6 +247,15 @@ class GrownConf(PackedConf):
                      f"close contact: {min_dist:.2f}) ")
         logger.debug(f'{self.mol.struct.dist.ratio} atoms placed.')
 
+    def reset(self):
+        """
+        Rest the attributes that are changed during one grow attempt.
+        """
+        super().reset()
+        for frag in self.frag.next():
+            frag.reset()
+        self.frags = [self.frag]
+        self.failed_num = 0
 
 class GriddedMol(lmpfull.Mol):
     """
@@ -367,7 +364,7 @@ class GrownMol(PackedMol):
         """
         super().setUp(*args, **kwargs)
         for conf in self.confs:
-            conf.fragmentize()
+            conf.setUp()
 
     @property
     @functools.cache
@@ -375,17 +372,7 @@ class GrownMol(PackedMol):
         """
         Break the molecule into the smallest rigid fragments.
         """
-        # dihe is not known and will be handled in setMonomers()
         return Initiator(self.GetConformer())
-
-    @property
-    @functools.cache
-    def init_aids(self):
-        """
-        Break the molecule into the smallest rigid fragments.
-        """
-        aids = [y for x in self.frag.next() for y in x.aids]
-        return list(set(range(self.gids.shape[0])).difference(aids))
 
     def getDihes(self, sources=None, targets=None):
         """
@@ -873,13 +860,15 @@ class GrownStruct(PackedStruct):
                 if index >= threshold:
                     log(f"{int(index / self.conf_total * 100)}%")
                     threshold = round(threshold + tenth, 1)
-                if conf.ifrag.dihe:
+                if conf.frag.dihe:
                     yield conf
 
         logger.debug(f'{self.conf_total} initiators have been placed.')
         if self.conf_total == 1:
             return
-        gid_grps = [y.gids[y.init_aids] for x in self.mols for y in x.confs]
+        gid_grps = [
+            y.gids[y.frag.init_aids] for x in self.mols for y in x.confs
+        ]
         logger.debug(
             f'Minimum separation: {self.dist.initDists(gid_grps).min():.2f}')
 
@@ -1017,7 +1006,6 @@ class Initiator(Monomer):
         aids = [y for x in self.next() for y in x.aids]
         self.init_aids = list(
             set(range(self.conf.gids.shape[0])).difference(aids))
-        print('Initiator', self.init_aids)
 
     def setUp(self):
         """
@@ -1042,6 +1030,7 @@ class Initiator(Monomer):
         :return Initiator: the copied initial fragment.
         """
         copied = super().copy(conf)
+        copied.init_aids = self.init_aids
         for frag in copied.next():
             frag.setCopies(conf)
         return copied
