@@ -158,6 +158,8 @@ class GrownConf(PackedConf):
         """
         Set Up.
         """
+        if not self.mol.frag:
+            return
         self.frag = self.mol.frag.new(self)
         self.frags = [self.frag]
 
@@ -362,7 +364,8 @@ class GrownMol(PackedMol):
         """
         # FIXME: the initiator broken by the first rotatable bond may not be
         #   the smallest rigid body. (side-groups contains rotatable bonds)
-        return First(self.confs[0], next(iter(self.getDihes()), None))
+        dihe = next(iter(self.getDihes()), None)
+        return First(self.confs[0], dihe) if dihe else None
 
     @property
     @functools.cache
@@ -372,6 +375,8 @@ class GrownMol(PackedMol):
 
         :return list: the initiator atom aids
         """
+        if self.frag is None:
+            return self.gids
         aids = [y for x in self.frag.next() for y in x.aids]
         return list(set(self.gids).difference(aids))
 
@@ -867,7 +872,7 @@ class GrownStruct(PackedStruct):
                 if index >= threshold:
                     log(f"{int(index / self.conf_total * 100)}%")
                     threshold = round(threshold + tenth, 1)
-                if conf.frag.dihe:
+                if conf.frag:
                     yield conf
 
         logger.debug(f'{self.conf_total} initiators have been placed.')
@@ -898,7 +903,8 @@ class Monomer:
         self.aids = []  # Atom ids of the swing atoms
         self.pfrag = None  # Previous fragment
         self.nfrags = []  # Next fragments
-        self.ovals = np.linspace(0, 360, self.GRID_NUM, endpoint=False)  # Original values
+        self.ovals = np.linspace(0, 360, self.GRID_NUM,
+                                 endpoint=False)  # Original values
         self.vals = list(self.ovals)  # Available dihedral values candidates
         if self.delay or self.dihe is None:
             # Rigid body
