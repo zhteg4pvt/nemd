@@ -362,10 +362,11 @@ class GrownMol(PackedMol):
         """
         Break the molecule into the smallest rigid fragments.
         """
-        # FIXME: the initiator broken by the first rotatable bond may not be
-        #   the smallest rigid body. (side-groups contains rotatable bonds)
-        dihe = next(iter(self.getDihes()), None)
-        return First(self.confs[0], dihe) if dihe else None
+        dihes = self.getDihes()
+        if dihes:
+            # FIXME: the initiator broken by the first rotatable bond may not be
+            #  the smallest rigid body. (side-groups contains rotatable bonds)
+            return First(self.confs[0], dihes[0])
 
     @property
     @functools.cache
@@ -373,12 +374,12 @@ class GrownMol(PackedMol):
         """
         Return the initiator atom aids.
 
-        :return list: the initiator atom aids
+        :return list: the initiator atom aids.
         """
-        if self.frag is None:
-            return self.gids
-        aids = [y for x in self.frag.next() for y in x.aids]
-        return list(set(self.gids).difference(aids))
+        aids = numpyutils.IntArray(on=self.gids)
+        if self.frag:
+            aids[[y for x in self.frag.next() for y in x.aids]] = False
+        return aids.on
 
     def getDihes(self, sources=None, targets=None):
         """
@@ -897,16 +898,15 @@ class Monomer:
         :param dihe list: the dihedral that changes the swinging atom position.
         :param delay bool: whether to delay the initialization of the fragment.
         """
-        self.conf = conf  # Conformer object this fragment belongs to
-        self.dihe = dihe  # dihedral angle four-atom ids
+        self.conf = conf
+        self.dihe = dihe
         self.delay = delay
-        self.aids = []  # Atom ids of the swing atoms
+        self.aids = None  # Atom ids of the swing atoms
         self.pfrag = None  # Previous fragment
         self.nfrags = []  # Next fragments
-        self.ovals = np.linspace(0, 360, self.GRID_NUM,
-                                 endpoint=False)  # Original values
+        self.ovals = np.linspace(0, 360, self.GRID_NUM, endpoint=False)
         self.vals = list(self.ovals)  # Available dihedral values candidates
-        if self.delay or self.dihe is None:
+        if self.delay:
             # Rigid body
             return
         self.setUp()
@@ -928,17 +928,14 @@ class Monomer:
                 frag.nfrags.append(nfrag)
                 nfrag.pfrag = frag
 
-    def new(self, conf, pfrag=None):
+    def new(self, conf):
         """
         Create a new fragment based on the current.
 
         :param conf GrownConf: the conformer object this fragment belongs to.
-        :param pfrag `Monomer`: the previous fragment.
         :return Monomer (sub)class: the copied fragment.
         """
-        frag = self.__class__(conf, None)
-        frag.pfrag = pfrag
-        frag.dihe = self.dihe
+        frag = self.__class__(conf, self.dihe, delay=True)
         frag.aids = self.aids
         frag.nfrags = self.nfrags
         np.random.shuffle(frag.ovals)
@@ -992,5 +989,7 @@ class First(Monomer):
         """
         frag = super().new(conf)
         for pfrag in frag.next():
-            pfrag.nfrags = [x.new(conf, pfrag=pfrag) for x in pfrag.nfrags]
+            pfrag.nfrags = [x.new(conf) for x in pfrag.nfrags]
+            for nfrag in pfrag.nfrags:
+                nfrag.pfrag = pfrag
         return frag
