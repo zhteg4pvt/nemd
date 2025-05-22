@@ -180,7 +180,7 @@ class GrownConf(PackedConf):
             # FIXME: Failed conformer search should try to reduce clash criteria
             raise ConfError
 
-        self.mol.struct.dist.set(self.gids[self.mol.init_aids], state=False)
+        self.mol.struct.dist.set(self.gids[self.mol.aids], state=False)
         self.frag.reset()
         # The method backmove() deletes some existing gids
         self.mol.struct.dist.box.reset()
@@ -191,7 +191,7 @@ class GrownConf(PackedConf):
             f"The newly placed initiator of {self.gid} conformer is "
             f"{dists.min():.2f} to {dists.max():.2f} away from other initiators"
             f", and the overall contact to this initiator has a minimum of "
-            f"{self.mol.struct.dist.getDists(self.gids[self.mol.init_aids]).min():.2f}"
+            f"{self.mol.struct.dist.getDists(self.gids[self.mol.aids]).min():.2f}"
         )
 
     def setDihedral(self, frag):
@@ -221,10 +221,10 @@ class GrownConf(PackedConf):
         """
         Place the initiator fragment into the cell without clashes.
         """
-        super().setConformer(self.gids[self.mol.init_aids])
+        super().setConformer(self.gids[self.mol.aids])
 
     def centroid(self, **kwargs):
-        return super().centroid(aids=self.mol.init_aids, **kwargs)
+        return super().centroid(aids=self.mol.aids, **kwargs)
 
     def getSwingAtoms(self, dihe):
         oxyz = self.GetPositions()
@@ -362,13 +362,18 @@ class GrownMol(PackedMol):
         """
         # FIXME: the initiator broken by the first rotatable bond may not be
         #   the smallest rigid body. (side-groups contains rotatable bonds)
-        return Initiator(self.confs[0], next(iter(self.getDihes()), None))
+        return First(self.confs[0], next(iter(self.getDihes()), None))
 
     @property
     @functools.cache
-    def init_aids(self):
+    def aids(self):
+        """
+        Return the initiator atom aids.
+
+        :return list: the initiator atom aids
+        """
         aids = [y for x in self.frag.next() for y in x.aids]
-        return list(set(range(self.gids.shape[0])).difference(aids))
+        return list(set(self.gids).difference(aids))
 
     def getDihes(self, sources=None, targets=None):
         """
@@ -582,7 +587,7 @@ class GrownFrame(PackFrame):
             other = list(self.gids.diff(grp))
             return super().getDists(grp, grps=[other for _ in grp])
 
-        grps = [y.gids[y.mol.init_aids] for x in self.struct.mols for y in x.confs]
+        grps = [y.gids[y.mol.aids] for x in self.struct.mols for y in x.confs]
         pairs = ([grps[i], grps[:i]] for i in range(1, len(grps)))
         return np.concatenate([
             super(GrownFrame, self).getDists(x, grps=[np.concatenate(y)])
@@ -879,6 +884,7 @@ class Monomer:
     """
     Dihedral angle controlled fragment.
     """
+    GRID_NUM = 36
 
     def __init__(self, conf, dihe, delay=False):
         """
@@ -892,7 +898,7 @@ class Monomer:
         self.aids = []  # Atom ids of the swing atoms
         self.pfrag = None  # Previous fragment
         self.nfrags = []  # Next fragments
-        self.ovals = np.linspace(0, 360, 36, endpoint=False)  # Original values
+        self.ovals = np.linspace(0, 360, self.GRID_NUM, endpoint=False)  # Original values
         self.vals = list(self.ovals)  # Available dihedral values candidates
         if self.delay or self.dihe is None:
             # Rigid body
@@ -905,7 +911,7 @@ class Monomer:
         """
         self.aids = self.conf.getSwingAtoms(self.dihe)
 
-    def setFrags(self):
+    def setNfrags(self):
         """
         Set next fragments by searching for rotatable bond path.
         """
@@ -916,32 +922,22 @@ class Monomer:
                 frag.nfrags.append(nfrag)
                 nfrag.pfrag = frag
 
-    def new(self, conf, pfrag=None, randomize=True):
+    def new(self, conf, pfrag=None):
         """
-        Copy the current fragment to a new one.
+        Create a new fragment based on the current.
 
         :param conf GrownConf: the conformer object this fragment belongs to.
         :param pfrag `Monomer`: the previous fragment.
-        :param randomize bool: randomize the dihedral values candidates if True.
-        :return Monomer: the copied fragment.
+        :return Monomer (sub)class: the copied fragment.
         """
-        frag = Monomer(conf, dihe=self.dihe, delay=True)
-        frag.aids = self.aids
+        frag = self.__class__(conf, None)
         frag.pfrag = pfrag
+        frag.dihe = self.dihe
+        frag.aids = self.aids
         frag.nfrags = self.nfrags
-        frag.vals = self.vals[:]
-        if randomize:
-            np.random.shuffle(frag.ovals)
-            frag.vals = list(frag.ovals)
+        np.random.shuffle(frag.ovals)
+        frag.vals = list(frag.ovals)
         return frag
-
-    def setNews(self, conf):
-        """
-        Set the nfrags with copoies.
-
-        :param conf GrownConf: the conformer object this fragment belongs to.
-        """
-        self.nfrags = [x.new(conf, pfrag=self) for x in self.nfrags]
 
     def next(self, partial=False):
         """
@@ -953,18 +949,10 @@ class Monomer:
         frags = [self]
         while frags:
             frag = frags.pop()
-            if partial and frag.isFull():
+            if partial and len(frag.vals) == self.GRID_NUM:
                 continue
             yield frag
             frags.extend(frag.nfrags)
-
-    def isFull(self):
-        """
-        Whether the dihedral candidates is the full set.
-
-        :return bool: True if the dihedral candidates is the full set.
-        """
-        return len(self.vals) == self.ovals.shape[0]
 
     def reset(self):
         """
@@ -979,9 +967,9 @@ class Monomer:
         return f"{self.dihe}: {self.aids}"
 
 
-class Initiator(Monomer):
+class First(Monomer):
     """
-    Initiator fragment.
+    First monomer.
     """
 
     def setUp(self):
@@ -990,13 +978,13 @@ class Initiator(Monomer):
         """
         super().setUp()
         for frag in self.next():
-            frag.setFrags()
+            frag.setNfrags()
 
-    def new(self, *args, **kwargs):
+    def new(self, conf, **kwargs):
         """
         See parent.
         """
-        ifrag = super().new(*args, **kwargs)
-        for frag in ifrag.next():
-            frag.setNews(*args, **kwargs)
-        return ifrag
+        frag = super().new(conf)
+        for pfrag in frag.next():
+            pfrag.nfrags = [x.new(conf, pfrag=pfrag) for x in pfrag.nfrags]
+        return frag
