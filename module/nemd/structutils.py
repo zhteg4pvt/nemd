@@ -138,7 +138,7 @@ class PackedConf(Conf):
 
     def reset(self):
         """
-        Reset the coordinates.
+        Reset.
         """
         self.setPositions(self.oxyz)
 
@@ -151,7 +151,7 @@ class GrownConf(PackedConf):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.init = self.gids
-        self.failed_num = 0
+        self.failed = 0
         self.frag = None
         self.frags = []
 
@@ -176,17 +176,16 @@ class GrownConf(PackedConf):
             return
 
         # The relocate the init fragment as the molecule has grown to a dead end
-        self.failed_num += 1
-        if self.failed_num == max_trial:
+        self.failed += 1
+        if self.failed == max_trial:
             logger.debug(f'Placed {self.mol.struct.dist.ratio} atoms with  '
                          f'conformer {self.gid} reaching the max trials.')
             # FIXME: Failed conformer search should try to reduce clash criteria
             raise ConfError
 
-        self.mol.struct.dist.set(self.init, state=False)
         self.frag.reset()
-        # The method backmove() deletes some existing gids
         self.mol.struct.dist.box.reset()
+        self.mol.struct.dist.set(self.init, state=False)
         self.setConformer()
         logger.debug(f'{self.mol.struct.dist.ratio} atoms placed.')
         dists = self.mol.struct.dist.getDists()
@@ -254,7 +253,7 @@ class GrownConf(PackedConf):
         for frag in self.frag.next():
             frag.reset()
         self.frags = [self.frag]
-        self.failed_num = 0
+        self.failed = 0
 
 
 class GriddedMol(lmpfull.Mol):
@@ -268,38 +267,36 @@ class GriddedMol(lmpfull.Mol):
         :param buffer float: the buffer between conformers.
         """
         super().__init__(*args, **kwargs)
-        # size = xyz span + buffer
         self.buffer = np.array([buffer, buffer, buffer])
-        # The number of molecules per box edge
-        self.conf_num = np.array([1, 1, 1])
-        # The xyz shift within one box
-        self.vecs = []
-        self.vectors = None
+        self.num = np.array([1, 1, 1])  # Conformer number per box edge
+        self.vecs = []  # Translational vectors with in the box
+        self.vectors = None  # Translational vectors with in the pbc
         if self.struct and self.struct.options and self.struct.options.buffer:
             self.buffer[:] = self.struct.options.buffer
 
-    def setConformers(self, vectors):
+    def run(self, size):
+        """
+        Set the conformer number per edge and within-box translational vectors.
+
+        :param size np.ndarray: the box size to place this molecule in.
+        """
+        self.num = np.floor(size / self.size).astype(int)
+        ptc = [np.linspace(-0.5, 0.5, x, endpoint=False) for x in self.num]
+        ptc = [x - x.mean() for x in ptc]
+        self.vecs = list(itertools.product(*[[y for y in x] for x in ptc]))
+        self.vecs *= size
+
+    def setConformers(self, vecs):
         """
         Place the conformers into boxes based on the shifting vectors.
 
-        :param vectors np.ndarray: the translational vectors to move the
-            conformer by multiple boxes distances.
+        :param vecs np.ndarray: the translational vectors to move the conformer.
         """
         cids = np.arange(len(self.confs))
-        conf_num = np.prod(self.conf_num)
-        vecs = self.vecs[cids % conf_num]
-        ids = cids // conf_num
-        self.vectors = vecs + vectors[ids]
-        return vectors[ids[-1] + 1:]
-
-    def setConfNumPerEdge(self, size):
-        """
-        Set the number of molecules per edge of the box.
-
-        :param size np.ndarray: the box size (the largest molecule size) to
-            place this conformer in.
-        """
-        self.conf_num = np.floor(size / self.size).astype(int)
+        conf_total = np.prod(self.num)
+        ids = cids // conf_total
+        self.vectors = self.vecs[cids % conf_total] + vecs[ids]
+        return vecs[ids[-1] + 1:]
 
     @property
     def size(self):
@@ -310,41 +307,23 @@ class GriddedMol(lmpfull.Mol):
         xyzs = self.GetConformer().GetPositions()
         return (xyzs.max(axis=0) - xyzs.min(axis=0)) + self.buffer
 
-    def setVecs(self, size):
-        """
-        Set the translational vectors for this conformer so that this conformer
-        can be placed in the given box (the largest molecule size).
-
-        :param size np.ndarray: the box size to place this molecule in.
-        """
-        ptc = [
-            np.linspace(-0.5, 0.5, x, endpoint=False) for x in self.conf_num
-        ]
-        ptc = [x - x.mean() for x in ptc]
-        self.vecs = np.array([
-            x * size for x in itertools.product(*[[y for y in x] for x in ptc])
-        ])
-
     @property
     def box_num(self):
         """
-        Return the number of boxes (the largest molecule size) needed to place
-            all conformers.
+        Return the number of boxes needed to place all conformers.
         """
-        return math.ceil(len(self.confs) / np.prod(self.conf_num))
+        return math.ceil(len(self.confs) / np.prod(self.num))
 
 
 class PackedMol(lmpfull.Mol):
     """
     A subclass of Chem.rdchem.Mol with additional attributes and methods.
     """
-
     Conf = PackedConf
 
     def updateAll(self):
         """
-        Store the original coordinates of all conformers in addition to the
-        regular updateAll().
+        See parent.
         """
         super().updateAll()
         for conf in self.GetConformers():
@@ -429,8 +408,7 @@ class GrownMol(PackedMol):
 
     def getHeadTail(self):
         """
-        If the molecule is built from monomers, the atom pairs from
-        selected from the first and last monomers.
+        Get the atom pairs from selected from the first and last monomers.
 
         :return tuple: sources and targets to search paths.
         """
@@ -450,9 +428,8 @@ class GrownMol(PackedMol):
 
     def findPath(self, source=None, target=None):
         """
-        Find the shortest path between source and target. If source and target
-        are not provided, the shortest paths between all pairs are computed and
-        the long path is returned.
+        Return the shortest path if source and target provided else the longest
+        of all shortest paths between atom pairs.
 
         :param source int: the atom id that serves as the source.
         :param target int: the atom id that serves as the target.
@@ -484,6 +461,7 @@ class Struct(lmpfull.Struct):
     """
     Customized with density.
     """
+
     def __init__(self, *args, density=0.5, **kwargs):
         super().__init__(*args, **kwargs)
         self.density = density
@@ -499,18 +477,17 @@ class GriddedStruct(Struct):
         """
         Set conformers for all molecules.
         """
-        self.setVectors()
+        self.setVecs()
         self.setBox()
         self.setConformers()
         self.setDensity()
 
-    def setVectors(self):
+    def setVecs(self):
         """
-        Set translational vectors based on the box for all molecules.
+        Set translational vectors within the box.
         """
         for mol in self.mols:
-            mol.setConfNumPerEdge(self.size)
-            mol.setVecs(self.size)
+            mol.run(self.size)
 
     @property
     @functools.cache
@@ -526,8 +503,8 @@ class GriddedStruct(Struct):
         """
         Set the over-all periodic boundary box.
         """
-        total_box_num = sum(x.box_num for x in self.mols)
-        edges = self.size * math.ceil(math.pow(total_box_num, 1. / 3))
+        box_total = sum(x.box_num for x in self.mols)
+        edges = self.size * math.ceil(math.pow(box_total, 1. / 3))
         self.box = pbc.Box.fromParams(*edges, tilted=False)
         logger.debug(f'Box: {self.box.span.max():.2f} {symbols.ANGSTROM}.')
 
@@ -551,9 +528,13 @@ class GriddedStruct(Struct):
         self.density = self.molecular_weight * scipy.constants.Avogadro / vol
 
     def GetPositions(self):
-        xyzs = [
-            x.confs[0].GetPositions() + y for x in self.mols for y in x.vectors
-        ]
+        """
+        Get the atom positions.
+
+        :return `np.ndarray`: the coordinates
+        """
+        xyzs = [x.confs[0].GetPositions() for x in self.mols]
+        xyzs = [x + z for x, y in zip(xyzs, self.mols) for z in y.vectors]
         return np.concatenate(xyzs, dtype=np.float32)
 
 
@@ -583,6 +564,7 @@ class PackFrame(dist.Frame):
     """
     Customized for packing.
     """
+
     def getPoint(self, max_num=1000):
         """
         Get point generator.
@@ -606,6 +588,7 @@ class GrownFrame(PackFrame):
     """
     Customized for fragments.
     """
+
     def getPoint(self):
         """
         See parent.
@@ -687,7 +670,7 @@ class PackedStruct(Struct):
         """
         for trial_id in range(1, self.MAX_TRIAL + 1):
             num = self.attempt()
-            if num is True:
+            if num is None:
                 return
             if not self.isPossible(trial_id, num):
                 raise DensityError
@@ -698,7 +681,7 @@ class PackedStruct(Struct):
         """
         One attempt on setting the conformers.
 
-        :return bool or int: True if all succeeded else the successful number.
+        :return int: the number of successful placed conformers if failed.
         """
         with logger.oneLine(logging.DEBUG) as log:
             tenth, threshold, = self.conf_total / 10., 0
@@ -712,8 +695,6 @@ class PackedStruct(Struct):
                 if index >= threshold:
                     log(f"{int(index / self.conf_total * 100)}%")
                     threshold = round(threshold + tenth, 1)
-            # All molecules successfully placed
-            return True
 
     def isPossible(self, trial_id, num):
         """
@@ -875,8 +856,8 @@ class GrownStruct(PackedStruct):
         """
         logger.debug("*" * 10 + f" {self.density} " + "*" * 10)
         for trial_id in range(1, self.MAX_TRIAL + 1):
-            index = self.attempt()
-            if index is True:
+            num = self.attempt()
+            if num is None:
                 return
             # if not self.isPossible(trial_id, index):
             #     raise DensityError
@@ -889,9 +870,9 @@ class GrownStruct(PackedStruct):
         See parent.
         """
         logger.debug(f'Placing {self.conf_total} initiators...')
-        index = super().attempt()
-        if index is not True:
-            return index
+        num = super().attempt()
+        if num is not None:
+            return num
         logger.debug(f'{self.conf_total} initiators have been placed.')
         if self.conf_total != 1:
             logger.debug(f'Closest contact: {self.dist.getDists().min():.2f}')
@@ -910,8 +891,7 @@ class GrownStruct(PackedStruct):
             # Successfully placed all fragments of one conformer
             confs.popleft()
             logger.debug(f'{self.conf_total - len(confs)} finished; '
-                         f'{sum(x.failed_num for x in self.conf)} failed.')
-        return True
+                         f'{sum(x.failed for x in self.conf)} failed.')
 
     def reset(self):
         """
