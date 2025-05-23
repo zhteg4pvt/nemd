@@ -18,8 +18,6 @@ from nemd import structure
 from nemd import structutils
 from nemd import symbols
 
-MARKER = 'marker'
-WILD_MOL = Chem.MolFromSmiles(symbols.WILD_CARD)
 MAID = structutils.GrownMol.MAID
 
 
@@ -64,8 +62,6 @@ class Moiety(cru.Moiety):
     Conf = Conf
     RES_NAME = 'res_name'
     RES_NUM = 'res_num'
-
-    # CARBON_MOL = Chem.MolFromSmiles(symbols.CARBON)
 
     def __init__(self, *args, info=None, **kwargs):
         """
@@ -361,11 +357,16 @@ class Moieties(cru.Moieties):
         for prop, val in zip(self.XYZ, oxyz + vec):
             bond.SetDoubleProp(prop, val)
 
-    def getLength(self, bond):
+    def getLength(self,
+                  bond,
+                  marker='marker',
+                  wild=Chem.MolFromSmiles(symbols.WILD_CARD)):
         """
         Get the length of a bond.
 
         :param bond 'rdkit.Chem.rdchem.Bond': the bond to get the hash value of.
+        :param marker str: the marker.
+        :param wild 'rdkit.Chem.rdchem.Molecule': wild card molecule.
         :return float: the bond length in Angstroms.
         """
         key = self.hash(bond)
@@ -374,19 +375,19 @@ class Moieties(cru.Moieties):
         # Mark atoms to bond
         moieties = [self[x].copy() for x in key[::2]]
         for moiety, idx in zip(moieties, key[1::2]):
-            moiety.GetAtomWithIdx(idx).SetBoolProp(MARKER, True)
+            moiety.GetAtomWithIdx(idx).SetBoolProp(marker, True)
         # Combine moieties and add the bond
         cmol = Chem.CombineMols(*moieties)
-        bonded = [x.GetIdx() for x in cmol.GetAtoms() if x.HasProp(MARKER)]
+        bonded = [x.GetIdx() for x in cmol.GetAtoms() if x.HasProp(marker)]
         edcombo = Chem.EditableMol(cmol)
         edcombo.AddBond(*bonded, order=Chem.rdchem.BondType.SINGLE)
-        mol = Chem.DeleteSubstructs(edcombo.GetMol(), WILD_MOL)
+        mol = Chem.DeleteSubstructs(edcombo.GetMol(), wild)
         # Measure the bond length
         mol = structure.Mol(mol)
         with rdkitutils.capture_logging():
             mol.EmbedMolecule(useRandomCoords=True,
                               randomSeed=self.options.seed)
-        bonded = [x.GetIdx() for x in mol.GetAtoms() if x.HasProp(MARKER)]
+        bonded = [x.GetIdx() for x in mol.GetAtoms() if x.HasProp(marker)]
         lgth = Chem.rdMolTransforms.GetBondLength(mol.GetConformer(), *bonded)
         return self.length.setdefault(key, lgth)
 
@@ -562,12 +563,12 @@ class Mol(structure.Mol, logutils.Base):
 
         with Chem.SDWriter(filename) as fh:
             try:
-                maids = [x.GetIntProp(Moiety.MAID) for x in mol.GetAtoms()]
+                maids = [x.GetIntProp(MAID) for x in mol.GetAtoms()]
             except KeyError:
                 fh.write(mol)
                 return
-            mol.SetProps([Moiety.MAID])
-            mol.SetProp(Moiety.MAID, ' '.join(map(str, maids)))
+            mol.SetProps([MAID])
+            mol.SetProp(MAID, ' '.join(map(str, maids)))
             fh.write(mol)
 
     @classmethod
@@ -582,9 +583,9 @@ class Mol(structure.Mol, logutils.Base):
         mol = next(suppl)
         Chem.GetSymmSSSR(mol)
         try:
-            maids = mol.GetProp(Moiety.MAID).split()
+            maids = mol.GetProp(MAID).split()
         except KeyError:
             return mol
-        for atom, mono_atom_idx in zip(mol.GetAtoms(), maids):
-            atom.SetProp(Moiety.MAID, mono_atom_idx)
+        for atom, maid in zip(mol.GetAtoms(), maids):
+            atom.SetProp(MAID, maid)
         return mol

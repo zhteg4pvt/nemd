@@ -108,9 +108,6 @@ class PackedConf(Conf):
             self.translate(point)
             if self.checkClash(gids):
                 return
-
-        # FIXME: Failed to fill the void with initiator too often
-        logger.debug(f'Only {self.mol.struct.dist.ratio} placed.')
         raise ConfError
 
     def checkClash(self, gids):
@@ -172,41 +169,13 @@ class GrownConf(PackedConf):
         :param max_trial int: the max number of trials for one conformer.
         :raise ConfError: 1) max_trial reached; 2) init cannot be placed.
         """
-        if self.setDihedral(self.frags.pop(0)):
-            return
-
-        # The relocate the init fragment as the molecule has grown to a dead end
-        self.failed += 1
-        if self.failed == max_trial:
-            logger.debug(f'Placed {self.mol.struct.dist.ratio} atoms with  '
-                         f'conformer {self.gid} reaching the max trials.')
-            # FIXME: Failed conformer search should try to reduce clash criteria
-            raise ConfError
-
-        self.frag.reset()
-        self.mol.struct.dist.box.reset()
-        self.mol.struct.dist.set(self.init, state=False)
-        self.setConformer()
-        logger.debug(f'{self.mol.struct.dist.ratio} atoms placed.')
-        dists = self.mol.struct.dist.getDists()
-        logger.debug(
-            f"The newly relocated initiator of {self.gid} conformer is "
-            f"{dists.min():.2f} to {dists.max():.2f} away from other initiators"
-            f", and the overall contact to this initiator has a minimum of "
-            f"{self.mol.struct.dist.getDists(self.init).min():.2f}")
-
-    def setDihedral(self, frag):
-        """
-        Set the conformer by bond rotation or back move.
-
-        :param frag `Fragment`: the fragment to grow.
-        :return bool: whether the clashes can be voided.
-        """
+        frag = self.frags.pop(0)
         while frag.vals:
             self.setDihedralDeg(frag.dihe, frag.vals.pop())
             if self.checkClash(frag.ids):
                 self.frags += frag.nfrags
-                return True
+                return
+
         # 1）Find the previous fragment with available dihedral candidates.
         while frag.pfrag and not frag.vals:
             frag = frag.pfrag
@@ -217,7 +186,23 @@ class GrownConf(PackedConf):
         # 3）The next fragments may have been added to the growing list
         nfrags = [y for x in frags for y in x.nfrags]
         self.frags = [frag] + list(set(self.frags).difference(nfrags))
-        return bool(frag.vals)
+        if bool(frag.vals):
+            return
+
+        # The relocate the init fragment as the molecule has grown to a dead end
+        self.failed += 1
+        if self.failed == max_trial:
+            raise ConfError
+
+        self.frag.reset()
+        self.mol.struct.dist.box.reset()
+        self.mol.struct.dist.set(self.init, state=False)
+        self.setConformer()
+        logger.debug(
+            f"The relocated initiator {self.gid} is "
+            f"{self.mol.struct.dist.getDists().min():.2f} away from initiators,"
+            f" and is {self.mol.struct.dist.getDists(self.init).min():.2f} away"
+            f" from existing atoms. ({self.mol.struct.dist.ratio} placed)")
 
     def setConformer(self, **kwargs):
         """
@@ -303,7 +288,7 @@ class GriddedMol(lmpfull.Mol):
         """
         Return the box size of this molecule.
         """
-        # Grid layout assumes all conformers from one molecule are the same
+        # Assumes all conformers from one molecule are the same
         xyzs = self.GetConformer().GetPositions()
         return (xyzs.max(axis=0) - xyzs.min(axis=0)) + self.buffer
 
@@ -337,7 +322,6 @@ class GrownMol(PackedMol):
     Conf = GrownConf
     POLYM_HT = 'polym_ht'
     MAID = 'maid'
-    EDGES = 'edges'
 
     def setUp(self, *args, **kwargs):
         """
@@ -364,7 +348,7 @@ class GrownMol(PackedMol):
     @functools.cache
     def frag(self):
         """
-        Break the molecule into the smallest rigid fragments.
+        Return the first fragment connected to the initiator.
         """
         dihes = self.getDihes()
         if dihes:
@@ -385,19 +369,23 @@ class GrownMol(PackedMol):
             aids[[y for x in self.frag.next() for y in x.ids]] = False
         return aids.on
 
-    def getDihes(self, sources=None, targets=None):
+    def getDihes(self, sources=(None, ), targets=(None, )):
         """
         Get a list of dihedral angles.
 
         :param sources list: source atom ids.
         :param targets list: target atom ids.
-        :return list of list: each sublist has four atom ids.
+        :return list: each sublist has four atom ids.
         """
-        if sources is None and targets is None:
-            sources, targets = self.getHeadTail()
+        if sources[0] is None and self.polym:
+            # FIXME: sources should be all initiator atoms; targets should be
+            #  the atoms of all terminators
+            polym_ht = [x for x in self.GetAtoms() if x.HasProp(self.POLYM_HT)]
+            sources, targets = [[x.GetIdx()] for x in polym_ht]
+
         longest = []
         for source, target in itertools.product(sources, targets):
-            _, _, dihes = self.findPath(source=source, target=target)
+            dihes = self.findPath(source=source, target=target)
             dihes = [
                 x for x in zip(dihes[:-3], dihes[1:-2], dihes[2:-1], dihes[3:])
                 if self.isRotatable(x[1:-1])
@@ -406,26 +394,6 @@ class GrownMol(PackedMol):
                 longest = dihes
         return longest
 
-    def getHeadTail(self):
-        """
-        Get the atom pairs from selected from the first and last monomers.
-
-        :return tuple: sources and targets to search paths.
-        """
-        if not self.polym:
-            return [None], [None]
-
-        head_tail = [x for x in self.GetAtoms() if x.HasProp(self.POLYM_HT)]
-        mono_ids = {x.GetProp(self.MAID): [] for x in head_tail}
-        for atom in self.GetAtoms():
-            maid = atom.GetProp(self.MAID)
-            if maid not in mono_ids:
-                continue
-            mono_ids[maid].append(atom.GetIdx())
-
-        st_atoms = list(mono_ids.values())
-        return st_atoms[0], [y for x in st_atoms[1:] for y in x]
-
     def findPath(self, source=None, target=None):
         """
         Return the shortest path if source and target provided else the longest
@@ -433,28 +401,25 @@ class GrownMol(PackedMol):
 
         :param source int: the atom id that serves as the source.
         :param target int: the atom id that serves as the target.
-        :return list of ints: the atom ids that form the shortest path.
+        :return list: atom ids that form the longest shortest path.
         """
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             shortest_path = nx.shortest_path(self.graph,
                                              source=source,
                                              target=target)
-
         if target is not None:
             shortest_path = {target: shortest_path}
         if source is not None:
             shortest_path = {source: shortest_path}
-        path_length, path = -1, None
-        for a_source_node, target_path in shortest_path.items():
-            for a_target_node, a_path in target_path.items():
-                if path_length >= len(a_path):
-                    continue
-                source_node = a_source_node
-                target_node = a_target_node
-                path = a_path
-                path_length = len(a_path)
-        return source_node, target_node, path
+        length = -1
+        for a_source, target_path in shortest_path.items():
+            for a_target, a_path in target_path.items():
+                if len(a_path) > length:
+                    length = len(a_path)
+                    source = a_source
+                    target = a_target
+        return shortest_path[source][target]
 
 
 class Struct(lmpfull.Struct):
@@ -689,6 +654,8 @@ class PackedStruct(Struct):
                 try:
                     conf.setConformer()
                 except ConfError:
+                    # FIXME: Failed to fill the void with initiator too often
+                    logger.debug(f'Only {self.dist.ratio} placed.')
                     self.reset()
                     return index
                 # One conformer successfully placed
@@ -881,17 +848,16 @@ class GrownStruct(PackedStruct):
             try:
                 confs[0].grow()
             except ConfError:
-                # Reset and try again as this conformer cannot be placed.
+                # FIXME: Failed attempt should try to reduce clash criteria
+                logger.debug(f'Only {self.dist.ratio} placed during growing.')
                 self.reset()
                 return self.conf_total - len(confs)
-            # Successfully set one fragment of this conformer.
+            # Successfully set one fragment.
             if confs[0].frags:
                 confs.rotate(-1)
                 continue
-            # Successfully placed all fragments of one conformer
             confs.popleft()
-            logger.debug(f'{self.conf_total - len(confs)} finished; '
-                         f'{sum(x.failed for x in self.conf)} failed.')
+            logger.debug(f'{self.conf_total - len(confs)} finished.')
 
     def reset(self):
         """
@@ -922,7 +888,6 @@ class Fragment:
         self.ovals = None  # Original dihedral value candidates
         self.vals = None  # Available dihedral value candidates
         if self.delay:
-            # Rigid body
             return
         self.setUp()
 
@@ -978,12 +943,6 @@ class Fragment:
         Reset the current dihedral angle candidates.
         """
         self.vals = list(self.ovals)
-
-    def __str__(self):
-        """
-        See parent.
-        """
-        return f"{self.dihe}: {self.ids}"
 
 
 class First(Fragment):
