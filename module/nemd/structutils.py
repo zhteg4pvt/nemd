@@ -150,10 +150,10 @@ class GrownConf(PackedConf):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.init = self.gids
+        self.failed_num = 0
         self.frag = None
         self.frags = []
-        self.failed_num = 0
-        self.init = self.gids
 
     def setUp(self):
         """
@@ -161,11 +161,11 @@ class GrownConf(PackedConf):
         """
         if not self.mol.frag:
             return
+        self.init = self.gids[self.mol.init]
         self.frag = self.mol.frag.new(self)
         self.frags = [self.frag]
-        self.init = self.gids[self.mol.init]
 
-    def setConformer(self, max_trial=5):
+    def grow(self, max_trial=5):
         """
         Set the conformer of one fragment by rotating the dihedral angle,
         back moving, and relocation.
@@ -188,15 +188,14 @@ class GrownConf(PackedConf):
         self.frag.reset()
         # The method backmove() deletes some existing gids
         self.mol.struct.dist.box.reset()
-        self.placeInitFrag()
+        self.setConformer()
         logger.debug(f'{self.mol.struct.dist.ratio} atoms placed.')
         dists = self.mol.struct.dist.getDists()
         logger.debug(
-            f"The newly placed initiator of {self.gid} conformer is "
+            f"The newly relocated initiator of {self.gid} conformer is "
             f"{dists.min():.2f} to {dists.max():.2f} away from other initiators"
             f", and the overall contact to this initiator has a minimum of "
-            f"{self.mol.struct.dist.getDists(self.init).min():.2f}"
-        )
+            f"{self.mol.struct.dist.getDists(self.init).min():.2f}")
 
     def setDihedral(self, frag):
 
@@ -217,7 +216,7 @@ class GrownConf(PackedConf):
         self.frags = [frag] + list(set(self.frags).difference(nfrags))
         return bool(frag.vals)
 
-    def placeInitFrag(self):
+    def setConformer(self):
         """
         Place the initiator fragment into the cell without clashes.
         """
@@ -565,14 +564,14 @@ class PackedBox(pbc.Box):
 
 class PackFrame(dist.Frame):
 
-    def getPoint(self, void=False, max_num=1000):
+    def getPoint(self, max_num=1000):
         """
-        Get a point.
+        Get point generator.
 
         :param max_num int: the max number of points in the generator.
         :return generator: each value is a point.
         """
-        return (self.box.getPoint() for _ in range(max_num))
+        return (self.box.getPoint() for _ in range(1000))
 
     @property
     def ratio(self):
@@ -586,7 +585,7 @@ class PackFrame(dist.Frame):
 
 class GrownFrame(PackFrame):
 
-    def getPoint(self, void=False):
+    def getPoint(self):
         """
         See parent.
         """
@@ -619,30 +618,28 @@ class PackedStruct(Struct):
     Mol = PackedMol
     Box = PackedBox
     Frame = PackFrame
+    MAX_TRIAL = 50
 
     def __init__(self, *args, **kwargs):
         # Force field -> Molecular weight -> Box -> Frame -> Distance cell
         super().__init__(*args, **kwargs)
         self.dist = None
+        self.placed = []
 
     def runWithDensity(self, density):
         """
         Create amorphous cell of the target density by randomly placing
         molecules with random orientations.
 
-        NOTE: the final density of the output cell may be smaller than the
-        target if the max number of trial attempt is reached.
-
         :param density float: the target density
         """
-        # self.density is initialized in Struct.__init__() method
+        # The density will be reduced when the attempt exceeds the max trial.
         self.density = density
         self.run()
 
     def run(self):
         """
-        Create amorphous cell by randomly placing initiators of the conformers,
-        and grow the conformers by adding fragments one by one.
+        Create amorphous cell by randomly rotation and translation.
         """
         self.setBox()
         self.setConformers()
@@ -661,48 +658,64 @@ class PackedStruct(Struct):
                                struct=self,
                                gids=[])
 
-    def setConformers(self, max_trial=50):
+    def setConformers(self):
         """
         Place all molecules into the cell at certain density.
 
-        :param max_trial int: the max number of trials at one density.
-        :raise DensityError: if the max number of trials at this density is
-            reached or the chance of achieving the goal is too low.
+        :raise DensityError: the max trial reached or statistically impossible.
         """
-        conf_num, placed = self.conf_total, []
-        for trial_id in range(1, max_trial + 1):
-            with logger.oneLine(logging.DEBUG) as log:
-                nth = -1
-                for conf_id, conf in enumerate(self.conf):
-                    try:
-                        conf.setConformer()
-                    except ConfError:
-                        self.reset()
-                        break
-                    # One conformer successfully placed
-                    if nth != math.floor((conf_id + 1) / conf_num * 10):
-                        # Print progress every 10% if conformer number > 10
-                        nth = math.floor((conf_id + 1) / conf_num * 10)
-                        log(f"{int((conf_id + 1) / conf_num * 100)}%")
-                else:
-                    # All molecules successfully placed
-                    return
-            # Current conformer failed
-            logger.debug(f'{trial_id} trail fails.')
-            logger.debug(f'Only {conf_id} / {conf_num} molecules placed.')
-            placed.append(conf_id)
-            if not bool(trial_id % int(max_trial / 10)):
-                delta = conf_num - np.average(placed)
-                std = np.std(placed)
-                if not std:
-                    raise DensityError
-                zscore = abs(delta) / std
-                if scipy.stats.norm.cdf(-zscore) * max_trial < 1:
-                    # With successful conformer number following norm
-                    # distribution, max_trial won't succeed for one time
-                    raise DensityError
+        for trial_id in range(1, self.MAX_TRIAL + 1):
+            num = self.attempt()
+            if num is True:
+                return
+            if not self.isPossible(trial_id, num):
+                raise DensityError
         self.reset()
         raise DensityError
+
+    def attempt(self):
+        """
+        One attempt on setting the conformers.
+
+        :return bool or int: True if all succeeded else the successful number.
+        """
+        with logger.oneLine(logging.DEBUG) as log:
+            tenth, threshold, = self.conf_total / 10., 0
+            for index, conf in enumerate(self.conf):
+                try:
+                    conf.setConformer()
+                except ConfError:
+                    self.reset()
+                    return index
+                # One conformer successfully placed
+                if index >= threshold:
+                    log(f"{int(index / self.conf_total * 100)}%")
+                    threshold = round(threshold + tenth, 1)
+            # All molecules successfully placed
+            return True
+
+    def isPossible(self, trial_id, num):
+        """
+        Whether further attempt is statistically possible.
+
+        :param trial_id int: the trial index.
+        :param num int: the number of the successful conformers.
+        :return bool: whether it is statistically possible.
+        """
+        # Current conformer failed
+        logger.debug(f'{trial_id} trail fails.')
+        logger.debug(f'Only {num} / {self.conf_total} molecules placed.')
+        self.placed.append(num)
+        if not bool(trial_id % int(self.MAX_TRIAL / 10)):
+            std = np.std(self.placed)
+            if not std:
+                # Always fails at certain achievement.
+                return False
+            zscore = abs(self.conf_total - np.average(self.placed)) / std
+            if scipy.stats.norm.cdf(-zscore) * self.MAX_TRIAL < 1:
+                # Max_trial is not expected to succeed once (norm distribution)
+                return False
+        return True
 
     @property
     def conf_total(self):
@@ -717,6 +730,7 @@ class PackedStruct(Struct):
         """
         Reset the state so that a new attempt can happen.
         """
+        self.placed = []
         for conf in self.conf:
             conf.reset()
         self.dist = self.Frame(self.GetPositions(),
@@ -826,6 +840,7 @@ class GrownStruct(PackedStruct):
     Mol = GrownMol
     Box = GrownBox
     Frame = GrownFrame
+    MAX_TRIAL = 10
 
     def setBox(self):
         """
@@ -834,63 +849,49 @@ class GrownStruct(PackedStruct):
         super().setBox()
         self.box.setUp(self.conf_total)
 
-    def setConformers(self, max_trial=10):
+    def setConformers(self):
         """
-        Looping conformer and set one fragment configuration each time.
-
-        :param max_trial int: the max number of trials at one density.
-        :raise DensityError: when the max number of trials is reached.
+        See parent.
         """
         logger.debug("*" * 10 + f" {self.density} " + "*" * 10)
-        for _ in range(max_trial):
-            try:
-                confs = collections.deque(self.setInits())
-            except ConfError:
-                self.reset()
-                continue
-            while confs:
-                try:
-                    confs[0].setConformer()
-                except ConfError:
-                    # Reset and try again as this conformer cannot be placed.
-                    self.reset()
-                    break
-                # Successfully set one fragment of this conformer.
-                if confs[0].frags:
-                    confs.rotate(-1)
-                    continue
-                # Successfully placed all fragments of one conformer
-                confs.popleft()
-                logger.debug(f'{self.conf_total - len(confs)} finished; '
-                             f'{sum(x.failed_num for x in self.conf)} failed.')
-            else:
-                # Successfully placed all conformers.
+        for trial_id in range(1, self.MAX_TRIAL + 1):
+            index = self.attempt()
+            if index is True:
                 return
+            # if not self.isPossible(trial_id, index):
+            #     raise DensityError
         # Max trial reached at this density.
         self.reset()
         raise DensityError
 
-    def setInits(self):
+    def attempt(self):
         """
-        Place the initiators into cell.
-
-        :return generator of `GrownConf`: the non-rigid conformer.
+        See parent.
         """
         logger.debug(f'Placing {self.conf_total} initiators...')
-        with logger.oneLine(logging.DEBUG) as log:
-            tenth, threshold, = self.conf_total / 10., 0
-            for index, conf in enumerate(self.conf, start=1):
-                conf.placeInitFrag()
-                if index >= threshold:
-                    log(f"{int(index / self.conf_total * 100)}%")
-                    threshold = round(threshold + tenth, 1)
-                if conf.frag:
-                    yield conf
-
+        index = super().attempt()
+        if index is not True:
+            return index
         logger.debug(f'{self.conf_total} initiators have been placed.')
-        if self.conf_total == 1:
-            return
-        logger.debug(f'Minimum separation: {self.dist.getDists().min():.2f}')
+        if self.conf_total != 1:
+            logger.debug(f'Closest contact: {self.dist.getDists().min():.2f}')
+        confs = collections.deque([x for x in self.conf if x.frag])
+        while confs:
+            try:
+                confs[0].grow()
+            except ConfError:
+                # Reset and try again as this conformer cannot be placed.
+                self.reset()
+                return self.conf_total - len(confs)
+            # Successfully set one fragment of this conformer.
+            if confs[0].frags:
+                confs.rotate(-1)
+                continue
+            # Successfully placed all fragments of one conformer
+            confs.popleft()
+            logger.debug(f'{self.conf_total - len(confs)} finished; '
+                         f'{sum(x.failed_num for x in self.conf)} failed.')
+        return True
 
     def reset(self):
         super().reset()
