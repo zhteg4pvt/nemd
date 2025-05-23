@@ -27,7 +27,7 @@ class Conf(Chem.rdchem.Conformer):
         super().__init__(*args, **kwargs)
         self.mol = mol
         self.gid = gid
-        self.gids = self.mol.gids + start if self.mol else None
+        self.gids = self.mol.aids + start if self.mol else None
 
     def HasOwningMol(self):
         """
@@ -81,7 +81,7 @@ class Mol(Chem.rdchem.Mol):
         self.vecs = vecs
         self.delay = delay
         self.confs = []
-        self.gids = np.arange(self.GetNumAtoms(), dtype=np.uint32)
+        self.aids = np.arange(self.GetNumAtoms(), dtype=np.uint32)
         if self.delay:
             return
         self.setUp(next(iter(args), None))

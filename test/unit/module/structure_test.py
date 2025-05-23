@@ -32,7 +32,7 @@ class TestMol:
                              [(None, None), (False, None),
                               (True, (5.43, 5.43, 5.43, 90.0, 90.0, 90.0))])
     def testSetUp(self, mol, polym, vecs):
-        np.testing.assert_equal(mol.gids, [0, 1, 2])
+        np.testing.assert_equal(mol.aids, [0, 1, 2])
         assert (False, False) == (mol.polym, mol.vecs)
         mol = structure.Mol(mol, polym=polym, vecs=vecs)
         expected = tuple(False if x is None else x for x in [polym, vecs])

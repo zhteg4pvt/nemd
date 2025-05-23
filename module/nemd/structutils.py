@@ -167,8 +167,7 @@ class GrownConf(PackedConf):
 
     def grow(self, max_trial=5):
         """
-        Set the conformer of one fragment by rotating the dihedral angle,
-        back moving, and relocation.
+        Grow the conformer by bond rotation, back move, and relocation.
 
         :param max_trial int: the max number of trials for one conformer.
         :raise ConfError: 1) max_trial reached; 2) init cannot be placed.
@@ -198,7 +197,12 @@ class GrownConf(PackedConf):
             f"{self.mol.struct.dist.getDists(self.init).min():.2f}")
 
     def setDihedral(self, frag):
+        """
+        Set the conformer by bond rotation or back move.
 
+        :param frag `Fragment`: the fragment to grow.
+        :return bool: whether the clashes can be voided.
+        """
         while frag.vals:
             self.setDihedralDeg(frag.dihe, frag.vals.pop())
             if self.checkClash(frag.ids):
@@ -216,22 +220,31 @@ class GrownConf(PackedConf):
         self.frags = [frag] + list(set(self.frags).difference(nfrags))
         return bool(frag.vals)
 
-    def setConformer(self):
+    def setConformer(self, **kwargs):
         """
         Place the initiator fragment into the cell without clashes.
         """
         super().setConformer(self.init)
 
     def centroid(self, **kwargs):
+        """
+        See parent.
+        """
         return super().centroid(aids=self.mol.init, **kwargs)
 
     def getSwingAtoms(self, dihe):
+        """
+        Get the atoms that change the positions on dihedral angle rotation.
+
+        :param dihe list: dihedral angle atom ids.
+        :return list: list of swing atom ids.
+        """
         oxyz = self.GetPositions()
         oval = Chem.rdMolTransforms.GetDihedralDeg(self, *dihe)
         self.setDihedralDeg(dihe, oval + 5)
         changed = ~np.isclose(oxyz, self.GetPositions()).all(axis=1)
         self.setDihedralDeg(dihe, oval)
-        return self.mol.gids[changed.nonzero()].tolist()
+        return self.mol.aids[changed.nonzero()].tolist()
 
     def reset(self):
         """
@@ -339,7 +352,9 @@ class PackedMol(lmpfull.Mol):
 
 
 class GrownMol(PackedMol):
-
+    """
+    Customized for fragments.
+    """
     Conf = GrownConf
     POLYM_HT = 'polym_ht'
     MAID = 'maid'
@@ -386,7 +401,7 @@ class GrownMol(PackedMol):
 
         :return list: the initiator atom aids.
         """
-        aids = numpyutils.IntArray(on=self.gids)
+        aids = numpyutils.IntArray(on=self.aids)
         if self.frag:
             aids[[y for x in self.frag.next() for y in x.ids]] = False
         return aids.on
@@ -466,7 +481,9 @@ class GrownMol(PackedMol):
 
 
 class Struct(lmpfull.Struct):
-
+    """
+    Customized with density.
+    """
     def __init__(self, *args, density=0.5, **kwargs):
         super().__init__(*args, **kwargs)
         self.density = density
@@ -563,7 +580,9 @@ class PackedBox(pbc.Box):
 
 
 class PackFrame(dist.Frame):
-
+    """
+    Customized for packing.
+    """
     def getPoint(self, max_num=1000):
         """
         Get point generator.
@@ -584,7 +603,9 @@ class PackFrame(dist.Frame):
 
 
 class GrownFrame(PackFrame):
-
+    """
+    Customized for fragments.
+    """
     def getPoint(self):
         """
         See parent.
@@ -635,13 +656,8 @@ class PackedStruct(Struct):
         """
         # The density will be reduced when the attempt exceeds the max trial.
         self.density = density
-        self.run()
-
-    def run(self):
-        """
-        Create amorphous cell by randomly rotation and translation.
-        """
         self.setBox()
+        self.setFrame()
         self.setConformers()
 
     def setBox(self):
@@ -653,6 +669,11 @@ class PackedStruct(Struct):
         edge *= scipy.constants.centi / scipy.constants.angstrom
         self.box = self.Box.fromParams(edge, tilted=False)
         logger.debug(f'Cubic box of size {edge:.2f} angstrom is created.')
+
+    def setFrame(self):
+        """
+        Set the distance frame.
+        """
         self.dist = self.Frame(self.GetPositions(),
                                box=self.box,
                                struct=self,
@@ -733,10 +754,7 @@ class PackedStruct(Struct):
         self.placed = []
         for conf in self.conf:
             conf.reset()
-        self.dist = self.Frame(self.GetPositions(),
-                               box=self.box,
-                               struct=self,
-                               gids=[])
+        self.setFrame()
 
 
 class GrownBox(PackedBox):
@@ -752,13 +770,13 @@ class GrownBox(PackedBox):
         self.graph = nx.Graph()
         self.orig_graph = self.graph.copy()
 
-    def setUp(self, conf_num=None):
+    def setUp(self, conf_total=None):
         """
-        Set up the graph.
+        Set up.
 
-        :param conf_num int: the number of molecules in the box.
+        :param conf_total int: the number of molecules in the box.
         """
-        num = math.ceil(pow(conf_num, 1 / 3)) + 1
+        num = math.ceil(pow(conf_total, 1 / 3)) + 1
         grid = self.span.min() / num
         self.cshape = (self.span / grid).round().astype(int)
         self.cspan = self.span / self.cshape
@@ -836,7 +854,9 @@ class GrownBox(PackedBox):
 
 
 class GrownStruct(PackedStruct):
-
+    """
+    Grow the packed initiators by rotating the bonds to avoid clashes.
+    """
     Mol = GrownMol
     Box = GrownBox
     Frame = GrownFrame
@@ -894,6 +914,9 @@ class GrownStruct(PackedStruct):
         return True
 
     def reset(self):
+        """
+        See parent.
+        """
         super().reset()
         self.box.reset()
 
@@ -902,7 +925,7 @@ class Fragment:
     """
     Dihedral angle controlled fragment.
     """
-    GRID_NUM = 36
+    NUM = 36
 
     def __init__(self, conf, dihe, delay=False):
         """
@@ -950,7 +973,7 @@ class Fragment:
         frag = self.__class__(conf, self.dihe, delay=True)
         frag.ids = conf.gids[self.ids]
         frag.nfrags = self.nfrags
-        frag.ovals = np.linspace(0, 360, self.GRID_NUM, endpoint=False)
+        frag.ovals = np.linspace(0, 360, self.NUM, endpoint=False)
         np.random.shuffle(frag.ovals)
         frag.vals = list(frag.ovals)
         return frag
@@ -965,7 +988,7 @@ class Fragment:
         frags = [self]
         while frags:
             frag = frags.pop()
-            if partial and len(frag.vals) == self.GRID_NUM:
+            if partial and len(frag.vals) == self.NUM:
                 continue
             yield frag
             frags.extend(frag.nfrags)
@@ -978,7 +1001,7 @@ class Fragment:
 
     def __str__(self):
         """
-        Print the dihedral angle four-atom ids and the swing atom ids.
+        See parent.
         """
         return f"{self.dihe}: {self.ids}"
 
