@@ -238,13 +238,14 @@ class Script:
         """
         if self.memory:
             self.logger.log(self.MEMORY_FMT.format(value=self.memory.result))
-        if exc_type:
-            if isinstance(exc_val, SystemExit):
-                # error calls sys.exit(1)
-                return
-            self.logger.log(traceback.format_exc())
-            raise exc_val
-        self.logger.log(FINISHED, timestamp=True)
+        if not exc_type:
+            self.logger.log(FINISHED, timestamp=True)
+            return
+        if isinstance(exc_val, SystemExit):
+            # Error calls sys.exit(1)
+            return
+        self.logger.log(traceback.format_exc(), timestamp=True)
+        raise exc_val
 
 
 class Reader:

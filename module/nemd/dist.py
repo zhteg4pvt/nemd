@@ -215,6 +215,7 @@ class Frame(frame.Base):
     """
     Search neighbors and check clashes.
     """
+    Cell=Cell
 
     def __init__(self,
                  *args,
@@ -254,7 +255,7 @@ class Frame(frame.Base):
         self.cut = min(self.cut, self.box.span.max() / 2)
         if self.srch is None and not self.large(self.cut):
             return
-        self.cell = Cell(self, self.box.span, self.cut)
+        self.cell = self.Cell(self, self.box.span, self.cut)
         self.set(self.gids.on)
 
     @methodtools.lru_cache()

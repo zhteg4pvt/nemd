@@ -31,6 +31,7 @@ from nemd import numpyutils
 from nemd import pbc
 from nemd import symbols
 
+
 logger = logutils.Logger.get(__file__)
 
 
@@ -195,7 +196,6 @@ class GrownConf(PackedConf):
             raise ConfError
 
         self.frag.reset()
-        self.mol.struct.dist.reset()
         self.mol.struct.dist.set(self.init, state=False)
         self.setConformer()
         logger.debug(
@@ -208,6 +208,8 @@ class GrownConf(PackedConf):
         """
         Place the initiator fragment into the cell without clashes.
         """
+        # FIXME: the largest void center should have higher priority
+        #  especially importantly when relocating a dead molecule.
         super().setConformer(self.init)
 
     def centroid(self, **kwargs):
@@ -235,10 +237,12 @@ class GrownConf(PackedConf):
         Rest the attributes that are changed during one grow attempt.
         """
         super().reset()
+        self.failed = 0
+        if not self.frag:
+            return
         for frag in self.frag.next():
             frag.reset()
         self.frags = [self.frag]
-        self.failed = 0
 
 
 class GriddedMol(lmpfull.Mol):
@@ -515,15 +519,20 @@ class PackFrame(dist.Frame):
     Customized for packing.
     """
 
-    def getPoint(self, max_num=1000):
-        """
-        Get point generator.
+    def __init__(self, *args, srch=True, **kwargs):
+        super().__init__(*args, srch=srch, **kwargs)
 
-        :param max_num int: the max number of points in the generator.
-        :return generator: each value is a point.
+    def getPoint(self):
         """
-        for _ in range(max_num):
-            yield np.random.rand(3) * self.box.span + self.box.lo
+        Get randomized points.
+
+        :return `np.ndarray`: each row is a point.
+        """
+        nodes = ~self.cell.cell.any(axis=3)
+        nodes = np.array(nodes.nonzero()).transpose()
+        np.random.shuffle(nodes)
+        randomized = nodes + np.random.normal(0, 0.5, nodes.shape)
+        return randomized * self.cell.grids
 
     @property
     def ratio(self):
@@ -539,21 +548,6 @@ class GrownFrame(PackFrame):
     """
     Customized for fragments.
     """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.cshape = None
-        self.cspan = None
-        self.graph = nx.Graph()
-        self.orig_graph = self.graph.copy()
-        self.setGraph()
-
-    def getPoint(self):
-        """
-        See parent.
-        """
-        self.rmGraphNodes(self[self.gids.on])
-        return (y for x in self.getVoid() for y in x)
 
     def getDists(self, grp=None):
         """
@@ -572,60 +566,6 @@ class GrownFrame(PackFrame):
             super(GrownFrame, self).getDists(x, grps=[np.concatenate(y)])
             for x, y in pairs
         ])
-
-    def setGraph(self):
-        num = math.ceil(pow(self.struct.conf_total, 1 / 3)) + 1
-        grid = self.box.span.min() / num
-        self.cshape = (self.box.span / grid).round().astype(int)
-        self.cspan = self.box.span / self.cshape
-        nbrs = dist.Cell.getNbrs(*self.cshape)
-        for node in itertools.product(*[range(x) for x in self.cshape]):
-            for nbr in nbrs[node]:
-                self.graph.add_edge(node, tuple(nbr))
-        self.orig_graph = self.graph.copy()
-
-    def rmGraphNodes(self, xyz):
-        """
-        Remove nodes occupied by existing atoms.
-
-        :return nx3 numpy.ndarray: xyz of the atoms whose nodes to be removed.
-        """
-        if not xyz.size:
-            return
-        nodes = (xyz / self.cspan).round()
-        nodes = [tuple(x) for x in nodes.astype(int)]
-        self.graph.remove_nodes_from(nodes)
-
-    def getVoid(self):
-        """
-        Get the points from the largest void.
-
-        :return `numpy.ndarray`: each row is one random point from the void.
-        """
-        largest_component = max(nx.connected_components(self.graph), key=len)
-        void = np.array(list(largest_component))
-        void_max = void.max(axis=0)
-        void_span = void_max - void.min(axis=0)
-        infinite = (void_span + 1 == self.cshape).any()
-        if infinite:
-            # The void tunnels the PBC and thus points are uniformly distributed
-            yield self.cspan * (np.random.normal(0, 0.5, void.shape) + void)
-            return
-        # The void is surrounded by atoms and thus the center is preferred
-        imap = np.zeros(void_max + 1, dtype=bool)
-        imap[tuple(np.transpose(void))] = True
-        # FIXME: PBC hasn't been considered
-        center = void.mean(axis=0).astype(int)
-        max_nth = np.abs(void - center).max(axis=0).sum()
-        for nth in range(max_nth):
-            nbrs = center + self.nbr_inc(nth=nth)
-            nbrs = nbrs[(nbrs <= void_max).all(axis=1).nonzero()]
-            nbrs = nbrs[imap[tuple(np.transpose(nbrs))].nonzero()]
-            np.random.shuffle(nbrs)
-            yield self.cspan * (np.random.normal(0, 0.5, nbrs.shape) + nbrs)
-
-    def reset(self):
-        self.graph = self.orig_graph.copy()
 
 
 class PackedStruct(Struct):
@@ -670,9 +610,9 @@ class PackedStruct(Struct):
         Set the distance frame.
         """
         self.dist = self.Frame(self.GetPositions(),
+                               gids=[],
                                box=self.box,
-                               struct=self,
-                               gids=[])
+                               struct=self)
 
     def setConformers(self):
         """
@@ -801,13 +741,6 @@ class GrownStruct(PackedStruct):
                 continue
             confs.popleft()
             logger.debug(f'{self.conf_total - len(confs)} finished.')
-
-    def reset(self):
-        """
-        See parent.
-        """
-        super().reset()
-        self.dist.reset()
 
 
 class Fragment:
