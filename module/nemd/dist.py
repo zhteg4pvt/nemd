@@ -76,7 +76,7 @@ class CellOrig:
 
     def __init__(self, frm, span, cut, upper=20):
         """
-        :param frm 'Frame': the distance frame
+        :param frm 'Frame': the coordinate frame
         :param span 'ndarray': the pbc span
         :param cut float: the cut-off
         :param upper int: the upper limit of the shape

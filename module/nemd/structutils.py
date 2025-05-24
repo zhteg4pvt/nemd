@@ -195,7 +195,7 @@ class GrownConf(PackedConf):
             raise ConfError
 
         self.frag.reset()
-        self.mol.struct.dist.box.reset()
+        self.mol.struct.dist.reset()
         self.mol.struct.dist.set(self.init, state=False)
         self.setConformer()
         logger.debug(
@@ -510,21 +510,6 @@ class DensityError(RuntimeError):
     pass
 
 
-class PackedBox(pbc.Box):
-    """
-    Customized box class for packed structures.
-    """
-
-    def getPoint(self):
-        """
-        Get a random point within the box.
-
-        :return 'pandas.core.series.Series': the random point within the box.
-        """
-        point = np.random.rand(3) * self.span
-        return point + self.lo
-
-
 class PackFrame(dist.Frame):
     """
     Customized for packing.
@@ -537,7 +522,8 @@ class PackFrame(dist.Frame):
         :param max_num int: the max number of points in the generator.
         :return generator: each value is a point.
         """
-        return (self.box.getPoint() for _ in range(1000))
+        for _ in range(max_num):
+            yield np.random.rand(3) * self.box.span + self.box.lo
 
     @property
     def ratio(self):
@@ -554,12 +540,20 @@ class GrownFrame(PackFrame):
     Customized for fragments.
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cshape = None
+        self.cspan = None
+        self.graph = nx.Graph()
+        self.orig_graph = self.graph.copy()
+        self.setGraph()
+
     def getPoint(self):
         """
         See parent.
         """
-        self.box.rmGraphNodes(self[self.gids.on])
-        return (y for x in self.box.getVoid() for y in x)
+        self.rmGraphNodes(self[self.gids.on])
+        return (y for x in self.getVoid() for y in x)
 
     def getDists(self, grp=None):
         """
@@ -579,13 +573,90 @@ class GrownFrame(PackFrame):
             for x, y in pairs
         ])
 
+    def setGraph(self):
+        num = math.ceil(pow(self.struct.conf_total, 1 / 3)) + 1
+        grid = self.box.span.min() / num
+        self.cshape = (self.box.span / grid).round().astype(int)
+        self.cspan = self.box.span / self.cshape
+        # nbrs = dist.Cell.getNbrs(*self.cshape)
+        # for node in itertools.product(*[range(x) for x in self.cshape]):
+        #     for nbr in nbrs[node]:
+        #         self.graph.add_edge(node, tuple(nbr))
+        nodes = list(itertools.product(*[range(x) for x in self.cshape]))
+        self.graph.add_nodes_from(nodes)
+        for node in nodes:
+            nbrs = (node + self.nbr_inc()) % self.cshape
+            for nbr in nbrs:
+                self.graph.add_edge(node, tuple(nbr))
+        self.orig_graph = self.graph.copy()
+
+    @staticmethod
+    @functools.cache
+    def nbr_inc(nth=1):
+        """
+        The nth neighbor cells ids when sitting on the (0,0,0) cell.
+
+        :return nx3 numpy.ndarray: the neighbor cell ids.
+        """
+        first = math.ceil(nth / 3)
+        second = math.ceil((nth - first) / 2)
+        third = nth - first - second
+        row = np.array([first, second, third])
+        data = []
+        for signs in itertools.product([-1, 1], [-1, 1], [-1, 1]):
+            rows = signs * np.array([x for x in itertools.permutations(row)])
+            data.append(np.unique(rows, axis=0))
+        return np.unique(np.concatenate(data), axis=0)
+
+    def rmGraphNodes(self, xyz):
+        """
+        Remove nodes occupied by existing atoms.
+
+        :return nx3 numpy.ndarray: xyz of the atoms whose nodes to be removed.
+        """
+        if not xyz.size:
+            return
+        nodes = (xyz / self.cspan).round()
+        nodes = [tuple(x) for x in nodes.astype(int)]
+        self.graph.remove_nodes_from(nodes)
+
+    def getVoid(self):
+        """
+        Get the points from the largest void.
+
+        :return `numpy.ndarray`: each row is one random point from the void.
+        """
+        largest_component = max(nx.connected_components(self.graph), key=len)
+        void = np.array(list(largest_component))
+        void_max = void.max(axis=0)
+        void_span = void_max - void.min(axis=0)
+        infinite = (void_span + 1 == self.cshape).any()
+        if infinite:
+            # The void tunnels the PBC and thus points are uniformly distributed
+            yield self.cspan * (np.random.normal(0, 0.5, void.shape) + void)
+            return
+        # The void is surrounded by atoms and thus the center is preferred
+        imap = np.zeros(void_max + 1, dtype=bool)
+        imap[tuple(np.transpose(void))] = True
+        # FIXME: PBC hasn't been considered
+        center = void.mean(axis=0).astype(int)
+        max_nth = np.abs(void - center).max(axis=0).sum()
+        for nth in range(max_nth):
+            nbrs = center + self.nbr_inc(nth=nth)
+            nbrs = nbrs[(nbrs <= void_max).all(axis=1).nonzero()]
+            nbrs = nbrs[imap[tuple(np.transpose(nbrs))].nonzero()]
+            np.random.shuffle(nbrs)
+            yield self.cspan * (np.random.normal(0, 0.5, nbrs.shape) + nbrs)
+
+    def reset(self):
+        self.graph = self.orig_graph.copy()
+
 
 class PackedStruct(Struct):
     """
     Pack molecules by random rotation and translation.
     """
     Mol = PackedMol
-    Box = PackedBox
     Frame = PackFrame
     MAX_TRIAL = 50
 
@@ -615,7 +686,7 @@ class PackedStruct(Struct):
         vol = self.molecular_weight / self.density / scipy.constants.Avogadro
         edge = math.pow(vol, 1 / 3)  # centimeter
         edge *= scipy.constants.centi / scipy.constants.angstrom
-        self.box = self.Box.fromParams(edge, tilted=False)
+        self.box = pbc.Box.fromParams(edge, tilted=False)
         logger.debug(f'Cubic box of size {edge:.2f} angstrom is created.')
 
     def setFrame(self):
@@ -705,117 +776,13 @@ class PackedStruct(Struct):
         self.setFrame()
 
 
-class GrownBox(PackedBox):
-    """
-    Customized box class for grown structures.
-    """
-    _metadata = ['graph', 'orig_graph', 'cshape', 'cspan']
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.cshape = None
-        self.cspan = None
-        self.graph = nx.Graph()
-        self.orig_graph = self.graph.copy()
-
-    def setUp(self, conf_total=None):
-        """
-        Set up.
-
-        :param conf_total int: the number of molecules in the box.
-        """
-        num = math.ceil(pow(conf_total, 1 / 3)) + 1
-        grid = self.span.min() / num
-        self.cshape = (self.span / grid).round().astype(int)
-        self.cspan = self.span / self.cshape
-        nodes = list(itertools.product(*[range(x) for x in self.cshape]))
-        self.graph.add_nodes_from(nodes)
-        for node in nodes:
-            nbrs = (node + self.nbr_inc()) % self.cshape
-            for nbr in nbrs:
-                self.graph.add_edge(node, tuple(nbr))
-        self.orig_graph = self.graph.copy()
-
-    @staticmethod
-    @functools.cache
-    def nbr_inc(nth=1):
-        """
-        The nth neighbor cells ids when sitting on the (0,0,0) cell.
-
-        :return nx3 numpy.ndarray: the neighbor cell ids.
-        """
-        first = math.ceil(nth / 3)
-        second = math.ceil((nth - first) / 2)
-        third = nth - first - second
-        row = np.array([first, second, third])
-        data = []
-        for signs in itertools.product([-1, 1], [-1, 1], [-1, 1]):
-            rows = signs * np.array([x for x in itertools.permutations(row)])
-            data.append(np.unique(rows, axis=0))
-        return np.unique(np.concatenate(data), axis=0)
-
-    def rmGraphNodes(self, xyz):
-        """
-        Remove nodes occupied by existing atoms.
-
-        :return nx3 numpy.ndarray: xyz of the atoms whose nodes to be removed.
-        """
-        if not xyz.size:
-            return
-        nodes = (xyz / self.cspan).round()
-        nodes = [tuple(x) for x in nodes.astype(int)]
-        self.graph.remove_nodes_from(nodes)
-
-    def getVoid(self):
-        """
-        Get the points from the largest void.
-
-        :return `numpy.ndarray`: each row is one random point from the void.
-        """
-        largest_component = max(nx.connected_components(self.graph), key=len)
-        void = np.array(list(largest_component))
-        void_max = void.max(axis=0)
-        void_span = void_max - void.min(axis=0)
-        infinite = (void_span + 1 == self.cshape).any()
-        if infinite:
-            # The void tunnels the PBC and thus points are uniformly distributed
-            yield self.cspan * (np.random.normal(0, 0.5, void.shape) + void)
-            return
-        # The void is surrounded by atoms and thus the center is preferred
-        imap = np.zeros(void_max + 1, dtype=bool)
-        imap[tuple(np.transpose(void))] = True
-        # FIXME: PBC hasn't been considered
-        center = void.mean(axis=0).astype(int)
-        max_nth = np.abs(void - center).max(axis=0).sum()
-        for nth in range(max_nth):
-            nbrs = center + self.nbr_inc(nth=nth)
-            nbrs = nbrs[(nbrs <= void_max).all(axis=1).nonzero()]
-            nbrs = nbrs[imap[tuple(np.transpose(nbrs))].nonzero()]
-            np.random.shuffle(nbrs)
-            yield self.cspan * (np.random.normal(0, 0.5, nbrs.shape) + nbrs)
-
-    def reset(self):
-        """
-        Rest the state.
-        """
-        self.graph = self.orig_graph.copy()
-
-
 class GrownStruct(PackedStruct):
     """
     Grow the packed initiators by rotating the bonds to avoid clashes.
     """
     Mol = GrownMol
-    Box = GrownBox
     Frame = GrownFrame
     MAX_TRIAL = 10
-
-    def setBox(self):
-        """
-        Set up the box in addition to the parent.
-        """
-        super().setBox()
-        self.box.setUp(self.conf_total)
 
     def setConformers(self):
         """
@@ -864,7 +831,7 @@ class GrownStruct(PackedStruct):
         See parent.
         """
         super().reset()
-        self.box.reset()
+        self.dist.reset()
 
 
 class Fragment:
