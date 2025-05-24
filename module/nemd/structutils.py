@@ -578,35 +578,11 @@ class GrownFrame(PackFrame):
         grid = self.box.span.min() / num
         self.cshape = (self.box.span / grid).round().astype(int)
         self.cspan = self.box.span / self.cshape
-        # nbrs = dist.Cell.getNbrs(*self.cshape)
-        # for node in itertools.product(*[range(x) for x in self.cshape]):
-        #     for nbr in nbrs[node]:
-        #         self.graph.add_edge(node, tuple(nbr))
-        nodes = list(itertools.product(*[range(x) for x in self.cshape]))
-        self.graph.add_nodes_from(nodes)
-        for node in nodes:
-            nbrs = (node + self.nbr_inc()) % self.cshape
-            for nbr in nbrs:
+        nbrs = dist.Cell.getNbrs(*self.cshape)
+        for node in itertools.product(*[range(x) for x in self.cshape]):
+            for nbr in nbrs[node]:
                 self.graph.add_edge(node, tuple(nbr))
         self.orig_graph = self.graph.copy()
-
-    @staticmethod
-    @functools.cache
-    def nbr_inc(nth=1):
-        """
-        The nth neighbor cells ids when sitting on the (0,0,0) cell.
-
-        :return nx3 numpy.ndarray: the neighbor cell ids.
-        """
-        first = math.ceil(nth / 3)
-        second = math.ceil((nth - first) / 2)
-        third = nth - first - second
-        row = np.array([first, second, third])
-        data = []
-        for signs in itertools.product([-1, 1], [-1, 1], [-1, 1]):
-            rows = signs * np.array([x for x in itertools.permutations(row)])
-            data.append(np.unique(rows, axis=0))
-        return np.unique(np.concatenate(data), axis=0)
 
     def rmGraphNodes(self, xyz):
         """
