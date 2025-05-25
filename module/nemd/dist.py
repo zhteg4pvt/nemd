@@ -215,7 +215,7 @@ class Frame(frame.Base):
     """
     Search neighbors and check clashes.
     """
-    Cell=Cell
+    Cell = Cell
 
     def __init__(self,
                  *args,

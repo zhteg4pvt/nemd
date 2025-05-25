@@ -107,11 +107,7 @@ class Amorphous(logutils.Base):
         for idx, density in enumerate(np.append(densities, mini_density)):
             if idx != 0:
                 self.log(f'Density is reduced to {density:.4f} g/cm^3')
-            try:
-                self.struct.runWithDensity(density)
-            except structutils.DensityError:
-                continue
-            else:
+            if self.struct.runWithDensity(density):
                 return
         self.error(
             f"Amorphous structure cannot be built with density as low as "

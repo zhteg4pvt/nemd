@@ -1,2 +1,2 @@
 # Amorphous builder with initiator fragment relocation
-nemd_run amorp_bldr_driver.py "*CC*" -cru_num 5 -mol_num 5 -density 2.6 -method grow -seed 1234 -DEBUG
+nemd_run amorp_bldr_driver.py "*CC*" -cru_num 5 -mol_num 5 -density 2.55 -method grow -seed 1234 -DEBUG

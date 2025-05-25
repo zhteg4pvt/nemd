@@ -31,7 +31,6 @@ from nemd import numpyutils
 from nemd import pbc
 from nemd import symbols
 
-
 logger = logutils.Logger.get(__file__)
 
 
@@ -199,10 +198,9 @@ class GrownConf(PackedConf):
         self.mol.struct.dist.set(self.init, state=False)
         self.setConformer()
         logger.debug(
-            f"The relocated initiator {self.gid} is "
-            f"{self.mol.struct.dist.getDists().min():.2f} away from initiators,"
-            f" and is {self.mol.struct.dist.getDists(self.init).min():.2f} away"
-            f" from existing atoms. ({self.mol.struct.dist.ratio} placed)")
+            f"Initiator {self.gid} is relocated "
+            f"{self.mol.struct.dist.getDists(self.init).min():.2f} separated. "
+            f"({self.mol.struct.dist.getDists().min():.2f} to initiators)")
 
     def setConformer(self, **kwargs):
         """
@@ -507,12 +505,6 @@ class GriddedStruct(Struct):
         return np.concatenate(xyzs, dtype=np.float32)
 
 
-class DensityError(RuntimeError):
-    """
-    When max number of the failure at this density has been reached.
-    """
-    pass
-
 class Box(pbc.Box):
     """
     Customized box class for packed structures.
@@ -526,6 +518,7 @@ class Box(pbc.Box):
         :return `np.ndarray`: each row is a point.
         """
         return np.random.rand(size, 3) * self.span + self.lo.values
+
 
 class PackFrame(dist.Frame):
     """
@@ -545,15 +538,6 @@ class PackFrame(dist.Frame):
         np.random.shuffle(nodes)
         randomized = nodes + np.random.normal(0, 0.5, nodes.shape)
         return randomized * self.cell.grids
-
-    @property
-    def ratio(self):
-        """
-        The ratio of the existing atoms to the total atoms.
-
-        :return str: the ratio of the existing gids with respect to the total.
-        """
-        return f'{len(self.gids.on)} / {self.shape[0]}'
 
 
 class GrownFrame(PackFrame):
@@ -586,7 +570,6 @@ class PackedStruct(Struct):
     """
     Mol = PackedMol
     Frame = PackFrame
-    MAX_TRIAL = 50
 
     def __init__(self, *args, **kwargs):
         # Force field -> Molecular weight -> Box -> Frame -> Distance cell
@@ -599,13 +582,14 @@ class PackedStruct(Struct):
         Create amorphous cell of the target density by randomly placing
         molecules with random orientations.
 
-        :param density float: the target density
+        :param density float: the target density.
+        :return bool: True if successfully set.
         """
         # The density will be reduced when the attempt exceeds the max trial.
         self.density = density
         self.setBox()
         self.setFrame()
-        self.setConformers()
+        return self.setConformers()
 
     def setBox(self):
         """
@@ -630,22 +614,20 @@ class PackedStruct(Struct):
         """
         Place all molecules into the cell at certain density.
 
-        :raise DensityError: the max trial reached or statistically impossible.
+        :return bool: True if successfully set.
         """
-        for trial_id in range(1, self.MAX_TRIAL + 1):
-            num = self.attempt()
-            if num is None:
-                return
-            if not self.isPossible(trial_id, num):
-                raise DensityError
-        self.reset()
-        raise DensityError
+        logger.debug("*" * 10 + f" {self.density} " + "*" * 10)
+        while self.isPossible():
+            self.attempt()
+            if self.placed[-1] == self.conf_total:
+                return True
+            logger.debug(
+                f'Trial {len(self.placed)}: {self.placed[-1]} placed.')
+        self.placed = []
 
     def attempt(self):
         """
         One attempt on setting the conformers.
-
-        :return int: the number of successful placed conformers if failed.
         """
         with logger.oneLine(logging.DEBUG) as log:
             tenth, threshold, = self.conf_total / 10., 0
@@ -654,36 +636,28 @@ class PackedStruct(Struct):
                     conf.setConformer()
                 except ConfError:
                     # FIXME: Failed to fill the void with initiator too often
-                    logger.debug(f'Only {self.dist.ratio} placed.')
                     self.reset()
-                    return index
+                    self.placed.append(index)
+                    return
                 # One conformer successfully placed
                 if index >= threshold:
                     log(f"{int(index / self.conf_total * 100)}%")
                     threshold = round(threshold + tenth, 1)
+            self.placed.append(self.conf_total)
 
-    def isPossible(self, trial_id, num):
+    def isPossible(self, intvl=5):
         """
         Whether further attempt is statistically possible.
 
-        :param trial_id int: the trial index.
-        :param num int: the number of the successful conformers.
+        :param intvl int: the interval to check possibility.
         :return bool: whether it is statistically possible.
         """
-        # Current conformer failed
-        logger.debug(f'{trial_id} trail fails.')
-        logger.debug(f'Only {num} / {self.conf_total} molecules placed.')
-        self.placed.append(num)
-        if not bool(trial_id % int(self.MAX_TRIAL / 10)):
-            std = np.std(self.placed)
-            if not std:
-                # Always fails at certain achievement.
-                return False
+        if not self.placed or len(self.placed) % intvl != 0:
+            return True
+        std = np.std(self.placed)
+        if std:
             zscore = abs(self.conf_total - np.average(self.placed)) / std
-            if scipy.stats.norm.cdf(-zscore) * self.MAX_TRIAL < 1:
-                # Max_trial is not expected to succeed once (norm distribution)
-                return False
-        return True
+            return scipy.stats.norm.cdf(-zscore) > 0.05
 
     @property
     def conf_total(self):
@@ -698,7 +672,6 @@ class PackedStruct(Struct):
         """
         Reset the state so that a new attempt can happen.
         """
-        self.placed = []
         for conf in self.conf:
             conf.reset()
         self.setFrame()
@@ -710,31 +683,15 @@ class GrownStruct(PackedStruct):
     """
     Mol = GrownMol
     Frame = GrownFrame
-    MAX_TRIAL = 10
-
-    def setConformers(self):
-        """
-        See parent.
-        """
-        logger.debug("*" * 10 + f" {self.density} " + "*" * 10)
-        for trial_id in range(1, self.MAX_TRIAL + 1):
-            num = self.attempt()
-            if num is None:
-                return
-            # if not self.isPossible(trial_id, index):
-            #     raise DensityError
-        # Max trial reached at this density.
-        self.reset()
-        raise DensityError
 
     def attempt(self):
         """
         See parent.
         """
         logger.debug(f'Placing {self.conf_total} initiators...')
-        num = super().attempt()
-        if num is not None:
-            return num
+        super().attempt()
+        if self.placed[-1] != self.conf_total:
+            return
         logger.debug(f'{self.conf_total} initiators have been placed.')
         if self.conf_total != 1:
             logger.debug(f'Closest contact: {self.dist.getDists().min():.2f}')
@@ -744,9 +701,9 @@ class GrownStruct(PackedStruct):
                 confs[0].grow()
             except ConfError:
                 # FIXME: Failed attempt should try to reduce clash criteria
-                logger.debug(f'Only {self.dist.ratio} placed during growing.')
                 self.reset()
-                return self.conf_total - len(confs)
+                self.placed[-1] = self.conf_total - len(confs)
+                return
             # Successfully set one fragment.
             if confs[0].frags:
                 confs.rotate(-1)
