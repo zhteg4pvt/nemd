@@ -621,8 +621,8 @@ class PackedStruct(Struct):
             self.attempt()
             if self.placed[-1] == self.conf_total:
                 return True
-            logger.debug(
-                f'Trial {len(self.placed)}: {self.placed[-1]} placed.')
+            logger.debug(f'Only {self.placed[-1]} molecule placed. '
+                         f'({len(self.placed)} trial)')
         self.placed = []
 
     def attempt(self):
@@ -691,6 +691,8 @@ class GrownStruct(PackedStruct):
         logger.debug(f'Placing {self.conf_total} initiators...')
         super().attempt()
         if self.placed[-1] != self.conf_total:
+            confs = itertools.islice(self.conf, self.placed[-1])
+            self.placed[-1] = len([x for x in confs if x.frag is None])
             return
         logger.debug(f'{self.conf_total} initiators have been placed.')
         if self.conf_total != 1:
@@ -709,7 +711,7 @@ class GrownStruct(PackedStruct):
                 confs.rotate(-1)
                 continue
             confs.popleft()
-            logger.debug(f'{self.conf_total - len(confs)} finished.')
+            logger.debug(f'{self.conf_total - len(confs)} grown.')
 
 
 class Fragment:

@@ -1,0 +1,2 @@
+# Amorphous builder on Argon and Butane with failed initiation 
+nemd_run amorp_bldr_driver.py "[Ar]" CCCC -mol_num 10 10 -density 2.7 -DEBUG True -seed 123

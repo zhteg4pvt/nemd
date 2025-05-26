@@ -562,7 +562,6 @@ class Driver(argparse.ArgumentParser, builtinsutils.Object):
         if self.FLAG_DEBUG in self.JFLAGS:
             self.addBool(
                 self.FLAG_DEBUG,
-                default=is_debug(),
                 help='True allows additional printing and output files; '
                 'False disables the mode.')
 

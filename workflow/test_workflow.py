@@ -184,13 +184,6 @@ class Parser(parserutils.Workflow):
                           'check: check the results; tag: update the tag file')
         self.valids.add(TestValid)
 
-    def addWorkflow(self):
-        """
-        Customize workflow options.
-        """
-        super().addWorkflow()
-        self.suppress(**{parserutils.Workflow.FLAG_SCREEN: self.SERIAL})
-
 
 def main(argv):
     parser = Parser(descr=__doc__)
