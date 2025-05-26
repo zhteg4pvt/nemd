@@ -203,7 +203,7 @@ class Cmd(taskbase.Cmd):
         """
         Set the screen output.
         """
-        if self.options.screen != symbols.OFF or self.options.DEBUG:
+        if self.options.screen == jobutils.JOB or self.options.DEBUG:
             return
         for idx, cmd in enumerate(self.args):
             if jobutils.NEMD_RUN not in cmd:

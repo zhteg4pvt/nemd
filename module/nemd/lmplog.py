@@ -127,7 +127,7 @@ class Log(lammpsin.In):
                     blk = []
                 elif blk:
                     # Inside thermo block: skip lines from fix rigid outputs
-                    if not line.startswith(('SHAKE', 'Bond', 'Angle')):
+                    if not line.startswith(('SHAKE', 'Bond', 'Angle', 'WARNING')):
                         blk.append(line)
                 elif line.startswith('Per MPI rank memory allocation'):
                     # Start a new block

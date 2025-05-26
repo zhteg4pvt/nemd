@@ -31,8 +31,6 @@ a=''; for val in "$@" ""; do \
 # -DEGUG n | no | f | false | off | 0 -> off
 [ ! -z $DEBUG ] && case $(echo $val | tr [A-Z] [a-z]) \
   in n|no|f|false|off|0) export DEBUG='' ;; esac
-# TQDM off by default
-export TQDM_DISABLE='1'
 
 . nemd_func
 
@@ -44,6 +42,7 @@ for val in "$@"; do
       # Python Script
       SCRIPT=${val%%::*} && debug "Python Script: $SCRIPT"
       NAME=$(basename $SCRIPT)
+      [ $NAME != 'test_workflow.py' ] && export TQDM_DISABLE='1'
       # Set JOBNAME
       for SUFFIX in _driver.py _workflow.py ".*"; do \
         export JOBNAME=${NAME%%$SUFFIX} && [ $JOBNAME != $NAME ] && break; done
