@@ -1,2 +1,2 @@
-# Amorphous builder via grow method with reduced density
-nemd_run amorp_bldr_driver.py "*CC*" -cru_num 4 -mol_num 7 -density 2.6 -method grow -seed 1234 -DEBUG
+# Amorphous builder on Argon and Butane with failed initiation 
+nemd_run amorp_bldr_driver.py "[Ar]" CCCC -mol_num 10 10 -density 2.7 -DEBUG True -seed 123

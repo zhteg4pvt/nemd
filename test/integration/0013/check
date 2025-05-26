@@ -1,1 +1,2 @@
 nemd_check cmp amorp_bldr.data amorp_bldr.data
+[ -f structutils.debug ] && nemd_check has structutils.debug 'Only 10 molecule placed. (1 trial)'

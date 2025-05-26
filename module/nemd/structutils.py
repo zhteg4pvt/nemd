@@ -632,6 +632,9 @@ class PackedStruct(Struct):
         with logger.oneLine(logging.DEBUG) as log:
             tenth, threshold, = self.conf_total / 10., 0
             for index, conf in enumerate(self.conf):
+                if index >= threshold:
+                    log(f"{int(index / self.conf_total * 100)}%")
+                    threshold = round(threshold + tenth, 1)
                 try:
                     conf.setConformer()
                 except ConfError:
@@ -640,10 +643,9 @@ class PackedStruct(Struct):
                     self.placed.append(index)
                     return
                 # One conformer successfully placed
-                if index >= threshold:
-                    log(f"{int(index / self.conf_total * 100)}%")
-                    threshold = round(threshold + tenth, 1)
-            self.placed.append(self.conf_total)
+            else:
+                log("100%")
+                self.placed.append(self.conf_total)
 
     def isPossible(self, intvl=5):
         """
