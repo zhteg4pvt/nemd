@@ -6,77 +6,13 @@ This workflow runs molecule builder, lammps simulation, and log analyzer.
 import argparse
 import sys
 
-from nemd import analyzer
 from nemd import jobcontrol
-from nemd import jobutils
 from nemd import logutils
 from nemd import np
 from nemd import parserutils
-from nemd import pd
-from nemd import rdkitutils
-from nemd import symbols
 from nemd import task
 
 FLAG_SUBSTRUCT = parserutils.Bldr.FLAG_SUBSTRUCT
-
-
-class Reader(logutils.Reader):
-    """
-    A LAMMPS log reader customized for substructure.
-    """
-
-    def getSubstruct(self, smiles):
-        """
-        Get the value of a substructure from the log file.
-
-        :param smiles str: the substructure smiles
-        :return str: the value of the substructure
-        """
-        for line in self.lines:
-            if not line.startswith(smiles):
-                continue
-            # e.g. 'CCCC dihedral angle: 73.50 deg'
-            return line.split(symbols.COLON)[-1].split()[0]
-
-
-class AnalyzerAgg(analyzer.Agg):
-    """
-    An analyzer Agg customized for substructure.
-    """
-
-    def set(self):
-        """
-        Modify the result substructure column so that the name includes the
-        structure smiles and geometry type.
-        """
-        super().set()
-        if len(self.groups) == 1 and self.groups[0][0].empty:
-            return
-        substruct = self.data.index.str.split(expand=True)
-        has_value = self.data.index[0] != substruct[0]
-        smiles = substruct[0][0] if has_value else substruct[0]
-        # Set the name of the substructure column (e.g. CC Bond (Angstrom))
-        match rdkitutils.MolFromSmiles(smiles).GetNumAtoms():
-            case 2:
-                name = f"{smiles} Bond (Angstrom)"
-            case 3:
-                name = f"{smiles} Angle (Degree)"
-            case 4:
-                name = f"{smiles} Dihedral Angle (Degree)"
-        if has_value:
-            # result.substruct contains the values  (e.g. CC: 2)
-            self.data.index = pd.Index([x[1] for x in substruct], name=name)
-            return
-        # result.substruct contains the smiles (e.g. CCCC)
-        # Read the reported value from the log (e.g. dihedral angle: 73.50 deg)
-        for job in jobutils.Job.search(self.groups[0][1][0].fn('')):
-            reader = Reader(job.logfile)
-            if reader.options.NAME != task.MolBldr.name:
-                continue
-            values = reader.getSubstruct(smiles)
-            self.data.index = pd.Index([values], name=name)
-            return
-        raise ValueError("Cannot extract the smiles from the log file.")
 
 
 class LmpAgg(task.LmpAgg):
@@ -84,7 +20,7 @@ class LmpAgg(task.LmpAgg):
     See the parent class for details.
     """
 
-    AnalyzerAgg = AnalyzerAgg
+    AnalyzerAgg = task.AnalyzerAgg
 
 
 class Runner(jobcontrol.Runner):
