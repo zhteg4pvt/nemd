@@ -529,7 +529,8 @@ class PackFrame(dist.Frame):
         nodes = np.array(nodes.nonzero()).transpose()
         np.random.shuffle(nodes)
         randomized = nodes + np.random.normal(0, 0.5, nodes.shape)
-        return randomized * self.cell.grids
+        wrapped = randomized % self.cell.dims
+        return wrapped * self.cell.grids + self.box.lo.values
 
 
 class GrownFrame(PackFrame):

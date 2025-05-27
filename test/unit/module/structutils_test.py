@@ -5,6 +5,7 @@ import pytest
 import scipy
 from rdkit import Chem
 
+from nemd import envutils
 from nemd import structure
 from nemd import structutils
 
@@ -267,3 +268,27 @@ class TestGriddedStruct:
         struct.setConformers()
         xyz = struct.GetPositions()
         np.testing.assert_almost_equal(xyz.max(axis=0), expected)
+
+
+class TestBox:
+
+    @pytest.mark.parametrize('seed,al,size', [(0, 10, 1000), (0, 20, 100)])
+    def testGetPoint(self, al, size, random_seed):
+        box = structutils.Box.fromParams(al)
+        points = box.getPoints(size=size)
+        assert size == points.shape[0] == np.unique(points, axis=0).shape[0]
+        assert (box.lo.min() <= points.min()).all()
+        assert (box.hi.max() >= points.max()).all()
+
+
+class TestPackFrame:
+
+    @pytest.mark.parametrize(
+        'file,expected',
+        [(envutils.test_data('hexane_liquid', 'dump.custom'), 8000)])
+    def testGetPoint(self, frm, expected):
+        points = structutils.PackFrame(frm).getPoints()
+        assert expected == points.shape[0] == np.unique(points,
+                                                        axis=0).shape[0]
+        assert (frm.box.lo.min() <= points.min()).all()
+        assert (frm.box.hi.max() >= points.max()).all()
