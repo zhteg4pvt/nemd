@@ -128,3 +128,34 @@ class TestGrownConf:
         assert 0 == conf.failed
         assert len(conf.frags)
         assert 36 == len(conf.frag.vals)
+
+
+@pytest.mark.parametrize('smiles,seed', [('O', 0)])
+class TestGriddedMol:
+
+    @pytest.fixture
+    def mol(self, smiles, seed):
+        mol = structutils.GriddedMol.MolFromSmiles(smiles)
+        mol.EmbedMultipleConfs(2, randomSeed=seed)
+        return mol
+
+    @pytest.mark.parametrize('size,expected', [([10, 10, 10], 4)])
+    def testRun(self, mol, size, expected):
+        mol.run(np.array(size))
+        assert expected == np.prod(mol.num) == len(mol.vecs)
+
+    @pytest.mark.parametrize('size,num,expected', [([10, 10, 10], 20, (2, 19)),
+                                                   ([6, 5, 5], 20, (2, 18))])
+    def testSetConformers(self, mol, size, num, expected):
+        mol.run(np.array(size))
+        unused = mol.setConformers(np.random.rand(num, 3))
+        assert expected == (len(mol.vectors), len(unused))
+
+    def testSize(self, mol):
+        np.testing.assert_almost_equal(mol.size, [5.62544856, 4.54986054, 4.])
+
+    @pytest.mark.parametrize('size,expected', [([10, 10, 10], 1),
+                                               ([6, 5, 5], 2)])
+    def testBoxNum(self, mol, size, expected):
+        mol.run(np.array(size))
+        assert expected == mol.box_num

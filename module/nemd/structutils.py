@@ -246,7 +246,7 @@ class GrownConf(PackedConf):
 
 class GriddedMol(lmpfull.Mol):
     """
-    A subclass of Chem.rdchem.Mol to handle gridded conformers.
+    Customized for gridded conformers.
     """
     Conf = Conf
 
@@ -255,10 +255,10 @@ class GriddedMol(lmpfull.Mol):
         :param buffer float: the buffer between conformers.
         """
         super().__init__(*args, **kwargs)
-        self.buffer = np.array([buffer, buffer, buffer])
         self.num = np.array([1, 1, 1])  # Conformer number per box edge
         self.vecs = []  # Translational vectors with in the box
         self.vectors = None  # Translational vectors with in the pbc
+        self.buffer = np.array([buffer, buffer, buffer])
         if self.struct and self.struct.options and self.struct.options.buffer:
             self.buffer[:] = self.struct.options.buffer
 
@@ -274,17 +274,18 @@ class GriddedMol(lmpfull.Mol):
         self.vecs = list(itertools.product(*[[y for y in x] for x in ptc]))
         self.vecs *= size
 
-    def setConformers(self, vecs):
+    def setConformers(self, vectors):
         """
-        Place the conformers into boxes based on the shifting vectors.
+        Use the shifting vectors to place the conformers into the pbc.
 
-        :param vecs np.ndarray: the translational vectors to move the conformer.
+        :param vectors np.ndarray: the base shifting vectors in the pbc.
+        :return vectors np.ndarray: the unused shifting vectors.
         """
         cids = np.arange(len(self.confs))
         conf_total = np.prod(self.num)
         ids = cids // conf_total
-        self.vectors = self.vecs[cids % conf_total] + vecs[ids]
-        return vecs[ids[-1] + 1:]
+        self.vectors = self.vecs[cids % conf_total] + vectors[ids]
+        return vectors[ids[-1] + 1:]
 
     @property
     def size(self):
