@@ -262,11 +262,11 @@ class GriddedMol(lmpfull.Mol):
         if self.struct and self.struct.options and self.struct.options.buffer:
             self.buffer[:] = self.struct.options.buffer
 
-    def run(self, size):
+    def setBox(self, size):
         """
-        Set the conformer number per edge and within-box translational vectors.
+        Set the box size.
 
-        :param size np.ndarray: the box size to place this molecule in.
+        :param size np.ndarray: the largest size over all molecules
         """
         self.num = np.floor(size / self.size).astype(int)
         ptc = [np.linspace(-0.5, 0.5, x, endpoint=False) for x in self.num]
@@ -294,13 +294,6 @@ class GriddedMol(lmpfull.Mol):
         # Assumes all conformers from one molecule are the same
         xyzs = self.GetConformer().GetPositions()
         return (xyzs.max(axis=0) - xyzs.min(axis=0)) + self.buffer
-
-    @property
-    def box_num(self):
-        """
-        Return the number of boxes needed to place all conformers.
-        """
-        return math.ceil(len(self.confs) / np.prod(self.num))
 
 
 class PackedMol(lmpfull.Mol):
@@ -431,6 +424,9 @@ class Struct(lmpfull.Struct):
     """
 
     def __init__(self, *args, density=0.5, **kwargs):
+        """
+        :param density float: the density of the structure.
+        """
         super().__init__(*args, **kwargs)
         self.density = density
 
@@ -445,17 +441,21 @@ class GriddedStruct(Struct):
         """
         Set conformers for all molecules.
         """
-        self.setVecs()
         self.setBox()
         self.setConformers()
         self.setDensity()
 
-    def setVecs(self):
+    def setBox(self):
         """
-        Set translational vectors within the box.
+        Set the box of each molecule and the over-all pbc box.
         """
         for mol in self.mols:
-            mol.run(self.size)
+            mol.setBox(self.size)
+        box_total = [x.GetNumConformers() / x.num.prod() for x in self.mols]
+        box_total = sum(math.ceil(x) for x in box_total)
+        edges = self.size * math.ceil(math.pow(box_total, 1. / 3))
+        self.box = pbc.Box.fromParams(*edges, tilted=False)
+        logger.debug(f'Box: {self.box.span.max():.2f} {symbols.ANGSTROM}.')
 
     @property
     @functools.cache
@@ -466,15 +466,6 @@ class GriddedStruct(Struct):
         :return `np.ndarray`: the maximum size.
         """
         return np.array([x.size for x in self.mols]).max(axis=0)
-
-    def setBox(self):
-        """
-        Set the over-all periodic boundary box.
-        """
-        box_total = sum(x.box_num for x in self.mols)
-        edges = self.size * math.ceil(math.pow(box_total, 1. / 3))
-        self.box = pbc.Box.fromParams(*edges, tilted=False)
-        logger.debug(f'Box: {self.box.span.max():.2f} {symbols.ANGSTROM}.')
 
     def setConformers(self):
         """
