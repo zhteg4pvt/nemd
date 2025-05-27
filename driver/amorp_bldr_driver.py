@@ -101,15 +101,13 @@ class Amorphous(logutils.Base):
             ClassStruct = structutils.PackedStruct
         self.struct = ClassStruct.fromMols(self.mols, options=self.options)
         step = min([0.1, self.options.density / num])
-        mini_density = min([mini_density, step])
-        while self.struct.density > mini_density:
+        while self.struct.density >= min([mini_density, step]):
             if self.struct.run():
                 return
             self.struct.density -= step
             self.log(f'Density is reduced to {self.struct.density:.4f} g/cm^3')
-        self.error(
-            f"Amorphous structure cannot be built with density as low as "
-            f"{self.struct.density} g/cm^3")
+        self.error(f"Amorphous structure cannot be built with density as low "
+                   f"as {self.struct.density} g/cm^3")
 
     def write(self):
         """

@@ -1,3 +1,4 @@
+import itertools
 from unittest import mock
 
 import numpy as np
@@ -290,11 +291,10 @@ class TestPackFrame:
         'file,expected',
         [(envutils.test_data('hexane_liquid', 'dump.custom'), 8000)])
     def testGetPoint(self, frm, expected):
-        points = structutils.PackFrame(frm).getPoints()
-        assert expected == points.shape[0] == np.unique(points,
-                                                        axis=0).shape[0]
-        assert (frm.box.lo.min() <= points.min()).all()
-        assert (frm.box.hi.max() >= points.max()).all()
+        pnts = structutils.PackFrame(frm).getPoints()
+        assert expected == pnts.shape[0] == np.unique(pnts, axis=0).shape[0]
+        assert (frm.box.lo.min() <= pnts.min()).all()
+        assert (frm.box.hi.max() >= pnts.max()).all()
 
 
 @pytest.mark.parametrize('smiles,seed', [(('CCCCC(CC)CC', 'C'), 0)])
@@ -312,3 +312,66 @@ class TestGrownFrame:
     @pytest.mark.parametrize('grp,expected', [(None, 16), ([0, 1], 36)])
     def testGetDists(self, dist, grp, expected):
         assert expected == dist.getDists(grp=grp).shape[0]
+
+
+@pytest.mark.parametrize('smiles,seed', [(('CCCCC(CC)CC', 'C'), 0)])
+class TestPackedStruct:
+
+    @pytest.fixture
+    def struct(self, seed, smiles, random_seed):
+        mols = [structutils.PackedMol.MolFromSmiles(x) for x in smiles]
+        for mol in mols:
+            mol.EmbedMultipleConfs(2, randomSeed=seed)
+        return structutils.PackedStruct.fromMols(mols)
+
+    def testRun(self, struct):
+        assert struct.run()
+
+    def testSetBox(self, struct):
+        struct.setBox()
+        np.testing.assert_almost_equal(struct.box.hi.max(), 9.859626871423261)
+
+    def testSetFrame(self, struct):
+        struct.setBox()
+        struct.setFrame()
+        assert 20 == struct.dist.shape[0]
+
+    @pytest.mark.parametrize('possible,expected', [(True, (True, [4])),
+                                                   (False, (None, []))])
+    def testSetFrame(self, struct, possible, expected):
+        struct.setBox()
+        struct.setFrame()
+        with mock.patch.object(struct, 'isPossible', return_value=possible):
+            assert expected[0] == struct.setConformers()
+        assert expected[1] == struct.placed
+
+    @pytest.mark.parametrize('idx,expected', [(None, (4, 20)), (3, (2, 0))])
+    def testAttempt(self, struct, idx, expected):
+        if idx is not None:
+            conf = next(itertools.islice(struct.conf, idx - 1, idx), None)
+            conf.setConformer = mock.Mock(side_effect=structutils.ConfError)
+        struct.setBox()
+        struct.setFrame()
+        struct.attempt()
+        assert expected == (struct.placed[0], len(struct.dist.gids.on))
+
+    @pytest.mark.parametrize('placed,intvl,expected',
+                             [([], 5, True), ([1, 1, 1, 1], 4, 0.0),
+                              ([1, 2, 3, 4], 4, True)])
+    def testIsPossible(self, struct, placed, intvl, expected):
+        struct.placed = placed
+        assert expected == struct.isPossible(intvl=intvl)
+
+    @pytest.mark.parametrize('expected', [4])
+    def testConfTotal(self, struct, expected):
+        assert expected == struct.conf_total
+
+    def testReset(self, struct):
+        struct.setBox()
+        struct.setFrame()
+        oxyz = struct.GetPositions()
+        struct.attempt()
+        struct.reset()
+        assert not len(struct.dist.gids.on)
+        np.testing.assert_almost_equal(struct.GetPositions(), oxyz)
+        np.testing.assert_almost_equal(struct.dist, oxyz)

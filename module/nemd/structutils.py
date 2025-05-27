@@ -564,19 +564,16 @@ class PackedStruct(Struct):
     Frame = PackFrame
 
     def __init__(self, *args, **kwargs):
-        # Force field -> Molecular weight -> Box -> Frame -> Distance cell
         super().__init__(*args, **kwargs)
         self.dist = None
         self.placed = []
 
     def run(self):
         """
-        Create amorphous cell of the target density by randomly placing
-        molecules with random orientations.
+        Main method to run.
 
-        :return bool: True if successfully set.
+        :return bool: True if successfully set all conformers.
         """
-        # The density will be reduced when the attempt exceeds the max trial.
         self.setBox()
         self.setFrame()
         return self.setConformers()
@@ -625,7 +622,6 @@ class PackedStruct(Struct):
                 try:
                     conf.setConformer()
                 except ConfError:
-                    # FIXME: Failed to fill the void with initiator too often
                     self.reset()
                     self.placed.append(num - 1)
                     return
@@ -636,19 +632,19 @@ class PackedStruct(Struct):
                         threshold = round(threshold + tenth, 1)
         self.placed.append(num)
 
-    def isPossible(self, intvl=5):
+    def isPossible(self, intvl=5, zscore=scipy.stats.norm.ppf(0.9995)):
         """
         Whether further attempt is statistically possible.
 
         :param intvl int: the interval to check possibility.
+        :param zscore float: z score threshold for possibility.
         :return bool: whether it is statistically possible.
         """
         if not self.placed or len(self.placed) % intvl != 0:
             return True
-        std = np.std(self.placed)
-        if std:
-            zscore = abs(self.conf_total - np.average(self.placed)) / std
-            return scipy.stats.norm.cdf(-zscore) > 0.05
+
+        std = np.std(self.placed, ddof=1)
+        return std and self.conf_total - np.average(self.placed) < zscore * std
 
     @property
     def conf_total(self):
