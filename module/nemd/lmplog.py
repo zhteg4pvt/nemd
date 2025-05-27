@@ -113,9 +113,11 @@ class Log(lammpsin.In):
         self.read()
         self.setThermo()
 
-    def read(self):
+    def read(self, to_skip=('SHAKE', 'Bond', 'Angle', 'WARNING')):
         """
         Read the LAMMPS log file to extract the thermodynamic data.
+
+        :param to_skip tuple: block lines starting with these are to skip.
         """
         with open(self.filename) as fh:
             blk = []
@@ -127,7 +129,7 @@ class Log(lammpsin.In):
                     blk = []
                 elif blk:
                     # Inside thermo block: skip lines from fix rigid outputs
-                    if not line.startswith(('SHAKE', 'Bond', 'Angle', 'WARNING')):
+                    if not line.startswith(to_skip):
                         blk.append(line)
                 elif line.startswith('Per MPI rank memory allocation'):
                     # Start a new block

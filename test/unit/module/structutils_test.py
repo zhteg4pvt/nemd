@@ -5,6 +5,7 @@ import pytest
 import scipy
 from rdkit import Chem
 
+from nemd import structure
 from nemd import structutils
 
 
@@ -163,7 +164,7 @@ class TestGriddedMol:
 
 class TestPackedMol:
 
-    @pytest.mark.parametrize('smiles,seed,expected', [('O', 0, (3,3))])
+    @pytest.mark.parametrize('smiles,seed,expected', [('O', 0, (3, 3))])
     def testSetUp(self, smiles, seed, expected):
         mol = structutils.PackedMol.MolFromSmiles(smiles)
         mol.EmbedMultipleConfs(2, randomSeed=seed)
@@ -171,3 +172,54 @@ class TestPackedMol:
             assert conf.oxyz is None
         for conf in structutils.PackedMol(mol).confs:
             assert expected == conf.oxyz.shape
+
+
+@pytest.mark.parametrize('seed', [0])
+class TestGrownMol:
+
+    @pytest.fixture
+    def mol(self, smiles, seed):
+        mol = structure.Mol.MolFromSmiles(smiles)
+        mol.EmbedMultipleConfs(2, randomSeed=seed)
+        return structutils.GrownMol(mol)
+
+    @pytest.mark.parametrize('smiles', ['CCCCC(CC)CC'])
+    def testSetUp(self, mol):
+        assert all(x.frag for x in mol.confs)
+
+    @pytest.mark.parametrize('smiles,expected', [('CCCCC(CC)CC', 18)])
+    def testShift(self, mol, expected):
+        mol.shift(mol.confs[0])
+        gids = [y for x in mol.confs for y in x.init]
+        gids += [z for x in mol.confs for y in x.frag.next() for z in y.ids]
+        assert set(range(expected, expected * 2)) == set(gids)
+
+    @pytest.mark.parametrize('smiles,expected', [('CCCCC(CC)CC', True),
+                                                 ('C', False)])
+    def testFrag(self, mol, expected):
+        assert expected == bool(mol.frag)
+
+    @pytest.mark.parametrize('smiles,expected', [('CCCCC(CC)CC', [0, 1, 2]),
+                                                 ('C', [0])])
+    def testInit(self, mol, expected):
+        np.testing.assert_equal(mol.init, expected)
+
+    @pytest.mark.parametrize('smiles', ['CCCCC(CC)CC'])
+    @pytest.mark.parametrize('sources,targets,polym_ht,expected',
+                             [((None, ), (None, ), None, 4),
+                              ((None, ), (None, ), (1, 4), 1),
+                              ((0, 1), (4, 5), (1, 4), 3)])
+    def testGetDihes(self, mol, sources, targets, polym_ht, expected):
+        if polym_ht:
+            mol.polym = True
+            for idx in polym_ht:
+                mol.GetAtomWithIdx(idx).SetBoolProp('polym_ht', True)
+        assert expected == len(mol.getDihes(sources=sources, targets=targets))
+
+    @pytest.mark.parametrize('smiles', ['CCCCC(CC)CC'])
+    @pytest.mark.parametrize('source,target,expected', [(None, None, 7),
+                                                        (None, 5, 6),
+                                                        (3, None, 4),
+                                                        (1, 5, 5)])
+    def testFindPath(self, mol, source, target, expected):
+        assert expected == len(mol.findPath(source=source, target=target))
