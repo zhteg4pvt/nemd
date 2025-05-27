@@ -159,3 +159,15 @@ class TestGriddedMol:
     def testBoxNum(self, mol, size, expected):
         mol.run(np.array(size))
         assert expected == mol.box_num
+
+
+class TestPackedMol:
+
+    @pytest.mark.parametrize('smiles,seed,expected', [('O', 0, (3,3))])
+    def testSetUp(self, smiles, seed, expected):
+        mol = structutils.PackedMol.MolFromSmiles(smiles)
+        mol.EmbedMultipleConfs(2, randomSeed=seed)
+        for conf in mol.confs:
+            assert conf.oxyz is None
+        for conf in structutils.PackedMol(mol).confs:
+            assert expected == conf.oxyz.shape

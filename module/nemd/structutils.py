@@ -281,11 +281,10 @@ class GriddedMol(lmpfull.Mol):
         :param vectors np.ndarray: the base shifting vectors in the pbc.
         :return vectors np.ndarray: the unused shifting vectors.
         """
-        cids = np.arange(len(self.confs))
-        conf_total = np.prod(self.num)
-        ids = cids // conf_total
-        self.vectors = self.vecs[cids % conf_total] + vectors[ids]
-        return vectors[ids[-1] + 1:]
+        ids = np.arange(self.GetNumConformers())
+        selected, ids = divmod(ids, self.num.prod())
+        self.vectors = vectors[selected] + self.vecs[ids]
+        return vectors[selected[-1] + 1:]
 
     @property
     def size(self):
@@ -306,15 +305,15 @@ class GriddedMol(lmpfull.Mol):
 
 class PackedMol(lmpfull.Mol):
     """
-    A subclass of Chem.rdchem.Mol with additional attributes and methods.
+    Customized for packed conformers.
     """
     Conf = PackedConf
 
-    def updateAll(self):
+    def setUp(self, *args, **kwargs):
         """
         See parent.
         """
-        super().updateAll()
+        super().setUp(*args, **kwargs)
         for conf in self.GetConformers():
             conf.oxyz = conf.GetPositions()
 
