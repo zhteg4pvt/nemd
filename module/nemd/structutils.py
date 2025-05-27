@@ -197,10 +197,11 @@ class GrownConf(PackedConf):
         self.frag.reset()
         self.mol.struct.dist.set(self.init, state=False)
         self.setConformer()
-        logger.debug(
-            f"Initiator {self.gid} is relocated "
-            f"{self.mol.struct.dist.getDists(self.init).min():.2f} separated. "
-            f"({self.mol.struct.dist.getDists().min():.2f} to initiators)")
+        dists = self.mol.struct.dist.getDists(self.init)
+        if len(dists):
+            logger.debug(f"Initiator {self.gid} relocated {dists.min():.2f} "
+                         f"away. ({self.mol.struct.dist.getDists().min():.2f} "
+                         "to initiators)")
 
     def setConformer(self, **kwargs):
         """
@@ -557,11 +558,13 @@ class GrownFrame(PackFrame):
             return super().getDists(grp, grps=[other for _ in grp])
 
         grps = [y.init for x in self.struct.mols for y in x.confs]
+        grps = [x for x in grps if self.gids[x].all()]
         pairs = ([grps[i], grps[:i]] for i in range(1, len(grps)))
-        return np.concatenate([
+        dists = [
             super(GrownFrame, self).getDists(x, grps=[np.concatenate(y)])
             for x, y in pairs
-        ])
+        ]
+        return np.concatenate(dists if dists else [[]])
 
 
 class PackedStruct(Struct):
@@ -629,23 +632,22 @@ class PackedStruct(Struct):
         """
         One attempt on setting the conformers.
         """
+        tenth, threshold = self.conf_total / 10., -1
         with logger.oneLine(logging.DEBUG) as log:
-            tenth, threshold, = self.conf_total / 10., 0
-            for index, conf in enumerate(self.conf):
-                if index >= threshold:
-                    log(f"{int(index / self.conf_total * 100)}%")
-                    threshold = round(threshold + tenth, 1)
+            for num, conf in enumerate(self.conf, 1):
                 try:
                     conf.setConformer()
                 except ConfError:
                     # FIXME: Failed to fill the void with initiator too often
                     self.reset()
-                    self.placed.append(index)
+                    self.placed.append(num - 1)
                     return
-                # One conformer successfully placed
-            else:
-                log("100%")
-                self.placed.append(self.conf_total)
+                else:
+                    # One conformer successfully placed
+                    if num > threshold:
+                        log(f"{int(num / self.conf_total * 100)}%")
+                        threshold = round(threshold + tenth, 1)
+        self.placed.append(num)
 
     def isPossible(self, intvl=5):
         """
@@ -694,7 +696,7 @@ class GrownStruct(PackedStruct):
         super().attempt()
         if self.placed[-1] != self.conf_total:
             confs = itertools.islice(self.conf, self.placed[-1])
-            self.placed[-1] = len([x for x in confs if x.frag is None])
+            self.placed[-1] -= len([x for x in confs if x.frag is not None])
             return
         logger.debug(f'{self.conf_total} initiators have been placed.')
         if self.conf_total != 1:
@@ -706,7 +708,7 @@ class GrownStruct(PackedStruct):
             except ConfError:
                 # FIXME: Failed attempt should try to reduce clash criteria
                 self.reset()
-                self.placed[-1] = self.conf_total - len(confs)
+                self.placed[-1] -= len(confs)
                 return
             # Successfully set one fragment.
             if confs[0].frags:

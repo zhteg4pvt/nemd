@@ -1,3 +1,5 @@
+from unittest import mock
+
 import numpy as np
 import pytest
 import scipy
@@ -42,26 +44,35 @@ class TestConf:
         np.testing.assert_almost_equal(oxyz, xyz - vec)
 
 
-@pytest.mark.parametrize('smiles', ['O'])
+@pytest.mark.parametrize('smiles,seed', [('O', 0)])
 class TestPackedConf:
 
     @pytest.fixture
-    def conf(self, smiles):
+    def conf(self, smiles, seed, random_seed):
         mol = structutils.PackedMol.MolFromSmiles(smiles)
-        mol.EmbedMolecule()
+        mol.EmbedMultipleConfs(2, randomSeed=seed)
         struct = structutils.PackedStruct.fromMols([mol])
         struct.setBox()
-        return next(struct.conf)
+        struct.setFrame()
+        struct.dist.set([0, 1, 2])
+        return list(struct.conf)[1]
 
     def testSetConformer(self, conf):
         conf.setConformer()
         assert conf.mol.struct.dist.gids.all()
+        np.testing.assert_almost_equal(conf.GetPositions().mean(), 3.0663129)
 
-    @pytest.mark.parametrize('seed,aids', [(1234, [0, 1])])
-    def testRotateRandomly(self, conf, seed, aids):
+    @pytest.mark.parametrize('gids', [([2])])
+    def testCheckClash(self, conf, gids):
+        assert conf.checkClash([3, 4, 5]) is None
+        conf.setConformer()
+        assert conf.checkClash([3, 4, 5]) is True
+
+    @pytest.mark.parametrize('aids', [([0, 1])])
+    def testRotateRandomly(self, conf, aids):
         oxyz = conf.GetPositions()
         obond = Chem.rdMolTransforms.GetBondLength(conf, *aids)
-        conf.rotateRandomly(seed=seed)
+        conf.rotateRandomly()
         assert not (oxyz == conf.GetPositions()).all()
         bond = Chem.rdMolTransforms.GetBondLength(conf, *aids)
         np.testing.assert_almost_equal(bond, obond)
@@ -71,3 +82,49 @@ class TestPackedConf:
         oxyz = conf.GetPositions()
         conf.reset()
         assert not (oxyz == conf.GetPositions()).all()
+
+
+@pytest.mark.parametrize('smiles,seed', [('CCCCC(CC)CC', 0)])
+class TestGrownConf:
+
+    @pytest.fixture
+    def conf(self, smiles, seed, random_seed):
+        mol = structutils.GrownMol.MolFromSmiles(smiles)
+        mol.EmbedMultipleConfs(2, randomSeed=seed)
+        struct = structutils.GrownStruct.fromMols([mol])
+        struct.setBox()
+        struct.setFrame()
+        struct.dist.set([0, 1, 2])
+        return list(struct.conf)[1]
+
+    def testSetUp(self, conf):
+        np.testing.assert_almost_equal(conf.init, [9, 10, 11])
+        assert 5 == len(list(conf.frag.next()))
+        assert 1 == len(conf.frags)
+
+    def testGrow(self, conf):
+        while conf.frags:
+            conf.grow()
+        assert 1 == conf.failed
+        assert conf.mol.struct.dist.gids[conf.gids].all()
+
+    def testSetConformer(self, conf):
+        conf.setConformer()
+        assert 6 == conf.mol.struct.dist.gids.on.size
+
+    def testCentroid(self, conf):
+        np.testing.assert_almost_equal(conf.centroid(),
+                                       [2.64317873, -0.42000759, -0.21083656])
+
+    @pytest.mark.parametrize('dihe,expected', [((0, 1, 2, 3), 6),
+                                               ((1, 2, 3, 4), 5)])
+    def testGetSwingAtoms(self, conf, dihe, expected):
+        assert expected == len(conf.getSwingAtoms(dihe))
+
+    def testReset(self, conf):
+        while conf.frags:
+            conf.grow()
+        conf.reset()
+        assert 0 == conf.failed
+        assert len(conf.frags)
+        assert 36 == len(conf.frag.vals)

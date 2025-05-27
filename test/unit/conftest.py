@@ -6,6 +6,7 @@ Test configuration, such as global testing fixtures...
 import collections
 import contextlib
 import os
+import random
 import shutil
 from unittest import mock
 
@@ -15,6 +16,7 @@ import pytest
 from nemd import envutils
 from nemd import frame
 from nemd import jobutils
+from nemd import np
 from nemd import oplsua
 from nemd import osutils
 from nemd import pytestutils
@@ -196,3 +198,14 @@ def tmol(mol, ff=oplsua.Parser.get()):
     """
     ff.type(mol)
     return mol
+
+
+@pytest.fixture
+def random_seed(seed):
+    """
+    Set the random state using the seed.
+
+    :param seed `int`: the random seed.
+    """
+    np.random.seed(seed)
+    random.seed(seed)
