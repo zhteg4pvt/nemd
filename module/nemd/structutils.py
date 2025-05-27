@@ -423,12 +423,9 @@ class Struct(lmpfull.Struct):
     Customized with density.
     """
 
-    def __init__(self, *args, density=0.5, **kwargs):
-        """
-        :param density float: the density of the structure.
-        """
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.density = density
+        self.density = getattr(self.options, 'density', 0.5)
 
 
 class GriddedStruct(Struct):
@@ -572,16 +569,14 @@ class PackedStruct(Struct):
         self.dist = None
         self.placed = []
 
-    def runWithDensity(self, density):
+    def run(self):
         """
         Create amorphous cell of the target density by randomly placing
         molecules with random orientations.
 
-        :param density float: the target density.
         :return bool: True if successfully set.
         """
         # The density will be reduced when the attempt exceeds the max trial.
-        self.density = density
         self.setBox()
         self.setFrame()
         return self.setConformers()

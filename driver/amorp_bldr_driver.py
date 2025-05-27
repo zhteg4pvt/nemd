@@ -93,25 +93,23 @@ class Amorphous(logutils.Base):
         """
         Create amorphous cell.
 
-        :param ClassStruct 'Struct': the structure class
-        :param mini_density float: the minium density for liquid and solid when
-            reducing it automatically.
+        :param ClassStruct 'Struct': the structure class.
+        :param mini_density float: the minium density for liquid and solid.
         :param num int: the number of densities to try.
         """
         if ClassStruct is None:
             ClassStruct = structutils.PackedStruct
         self.struct = ClassStruct.fromMols(self.mols, options=self.options)
-        mini_density = min([mini_density, self.options.density / num])
         step = min([0.1, self.options.density / num])
-        densities = np.arange(self.options.density, mini_density, -step)
-        for idx, density in enumerate(np.append(densities, mini_density)):
-            if idx != 0:
-                self.log(f'Density is reduced to {density:.4f} g/cm^3')
-            if self.struct.runWithDensity(density):
+        mini_density = min([mini_density, step])
+        while self.struct.density > mini_density:
+            if self.struct.run():
                 return
+            self.struct.density -= step
+            self.log(f'Density is reduced to {self.struct.density:.4f} g/cm^3')
         self.error(
             f"Amorphous structure cannot be built with density as low as "
-            f"{density} g/cm^3")
+            f"{self.struct.density} g/cm^3")
 
     def write(self):
         """

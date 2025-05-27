@@ -6,6 +6,7 @@ import scipy
 from rdkit import Chem
 
 from nemd import envutils
+from nemd import parserutils
 from nemd import structure
 from nemd import structutils
 
@@ -224,7 +225,9 @@ class TestStruct:
 
     @pytest.mark.parametrize('density', [0.5, 1])
     def testInit(self, density):
-        assert density == structutils.Struct(density=density).density
+        args = ['C', '-density', str(density)]
+        options = parserutils.AmorpBldr().parse_args(args)
+        assert density == structutils.Struct(options=options).density
 
 
 @pytest.mark.parametrize('smiles,seed', [(('CCCCC(CC)CC', 'C'), 0)])
@@ -292,3 +295,20 @@ class TestPackFrame:
                                                         axis=0).shape[0]
         assert (frm.box.lo.min() <= points.min()).all()
         assert (frm.box.hi.max() >= points.max()).all()
+
+
+@pytest.mark.parametrize('smiles,seed', [(('CCCCC(CC)CC', 'C'), 0)])
+class TestGrownFrame:
+
+    @pytest.fixture
+    def dist(self, seed, smiles, random_seed):
+        mols = [structutils.GrownMol.MolFromSmiles(x) for x in smiles]
+        for mol in mols:
+            mol.EmbedMultipleConfs(2, randomSeed=seed)
+        struct = structutils.GrownStruct.fromMols(mols)
+        struct.run()
+        return struct.dist
+
+    @pytest.mark.parametrize('grp,expected', [(None, 16), ([0, 1], 36)])
+    def testGetDists(self, dist, grp, expected):
+        assert expected == dist.getDists(grp=grp).shape[0]
