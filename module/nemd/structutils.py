@@ -766,7 +766,7 @@ class Fragment:
         frags = [self]
         while frags:
             frag = frags.pop()
-            if partial and len(frag.vals) != self.NUM:
+            if partial and len(frag.vals) == self.NUM:
                 continue
             yield frag
             frags.extend(frag.nfrags)

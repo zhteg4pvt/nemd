@@ -323,7 +323,7 @@ class TestDriver:
 
     @pytest.mark.parametrize('ekey', ['DEBUG'])
     @pytest.mark.parametrize('evalue,args,expected',
-                             [(None, [], False), ('', [], False),
+                             [(None, [], None), ('', [], None),
                               (None, ['-DEBUG'], True),
                               ('1', ['-DEBUG', 'False'], False)])
     def testAddDebug(self, args, expected, env):

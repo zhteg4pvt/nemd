@@ -217,7 +217,7 @@ class TestTestAgg:
     @pytest.mark.parametrize('args,expected', [([], 1), (['1'], 1), (['2'], 0),
                                                (['-label', 'amorp_b'], 1),
                                                (['-label', 'xtal'], 0),
-                                               (['-slow', '1'], 0),
+                                               (['-slow', '0.5'], 0),
                                                (['-slow', '5'], 1)])
     def testFilter(self, test_agg, expected):
         test_agg.filter()

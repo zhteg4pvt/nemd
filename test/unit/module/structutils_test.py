@@ -412,7 +412,7 @@ class TestFragment:
         assert 36 == new.ovals.shape[0] == len(new.vals)
 
     @pytest.mark.parametrize('smiles,dihe', [('CCCCC', (0, 1, 2, 3))])
-    @pytest.mark.parametrize('partial,expected', [(False, 2), (True, 1)])
+    @pytest.mark.parametrize('partial,expected', [(False, 2), (True, 0)])
     def testNext(self, new, partial, expected):
         assert expected == len(list(new.next(partial=partial)))
 
@@ -422,3 +422,31 @@ class TestFragment:
         assert 36 != len(new.vals)
         new.reset()
         assert 36 == len(new.vals)
+
+
+@pytest.mark.parametrize('cnum', [2])
+class TestFirst:
+
+    @pytest.fixture
+    def first(self, emol, dihe):
+        mol = structutils.GrownMol(emol)
+        return structutils.First(mol.GetConformer(0), dihe)
+
+    @pytest.mark.parametrize('smiles,dihe,expected',
+                             [('CCCC', (0, 1, 2, 3), 1),
+                              ('CCCCC(CC)CC', (0, 1, 2, 3), 5),
+                              ('CCC(CC)CCCC(CC)CC', (0, 1, 2, 5), 8)])
+    def testSetUp(self, first, expected):
+        assert expected == len(list(first.next()))
+
+    @pytest.mark.parametrize('smiles,dihe,expected',
+                             [('CCCC', (0, 1, 2, 3), 1),
+                              ('CCCCC(CC)CC', (0, 1, 2, 3), 5),
+                              ('CCC(CC)CCCC(CC)CC', (0, 1, 2, 5), 8)])
+    def testNew(self, first, expected):
+        conf = first.conf.mol.GetConformer(1)
+        new = first.new(conf)
+        for frag in new.next():
+            assert conf == frag.conf
+        assert expected == len(list(first.next()))
+        assert conf.gids.max() == max([y for x in new.next() for y in x.ids])
