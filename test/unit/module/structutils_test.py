@@ -45,7 +45,7 @@ class TestConf:
         np.testing.assert_almost_equal(oxyz, xyz - vec)
 
 
-@pytest.mark.parametrize('smiles,cnum,seed', [('O',2, 0)])
+@pytest.mark.parametrize('smiles,cnum,seed', [('O', 2, 0)])
 class TestPackedConf:
 
     @pytest.fixture
@@ -374,3 +374,51 @@ class TestGrownStruct:
         struct.setFrame()
         struct.attempt()
         assert expected == struct.placed[0]
+
+
+@pytest.mark.parametrize('cnum', [2])
+class TestFragment:
+
+    @pytest.fixture
+    def frag(self, emol, dihe):
+        mol = structutils.GrownMol(emol)
+        return structutils.Fragment(mol.GetConformer(0), dihe)
+
+    @pytest.fixture
+    def new(self, frag):
+        frag.setNfrags()
+        return frag.new(frag.conf.mol.GetConformer(1))
+
+    @pytest.mark.parametrize('smiles,dihe,expected',
+                             [('CCCC', (0, 1, 2, 3), [3]),
+                              ('CCCCC(CC)CC',
+                               (0, 1, 2, 3), [3, 4, 5, 6, 7, 8])])
+    def testSetUp(self, frag, expected):
+        np.testing.assert_equal(frag.ids, expected)
+
+    @pytest.mark.parametrize('smiles,dihe,expected',
+                             [('CCCC', (0, 1, 2, 3), 1),
+                              ('CCCCC(CC)CC', (0, 1, 2, 3), 4),
+                              ('CCC(CC)CCCC(CC)CC', (0, 1, 2, 5), 7)])
+    def testSetNfrags(self, frag, expected):
+        frag.setNfrags()
+        assert expected == len(list(frag.next()))
+
+    @pytest.mark.parametrize('smiles,dihe,expected',
+                             [('CCCC', (0, 1, 2, 3), [7, 0]),
+                              ('CCCCC(CC)CC', (0, 1, 2, 3), [12, 1])])
+    def testNew(self, new, expected):
+        assert expected == [*new.ids, len(new.nfrags)]
+        assert 36 == new.ovals.shape[0] == len(new.vals)
+
+    @pytest.mark.parametrize('smiles,dihe', [('CCCCC', (0, 1, 2, 3))])
+    @pytest.mark.parametrize('partial,expected', [(False, 2), (True, 1)])
+    def testNext(self, new, partial, expected):
+        assert expected == len(list(new.next(partial=partial)))
+
+    @pytest.mark.parametrize('smiles,dihe', [('CCCCC', (0, 1, 2, 3))])
+    def testReset(self, new):
+        new.vals.pop()
+        assert 36 != len(new.vals)
+        new.reset()
+        assert 36 == len(new.vals)

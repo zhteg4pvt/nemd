@@ -708,18 +708,18 @@ class Fragment:
 
     def __init__(self, conf, dihe, delay=False):
         """
-        :param conf 'GrownConf': the conformer that this fragment belongs to
+        :param conf 'GrownConf': the conformer that this fragment belongs to.
         :param dihe list: the dihedral that changes the swinging atom position.
         :param delay bool: whether to delay the initialization of the fragment.
         """
         self.conf = conf
         self.dihe = dihe
         self.delay = delay
-        self.ids = None  # aid (molecule) or gids (conformer) of the swing atoms
+        self.ids = None  # Swinging atoms: aids in molecule; gids in conformer
         self.pfrag = None  # Previous fragment
         self.nfrags = []  # Next fragments
         self.ovals = None  # Original dihedral value candidates
-        self.vals = None  # Available dihedral value candidates
+        self.vals = []  # Available dihedral value candidates
         if self.delay:
             return
         self.setUp()
@@ -766,7 +766,7 @@ class Fragment:
         frags = [self]
         while frags:
             frag = frags.pop()
-            if partial and len(frag.vals) == self.NUM:
+            if partial and len(frag.vals) != self.NUM:
                 continue
             yield frag
             frags.extend(frag.nfrags)
