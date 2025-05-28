@@ -689,7 +689,6 @@ class GrownStruct(PackedStruct):
             try:
                 confs[0].grow()
             except ConfError:
-                # FIXME: Failed attempt should try to reduce clash criteria
                 self.reset()
                 self.placed[-1] -= len(confs)
                 return

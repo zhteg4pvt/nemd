@@ -164,6 +164,20 @@ def frm(file):
 
 
 @pytest.fixture
+def smol(mol, cnum, seed):
+    """
+    Return a molecule of conformers from random seed.
+
+    :param mol `Mol`: the input molecule.
+    :param cnum `int`: the number of conformers.
+    :param seed int: the random seed for the embedding.
+    :return `structure.Mol`: the molecule
+    """
+    mol.EmbedMultipleConfs(numConfs=cnum, randomSeed=seed)
+    return mol
+
+
+@pytest.fixture
 def emol(mol, cnum):
     """
     Return a molecule with conformers.
@@ -198,6 +212,21 @@ def tmol(mol, ff=oplsua.Parser.get()):
     """
     ff.type(mol)
     return mol
+
+
+@pytest.fixture
+def mols(smiles, cnum, seed):
+    """
+    Return molecules of conformers from random seed.
+
+    :param smiles str: the input smiles
+    :param cnum `int`: the conformer number of each molecule.
+    :return list: the molecules
+    """
+    mols = [structure.Mol.MolFromSmiles(x) for x in smiles]
+    for mol in mols:
+        mol.EmbedMultipleConfs(cnum, randomSeed=seed)
+    return mols
 
 
 @pytest.fixture

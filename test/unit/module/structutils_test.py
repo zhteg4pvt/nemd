@@ -8,22 +8,19 @@ from rdkit import Chem
 
 from nemd import envutils
 from nemd import parserutils
-from nemd import structure
 from nemd import structutils
 
 
-@pytest.mark.parametrize('smiles', ['O'])
+@pytest.mark.parametrize('smiles,cnum,seed', [('O', 1, 0)])
 class TestConf:
 
     @pytest.fixture
-    def conf(self, smiles):
-        mol = structutils.GriddedMol.MolFromSmiles(smiles)
-        mol.EmbedMolecule()
-        return mol.GetConformer()
+    def conf(self, smol):
+        return structutils.GriddedMol(smol).GetConformer()
 
     @pytest.mark.parametrize('aids,ignoreHs,expected',
-                             [(None, False, [0, 0, 0]),
-                              ([0, 1], False, [-0.40656618, 0.09144816, 0.]),
+                             [(None, False, [-0.0254707, -0.0234309, 0.]),
+                              ([0, 1], False, [-0.3970275, 0.0979114, 0.]),
                               (None, True, [-0.00081616, 0.36637843, 0.])])
     def testCentroid(self, conf, aids, ignoreHs, expected):
         centroid = conf.centroid(aids=aids, ignoreHs=ignoreHs)
@@ -48,18 +45,16 @@ class TestConf:
         np.testing.assert_almost_equal(oxyz, xyz - vec)
 
 
-@pytest.mark.parametrize('smiles,seed', [('O', 0)])
+@pytest.mark.parametrize('smiles,cnum,seed', [('O',2, 0)])
 class TestPackedConf:
 
     @pytest.fixture
-    def conf(self, smiles, seed, random_seed):
-        mol = structutils.PackedMol.MolFromSmiles(smiles)
-        mol.EmbedMultipleConfs(2, randomSeed=seed)
-        struct = structutils.PackedStruct.fromMols([mol])
+    def conf(self, smol, random_seed):
+        struct = structutils.PackedStruct.fromMols([smol])
         struct.setBox()
         struct.setFrame()
         struct.dist.set([0, 1, 2])
-        return list(struct.conf)[1]
+        return next(itertools.islice(struct.conf, 1, 2))
 
     def testSetConformer(self, conf):
         conf.setConformer()
@@ -88,18 +83,16 @@ class TestPackedConf:
         assert not (oxyz == conf.GetPositions()).all()
 
 
-@pytest.mark.parametrize('smiles,seed', [('CCCCC(CC)CC', 0)])
+@pytest.mark.parametrize('smiles,cnum,seed', [('CCCCC(CC)CC', 2, 0)])
 class TestGrownConf:
 
     @pytest.fixture
-    def conf(self, smiles, seed, random_seed):
-        mol = structutils.GrownMol.MolFromSmiles(smiles)
-        mol.EmbedMultipleConfs(2, randomSeed=seed)
-        struct = structutils.GrownStruct.fromMols([mol])
+    def conf(self, smol, random_seed):
+        struct = structutils.GrownStruct.fromMols([smol])
         struct.setBox()
         struct.setFrame()
         struct.dist.set([0, 1, 2])
-        return list(struct.conf)[1]
+        return next(itertools.islice(struct.conf, 1, 2))
 
     def testSetUp(self, conf):
         np.testing.assert_almost_equal(conf.init, [9, 10, 11])
@@ -134,111 +127,100 @@ class TestGrownConf:
         assert 36 == len(conf.frag.vals)
 
 
-@pytest.mark.parametrize('smiles,seed', [('O', 0)])
+@pytest.mark.parametrize('smiles,cnum,seed', [('O', 2, 0)])
 class TestGriddedMol:
 
     @pytest.fixture
-    def mol(self, smiles, seed):
-        mol = structutils.GriddedMol.MolFromSmiles(smiles)
-        mol.EmbedMultipleConfs(2, randomSeed=seed)
-        return mol
+    def grid(self, smol):
+        return structutils.GriddedMol(smol)
 
     @pytest.mark.parametrize('size,expected', [([10, 10, 10], 4)])
-    def testSetBox(self, mol, size, expected):
-        mol.setBox(np.array(size))
-        assert expected == np.prod(mol.num) == len(mol.vecs)
+    def testSetBox(self, grid, size, expected):
+        grid.setBox(np.array(size))
+        assert expected == np.prod(grid.num) == len(grid.vecs)
 
     @pytest.mark.parametrize('size,num,expected', [([10, 10, 10], 20, (2, 19)),
                                                    ([6, 5, 5], 20, (2, 18))])
-    def testSetConformers(self, mol, size, num, expected):
-        mol.setBox(np.array(size))
-        unused = mol.setConformers(np.random.rand(num, 3))
-        assert expected == (len(mol.vectors), len(unused))
+    def testSetConformers(self, grid, size, num, expected):
+        grid.setBox(np.array(size))
+        unused = grid.setConformers(np.random.rand(num, 3))
+        assert expected == (len(grid.vectors), len(unused))
 
-    def testSize(self, mol):
-        np.testing.assert_almost_equal(mol.size, [5.62544856, 4.54986054, 4.])
+    def testSize(self, grid):
+        np.testing.assert_almost_equal(grid.size, [5.5108817, 4.6324939, 4.])
 
 
 class TestPackedMol:
 
-    @pytest.mark.parametrize('smiles,seed,expected', [('O', 0, (3, 3))])
-    def testSetUp(self, smiles, seed, expected):
-        mol = structutils.PackedMol.MolFromSmiles(smiles)
-        mol.EmbedMultipleConfs(2, randomSeed=seed)
-        for conf in mol.confs:
-            assert conf.oxyz is None
-        for conf in structutils.PackedMol(mol).confs:
+    @pytest.mark.parametrize('smiles,cnum,expected', [('O', 2, (3, 3))])
+    def testSetUp(self, emol, expected):
+        for conf in structutils.PackedMol(emol).confs:
             assert expected == conf.oxyz.shape
 
 
-@pytest.mark.parametrize('seed', [0])
+@pytest.mark.parametrize('cnum,seed', [(2, 0)])
 class TestGrownMol:
 
     @pytest.fixture
-    def mol(self, smiles, seed):
-        mol = structure.Mol.MolFromSmiles(smiles)
-        mol.EmbedMultipleConfs(2, randomSeed=seed)
-        return structutils.GrownMol(mol)
+    def grown(self, smol, random_seed):
+        return structutils.GrownMol(smol)
 
     @pytest.mark.parametrize('smiles', ['CCCCC(CC)CC'])
-    def testSetUp(self, mol):
-        assert all(x.frag for x in mol.confs)
+    def testSetUp(self, grown):
+        assert all(x.frag for x in grown.confs)
 
     @pytest.mark.parametrize('smiles,expected', [('CCCCC(CC)CC', 18)])
-    def testShift(self, mol, expected):
-        mol.shift(mol.confs[0])
-        gids = [y for x in mol.confs for y in x.init]
-        gids += [z for x in mol.confs for y in x.frag.next() for z in y.ids]
+    def testShift(self, grown, expected):
+        grown.shift(grown.confs[0])
+        gids = [y for x in grown.confs for y in x.init]
+        gids += [z for x in grown.confs for y in x.frag.next() for z in y.ids]
         assert set(range(expected, expected * 2)) == set(gids)
 
     @pytest.mark.parametrize('smiles,expected', [('CCCCC(CC)CC', True),
                                                  ('C', False)])
-    def testFrag(self, mol, expected):
-        assert expected == bool(mol.frag)
+    def testFrag(self, grown, expected):
+        assert expected == bool(grown.frag)
 
     @pytest.mark.parametrize('smiles,expected', [('CCCCC(CC)CC', [0, 1, 2]),
                                                  ('C', [0])])
-    def testInit(self, mol, expected):
-        np.testing.assert_equal(mol.init, expected)
+    def testInit(self, grown, expected):
+        np.testing.assert_equal(grown.init, expected)
 
     @pytest.mark.parametrize('smiles', ['CCCCC(CC)CC'])
     @pytest.mark.parametrize('sources,targets,polym_ht,expected',
                              [((None, ), (None, ), None, 4),
                               ((None, ), (None, ), (1, 4), 1),
                               ((0, 1), (4, 5), (1, 4), 3)])
-    def testGetDihes(self, mol, sources, targets, polym_ht, expected):
+    def testGetDihes(self, grown, sources, targets, polym_ht, expected):
         if polym_ht:
-            mol.polym = True
+            grown.polym = True
             for idx in polym_ht:
-                mol.GetAtomWithIdx(idx).SetBoolProp('polym_ht', True)
-        assert expected == len(mol.getDihes(sources=sources, targets=targets))
+                grown.GetAtomWithIdx(idx).SetBoolProp('polym_ht', True)
+        assert expected == len(grown.getDihes(sources, targets))
 
     @pytest.mark.parametrize('smiles', ['CCCCC(CC)CC'])
     @pytest.mark.parametrize('source,target,expected', [(None, None, 7),
                                                         (None, 5, 6),
                                                         (3, None, 4),
                                                         (1, 5, 5)])
-    def testFindPath(self, mol, source, target, expected):
-        assert expected == len(mol.findPath(source=source, target=target))
+    def testFindPath(self, grown, source, target, expected):
+        assert expected == len(grown.findPath(source=source, target=target))
 
 
 class TestStruct:
 
     @pytest.mark.parametrize('density', [0.5, 1])
     def testInit(self, density):
-        args = ['C', '-density', str(density)]
-        options = parserutils.AmorpBldr().parse_args(args)
+        parser = parserutils.AmorpBldr()
+        options = parser.parse_args(['C', '-density', str(density)])
         assert density == structutils.Struct(options=options).density
 
 
-@pytest.mark.parametrize('smiles,seed', [(('CCCCC(CC)CC', 'C'), 0)])
+@pytest.mark.parametrize('smiles,cnum,seed', [(('CCCCC(CC)CC', 'C'), 1, 0)])
 class TestGriddedStruct:
 
     @pytest.fixture
-    def struct(self, smiles, seed, random_seed):
-        mols = [structutils.GriddedMol.MolFromSmiles(x) for x in smiles]
-        for mol in mols:
-            mol.EmbedMolecule(randomSeed=seed)
+    def struct(self, mols, random_seed):
         return structutils.GriddedStruct.fromMols(mols)
 
     @pytest.mark.parametrize('expected',
@@ -297,14 +279,11 @@ class TestPackFrame:
         assert (frm.box.hi.max() >= pnts.max()).all()
 
 
-@pytest.mark.parametrize('smiles,seed', [(('CCCCC(CC)CC', 'C'), 0)])
+@pytest.mark.parametrize('smiles,cnum,seed', [(('CCCCC(CC)CC', 'C'), 2, 0)])
 class TestGrownFrame:
 
     @pytest.fixture
-    def dist(self, seed, smiles, random_seed):
-        mols = [structutils.GrownMol.MolFromSmiles(x) for x in smiles]
-        for mol in mols:
-            mol.EmbedMultipleConfs(2, randomSeed=seed)
+    def dist(self, mols, random_seed):
         struct = structutils.GrownStruct.fromMols(mols)
         struct.run()
         return struct.dist
@@ -314,14 +293,11 @@ class TestGrownFrame:
         assert expected == dist.getDists(grp=grp).shape[0]
 
 
-@pytest.mark.parametrize('smiles,seed', [(('CCCCC(CC)CC', 'C'), 0)])
+@pytest.mark.parametrize('smiles,cnum,seed', [(('CCCCC(CC)CC', 'C'), 2, 0)])
 class TestPackedStruct:
 
     @pytest.fixture
-    def struct(self, seed, smiles, random_seed):
-        mols = [structutils.PackedMol.MolFromSmiles(x) for x in smiles]
-        for mol in mols:
-            mol.EmbedMultipleConfs(2, randomSeed=seed)
+    def struct(self, mols, random_seed):
         return structutils.PackedStruct.fromMols(mols)
 
     def testRun(self, struct):
@@ -345,10 +321,10 @@ class TestPackedStruct:
             assert expected[0] == struct.setConformers()
         assert expected[1] == struct.placed
 
-    @pytest.mark.parametrize('idx,expected', [(None, (4, 20)), (3, (2, 0))])
+    @pytest.mark.parametrize('idx,expected', [(None, (4, 20)), (2, (2, 0))])
     def testAttempt(self, struct, idx, expected):
         if idx is not None:
-            conf = next(itertools.islice(struct.conf, idx - 1, idx), None)
+            conf = next(itertools.islice(struct.conf, idx, idx + 1), None)
             conf.setConformer = mock.Mock(side_effect=structutils.ConfError)
         struct.setBox()
         struct.setFrame()
@@ -375,3 +351,26 @@ class TestPackedStruct:
         assert not len(struct.dist.gids.on)
         np.testing.assert_almost_equal(struct.GetPositions(), oxyz)
         np.testing.assert_almost_equal(struct.dist, oxyz)
+
+
+@pytest.mark.parametrize('smiles,cnum,seed', [(('CCCC', 'CC'), 2, 0)])
+class TestGrownStruct:
+
+    @pytest.fixture
+    def struct(self, mols, random_seed):
+        return structutils.GrownStruct.fromMols(mols)
+
+    @pytest.mark.parametrize('pidx,gidx,expected', [(None, None, 4),
+                                                    (3, None, 1),
+                                                    (None, 1, 3)])
+    def testAttempt(self, struct, pidx, gidx, expected):
+        if pidx is not None:
+            conf = next(itertools.islice(struct.conf, pidx, pidx + 1), None)
+            conf.setConformer = mock.Mock(side_effect=structutils.ConfError)
+        if gidx is not None:
+            conf = next(itertools.islice(struct.conf, gidx, gidx + 1), None)
+            conf.grow = mock.Mock(side_effect=structutils.ConfError)
+        struct.setBox()
+        struct.setFrame()
+        struct.attempt()
+        assert expected == struct.placed[0]
