@@ -11,7 +11,11 @@ from rdkit import Chem
 from nemd import structure
 from nemd import symbols
 
-WILD_CARD = symbols.WILD_CARD
+STAR = symbols.STAR
+REGULAR = 'regular'
+TERMINATOR = 'terminator'
+INITIATOR = 'initiator'
+MONOMER = 'monomer'
 
 
 class MoietyError(ValueError):
@@ -28,81 +32,60 @@ class Moiety(structure.Mol):
     HEAD_ID = 0
     TAIL_ID = 1
 
-    @property
-    @functools.cache
-    def wild_card(self):
-        """
-        Get the wild card atoms of the molecule.
-
-        :return rdkit.Chem.rdchem.Atom: the wild_card atoms.
-        :raises MoietyError: the wildcard caps > 1 atoms.
-        """
-        atoms = [x for x in self.GetAtoms() if x.GetSymbol() == WILD_CARD]
-        return atoms
-
     def capping(self, role_id=TAIL_ID):
         """
-        Get the capping atoms of the molecule according to the capping type.
+        Get the capping atoms.
 
         :param role_id int: the role id of the capping atoms.
-        :return rdkit.Chem.rdchem.Atom: the capping atoms.
+        :return list of rdkit.Chem.rdchem.Atom: the capping atoms.
+        :raises MoietyError: the wildcard caps > 1 atoms.
         """
-        if not all([len(x.GetNeighbors()) == 1 for x in self.wild_card]):
-            raise MoietyError(f"{WILD_CARD} caps > 1 atoms. ({self.smiles})")
-        return [x for x in self.wild_card if x.GetAtomMapNum() == role_id]
+        if not all([len(x.GetNeighbors()) == 1 for x in self.stars]):
+            raise MoietyError(f"{STAR} of {self.smiles} caps > 1 atoms.")
+        return [x for x in self.stars if x.GetAtomMapNum() == role_id]
 
     @property
     @functools.cache
-    def smiles(self):
+    def stars(self):
         """
-        Get the SMILES string of the molecule.
+        Get the atoms of the star symbol.
 
-        :return str: the SMILES string of the molecule
+        :return list of rdkit.Chem.rdchem.Atom: the star atoms.
         """
-        return Chem.MolToSmiles(self)
+        return [x for x in self.GetAtoms() if x.GetSymbol() == STAR]
 
-
-class Moieties(collections.UserDict):
-    """
-    Class to hold moieties and validate roles.
-    """
-
-    REGULAR = 'regular'
-    TERMINATOR = 'terminator'
-    INITIATOR = 'initiator'
-    MONOMER = 'monomer'
-    ROLES = {0: REGULAR, 1: TERMINATOR, 2: MONOMER}
-
-    def getRole(self, moiety):
+    @property
+    @functools.cache
+    def role(self, roles=(REGULAR, TERMINATOR, MONOMER)):
         """
-        Get the role of the molecule based on the capping count and map num.
+        Get the role.
 
-        :raise MoietyError: unsupported role.
-        :return str: the role of the molecule.
+        :raise MoietyError: unsupported roles.
+        :return str: the role.
         """
-        num = len(moiety.wild_card)
-        if num and num == len(moiety.capping()):
-            return self.INITIATOR
+        num = len(self.stars)
+        # By default, the map num of '*' is 0 (HEAD_ID) --> non-initiator roles
+        if num and num == len(self.capping()):
+            return INITIATOR
         try:
-            return self.ROLES[num]
+            return roles[num]
         except IndexError:
             # FIXME: branching units
-            raise MoietyError(f"{moiety.smiles} contains > 2 {WILD_CARD}.")
+            raise MoietyError(f"{self.smiles} contains > 2 {STAR}.")
 
 
-class Mol(Moieties):
+class Mol(structure.Mol):
     """
-    Class to hold moieties and validate the capability of building a polymer.
+    Class to validate the moieties.
     """
 
-    def __init__(self, mol, allow_reg=True):
+    def __init__(self, *args, allow_reg=True, **kwargs):
         """
-        :param cru str: the cru string.
         :param allow_reg bool: allow regular molecule beyond repeat units.
         """
-        self.mol = mol
+        super().__init__(*args, **kwargs)
         self.allow_reg = allow_reg
-        self.frags = collections.defaultdict(list)
+        self.moieties = collections.defaultdict(list)
 
     def run(self):
         """
@@ -110,99 +93,97 @@ class Mol(Moieties):
         """
         self.setMoietys()
         self.checkReg()
-        self.checkInitiator()
-        self.checkTerminator()
-        self.checkMonomer()
+        self.setInitiator()
+        self.setTerminator()
+        self.setMonomer()
 
     def setMoietys(self):
         """
         Set the molecule fragments in the cru with their roles.
         """
-        for mol_frag in Chem.GetMolFrags(self.mol, asMols=True):
-            moiety = Moiety(mol_frag)
-            self.frags[self.getRole(moiety)].append(moiety)
+        for frag in self.GetMolFrags(asMols=True):
+            moiety = Moiety(frag)
+            self.moieties[moiety.role].append(moiety)
 
     def checkReg(self):
         """
         Check the regular molecules.
 
-        :raise MoietyError: regular molecules are not allowed or mixed with
-            constitutional repeat units.
+        :raise MoietyError: regular molecules are not allowed or mixed with cru.
         """
-        regulars = self.frags[self.REGULAR]
+        regulars = self.moieties[REGULAR]
         if not regulars:
             return
-        if len(self.frags) > 1:
-            raise MoietyError(
-                f"{Chem.MolToSmiles(self.mol)} mixes regular molecules with "
-                f"constitutional repeat units.")
+        if len(self.moieties) > 1:
+            raise MoietyError(f"{self.smiles} mixes regular with cru.")
         if self.allow_reg:
             return
-        raise MoietyError(f"{regulars[0].smiles} doesn't contain {WILD_CARD}")
+        raise MoietyError(f"{regulars[0].smiles} doesn't contain {STAR}.")
 
-    def checkInitiator(self):
+    def setInitiator(self):
         """
-        Check the initiator. If there is no initiator, try to convert one
-        terminator into an initiator.
+        Set the initiator.
 
         :raise MoietyError: multiple initiators are found.
         """
-        initiators = self.frags[self.INITIATOR]
+        initiators = self.moieties[INITIATOR]
         match len(initiators):
             case 0:
-                if len(self.frags[self.TERMINATOR]) < 2:
+                if len(self.moieties[TERMINATOR]) < 2:
                     return
-                # Initiator: single wildcard moiety with the largest AtomMapNum
-                func = lambda x: -x.wild_card[0].GetAtomMapNum()
-                initiator = sorted(self.frags[self.TERMINATOR], key=func)[0]
-                initiator.wild_card[0].SetAtomMapNum(Moiety.TAIL_ID)
-                self.frags[self.INITIATOR] = [initiator]
-                self.frags[self.TERMINATOR].remove(initiator)
+                # Marked terminators use HEAD ID (0) as the map num
+                initiator = sorted(
+                    self.moieties[self.TERMINATOR],
+                    key=lambda x: x.wild_card[0].GetAtomMapNum())[-1]
+                self.moieties[TERMINATOR].remove(initiator)
+                initiator.stars[0].SetAtomMapNum(Moiety.TAIL_ID)
+                self.moieties[INITIATOR] = [initiator]
             case 1:
                 return
             case _:
                 smiles = ' '.join([x.smiles for x in initiators])
                 raise ValueError(f"Multiple initiators found in {smiles}.")
 
-    def checkTerminator(self):
+    def setTerminator(self):
         """
-        Check the terminator.
+        Set the terminator.
 
         :raise MoietyError: Multiple terminators are found.
         """
-        terminators = self.frags[self.TERMINATOR]
+        terminators = self.moieties[TERMINATOR]
         match len(terminators):
             case 0:
                 return
             case 1:
-                terminators[0].wild_card[0].SetAtomMapNum(Moiety.HEAD_ID)
+                terminators[0].stars[0].SetAtomMapNum(Moiety.HEAD_ID)
             case _:
                 miles = ' '.join([x.smiles for x in terminators])
                 raise MoietyError(f"Multiple terminators found in {miles}.")
 
-    def checkMonomer(self):
+    def setMonomer(self):
         """
-        Check the monomer.
+        Set the monomer.
 
         :raise MoietyError: The monomer does not have a head marked.
         """
-        if not self.frags[self.MONOMER] and not self.frags[self.REGULAR]:
+        if not self.moieties[MONOMER] and not self.moieties[REGULAR]:
             raise MoietyError(f'Neither regular nor monomer found.')
-        for mol in self.frags[self.MONOMER]:
-            map_nums = [x.GetAtomMapNum() for x in mol.wild_card]
+        for mol in self.moieties[MONOMER]:
+            map_nums = [x.GetAtomMapNum() for x in mol.stars]
             if Moiety.HEAD_ID not in map_nums:
                 raise MoietyError(f"Head atom not found in {mol.smiles}.")
             if Moiety.TAIL_ID not in map_nums:
-                index = map_nums.index(Moiety.HEAD_ID) ^ 1
-                mol.wild_card[index].SetAtomMapNum(Moiety.TAIL_ID)
+                head = map_nums.index(Moiety.HEAD_ID)
+                tail = next(x for i, x in enumerate(mol.stars) if i != head)
+                tail.SetAtomMapNum(Moiety.TAIL_ID)
 
     def getSmiles(self, canonize=True):
         """
-        Get the SMILES string out of the fragments. (map num updated)
+        Get the SMILES string out of the moieties. (map num updated)
 
         :param canonize bool: whether to canonize the SMILES string.
-        :return str: the SMILES string of the fragments.
+        :return str: the SMILES string of the moieties.
         """
-        mols = [y for x in self.frags.values() for y in x]
+        mols = [y for x in self.moieties.values() for y in x]
         smiles = Chem.MolToSmiles(functools.reduce(Chem.CombineMols, mols))
         return Chem.CanonSmiles(smiles) if canonize else smiles

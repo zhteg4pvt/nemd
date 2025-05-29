@@ -180,7 +180,7 @@ class Moiety(cru.Moiety):
         """
         # Get XYZ with wild cards as carbon atoms
         mol = Moiety(self)
-        for atom in mol.wild_card:
+        for atom in mol.stars:
             atom.SetAtomicNum(6)
         mol.EmbedMolecule(*args, **kwargs)
         xyz = mol.GetConformer().GetPositions()
@@ -237,12 +237,26 @@ class Moiety(cru.Moiety):
         conf.align(vec=-np.array(conf.GetAtomPosition(cap.GetIdx())))
         return conf
 
+    @property
+    @functools.cache
+    def role(self, *args, **kwargs):
+        """
+        Get the role.
 
-class Moieties(cru.Moieties):
+        :return str: the role.
+        """
+        if super().role != cru.TERMINATOR:
+            return super().role
+        map_nums = set([x.GetAtomMapNum() for x in self.stars])
+        if len(map_nums) == 2:
+            return cru.MONOMER
+        return cru.INITIATOR if self.TAIL_ID in map_nums else cru.TERMINATOR
+
+
+class Moieties(collections.UserDict):
     """
     Class to hold moieties and build a polymer.
     """
-
     BEGIN = 'begin'
     END = 'end'
     BEGIN_END = [BEGIN, END]
@@ -275,14 +289,14 @@ class Moieties(cru.Moieties):
             moiety = Moiety(mol_frag, info=dict(res_name=name))
             moiety.setMAID()
             self[name] = moiety
-            match self.getRole(moiety):
-                case self.INITIATOR:
+            match moiety.role:
+                case cru.INITIATOR:
                     self.inr = moiety
-                case self.TERMINATOR:
+                case cru.TERMINATOR:
                     self.ter = moiety
-                case self.MONOMER:
+                case cru.MONOMER:
                     self.mers.append(moiety)
-                case self.REGULAR:
+                case cru.REGULAR:
                     self.mols.append(mol_frag)
         if self.mers:
             self.setPolymer()
@@ -298,7 +312,7 @@ class Moieties(cru.Moieties):
 
     def setPolymer(self):
         """
-        Build and return the polymer.
+        Build the polymer.
 
         :return 'Moiety': the polymer built from moieties.
         """
@@ -360,7 +374,7 @@ class Moieties(cru.Moieties):
     def getLength(self,
                   bond,
                   marker='marker',
-                  wild=Chem.MolFromSmiles(symbols.WILD_CARD)):
+                  wild=Chem.MolFromSmiles(symbols.STAR)):
         """
         Get the length of a bond.
 

@@ -281,6 +281,18 @@ class Mol(Chem.rdchem.Mol):
         """
         return self.GetSubstructMatches(mol, maxMatches=1000000)
 
+    def GetMolFrags(self, *args, **kwargs):
+        return Chem.GetMolFrags(self, *args, **kwargs)
+
+    @property
+    def smiles(self):
+        """
+        Get the SMILES string.
+
+        :return str: the SMILES string.
+        """
+        return Chem.MolToSmiles(self)
+
 
 class Struct:
     """

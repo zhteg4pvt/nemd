@@ -13,7 +13,6 @@ from nemd import analyzer
 from nemd import builtinsutils
 from nemd import cru
 from nemd import envutils
-from nemd import is_debug
 from nemd import jobutils
 from nemd import lammpsfix
 from nemd import np
@@ -216,7 +215,7 @@ def type_cru_smiles(arg, allow_reg=True, canonize=True):
     :return `rdkit.Chem.rdchem.Mol: the converted molecule.
     :raise ArgumentTypeError: when unable to build a molecule from the smiles
     """
-    mol = cru.Mol(type_smiles(arg), allow_reg=allow_reg)
+    mol = cru.Mol.MolFromSmiles(arg, allow_reg=allow_reg, united=False)
     try:
         mol.run()
     except cru.MoietyError as err:

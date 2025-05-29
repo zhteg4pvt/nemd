@@ -5,7 +5,7 @@
 """
 This module provides non-numerical symbols and hardcoded numerical constants.
 """
-WILD_CARD = '*'
+STAR = '*'
 CARBON = 'C'
 UNKNOWN = 'X'
 HYDROGEN = 'H'
