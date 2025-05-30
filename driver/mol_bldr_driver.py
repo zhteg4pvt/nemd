@@ -40,15 +40,15 @@ class Grid(logutils.Base):
         """
         Build polymer from monomers if provided.
         """
-        moieties = polymutils.Moieties(self.options.cru[0],
-                                       cru_num=self.options.cru_num[0],
-                                       options=self.options)
-        moieties.setUp()
-        self.mol = polymutils.Mol(moieties.mols[0],
-                                  self.options.mol_num[0],
-                                  moieties=moieties,
-                                  options=self.options,
-                                  logger=self.logger)
+        for cru, cru_num, mol_num in zip(self.options.cru,
+                                         self.options.cru_num,
+                                         self.options.mol_num):
+            moieties = polymutils.Moieties(cru,
+                                           cru_num=cru_num,
+                                           options=self.options,
+                                           logger=self.logger)
+            moieties.run()
+            self.mol = moieties.getEmbedMols(mol_num)[0]
 
     def setStruct(self):
         """

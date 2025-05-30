@@ -49,15 +49,10 @@ class Amorphous(logutils.Base):
                                          self.options.mol_num):
             moieties = polymutils.Moieties(cru,
                                            cru_num=cru_num,
-                                           options=self.options)
-            moieties.setUp()
-            for mol in moieties.mols:
-                mol = polymutils.Mol(mol,
-                                     mol_num,
-                                     moieties=moieties,
-                                     options=self.options,
-                                     logger=self.logger)
-                self.mols.append(mol)
+                                           options=self.options,
+                                           logger=self.logger)
+            moieties.run()
+            self.mols.extend(moieties.getEmbedMols(mol_num))
 
     def setGridded(self):
         """
