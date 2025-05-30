@@ -6,6 +6,7 @@ This module builds polymers.
 import collections
 import functools
 
+import methodtools
 import networkx as nx
 import numpy as np
 import scipy
@@ -62,6 +63,7 @@ class Moiety(cru.Moiety):
     Conf = Conf
     RES_NAME = 'res_name'
     RES_NUM = 'res_num'
+    SERIAL = 'serial'
 
     def __init__(self, *args, info=None, **kwargs):
         """
@@ -85,9 +87,11 @@ class Moiety(cru.Moiety):
             for key, value in prop.items():
                 match key:
                     case self.RES_NAME:
-                        info.SetResidueName(value)
+                        info.setResidueName(value)
                     case self.RES_NUM:
                         info.SetResidueNumber(value)
+                    case self.SERIAL:
+                        info.SetSerialNumber(value)
             atom.SetMonomerInfo(info)
 
     def setMAID(self):
@@ -238,9 +242,9 @@ class Moiety(cru.Moiety):
         return conf
 
 
-class Moieties(collections.UserDict):
+class Moieties(list):
     """
-    Class to hold moieties and build a polymer.
+    Build s polymer from moieties.
     """
     BEGIN = 'begin'
     END = 'end'
@@ -258,59 +262,50 @@ class Moieties(collections.UserDict):
         self.cru = cru
         self.cru_num = cru_num
         self.options = options
-        self.inr = Moiety(info=dict(res_num=0))
-        self.ter = Moiety()
-        self.mers = []
-        self.mols = []
         self.length = {}
 
     def setUp(self):
         """
-        Set moieties mol based on the input smiles.
+        Set up.
         """
-        mol = structure.Mol.MolFromSmiles(self.cru)
-        for idx, mol_frag in enumerate(Chem.GetMolFrags(mol, asMols=True)):
-            name = self.getName(idx)
-            moiety = Moiety(mol_frag, info=dict(res_name=name))
+        # Moieties
+        frags = structure.Mol.MolFromSmiles(self.cru).GetMolFrags(asMols=True)
+        self.extend(
+            Moiety(x, info=dict(serial=i)) for i, x in enumerate(frags))
+        if self.mols:
+            return
+        # Build molecule from monomers
+        for moiety in self:
             moiety.setMAID()
-            self[name] = moiety
-            match moiety.role:
-                case cru.INITIATOR:
-                    self.inr = moiety
-                case cru.TERMINATOR:
-                    self.ter = moiety
-                case cru.MONOMER:
-                    self.mers.append(moiety)
-                case cru.REGULAR:
-                    self.mols.append(mol_frag)
-        if self.mers:
-            self.setPolymer()
-
-    @classmethod
-    def getName(cls, idx):
-        """
-        Get the name of the moiety based on the index.
-
-        :param idx int: index of the moiety based on which name is determined.
-        """
-        return chr(65 + idx)
-
-    def setPolymer(self):
-        """
-        Build the polymer.
-
-        :return 'Moiety': the polymer built from moieties.
-        """
         # FIXME: Support input sequence (e.g., AABA) and moiety ratios
-        seq = [
-            np.random.choice(self.mers).copy(x) for x in range(self.cru_num)
-        ]
-        mol = self.bond(seq)
-        mol = self.inr.extend(mol)
-        mol = mol.extend(self.ter)
-        self.mols.append(mol)
+        seq = [np.random.choice(self.mers) for _ in range(self.cru_num)]
+        seq = [x.copy(i) for i, x in enumerate(seq)]
+        chain = self.build(seq)
+        initiated = self.inr.extend(chain)
+        terminated = initiated.extend(self.ter)
+        self.mols.append(terminated)
 
-    def bond(self, sequence):
+    @methodtools.lru_cache()
+    @property
+    def mols(self):
+        """
+        Get the molecules.
+
+        :return list: regular molecules or polymer.
+        """
+        return [x for x in self if x.role == cru.REGULAR]
+
+    @methodtools.lru_cache()
+    @property
+    def mers(self):
+        """
+        Get the monomers.
+
+        :return list: the monomer moieties.
+        """
+        return [x for x in self if x.role == cru.MONOMER]
+
+    def build(self, sequence):
         """
         Create bonds between the atoms of a sequence of monomers.
 
@@ -338,6 +333,26 @@ class Moieties(collections.UserDict):
         for aid in sorted(pres.cap + nexs.cap, reverse=True):
             editable.RemoveAtom(aid)
         return Moiety(editable.GetMol())
+
+    @methodtools.lru_cache()
+    @property
+    def inr(self):
+        """
+        Get the initiator.
+
+        :return list: the initiator moiety.
+        """
+        return next((x for x in self if x.role == cru.INITIATOR), Moiety())
+
+    @methodtools.lru_cache()
+    @property
+    def ter(self):
+        """
+        Get the terminator.
+
+        :return list: the terminator moiety.
+        """
+        return next((x for x in self if x.role == cru.TERMINATOR), Moiety())
 
     def setVec(self, bond, xyzs):
         """
@@ -372,7 +387,7 @@ class Moieties(collections.UserDict):
         if key in self.length:
             return self.length[key]
         # Mark atoms to bond
-        moieties = [self[x].copy() for x in key[::2]]
+        moieties = [self[int(x)].copy() for x in key[::2]]
         for moiety, idx in zip(moieties, key[1::2]):
             moiety.GetAtomWithIdx(idx).SetBoolProp(marker, True)
         # Combine moieties and add the bond
@@ -399,7 +414,7 @@ class Moieties(collections.UserDict):
             the bonded moiety name, the bonded moiety atom index)
         """
         atoms = [bond.GetBeginAtom(), bond.GetEndAtom()]
-        names = [x.GetMonomerInfo().GetResidueName() for x in atoms]
+        names = [x.GetMonomerInfo().GetSerialNumber() for x in atoms]
         nums = [x.GetIntProp(MAID) for x in atoms]
         name_nums = [tuple(x) for x in zip(names, nums)]
         if name_nums[0] < name_nums[1]:
@@ -468,7 +483,7 @@ class Mol(structure.Mol, logutils.Base):
         """
         Embed the molecule or moieties with coordinates.
         """
-        for moiety in self.moieties.values():
+        for moiety in self.moieties:
             with rdkitutils.capture_logging(self.logger):
                 moiety.embed(useRandomCoords=True,
                              randomSeed=self.options.seed)
@@ -498,9 +513,9 @@ class Mol(structure.Mol, logutils.Base):
         """
         res_num = bond.GetEndAtom().GetMonomerInfo().GetResidueNumber() \
             if bond else min(self.res_atoms)
-        name = self.res_atoms[res_num][0].GetMonomerInfo().GetResidueName()
+        idx = self.res_atoms[res_num][0].GetMonomerInfo().GetSerialNumber()
         # Set the coordinates according to the moiety
-        xyz = self.moieties[name].getPositions(bond=bond)
+        xyz = self.moieties[idx].getPositions(bond=bond)
         for atom in self.res_atoms[res_num]:
             maid = atom.GetIntProp(MAID)
             conf.SetAtomPosition(atom.GetIdx(), xyz[maid])
