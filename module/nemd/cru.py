@@ -60,6 +60,7 @@ class Moiety(structure.Mol):
         """
         Get the role.
 
+        :param roles tuple: the moiety role.
         :raise MoietyError: unsupported roles.
         :return str: the role.
         """
@@ -91,13 +92,13 @@ class Mol(structure.Mol):
         """
         Main method to run.
         """
-        self.setMoietys()
+        self.setMoieties()
         self.checkReg()
         self.setInitiator()
         self.setTerminator()
         self.setMonomer()
 
-    def setMoietys(self):
+    def setMoieties(self):
         """
         Set the molecule fragments in the cru with their roles.
         """
@@ -114,11 +115,10 @@ class Mol(structure.Mol):
         regulars = self.moieties[REGULAR]
         if not regulars:
             return
+        if not self.allow_reg:
+            raise MoietyError(f"{regulars[0].smiles} doesn't contain {STAR}.")
         if len(self.moieties) > 1:
             raise MoietyError(f"{self.smiles} mixes regular with cru.")
-        if self.allow_reg:
-            return
-        raise MoietyError(f"{regulars[0].smiles} doesn't contain {STAR}.")
 
     def setInitiator(self):
         """
@@ -133,8 +133,8 @@ class Mol(structure.Mol):
                     return
                 # Marked terminators use HEAD ID (0) as the map num
                 initiator = sorted(
-                    self.moieties[self.TERMINATOR],
-                    key=lambda x: x.wild_card[0].GetAtomMapNum())[-1]
+                    self.moieties[TERMINATOR],
+                    key=lambda x: x.stars[0].GetAtomMapNum())[-1]
                 self.moieties[TERMINATOR].remove(initiator)
                 initiator.stars[0].SetAtomMapNum(Moiety.TAIL_ID)
                 self.moieties[INITIATOR] = [initiator]
@@ -142,7 +142,7 @@ class Mol(structure.Mol):
                 return
             case _:
                 smiles = ' '.join([x.smiles for x in initiators])
-                raise ValueError(f"Multiple initiators found in {smiles}.")
+                raise MoietyError(f"Multiple initiators found: {smiles}.")
 
     def setTerminator(self):
         """
@@ -157,8 +157,8 @@ class Mol(structure.Mol):
             case 1:
                 terminators[0].stars[0].SetAtomMapNum(Moiety.HEAD_ID)
             case _:
-                miles = ' '.join([x.smiles for x in terminators])
-                raise MoietyError(f"Multiple terminators found in {miles}.")
+                smiles = ' '.join([x.smiles for x in terminators])
+                raise MoietyError(f"Multiple terminators found: {smiles}.")
 
     def setMonomer(self):
         """
