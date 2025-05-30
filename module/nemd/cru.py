@@ -32,7 +32,7 @@ class Moiety(structure.Mol):
     HEAD_ID = 0
     TAIL_ID = 1
 
-    def capping(self, role_id=TAIL_ID):
+    def getCapping(self, role_id=TAIL_ID):
         """
         Get the capping atoms.
 
@@ -64,8 +64,8 @@ class Moiety(structure.Mol):
         :return str: the role.
         """
         num = len(self.stars)
-        # By default, the map num of '*' is 0 (HEAD_ID) --> non-initiator roles
-        if num and num == len(self.capping()):
+        if num and num == len(self.getCapping()):
+            # The map num of '*' is explicitly set.
             return INITIATOR
         try:
             return roles[num]

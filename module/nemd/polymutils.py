@@ -124,7 +124,7 @@ class Moiety(cru.Moiety):
         :param role int: the role id of the atom, e.g. 0 for Head or 1 for Tail
         :return 'Cap': the atom indexes of capping and capped atoms
         """
-        capping = self.capping(role_id=role_id)
+        capping = self.getCapping(role_id=role_id)
         capping_aids = [x.GetIdx() for x in capping]
         aids = [x.GetNeighbors()[0].GetIdx() for x in capping]
         return Cap([(x, y) for x, y in zip(capping_aids, aids)])
@@ -236,21 +236,6 @@ class Moiety(cru.Moiety):
         conf.translate(-np.array(conf.GetAtomPosition(atom.GetIdx())))
         conf.align(vec=-np.array(conf.GetAtomPosition(cap.GetIdx())))
         return conf
-
-    @property
-    @functools.cache
-    def role(self, *args, **kwargs):
-        """
-        Get the role.
-
-        :return str: the role.
-        """
-        if super().role != cru.TERMINATOR:
-            return super().role
-        map_nums = set([x.GetAtomMapNum() for x in self.stars])
-        if len(map_nums) == 2:
-            return cru.MONOMER
-        return cru.INITIATOR if self.TAIL_ID in map_nums else cru.TERMINATOR
 
 
 class Moieties(collections.UserDict):
