@@ -7,7 +7,6 @@ import collections
 import functools
 
 import methodtools
-import networkx as nx
 import numpy as np
 import scipy
 from rdkit import Chem
@@ -45,20 +44,51 @@ class Cap(collections.UserList):
 
 class Conf(structutils.Conf):
 
-    def align(self, tvec=(1, 0, 0), vec=(1, 0, 0)):
-        """
-        Align the vec to the target vector by rotating the conformer.
+    AXIS = (1, 0, 0)
 
-        :param tvec 3 x float: the target vector.
-        :param vec 3 x float: the input vector.
+    def getAligned(self, bond=None):
         """
-        rotation, _ = scipy.spatial.transform.Rotation.align_vectors(tvec, vec)
+        Get the conformer coordinates aligned by the bond.
+
+        :param bond `Chem.rdchem.Bond`: the residue starts from this bond
+        :return `np.ndarray`: the conformer aligned by the bond.
+        """
+        xyz = self.getXYZ(bond)
+        if bond is None:
+            return xyz
+
+        vec = [bond.GetDoubleProp(x) for x in Mol.VEC]
+        rot, _ = scipy.spatial.transform.Rotation.align_vectors(vec, self.AXIS)
+        xyz = rot.apply(xyz)
+        xyz += [bond.GetDoubleProp(x) for x in symbols.XYZU]
+        return xyz
+
+    @functools.cache
+    def getXYZ(self, bond):
+        """
+        Get the xyz of the moiety aligned to origin and axis.
+
+        :param cap `rdkit.Chem.rdchem.Atom`: the capping atom.
+        :return `np.ndarray`: the transformed coordinates.
+        """
+        if not bond:
+            self.translate(-self.centroid())
+            return self.GetPositions()
+
+        cap_idx = bond.GetIntProp(Moieties.END)
+        cap = self.GetOwningMol().GetAtomWithIdx(cap_idx)
+        centroid = self.centroid(aids=[x.GetIdx() for x in cap.GetNeighbors()])
+        self.translate(-centroid)
+        coords = self.GetAtomPosition(cap_idx)
+        rotation, _ = scipy.spatial.transform.Rotation.align_vectors(
+            self.AXIS, [-coords.x, -coords.y, -coords.z])
         self.rotate(rotation=rotation)
+        return self.GetPositions()
 
 
 class Moiety(cru.Moiety):
     """
-    Class to hold a moiety.
+    Moiety.
     """
     Conf = Conf
     RES_NAME = 'res_name'
@@ -70,21 +100,20 @@ class Moiety(cru.Moiety):
         :param info dict: the residue information
         """
         super().__init__(*args, **kwargs)
-        self.setResidueInfo(info)
+        self.info = info
+        self.setup()
 
-    def setResidueInfo(self, prop):
+    def setup(self):
         """
-        Set the residue each atom. For example, name, number, etc.
-
-        :param prop dict: the residue information
+        Set up.
         """
-        if prop is None:
+        if self.info is None:
             return
         for atom in self.GetAtoms():
             info = atom.GetMonomerInfo()
             if info is None:
                 info = Chem.AtomPDBResidueInfo()
-            for key, value in prop.items():
+            for key, value in self.info.items():
                 match key:
                     case self.RES_NAME:
                         info.setResidueName(value)
@@ -93,13 +122,6 @@ class Moiety(cru.Moiety):
                     case self.SERIAL:
                         info.SetSerialNumber(value)
             atom.SetMonomerInfo(info)
-
-    def setMAID(self):
-        """
-        Set moiety atom id.
-        """
-        for atom in self.GetAtoms():
-            atom.SetIntProp(MAID, atom.GetIdx())
 
     @property
     @functools.cache
@@ -181,8 +203,8 @@ class Moiety(cru.Moiety):
         """
         Embed the conformer.
         """
-        # Get XYZ with wild cards as carbon atoms
         for atom in self.stars:
+            # Get XYZ with wild cards as carbon atoms
             atom.SetAtomicNum(6)
         super().EmbedMolecule(*args, **kwargs)
         for atom in self.stars:
@@ -193,45 +215,8 @@ class Moiety(cru.Moiety):
         Set the backbone with all-trans dihedral angles.
         """
         conf = self.GetConformer()
-        aids = nx.shortest_path(self.graph, self.head.cap[0], self.tail.cap[0])
-        for dihe in zip(aids[:-3], aids[1:-2], aids[2:-1], aids[3:]):
-            if not self.isRotatable(dihe[1:-1]):
-                continue
+        for dihe in self.getDihes(self.head.cap, self.tail.cap):
             conf.setDihedralDeg(dihe, 180)
-
-    def getPositions(self, bond=None):
-        """
-        Get the conformer coordinates.
-
-        :param bond Chem.rdchem.Bond: the residue starts from this bond
-        """
-        idx = bond.GetIntProp(Moieties.END) if bond else None
-        conf = self.getConforer(idx=idx)
-        if idx is None:
-            return conf.GetPositions()
-
-        conf = self.Conf(conf)
-        conf.align(tvec=[bond.GetDoubleProp(x) for x in Moieties.VEC])
-        conf.translate(np.array([bond.GetDoubleProp(x) for x in Moieties.XYZ]))
-        return conf.GetPositions()
-
-    @functools.cache
-    def getConforer(self, idx=None):
-        """
-        Get the conformer rotated and translated according to the capping atoms.
-
-        :param idx int: the index of the capping atoms.
-        :return structutils.Conf: the rotated and translated conformer.
-        """
-        conf = super().GetConformer()
-        if idx is None:
-            conf.translate(-conf.centroid())
-            return conf
-        cap = self.GetAtomWithIdx(idx)
-        atom = cap.GetNeighbors()[0]
-        conf.translate(-np.array(conf.GetAtomPosition(atom.GetIdx())))
-        conf.align(vec=-np.array(conf.GetAtomPosition(cap.GetIdx())))
-        return conf
 
 
 class Moieties(list):
@@ -240,20 +225,19 @@ class Moieties(list):
     """
     BEGIN = 'begin'
     END = 'end'
-    BEGIN_END = [BEGIN, END]
-    VEC = ['vx', 'vy', 'vz']
-    XYZ = symbols.XYZU
 
-    def __init__(self, cru, cru_num, options=None, logger=None):
+    def __init__(self, cru, cru_num=1, mol_num=0, options=None, logger=None):
         """
         :param cru str: constitutional repeat unit
-        :param cru_num int: the number of the conformers
+        :param cru_num int: the number monomer cru per chain
+        :param mol_num int: the number of the conformers per chain
         :param options 'argparse.Namespace': Command line options
         :param logger 'logging.Logger': the logger to log messages
         """
         super().__init__()
         self.cru = cru
         self.cru_num = cru_num
+        self.mol_num = mol_num
         self.options = options
         self.logger = logger
         self.length = {}
@@ -266,19 +250,24 @@ class Moieties(list):
         frags = structure.Mol.MolFromSmiles(self.cru).GetMolFrags(asMols=True)
         self.extend(
             Moiety(x, info=dict(serial=i)) for i, x in enumerate(frags))
-        if self.mols:
-            return
-        # Build molecule from monomers
-        for moiety in self:
-            for atom in moiety.GetAtoms():
-                atom.SetIntProp(MAID, atom.GetIdx())
-        # FIXME: Support input sequence (e.g., AABA) and moiety ratios
-        seq = [np.random.choice(self.mers) for _ in range(self.cru_num)]
-        seq = [x.copy(i) for i, x in enumerate(seq)]
-        chain = self.build(seq)
-        initiated = self.inr.extend(chain)
-        terminated = initiated.extend(self.ter)
-        self.mols.append(terminated)
+        if not self.mols:
+            # Build molecule from monomers
+            for moiety in self:
+                for atom in moiety.GetAtoms():
+                    atom.SetIntProp(MAID, atom.GetIdx())
+            # FIXME: Support input sequence (e.g., AABA) and moiety ratios
+            seq = [np.random.choice(self.mers) for _ in range(self.cru_num)]
+            seq = [x.copy(i) for i, x in enumerate(seq)]
+            chain = self.build(seq)
+            initiated = self.inr.extend(chain)
+            terminated = initiated.extend(self.ter)
+            self.mols.append(terminated)
+        for idx, mol in enumerate(self.mols):
+            self.mols[idx] = Mol(mol,
+                                 mol_num=self.mol_num,
+                                 moieties=self,
+                                 options=self.options,
+                                 logger=self.logger)
 
     @methodtools.lru_cache()
     @property
@@ -349,23 +338,6 @@ class Moieties(list):
         """
         return next((x for x in self if x.role == cru.TERMINATOR), Moiety())
 
-    def setVec(self, bond, xyzs):
-        """
-        Set the bond vector, which is the target direction from the previous
-        moiety to the next moiety. The target coordinates of the end atom in the
-        next moiety is also saved.
-
-        :param bond 'rdkit.Chem.rdchem.Bond': the bond to set the vector to.
-        :param xyzs 'numpy.ndarray': the coordinates of the previous moiety
-        """
-        oxyz = xyzs[bond.GetBeginAtom().GetIntProp(MAID)]
-        vec = xyzs[bond.GetIntProp(self.BEGIN)] - oxyz
-        for prop, val in zip(self.VEC, vec):
-            bond.SetDoubleProp(prop, val)
-        vec *= self.getLength(bond) / np.linalg.norm(vec)
-        for prop, val in zip(self.XYZ, oxyz + vec):
-            bond.SetDoubleProp(prop, val)
-
     def getLength(self,
                   bond,
                   marker='marker',
@@ -416,21 +388,6 @@ class Moieties(list):
             name_nums = name_nums[::-1]
         return name_nums[0] + name_nums[1]
 
-    def getEmbedMols(self, num):
-        """
-        Get the molecules embeded with conformers.
-
-        :param num int: the number of conformers per molecule.
-        :return list: molecules embeded with conformers.
-        """
-        return [
-            Mol(x,
-                num,
-                moieties=self,
-                options=self.options,
-                logger=self.logger) for x in self.mols
-        ]
-
 
 class Repeated(list):
 
@@ -447,10 +404,11 @@ class Mol(structure.Mol, logutils.Base):
     """
     Regular molecule or a polymer built from moieties.
     """
+    VEC = ['vx', 'vy', 'vz']
 
     def __init__(self,
                  mol,
-                 mol_num,
+                 mol_num=0,
                  moieties=None,
                  options=None,
                  delay=False,
@@ -465,7 +423,7 @@ class Mol(structure.Mol, logutils.Base):
         self.moieties = moieties
         self.mol_num = mol_num
         self.options = options
-        if delay:
+        if delay or not self.mol_num:
             return
         super().__init__(mol, polym=bool(self.moieties.mers), delay=delay)
         if self.moieties.mers:
@@ -494,41 +452,35 @@ class Mol(structure.Mol, logutils.Base):
             return
         Chem.GetSymmSSSR(self)
         conf = structure.Conf(self.GetNumAtoms())
+        self.AddConformer(conf, assignId=True)
         bonds = [None]
         while bonds:
             bond = bonds.pop()
-            bonds += self.setPositions(conf, bond=bond)
-        self.AddConformer(conf, assignId=True)
+            bonds.extend(self.setPositions(bond=bond))
 
-    def setPositions(self, conf, bond=None):
+    def setPositions(self, bond=None):
         """
         Set the positions of this conformer.
 
-        :param conf structure.Conf: the conformer to set the positions
         :param bond Chem.rdchem.Bond: the residue starts from this bond
         :return list: the bonds between the current and next moieties
         """
-        res_num = bond.GetEndAtom().GetMonomerInfo().GetResidueNumber() \
-            if bond else min(self.res_atoms)
-        idx = self.res_atoms[res_num][0].GetMonomerInfo().GetSerialNumber()
+        res = bond.GetEndAtom().GetMonomerInfo().GetResidueNumber() if bond else min(self.res)
+        serial = self.res[res][0].GetMonomerInfo().GetSerialNumber()
         # Set the coordinates according to the moiety
-        xyz = self.moieties[idx].getPositions(bond=bond)
-        for atom in self.res_atoms[res_num]:
-            maid = atom.GetIntProp(MAID)
-            conf.SetAtomPosition(atom.GetIdx(), xyz[maid])
+        xyzs = self.moieties[serial].GetConformer().getAligned(bond=bond)
+        for atom in self.res[res]:
+            self.GetConformer().SetAtomPosition(atom.GetIdx(), xyzs[atom.GetIntProp(MAID)])
         # Record the target vector
-        bonds = list(self.getBonds(res_num))
-        for bond in bonds:
-            self.moieties.setVec(bond, xyz)
-        return bonds
+        return self.getBonds(res, xyzs)
 
     @property
     @functools.cache
-    def res_atoms(self):
+    def res(self):
         """
-        Group the atoms by residue number and return a dictionary.
+        The residue.
 
-        :return dict: the atoms grouped by residue number
+        :return dict: residue number -> the atoms
         """
         atoms = collections.defaultdict(list)
         for atom in self.GetAtoms():
@@ -536,19 +488,28 @@ class Mol(structure.Mol, logutils.Base):
             atoms[res_num].append(atom)
         return atoms
 
-    def getBonds(self, res_num):
+    def getBonds(self, res, xyzs):
         """
-        Get the bonds between the current moiety and the next moiety.
+        Get the bonds from the current moiety to the next.
 
-        :param res_num int: the current residue number
-        :return iterator of 'rdkit.Chem.rdchem.Bond': bond between two moieties
+        :param res int: the current residue number
+        :return generator of 'rdkit.Chem.rdchem.Bond': bond between two moieties
         """
-        for atom in self.res_atoms[res_num]:
-            for neigh in atom.GetNeighbors():
-                nex_num = neigh.GetMonomerInfo().GetResidueNumber()
-                if nex_num <= res_num:
+        for atom in self.res[res]:
+            for nbr in atom.GetNeighbors():
+                if nbr.GetMonomerInfo().GetResidueNumber() <= res:
                     continue
-                yield self.GetBondBetweenAtoms(atom.GetIdx(), neigh.GetIdx())
+                xyz = xyzs[atom.GetIntProp(MAID)]
+                bond = self.GetBondBetweenAtoms(atom.GetIdx(), nbr.GetIdx())
+                vec = xyzs[bond.GetIntProp(Moieties.BEGIN)] - xyz
+                vec *= self.moieties.getLength(bond) / np.linalg.norm(vec)
+                # Target bond vector
+                for prop, val in zip(self.VEC, vec):
+                    bond.SetDoubleProp(prop, val)
+                # Target atom coordinates
+                for prop, val in zip(symbols.XYZU, xyz + vec):
+                    bond.SetDoubleProp(prop, val)
+                yield bond
 
     def EmbedMolecule(self):
         """

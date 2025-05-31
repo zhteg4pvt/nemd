@@ -16,9 +16,7 @@ import functools
 import itertools
 import logging
 import math
-import warnings
 
-import networkx as nx
 import numpy as np
 import rdkit
 import scipy
@@ -364,58 +362,6 @@ class GrownMol(PackedMol):
         if self.frag:
             aids[[y for x in self.frag.next() for y in x.ids]] = False
         return aids.on
-
-    def getDihes(self, sources=(None, ), targets=(None, )):
-        """
-        Get a list of dihedral angles.
-
-        :param sources list: source atom ids.
-        :param targets list: target atom ids.
-        :return list: each sublist has four atom ids.
-        """
-        if sources[0] is None and self.polym:
-            # FIXME: sources should be all initiator atoms; targets should be
-            #  the atoms of all terminators
-            polym_ht = [x for x in self.GetAtoms() if x.HasProp(self.POLYM_HT)]
-            sources, targets = [[x.GetIdx()] for x in polym_ht]
-
-        longest = []
-        for source, target in itertools.product(sources, targets):
-            dihes = self.findPath(source=source, target=target)
-            dihes = [
-                x for x in zip(dihes[:-3], dihes[1:-2], dihes[2:-1], dihes[3:])
-                if self.isRotatable(x[1:-1])
-            ]
-            if len(dihes) > len(longest):
-                longest = dihes
-        return longest
-
-    def findPath(self, source=None, target=None):
-        """
-        Return the shortest path if source and target provided else the longest
-        of all shortest paths between atom pairs.
-
-        :param source int: the atom id that serves as the source.
-        :param target int: the atom id that serves as the target.
-        :return list: atom ids that form the longest shortest path.
-        """
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            shortest_path = nx.shortest_path(self.graph,
-                                             source=source,
-                                             target=target)
-        if target is not None:
-            shortest_path = {target: shortest_path}
-        if source is not None:
-            shortest_path = {source: shortest_path}
-        length = -1
-        for a_source, target_path in shortest_path.items():
-            for a_target, a_path in target_path.items():
-                if len(a_path) > length:
-                    length = len(a_path)
-                    source = a_source
-                    target = a_target
-        return shortest_path[source][target]
 
 
 class Struct(lmpfull.Struct):

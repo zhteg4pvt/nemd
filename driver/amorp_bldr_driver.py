@@ -10,7 +10,6 @@ import sys
 
 from nemd import jobutils
 from nemd import logutils
-from nemd import np
 from nemd import parserutils
 from nemd import polymutils
 from nemd import structutils
@@ -49,10 +48,11 @@ class Amorphous(logutils.Base):
                                          self.options.mol_num):
             moieties = polymutils.Moieties(cru,
                                            cru_num=cru_num,
+                                           mol_num=mol_num,
                                            options=self.options,
                                            logger=self.logger)
             moieties.run()
-            self.mols.extend(moieties.getEmbedMols(mol_num))
+            self.mols.extend(moieties.mols)
 
     def setGridded(self):
         """

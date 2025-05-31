@@ -45,10 +45,11 @@ class Grid(logutils.Base):
                                          self.options.mol_num):
             moieties = polymutils.Moieties(cru,
                                            cru_num=cru_num,
+                                           mol_num=mol_num,
                                            options=self.options,
                                            logger=self.logger)
             moieties.run()
-            self.mol = moieties.getEmbedMols(mol_num)[0]
+            self.mol = moieties.mols[0]
 
     def setStruct(self):
         """
