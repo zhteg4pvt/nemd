@@ -21,27 +21,6 @@ from nemd import symbols
 MAID = structutils.GrownMol.MAID
 
 
-class Cap(collections.UserList):
-
-    @property
-    def cap(self):
-        """
-        Get the capping atom indexes.
-
-        :return list of int: the capping atom indexes.
-        """
-        return [x[0] for x in self]
-
-    @property
-    def aid(self):
-        """
-        Get the capped atom indexes.
-
-        :return list of int: the capped atom indexes.
-        """
-        return [x[1] for x in self]
-
-
 class Conf(structutils.Conf):
 
     AXIS = (1, 0, 0)
@@ -127,65 +106,46 @@ class Moiety(cru.Moiety):
     @functools.cache
     def head(self):
         """
-        The head/tail atoms of the cru molecule.
+        Get the capping atom of the head.
 
-        :return pd.DataFrame: the head atoms with their monomer atom index
+        :return `Chem.Atom`: the capping atom of the head.
         """
-        return self.getRole(self.HEAD_ID)
+        return self.getCapping(self.HEAD_ID)
 
     @property
     @functools.cache
     def tail(self):
         """
-        The head/tail atoms of the cru molecule.
+        Get the capping atom of the tail.
 
-        :return pd.DataFrame: the head atoms with their monomer atom index
+        :return `Chem.Atom`: the capping atom of the tail.
         """
-        return self.getRole(self.TAIL_ID)
-
-    def getRole(self, role_id):
-        """
-        The atom indexes of this role.
-
-        :param role int: the role id of the atom, e.g. 0 for Head or 1 for Tail
-        :return 'Cap': the atom indexes of capping and capped atoms
-        """
-        capping = self.getCapping(role_id=role_id)
-        atoms = [[x, x.GetNeighbors()[0]] for x in capping]
-        return Cap([[y.GetIdx() for y in x] for x in atoms])
+        return self.getCapping(self.TAIL_ID)
 
     def extend(self, mol):
         """
-        Extend the molecule by connecting the tail of this moiety with the head
-        atom of the input.
+        Extend the molecule by forming bond between the tail and the input head.
 
-        :param mol 'Moiety': the frag to extend with
+        :param mol 'Moiety': the moiety to extend with.
+        :return 'Moiety': the extended molecule.
         """
-        t_atoms, t_cap_aids = [], []
-        if self.GetNumAtoms():
-            # select one available tail
-            t_atoms = [self.GetAtomWithIdx(self.tail.aid[0])]
-            t_cap_aids = self.tail.cap[:1]
-        h_atoms, h_cap_aids = [], []
-        if mol.GetNumAtoms():
-            h_atoms = [mol.GetAtomWithIdx(x) for x in mol.head.aid]
-            h_cap_aids = mol.head.cap
-        if not all([self.GetNumAtoms(), mol.GetNumAtoms()]):
-            # One of the molecules is empty so that implicit hydrogen is tuned
-            for atom in t_atoms + h_atoms:
-                atom.SetBoolProp(structutils.GrownMol.POLYM_HT, True)
-                implicit_h = atom.GetIntProp(symbols.IMPLICIT_H) + 1
-                atom.SetIntProp(symbols.IMPLICIT_H, implicit_h)
+        pair = self.tail[:1] + mol.head[:1]
+        if len(pair) == 1:
+            # Add implicit hydrogen as one input moiety is empty.
+            atom = pair[0].GetNeighbors()[0]
+            implicit_h = atom.GetIntProp(symbols.IMPLICIT_H)
+            atom.SetIntProp(symbols.IMPLICIT_H, implicit_h + 1)
+            atom.SetBoolProp(structutils.GrownMol.POLYM_HT, True)
         # FIXME: support multiple tails bonded to the copies of molecules
         # Increase the residue number of the mol
         nums = [x.GetMonomerInfo().GetResidueNumber() for x in self.GetAtoms()]
-        res_num = max(nums or [0]) + 1
-        for atom in self.GetAtoms():
+        start = max(nums) if nums else 0
+        for atom in mol.GetAtoms():
             info = atom.GetMonomerInfo()
-            info.SetResidueNumber(info.GetResidueNumber() + res_num)
+            info.SetResidueNumber(info.GetResidueNumber() + start)
         # Combine the molecules and remove the capping atoms
         edcombo = Chem.EditableMol(Chem.CombineMols(self, mol))
-        for cap_aid in sorted(t_cap_aids + h_cap_aids, reverse=True):
+        for cap_aid in sorted([x.GetIdx() for x in pair], reverse=True):
             edcombo.RemoveAtom(cap_aid)
         return Moiety(edcombo.GetMol())
 
@@ -209,37 +169,32 @@ class Moiety(cru.Moiety):
         super().EmbedMolecule(*args, **kwargs)
         for atom in self.stars:
             atom.SetAtomicNum(0)
-
-    def setAllTrans(self):
-        """
-        Set the backbone with all-trans dihedral angles.
-        """
         conf = self.GetConformer()
-        for dihe in self.getDihes(self.head.cap, self.tail.cap):
+        for dihe in self.getDihes([x.GetIdx() for x in self.head],
+                                  [x.GetIdx() for x in self.tail]):
             conf.setDihedralDeg(dihe, 180)
 
 
-class Moieties(list):
+class Moieties(list, logutils.Base):
     """
     Build s polymer from moieties.
     """
     BEGIN = 'begin'
     END = 'end'
 
-    def __init__(self, cru, cru_num=1, mol_num=0, options=None, logger=None):
+    def __init__(self, cru, cru_num=1, mol_num=0, options=None, **kwargs):
         """
         :param cru str: constitutional repeat unit
         :param cru_num int: the number monomer cru per chain
         :param mol_num int: the number of the conformers per chain
         :param options 'argparse.Namespace': Command line options
-        :param logger 'logging.Logger': the logger to log messages
         """
+        logutils.Base.__init__(self, **kwargs)
         super().__init__()
         self.cru = cru
         self.cru_num = cru_num
         self.mol_num = mol_num
         self.options = options
-        self.logger = logger
         self.length = {}
 
     def run(self):
@@ -258,9 +213,9 @@ class Moieties(list):
             # FIXME: Support input sequence (e.g., AABA) and moiety ratios
             seq = [np.random.choice(self.mers) for _ in range(self.cru_num)]
             seq = [x.copy(i) for i, x in enumerate(seq)]
-            chain = self.build(seq)
-            initiated = self.inr.extend(chain)
-            terminated = initiated.extend(self.ter)
+            chain = self.inr.extend(self.build(seq))
+            terminated = chain.extend(self.ter)
+            self.log(f"Polymer SMILES: {Chem.MolToSmiles(terminated)}")
             self.mols.append(terminated)
         for idx, mol in enumerate(self.mols):
             self.mols[idx] = Mol(mol,
@@ -345,7 +300,7 @@ class Moieties(list):
         """
         Get the length of a bond.
 
-        :param bond 'rdkit.Chem.rdchem.Bond': the bond to get the hash value of.
+        :param bond 'Chem.Bond': the bond to get the hash value of.
         :param marker str: the marker.
         :param wild 'rdkit.Chem.rdchem.Molecule': wild card molecule.
         :return float: the bond length in Angstroms.
@@ -376,7 +331,7 @@ class Moieties(list):
         """
         Get the hash value of a bond.
 
-        :param bond 'rdkit.Chem.rdchem.Bond': the bond to get the hash value of.
+        :param bond 'Chem.Bond': the bond to get the hash value of.
         :return tuple: (the moiety name, the moiety atom index,
             the bonded moiety name, the bonded moiety atom index)
         """
@@ -419,82 +374,55 @@ class Mol(structure.Mol, logutils.Base):
         :param options 'argparse.Namespace': command-line options
         :param delay bool: delay the initiation if True.
         """
+        super().__init__(mol, polym=bool(moieties.mers), delay=delay)
         logutils.Base.__init__(self, **kwargs)
         self.moieties = moieties
         self.mol_num = mol_num
         self.options = options
-        if delay or not self.mol_num:
+        if not self.mol_num or delay:
             return
-        super().__init__(mol, polym=bool(self.moieties.mers), delay=delay)
-        if self.moieties.mers:
-            self.log(f"Polymer SMILES: {Chem.MolToSmiles(self)}")
-            self.embedMoieties()
-            self.embedPolymer()
-        else:
-            self.EmbedMolecule()
+        self.EmbedMolecule()
         self.addConfRefs()
 
-    def embedMoieties(self):
+    def EmbedMolecule(self):
         """
-        Embed the molecule or moieties with coordinates.
+        Embed the molecule with coordinates.
         """
-        for moiety in self.moieties:
-            with rdkitutils.capture_logging(self.logger):
-                moiety.EmbedMolecule(useRandomCoords=True,
-                                     randomSeed=self.options.seed)
-            moiety.setAllTrans()
+        with rdkitutils.capture_logging(self.logger):
+            # ERROR UFFTYPER: Unrecognized charge state for atom: 0 (Mg+2)
+            # WARNING UFFTYPER: Warning: hybridization set to SP3 for atom 0
+            kwargs = dict(useRandomCoords=True, randomSeed=self.options.seed)
+            if not self.polym:
+                super().EmbedMolecule(**kwargs)
+                return
+            for moiety in self.moieties:
+                moiety.EmbedMolecule(**kwargs)
 
-    def embedPolymer(self):
-        """
-        Build and set the conformer.
-        """
-        if not self.polym:
-            return
         Chem.GetSymmSSSR(self)
         conf = structure.Conf(self.GetNumAtoms())
         self.AddConformer(conf, assignId=True)
+
         bonds = [None]
         while bonds:
             bond = bonds.pop()
-            bonds.extend(self.setPositions(bond=bond))
+            bonds.extend(self.setConformer(bond))
 
-    def setPositions(self, bond=None):
+    def setConformer(self, pre, res=0):
         """
-        Set the positions of this conformer.
+        Partially set the conformer of one residue (moiety).
 
-        :param bond Chem.rdchem.Bond: the residue starts from this bond
-        :return list: the bonds between the current and next moieties
+        :param bond Chem.rdchem.Bond: from previous to the current moiety.
+        :return generator: the bonds between the current and next moieties
         """
-        res = bond.GetEndAtom().GetMonomerInfo().GetResidueNumber() if bond else min(self.res)
+        # Set the coordinates according to the moiety.
+        if pre:
+            res = pre.GetEndAtom().GetMonomerInfo().GetResidueNumber()
         serial = self.res[res][0].GetMonomerInfo().GetSerialNumber()
-        # Set the coordinates according to the moiety
-        xyzs = self.moieties[serial].GetConformer().getAligned(bond=bond)
+        xyzs = self.moieties[serial].GetConformer().getAligned(bond=pre)
         for atom in self.res[res]:
-            self.GetConformer().SetAtomPosition(atom.GetIdx(), xyzs[atom.GetIntProp(MAID)])
-        # Record the target vector
-        return self.getBonds(res, xyzs)
-
-    @property
-    @functools.cache
-    def res(self):
-        """
-        The residue.
-
-        :return dict: residue number -> the atoms
-        """
-        atoms = collections.defaultdict(list)
-        for atom in self.GetAtoms():
-            res_num = atom.GetMonomerInfo().GetResidueNumber()
-            atoms[res_num].append(atom)
-        return atoms
-
-    def getBonds(self, res, xyzs):
-        """
-        Get the bonds from the current moiety to the next.
-
-        :param res int: the current residue number
-        :return generator of 'rdkit.Chem.rdchem.Bond': bond between two moieties
-        """
+            xyz = xyzs[atom.GetIntProp(MAID)]
+            self.GetConformer().SetAtomPosition(atom.GetIdx(), xyz)
+        # Return the next bonds with target vector and coordinates recorded.
         for atom in self.res[res]:
             for nbr in atom.GetNeighbors():
                 if nbr.GetMonomerInfo().GetResidueNumber() <= res:
@@ -511,17 +439,19 @@ class Mol(structure.Mol, logutils.Base):
                     bond.SetDoubleProp(prop, val)
                 yield bond
 
-    def EmbedMolecule(self):
+    @property
+    @functools.cache
+    def res(self):
         """
-        Embed the molecule with coordinates.
+        The residue.
+
+        :return dict: residue number -> the atoms
         """
-        with rdkitutils.capture_logging(self.logger):
-            # e.g. Mg+2 triggers the following ERROR:
-            #   ERROR UFFTYPER: Unrecognized charge state for atom: 0
-            # in addition, other WARNING messages are also captured
-            #   WARNING UFFTYPER: Warning: hybridization set to SP3 for atom 0
-            super().EmbedMolecule(useRandomCoords=True,
-                                  randomSeed=self.options.seed)
+        atoms = collections.defaultdict(list)
+        for atom in self.GetAtoms():
+            res_num = atom.GetMonomerInfo().GetResidueNumber()
+            atoms[res_num].append(atom)
+        return atoms
 
     def addConfRefs(self):
         """
