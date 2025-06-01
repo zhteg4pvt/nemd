@@ -73,7 +73,6 @@ class Moiety(cru.Moiety):
     Moiety.
     """
     Conf = Conf
-    RES_NAME = 'res_name'
     RES_NUM = 'res_num'
     SERIAL = 'serial'
 
@@ -97,8 +96,6 @@ class Moiety(cru.Moiety):
                 info = Chem.AtomPDBResidueInfo()
             for key, value in self.info.items():
                 match key:
-                    case self.RES_NAME:
-                        info.setResidueName(value)
                     case self.RES_NUM:
                         info.SetResidueNumber(value)
                     case self.SERIAL:
@@ -134,7 +131,7 @@ class Moiety(cru.Moiety):
         """
         pair = self.tail[:1] + mol.head[:1]
         if len(pair) == 1:
-            # Add implicit / explicit hydrogen as one input moiety is empty.
+            # Add implicit / explicit hydrogen as one moiety is empty.
             atom = pair[0].GetNeighbors()[0]
             try:
                 implicit_h = atom.GetIntProp(symbols.IMPLICIT_H)
@@ -151,6 +148,7 @@ class Moiety(cru.Moiety):
         for atom in mol.GetAtoms():
             info = atom.GetMonomerInfo()
             info.SetResidueNumber(info.GetResidueNumber() + start)
+
         # Combine the molecules and remove the capping atoms
         edcombo = Chem.EditableMol(Chem.CombineMols(self, mol))
         for cap_aid in sorted([x.GetIdx() for x in pair], reverse=True):
@@ -193,9 +191,6 @@ class Sequence(list):
 
         :return 'Moiety': the chain built from monomers.
         """
-        for moiety in self:
-            for star in moiety.stars:
-                star.SetIntProp(MAID, star.GetIdx())
         mol = Moiety(functools.reduce(Chem.CombineMols, self))
         # FIXME: Support head-head and tail-tail coupling
         pairs = list(zip(mol.getCapping()[:-1], mol.getCapping(0)[1:]))
@@ -245,6 +240,39 @@ class Moieties(list, logutils.Base):
         """
         mols = structure.Mol.MolFromSmiles(self.cru).GetMolFrags(asMols=True)
         self.extend(Moiety(x, info=dict(serial=i)) for i, x in enumerate(mols))
+        for moiety in [self.inr, self.ter, *self.mers]:
+            for atom in moiety.GetAtoms():
+                atom.SetIntProp(MAID, atom.GetIdx())
+
+    @methodtools.lru_cache()
+    @property
+    def inr(self):
+        """
+        Get the initiator.
+
+        :return list: the initiator moiety.
+        """
+        return next((x for x in self if x.role == cru.INITIATOR), Moiety())
+
+    @methodtools.lru_cache()
+    @property
+    def ter(self):
+        """
+        Get the terminator.
+
+        :return list: the terminator moiety.
+        """
+        return next((x for x in self if x.role == cru.TERMINATOR), Moiety())
+
+    @methodtools.lru_cache()
+    @property
+    def mers(self):
+        """
+        Get the monomers.
+
+        :return list: the monomer moieties.
+        """
+        return [x for x in self if x.role == cru.MONOMER]
 
     def run(self):
         """
@@ -252,7 +280,6 @@ class Moieties(list, logutils.Base):
         """
         if not self.mols:
             # Build polymer
-            self.setMaids()
             chain = self.getSeq().build()
             polym = self.inr.bond(chain).bond(self.ter)
             self.log(f"Polymer SMILES: {Chem.MolToSmiles(polym)}")
@@ -275,14 +302,6 @@ class Moieties(list, logutils.Base):
         """
         return [x for x in self if x.role == cru.REGULAR]
 
-    def setMaids(self):
-        """
-        Record original aids.
-        """
-        for moiety in self:
-            for atom in moiety.GetAtoms():
-                atom.SetIntProp(MAID, atom.GetIdx())
-
     def getSeq(self):
         """
         Get the moiety sequence.
@@ -292,36 +311,6 @@ class Moieties(list, logutils.Base):
         # FIXME: Support input sequence (e.g., AABA) and moiety ratios
         seq = [np.random.choice(self.mers) for _ in range(self.cru_num)]
         return Sequence([x.new(dict(res_num=i)) for i, x in enumerate(seq)])
-
-    @methodtools.lru_cache()
-    @property
-    def mers(self):
-        """
-        Get the monomers.
-
-        :return list: the monomer moieties.
-        """
-        return [x for x in self if x.role == cru.MONOMER]
-
-    @methodtools.lru_cache()
-    @property
-    def inr(self):
-        """
-        Get the initiator.
-
-        :return list: the initiator moiety.
-        """
-        return next((x for x in self if x.role == cru.INITIATOR), Moiety())
-
-    @methodtools.lru_cache()
-    @property
-    def ter(self):
-        """
-        Get the terminator.
-
-        :return list: the terminator moiety.
-        """
-        return next((x for x in self if x.role == cru.TERMINATOR), Moiety())
 
     @methodtools.lru_cache()
     def getLength(self,

@@ -1,3 +1,5 @@
+from unittest import mock
+
 import pytest
 
 from nemd import np
@@ -14,6 +16,37 @@ def moieties(args):
                                    cru_num=cru_num,
                                    mol_num=mol_num,
                                    options=options)
+
+
+class TestMoiety:
+
+    @pytest.fixture
+    def moiety(self, mol, info):
+        return polymutils.Moiety(mol, info=info)
+
+    @pytest.mark.parametrize('smiles', ['C'])
+    @pytest.mark.parametrize('info,expected',
+                             [(None, None),
+                              (dict(res_num=1, serial=3), (1, 3))])
+    def testSetup(self, moiety, expected):
+        info = next(x.GetMonomerInfo() for x in moiety.GetAtoms())
+        if info:
+            info = (info.GetResidueNumber(), info.GetSerialNumber())
+        assert expected == info
+
+    @pytest.mark.parametrize('smiles,info,expected', [('*C[*:1]', None, [0])])
+    def testHead(self, moiety, expected):
+        assert expected == [x.GetIdx() for x in moiety.head]
+
+    @pytest.mark.parametrize('smiles,info,expected', [('*C[*:1]', None, [2])])
+    def testTail(self, moiety, expected):
+        assert expected == [x.GetIdx() for x in moiety.tail]
+
+    # @pytest.mark.parametrize('smiles,info,expected', [('*C[*:1]', None, [2])])
+    # def testBond(self, moiety, expected):
+    #     mol = polymutils.Moiety.MolFromSmiles('*C*')
+    #     chain = moiety.bond(mol)
+    #     breakpoint()
 
 
 class TestSequence:
@@ -38,12 +71,31 @@ class TestMoieties:
             return polymutils.Moieties(cru,
                                        cru_num=cru_num,
                                        mol_num=mol_num,
-                                       options=options)
+                                       options=options,
+                                       logger=mock.MagicMock())
 
-    @pytest.mark.parametrize('args,expected', [(['C'], 1), (['C.Cl'], 2),
-                                               (['C*.*C*.Cl*'], 3)])
+    @pytest.mark.parametrize('args,expected', [(['C'], (1, 0)),
+                                               (['C.Cl'], (2, 0)),
+                                               (['C*.*C*.Cl*'], (3, 7))])
     def testSetUp(self, moieties, expected):
-        assert expected == len(moieties)
+        atoms = [y for x in moieties for y in x.GetAtoms()]
+        amid_num = len([x for x in atoms if x.HasProp('maid')])
+        assert expected == (len(moieties), amid_num)
+
+    @pytest.mark.parametrize('args,expected', [(['C'], 0), (['C[*:1].*C*'], 2),
+                                               (['*C*'], 0)])
+    def testInr(self, moieties, expected):
+        assert expected == moieties.inr.GetNumAtoms()
+
+    @pytest.mark.parametrize('args,expected', [(['C'], 0), (['C*.*C*'], 2),
+                                               (['*C*'], 0)])
+    def testTer(self, moieties, expected):
+        assert expected == moieties.ter.GetNumAtoms()
+
+    @pytest.mark.parametrize('args,expected', [(['C'], 0), (['C.Cl'], 0),
+                                               (['*C*'], 1)])
+    def testMers(self, moieties, expected):
+        assert expected == len(moieties.mers)
 
     @pytest.mark.parametrize('args,expected', [(['C'], 1), (['C.Cl'], 2),
                                                (['*C*'], 1)])
@@ -56,30 +108,9 @@ class TestMoieties:
     def testMols(self, moieties, expected):
         assert expected == len(moieties.mols)
 
-    @pytest.mark.parametrize('args,expected', [(['*C*'], [0, 1, 2])])
-    def testSetMaids(self, moieties, expected):
-        moieties.setMaids()
-        maids = [y.GetIntProp('maid') for x in moieties for y in x.GetAtoms()]
-        assert expected == maids
-
     @pytest.mark.parametrize('args,expected', [(['*C*', '-cru_num', '3'], 3)])
     def testGetSeq(self, moieties, expected):
         assert expected == len(moieties.getSeq())
-
-    @pytest.mark.parametrize('args,expected', [(['C'], 0), (['C.Cl'], 0),
-                                               (['*C*'], 1)])
-    def testMers(self, moieties, expected):
-        assert expected == len(moieties.mers)
-
-    @pytest.mark.parametrize('args,expected', [(['C'], 0), (['C[*:1].*C*'], 2),
-                                               (['*C*'], 0)])
-    def testInr(self, moieties, expected):
-        assert expected == moieties.inr.GetNumAtoms()
-
-    @pytest.mark.parametrize('args,expected', [(['C'], 0), (['C*.*C*'], 2),
-                                               (['*C*'], 0)])
-    def testTer(self, moieties, expected):
-        assert expected == moieties.ter.GetNumAtoms()
 
     @pytest.mark.parametrize('args,hashed,expected',
                              [(['*CO*', '-cru_num', '3', '-seed', '1'],
