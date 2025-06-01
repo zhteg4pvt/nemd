@@ -19,6 +19,8 @@ from nemd import structutils
 from nemd import symbols
 
 MAID = structutils.GrownMol.MAID
+BEGIN = 'begin'
+END = 'end'
 
 
 class Conf(structutils.Conf):
@@ -56,7 +58,7 @@ class Conf(structutils.Conf):
             self.translate(-self.centroid())
             return self.GetPositions()
 
-        cap_idx = bond.GetIntProp(Moieties.END)
+        cap_idx = bond.GetIntProp(END)
         cap = self.GetOwningMol().GetAtomWithIdx(cap_idx)
         centroid = self.centroid(aids=[x.GetIdx() for x in cap.GetNeighbors()])
         self.translate(-centroid)
@@ -175,12 +177,44 @@ class Moiety(cru.Moiety):
             conf.setDihedralDeg(dihe, 180)
 
 
+class Sequence(list):
+    """
+    Monomer Sequence.
+    """
+
+    def build(self):
+        """
+        Build a chain out of the sequence.
+
+        :return 'Moiety': the chain built from monomers.
+        """
+        mol = Moiety(functools.reduce(Chem.CombineMols, self))
+        # FIXME: Support head-head and tail-tail coupling
+        pairs = list(zip(mol.getCapping()[:-1], mol.getCapping(0)[1:]))
+        edcombo, maids = Chem.EditableMol(mol), {}
+        # Form bonds between the head and tail
+        for caps in pairs:
+            bonded = tuple([x.GetNeighbors()[0].GetIdx() for x in caps])
+            edcombo.AddBond(*bonded, order=Chem.rdchem.BondType.SINGLE)
+            maids[bonded] = [x.GetIntProp(MAID) for x in caps]
+        # Record capping atoms moiety atom ids on the formed bonds
+        chain = edcombo.GetMol()
+        for bonded, (begin, end) in maids.items():
+            bond = chain.GetBondBetweenAtoms(*bonded)
+            bond.SetIntProp(BEGIN, begin)
+            bond.SetIntProp(END, end)
+        # Remove the capping atoms
+        aids = [y.GetIdx() for x in pairs for y in x]
+        editable = Chem.EditableMol(chain)
+        for aid in sorted(aids, reverse=True):
+            editable.RemoveAtom(aid)
+        return Moiety(editable.GetMol())
+
+
 class Moieties(list, logutils.Base):
     """
     Build s polymer from moieties.
     """
-    BEGIN = 'begin'
-    END = 'end'
 
     def __init__(self, cru, cru_num=1, mol_num=0, options=None, **kwargs):
         """
@@ -195,25 +229,27 @@ class Moieties(list, logutils.Base):
         self.cru_num = cru_num
         self.mol_num = mol_num
         self.options = options
+        self.setUp()
+
+    def setUp(self):
+        """
+        Set up.
+        """
+        mols = structure.Mol.MolFromSmiles(self.cru).GetMolFrags(asMols=True)
+        self.extend(Moiety(x, info=dict(serial=i)) for i, x in enumerate(mols))
 
     def run(self):
         """
         Main method.
         """
-        mols = structure.Mol.MolFromSmiles(self.cru).GetMolFrags(asMols=True)
-        self.extend(Moiety(x, info=dict(serial=i)) for i, x in enumerate(mols))
         if not self.mols:
-            # Record original aids and build from the sequence
-            for moiety in self:
-                for atom in moiety.GetAtoms():
-                    atom.SetIntProp(MAID, atom.GetIdx())
-            # FIXME: Support input sequence (e.g., AABA) and moiety ratios
-            seq = [np.random.choice(self.mers) for _ in range(self.cru_num)]
-            seq = [x.new(dict(res_num=i)) for i, x in enumerate(seq)]
-            chain = self.inr.bond(self.build(seq))
-            polymer = chain.bond(self.ter)
-            self.log(f"Polymer SMILES: {Chem.MolToSmiles(polymer)}")
-            self.mols.append(polymer)
+            # Build polymer
+            self.setMaids()
+            chain = self.getSeq().build()
+            polym = self.inr.bond(chain).bond(self.ter)
+            self.log(f"Polymer SMILES: {Chem.MolToSmiles(polym)}")
+            self.mols.append(polym)
+        # Embed conformer
         for idx, mol in enumerate(self.mols):
             self.mols[idx] = Mol(mol,
                                  mol_num=self.mol_num,
@@ -231,6 +267,24 @@ class Moieties(list, logutils.Base):
         """
         return [x for x in self if x.role == cru.REGULAR]
 
+    def setMaids(self):
+        """
+        Record original aids.
+        """
+        for moiety in self:
+            for atom in moiety.GetAtoms():
+                atom.SetIntProp(MAID, atom.GetIdx())
+
+    def getSeq(self):
+        """
+        Get the moiety sequence.
+
+        :return Sequence: moieties to build a chain
+        """
+        # FIXME: Support input sequence (e.g., AABA) and moiety ratios
+        seq = [np.random.choice(self.mers) for _ in range(self.cru_num)]
+        return Sequence([x.new(dict(res_num=i)) for i, x in enumerate(seq)])
+
     @methodtools.lru_cache()
     @property
     def mers(self):
@@ -240,35 +294,6 @@ class Moieties(list, logutils.Base):
         :return list: the monomer moieties.
         """
         return [x for x in self if x.role == cru.MONOMER]
-
-    def build(self, sequence):
-        """
-        Create bonds between a sequence of monomers.
-
-        :param sequence list: monomers to create a chain.
-        :return 'Moiety': the chain built from monomers.
-        """
-        mol = Moiety(functools.reduce(Chem.CombineMols, sequence))
-        # FIXME: Support head-head and tail-tail coupling
-        pairs = list(zip(mol.getCapping()[:-1], mol.getCapping(0)[1:]))
-        edcombo, maids = Chem.EditableMol(mol), {}
-        # Form bonds between the head and tail
-        for caps in pairs:
-            bonded = tuple([x.GetNeighbors()[0].GetIdx() for x in caps])
-            edcombo.AddBond(*bonded, order=Chem.rdchem.BondType.SINGLE)
-            maids[bonded] = [x.GetIntProp(MAID) for x in caps]
-        # Record capping atoms moiety atom ids on the formed bonds
-        chain = edcombo.GetMol()
-        for bonded, (begin, end) in maids.items():
-            bond = chain.GetBondBetweenAtoms(*bonded)
-            bond.SetIntProp(self.BEGIN, begin)
-            bond.SetIntProp(self.END, end)
-        # Remove the capping atoms
-        aids = [y.GetIdx() for x in pairs for y in x]
-        editable = Chem.EditableMol(chain)
-        for aid in sorted(aids, reverse=True):
-            editable.RemoveAtom(aid)
-        return Moiety(editable.GetMol())
 
     @methodtools.lru_cache()
     @property
@@ -413,7 +438,7 @@ class Mol(structure.Mol, logutils.Base):
                     continue
                 bond = self.GetBondBetweenAtoms(atom.GetIdx(), nbr.GetIdx())
                 xyz = xyzs[atom.GetIntProp(MAID)]
-                vec = xyzs[bond.GetIntProp(Moieties.BEGIN)] - xyz
+                vec = xyzs[bond.GetIntProp(BEGIN)] - xyz
                 vec *= self.moieties.getLength(
                     self.hash(bond)) / np.linalg.norm(vec)
                 # Target bond vector
@@ -467,17 +492,16 @@ class Mol(structure.Mol, logutils.Base):
         """
         Write the polymer and monomer into sdf files.
 
-        :param mol 'Chem.Mol': The molecule to write out
         :param filename str: The file path to write into
         """
+        try:
+            maids = [x.GetIntProp(MAID) for x in self.GetAtoms()]
+        except KeyError:
+            pass
+        else:
+            self.SetProps([MAID])
+            self.SetProp(MAID, ' '.join(map(str, maids)))
         with Chem.SDWriter(filename) as fh:
-            try:
-                maids = [x.GetIntProp(MAID) for x in self.GetAtoms()]
-            except KeyError:
-                pass
-            else:
-                self.SetProps([MAID])
-                self.SetProp(MAID, ' '.join(map(str, maids)))
             fh.write(self)
 
     @classmethod

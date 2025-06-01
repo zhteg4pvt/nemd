@@ -1,90 +1,58 @@
-import os
-
 import pytest
 
-from nemd import envutils
 from nemd import parserutils
 from nemd import polymutils
 
-TEST_DIR = envutils.test_data('polym_builder')
 
-
-def get_parser():
-    parser = parserutils.get_parser(description=__doc__)
-    polymutils.add_arguments(parser)
-    return parser
-
-
-class TestMol(object):
+class TestMoieties:
 
     @pytest.fixture
-    def mol(self):
-        parser = get_parser()
-        options = parser.parse_args(
-            ['C(*)C(*)CO', '-cru_num', '3', '-mol_num', '2'])
-        return polymutils.Mol(options.cru[0],
-                              options.cru_num[0],
-                              options.mol_num[0],
-                              options=options,
-                              delay=True)
+    def moieties(self, args):
+        options = parserutils.MolBase().parse_args(args)
+        for cru, cru_num, mol_num in zip(options.cru, options.cru_num,
+                                         options.mol_num):
+            return polymutils.Moieties(cru,
+                                       cru_num=cru_num,
+                                       mol_num=mol_num,
+                                       options=options)
 
-    def testSetCruMol(self, mol):
-        mol.setCruMol()
-        assert mol.cru_mol.GetNumAtoms() == 7
+    @pytest.mark.parametrize('args,expected', [(['C'], 1), (['C.Cl'], 2),
+                                               (['C*.*C*.Cl*'], 3)])
+    def testSetUp(self, moieties, expected):
+        assert expected == len(moieties)
 
-    def testMarkMonomer(self, mol):
-        mol.setCruMol()
-        mol.markMonomer()
-        assert mol.cru_mol.GetBoolProp('is_mono')
-        ma = [x.GetIntProp('mono_atom_idx') for x in mol.cru_mol.GetAtoms()]
-        assert ma == [0, 1, 2, 3, 4, 5, 6]
-        assert mol.cru_mol.GetAtomWithIdx(0).GetSymbol() == '*'
-        assert mol.cru_mol.GetAtomWithIdx(0).GetBoolProp('cap')
-        assert mol.cru_mol.GetAtomWithIdx(1).GetBoolProp('ht')
+    @pytest.mark.parametrize('args,expected', [(['C'], 1), (['C.Cl'], 2),
+                                               (['*C*'], 1)])
+    def testRun(self, moieties, expected):
+        moieties.run()
+        assert expected == sum(x.GetNumConformers() for x in moieties.mols)
 
-    def testPolymerize(self, mol):
-        mol.setCruMol()
-        mol.markMonomer()
-        mol.polymerize()
-        assert mol.GetNumAtoms() == 15
+    @pytest.mark.parametrize('args,expected', [(['C'], 1), (['C.Cl'], 2),
+                                               (['*C*'], 0)])
+    def testMols(self, moieties, expected):
+        assert expected == len(moieties.mols)
 
-    # def testAssignAtomType(self, mol):
-    #     mol.setCruMol()
-    #     mol.markMonomer()
-    #     mol.polymerize()
-    #     mol.assignAtomType()
-    #     atoms = mol.GetAtoms()
-    #     assert len([x.GetIntProp('type_id') for x in atoms]) == 15
-    #     assert len([x.GetIntProp('res_num') for x in atoms]) == 15
+    @pytest.mark.parametrize('args,expected', [(['*C*'], [0, 1, 2])])
+    def testSetMaids(self, moieties, expected):
+        moieties.setMaids()
+        maids = [y.GetIntProp('maid') for x in moieties for y in x.GetAtoms()]
+        assert expected == maids
 
-    def testEmbedMol(self, mol):
-        mol.setCruMol()
-        mol.markMonomer()
-        mol.polymerize()
-        mol.embedMol()
-        assert mol.GetNumConformers() == 1
+    @pytest.mark.parametrize('args,expected', [(['*C*', '-cru_num', '3'], 3)])
+    def testGetSeq(self, moieties, expected):
+        assert expected == len(moieties.getSeq())
 
-    def testSetConformers(self, mol):
-        mol.setCruMol()
-        mol.markMonomer()
-        mol.polymerize()
-        mol.embedMol()
-        mol.setConformers()
-        assert mol.GetNumConformers() == 2
+    @pytest.mark.parametrize('args,expected', [(['C'], 0), (['C.Cl'], 0),
+                                               (['*C*'], 1)])
+    def testMers(self, moieties, expected):
+        assert expected == len(moieties.mers)
 
+    @pytest.mark.parametrize('args,expected', [(['C'], 0), (['C[*:1].*C*'], 2),
+                                               (['*C*'], 0)])
+    def testInr(self, moieties, expected):
+        assert expected == moieties.inr.GetNumAtoms()
 
-class TestConformer(object):
-
-    @pytest.fixture
-    def raw_conf(self):
-        polym = polymutils.Conformer.read(os.path.join(TEST_DIR, 'polym.sdf'))
-        orig_cru_mol = polymutils.Conformer.read(
-            os.path.join(TEST_DIR, 'orig_cru_mol.sdf'))
-        raw_conf = polymutils.Conformer(polym, orig_cru_mol)
-        raw_conf.relax_dir = os.path.join(BASE_DIR, raw_conf.relax_dir)
-        return raw_conf
-
-    def testFoldPolym(self, raw_conf):
-        raw_conf.setCruMol()
-        raw_conf.setCruBackbone()
-        raw_conf.foldPolym()
+    @pytest.mark.parametrize('args,expected', [(['C'], 0), (['C*.*C*'], 2),
+                                               (['*C*'], 0)])
+    def testTer(self, moieties, expected):
+        assert expected == moieties.ter.GetNumAtoms()
