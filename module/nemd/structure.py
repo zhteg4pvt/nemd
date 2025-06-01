@@ -265,7 +265,7 @@ class Mol(Chem.rdchem.Mol):
         :param targets list: target atom ids.
         :return list: each sublist has four atom ids.
         """
-        if sources[0] is None and self.polym:
+        if all([x is None for x in [*sources, *targets]]) and self.polym:
             # FIXME: sources should be all initiator atoms; targets should be
             #  the atoms of all terminators
             polym_ht = [x for x in self.GetAtoms() if x.HasProp(self.POLYM_HT)]

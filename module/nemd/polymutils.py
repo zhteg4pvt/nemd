@@ -132,7 +132,7 @@ class Moiety(cru.Moiety):
         """
         # Increase residue number
         nums = [x.GetMonomerInfo().GetResidueNumber() for x in self.GetAtoms()]
-        start = max(nums) if nums else 0
+        start = max(nums) + 1 if nums else 0
         for atom in mol.GetAtoms():
             info = atom.GetMonomerInfo()
             info.SetResidueNumber(info.GetResidueNumber() + start)
@@ -154,12 +154,10 @@ class Moiety(cru.Moiety):
             cap.SetBoolProp(marker, True)
         combined = Chem.CombineMols(self, mol)
         caps = [x for x in combined.GetAtoms() if x.HasProp(marker)]
-        editable = Chem.EditableMol(combined)
+        editable = EditableMol(combined)
         if len(caps) == 2:
-            bonded = [x.GetNeighbors()[0].GetIdx() for x in caps]
-            editable.AddBond(*bonded, order=Chem.rdchem.BondType.SINGLE)
-        for cap_aid in sorted([x.GetIdx() for x in caps], reverse=True):
-            editable.RemoveAtom(cap_aid)
+            editable = editable.addBonds([caps])
+        editable.removeAtoms([x.GetIdx() for x in caps])
         return Moiety(editable.GetMol())
 
     def new(self, info=None):
@@ -181,10 +179,45 @@ class Moiety(cru.Moiety):
         for atom in self.stars:
             atom.SetAtomicNum(0)
         conf = self.GetConformer()
-        sources = [x.GetIdx() for x in self.head]
-        targets = [x.GetIdx() for x in self.tail]
-        for dihe in self.getDihes(sources=sources, targets=targets):
+        src, tgt = [[y.GetIdx() for y in x] for x in [self.head, self.tail]]
+        for dihe in self.getDihes(sources=src, targets=tgt):
             conf.setDihedralDeg(dihe, 180)
+
+
+class EditableMol(Chem.EditableMol):
+    """
+    Customized for moieties.
+    """
+
+    def removeAtoms(self, aids):
+        """
+        Remove atoms.
+
+        :param aids list: the ids of the atoms to remove.
+        """
+        for aid in sorted(aids, reverse=True):
+            self.RemoveAtom(aid)
+
+    def addBonds(self, pairs):
+        """
+        Add and mark bonds between head & tail pairs.
+
+        :param pairs list: each item is a capping atom pair of a head & a tail.
+        :return `EditableMol`: the edited molecule.
+        """
+        maids = {}
+        # Form bonds between the head and tail
+        for caps in pairs:
+            bonded = tuple([x.GetNeighbors()[0].GetIdx() for x in caps])
+            self.AddBond(*bonded, order=Chem.rdchem.BondType.SINGLE)
+            maids[bonded] = [x.GetIntProp(MAID) for x in caps]
+        # Record capping atoms moiety atom ids on the formed bonds
+        chain = self.GetMol()
+        for bonded, (begin, end) in maids.items():
+            bond = chain.GetBondBetweenAtoms(*bonded)
+            bond.SetIntProp(BEGIN, begin)
+            bond.SetIntProp(END, end)
+        return EditableMol(chain)
 
 
 class Sequence(list):
@@ -201,23 +234,9 @@ class Sequence(list):
         mol = Moiety(functools.reduce(Chem.CombineMols, self))
         # FIXME: Support head-head and tail-tail coupling
         pairs = list(zip(mol.getCapping()[:-1], mol.getCapping(0)[1:]))
-        edcombo, maids = Chem.EditableMol(mol), {}
-        # Form bonds between the head and tail
-        for caps in pairs:
-            bonded = tuple([x.GetNeighbors()[0].GetIdx() for x in caps])
-            edcombo.AddBond(*bonded, order=Chem.rdchem.BondType.SINGLE)
-            maids[bonded] = [x.GetIntProp(MAID) for x in caps]
-        # Record capping atoms moiety atom ids on the formed bonds
-        chain = edcombo.GetMol()
-        for bonded, (begin, end) in maids.items():
-            bond = chain.GetBondBetweenAtoms(*bonded)
-            bond.SetIntProp(BEGIN, begin)
-            bond.SetIntProp(END, end)
-        # Remove the capping atoms
-        aids = [y.GetIdx() for x in pairs for y in x]
-        editable = Chem.EditableMol(chain)
-        for aid in sorted(aids, reverse=True):
-            editable.RemoveAtom(aid)
+        editable = EditableMol(mol)
+        editable = editable.addBonds(pairs)
+        editable.removeAtoms([y.GetIdx() for x in pairs for y in x])
         return Moiety(editable.GetMol())
 
 
@@ -259,7 +278,23 @@ class Moieties(list, logutils.Base):
 
         :return list: the initiator moiety.
         """
-        return next((x for x in self if x.role == cru.INITIATOR), Moiety())
+        return self.getMoiety()
+
+    def getMoiety(self, role=cru.INITIATOR):
+        """
+        Get moiety of certain role.
+
+        :param role str: moiety role.
+        :return `Moiety`: the selected moiety.
+        """
+        try:
+            moiety = next(x for x in self if x.role == role)
+        except StopIteration:
+            return Moiety(info=dict(res_num=0))
+        else:
+            for atom in moiety.GetAtoms():
+                atom.SetBoolProp(structutils.GrownMol.POLYM_HT, True)
+            return moiety
 
     @methodtools.lru_cache()
     @property
@@ -269,7 +304,7 @@ class Moieties(list, logutils.Base):
 
         :return list: the terminator moiety.
         """
-        return next((x for x in self if x.role == cru.TERMINATOR), Moiety())
+        return self.getMoiety(cru.TERMINATOR)
 
     @methodtools.lru_cache()
     @property

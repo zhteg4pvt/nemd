@@ -1,0 +1,2 @@
+# Amorphous builder on initiator and terminator
+nemd_run amorp_bldr_driver.py "C*.*CC*.C*" -seed 123

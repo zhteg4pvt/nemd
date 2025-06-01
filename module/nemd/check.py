@@ -124,11 +124,13 @@ class Cmp(Exist):
                 continue
             self.error(target)
 
-    def error(self, target):
+    def errorDiff(self, target):
         """
-        See parent.
+        Error message on file difference.
+
+        :param target: the target file that is different from the original.
         """
-        super().error(f"{self.args[0]} is different from {target}.")
+        self.error(f"{self.args[0]} is different from {target}.")
 
     def csv(self):
         """
@@ -143,14 +145,14 @@ class Cmp(Exist):
             data = pd.read_csv(target)
             tgt_obj = data.select_dtypes(include='object')
             if object.shape != tgt_obj.shape:
-                self.error(target)
+                self.errorDiff(target)
             if not all(object == tgt_obj):
-                self.error(target)
+                self.errorDiff(target)
             tgt_nonobj = data.select_dtypes(exclude='object')
             if nonobj.shape != tgt_nonobj.shape:
-                self.error(target)
+                self.errorDiff(target)
             if not np.allclose(nonobj, tgt_nonobj, **self.kwargs):
-                self.error(target)
+                self.errorDiff(target)
 
     def data(self):
         """
@@ -162,7 +164,7 @@ class Cmp(Exist):
         for target in self.args[1:]:
             if origin.allClose(lammpsdata.read(target), **self.kwargs):
                 continue
-            self.error(target)
+            self.errorDiff(target)
 
 
 class Collect(Exist):
