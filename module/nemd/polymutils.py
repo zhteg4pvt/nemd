@@ -134,10 +134,15 @@ class Moiety(cru.Moiety):
         """
         pair = self.tail[:1] + mol.head[:1]
         if len(pair) == 1:
-            # Add implicit hydrogen as one input moiety is empty.
+            # Add implicit / explicit hydrogen as one input moiety is empty.
             atom = pair[0].GetNeighbors()[0]
-            implicit_h = atom.GetIntProp(symbols.IMPLICIT_H)
-            atom.SetIntProp(symbols.IMPLICIT_H, implicit_h + 1)
+            try:
+                implicit_h = atom.GetIntProp(symbols.IMPLICIT_H)
+            except KeyError:
+                atom = pair[0]
+                atom.SetAtomicNum(1)
+            else:
+                atom.SetIntProp(symbols.IMPLICIT_H, implicit_h + 1)
             atom.SetBoolProp(structutils.GrownMol.POLYM_HT, True)
         # FIXME: support multiple tails bonded to the copies of molecules
         # Increase the residue number
@@ -188,6 +193,9 @@ class Sequence(list):
 
         :return 'Moiety': the chain built from monomers.
         """
+        for moiety in self:
+            for star in moiety.stars:
+                star.SetIntProp(MAID, star.GetIdx())
         mol = Moiety(functools.reduce(Chem.CombineMols, self))
         # FIXME: Support head-head and tail-tail coupling
         pairs = list(zip(mol.getCapping()[:-1], mol.getCapping(0)[1:]))
@@ -334,6 +342,7 @@ class Moieties(list, logutils.Base):
         for moiety, idx in zip(moieties, hashed[1::2]):
             moiety.GetAtomWithIdx(idx).SetBoolProp(marker, True)
         # Combine moieties, delete stars, and add the bond
+        # FIXME: remove one star per moiety, and replace the rest with hydrogen
         moieties = [Chem.DeleteSubstructs(x, star) for x in moieties]
         combined = Chem.CombineMols(*moieties)
         bonded = [x.GetIdx() for x in combined.GetAtoms() if x.HasProp(marker)]

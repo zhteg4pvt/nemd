@@ -100,4 +100,4 @@ class TestMol:
                                                  ('C.*C*', '*C*.C')])
     def testGetSmiles(self, mol, expected):
         mol.setMoieties()
-        print(mol.getSmiles())
+        assert expected == mol.getSmiles()

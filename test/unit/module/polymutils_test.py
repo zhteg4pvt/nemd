@@ -1,7 +1,31 @@
 import pytest
 
+from nemd import np
 from nemd import parserutils
 from nemd import polymutils
+
+
+@pytest.fixture
+def moieties(args):
+    options = parserutils.MolBase().parse_args(args)
+    for cru, cru_num, mol_num in zip(options.cru, options.cru_num,
+                                     options.mol_num):
+        return polymutils.Moieties(cru,
+                                   cru_num=cru_num,
+                                   mol_num=mol_num,
+                                   options=options)
+
+
+class TestSequence:
+
+    @pytest.fixture
+    def seq(self, moieties):
+        return moieties.getSeq()
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['*CO*', '-cru_num', '3', '-seed', '1'], 8)])
+    def testBuild(self, seq, expected):
+        assert expected == seq.build().GetNumAtoms()
 
 
 class TestMoieties:
@@ -56,3 +80,9 @@ class TestMoieties:
                                                (['*C*'], 0)])
     def testTer(self, moieties, expected):
         assert expected == moieties.ter.GetNumAtoms()
+
+    @pytest.mark.parametrize('args,hashed,expected',
+                             [(['*CO*', '-cru_num', '3', '-seed', '1'],
+                               (0, 1, 0, 2), 1.3977891330176333)])
+    def testGetLength(self, moieties, hashed, expected):
+        np.testing.assert_almost_equal(moieties.getLength(hashed), expected)
