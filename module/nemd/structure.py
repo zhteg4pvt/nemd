@@ -56,6 +56,23 @@ class Conf(Chem.rdchem.Conformer):
         for idx in range(xyz.shape[0]):
             self.SetAtomPosition(idx, xyz[idx, :])
 
+    def measure(self, aids):
+        """
+        Measure the bond length, angle degree, or dihedral angle.
+
+        :return float: the measurement.
+        """
+        num = len(aids)
+        match num:
+            case 2:
+                return Chem.rdMolTransforms.GetBondLength(self, *aids)
+            case 3:
+                return Chem.rdMolTransforms.GetAngleDeg(self, *aids)
+            case 4:
+                return Chem.rdMolTransforms.GetDihedralDeg(self, *aids)
+            case _:
+                return
+
 
 class Mol(Chem.rdchem.Mol):
     """

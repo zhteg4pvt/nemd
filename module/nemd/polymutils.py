@@ -122,38 +122,45 @@ class Moiety(cru.Moiety):
         """
         return self.getCapping(self.TAIL_ID)
 
-    def bond(self, mol):
+    def bond(self, mol, marker='marker'):
         """
         Bond the tail of current moiety and the head of the input moiety.
 
         :param mol 'Moiety': the moiety to extend with.
+        :param marker str: the marker of bonded atoms.
         :return 'Moiety': the extended molecule.
         """
-        pair = self.tail[:1] + mol.head[:1]
-        if len(pair) == 1:
-            # Add implicit / explicit hydrogen as one moiety is empty.
-            atom = pair[0].GetNeighbors()[0]
-            try:
-                implicit_h = atom.GetIntProp(symbols.IMPLICIT_H)
-            except KeyError:
-                atom = pair[0]
-                atom.SetAtomicNum(1)
-            else:
-                atom.SetIntProp(symbols.IMPLICIT_H, implicit_h + 1)
-            atom.SetBoolProp(structutils.GrownMol.POLYM_HT, True)
-        # FIXME: support multiple tails bonded to the copies of molecules
-        # Increase the residue number
+        # Increase residue number
         nums = [x.GetMonomerInfo().GetResidueNumber() for x in self.GetAtoms()]
         start = max(nums) if nums else 0
         for atom in mol.GetAtoms():
             info = atom.GetMonomerInfo()
             info.SetResidueNumber(info.GetResidueNumber() + start)
-
-        # Combine the molecules and remove the capping atoms
-        edcombo = Chem.EditableMol(Chem.CombineMols(self, mol))
-        for cap_aid in sorted([x.GetIdx() for x in pair], reverse=True):
-            edcombo.RemoveAtom(cap_aid)
-        return Moiety(edcombo.GetMol())
+        # Add Implicit / explicit hydrogen
+        caps = self.tail[:1] + mol.head[:1]
+        if len(caps) == 1:
+            atom = caps[0].GetNeighbors()[0]
+            try:
+                implicit_h = atom.GetIntProp(symbols.IMPLICIT_H)
+            except KeyError:
+                atom = caps[0]
+                atom.SetAtomicNum(1)
+            else:
+                atom.SetIntProp(symbols.IMPLICIT_H, implicit_h + 1)
+            atom.SetBoolProp(structutils.GrownMol.POLYM_HT, True)
+        # FIXME: support multiple tails bonded to the copies of molecules
+        # Combine molecules, add bond, and remove capping atoms
+        for cap in caps:
+            cap.SetBoolProp(marker, True)
+        combined = Chem.CombineMols(self, mol)
+        caps = [x for x in combined.GetAtoms() if x.HasProp(marker)]
+        editable = Chem.EditableMol(combined)
+        if len(caps) == 2:
+            bonded = [x.GetNeighbors()[0].GetIdx() for x in caps]
+            editable.AddBond(*bonded, order=Chem.rdchem.BondType.SINGLE)
+        for cap_aid in sorted([x.GetIdx() for x in caps], reverse=True):
+            editable.RemoveAtom(cap_aid)
+        return Moiety(editable.GetMol())
 
     def new(self, info=None):
         """

@@ -318,24 +318,19 @@ class Conf(lmpatomic.Conf):
         """
         Chem.rdMolTransforms.SetDihedralDeg(self, *dihe, val)
 
-    def measure(self):
+    def measure(self, aids=None, name=None):
         """
         Measure the bond length, angle degree, or dihedral angle.
 
+        :param aids list: atom ids
+        :param name str: the measurement name.
         :return float: the measurement.
         """
-        aids = self.GetOwningMol().getSubstructMatch()
-        num = len(aids)
-        match num:
-            case 2:
-                value = Chem.rdMolTransforms.GetBondLength(self, *aids)
-            case 3:
-                value = Chem.rdMolTransforms.GetAngleDeg(self, *aids)
-            case 4:
-                value = Chem.rdMolTransforms.GetDihedralDeg(self, *aids)
-            case _:
-                return
-        return builtinsutils.Float(value, name=aids.name)
+        if aids is None:
+            aids = self.GetOwningMol().getSubstructMatch()
+            name = aids.name
+        value = super().measure(aids)
+        return builtinsutils.Float(value, name=name)
 
 
 class Mol(lmpatomic.Mol):

@@ -42,11 +42,27 @@ class TestMoiety:
     def testTail(self, moiety, expected):
         assert expected == [x.GetIdx() for x in moiety.tail]
 
-    # @pytest.mark.parametrize('smiles,info,expected', [('*C[*:1]', None, [2])])
-    # def testBond(self, moiety, expected):
-    #     mol = polymutils.Moiety.MolFromSmiles('*C*')
-    #     chain = moiety.bond(mol)
-    #     breakpoint()
+    @pytest.mark.parametrize('info', [dict(res_num=0)])
+    @pytest.mark.parametrize('smiles,other,expected',
+                             [('*C[*:1]', '*C*', '*CC*'), ('', '*C*', '*C'),
+                              ('*C[*:1]', '', '*C')])
+    def testBond(self, moiety, other, expected):
+        mol = polymutils.Moiety.MolFromSmiles(other, info=dict(res_num=0))
+        assert expected == moiety.bond(mol).smiles
+
+    @pytest.mark.parametrize('smiles,info,expected',
+                             [('*C[*:1]', dict(res_num=0), 1)])
+    def testNew(self, moiety, expected):
+        nmoiety = moiety.new(info=dict(res_num=expected))
+        for atom in nmoiety.GetAtoms():
+            assert expected == atom.GetMonomerInfo().GetResidueNumber()
+
+    @pytest.mark.parametrize('smiles,info,expected',
+                             [('*CCCC[*:1]', dict(res_num=0), 1)])
+    def testEmbedMolecule(self, moiety, expected):
+        moiety.EmbedMolecule()
+        value = moiety.GetConformer().measure([0, 1, 2, 3]) % 180
+        np.testing.assert_almost_equal(value, 0)
 
 
 class TestSequence:
