@@ -420,7 +420,7 @@ class Bond(Charge):
         :return int: the number of bonds including the implicit hydrogen.
         """
         try:
-            implicit_h_num = atom.GetIntProp(symbols.IMPLICIT_H)
+            implicit_h_num = atom.GetIntProp(symbols.IMPLICIT)
         except KeyError:
             implicit_h_num = atom.GetNumImplicitHs()
         return implicit_h_num + atom.GetDegree()

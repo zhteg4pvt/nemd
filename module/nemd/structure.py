@@ -248,7 +248,7 @@ class Mol(Chem.rdchem.Mol):
         for atom in mol.GetAtoms():
             if atom.GetSymbol() != symbols.CARBON or atom.GetIsAromatic():
                 continue
-            atom.SetIntProp(symbols.IMPLICIT_H, atom.GetNumImplicitHs())
+            atom.SetIntProp(symbols.IMPLICIT, atom.GetNumImplicitHs())
             atom.SetNoImplicit(True)
 
         # FIXME: support different chiralities for monomers
@@ -271,7 +271,7 @@ class Mol(Chem.rdchem.Mol):
             # FIXME: sources should be all initiator atoms; targets should be
             #  the atoms of all terminators
             polym_ht = [x for x in self.GetAtoms() if x.HasProp(self.POLYM_HT)]
-            sources, targets = [[x.GetIdx()] for x in polym_ht]
+            sources = targets = [x.GetIdx() for x in polym_ht]
 
         longest = []
         for source, target in itertools.product(sources, targets):

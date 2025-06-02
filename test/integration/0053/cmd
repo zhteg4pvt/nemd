@@ -1,0 +1,2 @@
+# Amorphous builder on Isobutane from initiator with multiple stars
+nemd_run amorp_bldr_driver.py "[*:1]C([*:1])([*:1]).*C*" -seed 123 -CPU 1

@@ -102,15 +102,63 @@ class Moiety(cru.Moiety):
                         info.SetSerialNumber(value)
             atom.SetMonomerInfo(info)
 
-    @property
-    @functools.cache
-    def head(self):
+    def bond(self, mol):
         """
-        Get the capping atom of the head.
+        Bond the tails of current moiety and the heads of the input moieties.
 
-        :return `Chem.Atom`: the capping atom of the head.
+        :param mol 'Moiety': the moiety to extend with.
+        :return 'Moiety': the extended molecule.
         """
-        return self.getCapping(self.HEAD_ID)
+        if self.GetNumAtoms() and mol.GetNumAtoms():
+            return self.combine(mol)
+        return self.cap(mol)
+
+    def combine(self, mol, marker='marker', res=-1):
+        """
+        Combine molecules with bond creation and capping removal.
+
+        :param mol list: the moiety to combine with.
+        :param marker str: the marker of bonded atoms.
+        :param res int: the previous residue number.
+        :return `Moiety`: the combined moiety.
+        """
+        mols = [mol.new() for _ in range(len(self.tail))]
+        for mol in [self] + mols:
+            res = mol.incrRes(delta=res + 1)
+        for idx, (tail, mol) in enumerate(zip(self.tail, mols)):
+            tail.SetIntProp(marker, idx)
+            mol.head[0].SetIntProp(marker, idx)
+        combined = functools.reduce(Chem.CombineMols, [self] + mols)
+        pairs = collections.defaultdict(list)
+        for atom in combined.GetAtoms():
+            if atom.HasProp(marker):
+                pairs[atom.GetIntProp(marker)].append(atom)
+        editable = EditableMol(combined).addBonds(pairs.values())
+        return Moiety(editable.GetMol())
+
+    def new(self, info=None):
+        """
+        Create a new moiety.
+
+        :param info dict: the residue information.
+        :return 'Moiety': the copied fragment.
+        """
+        return Moiety(self, info=info)
+
+    def incrRes(self, delta=0, max_res=0):
+        """
+        Increase the residue number.
+
+        :param delta int: the increment.
+        :param max_res int: the maximum residule number.
+        :return int: the maximum residue number.
+        """
+        for atom in self.GetAtoms():
+            info = atom.GetMonomerInfo()
+            res = info.GetResidueNumber() + delta
+            info.SetResidueNumber(res)
+            max_res = max(max_res, res)
+        return max_res
 
     @property
     @functools.cache
@@ -122,52 +170,36 @@ class Moiety(cru.Moiety):
         """
         return self.getCapping(self.TAIL_ID)
 
-    def bond(self, mol, marker='marker'):
+    @property
+    @functools.cache
+    def head(self):
         """
-        Bond the tail of current moiety and the head of the input moiety.
+        Get the capping atom of the head.
+
+        :return `Chem.Atom`: the capping atom of the head.
+        """
+        return self.getCapping(self.HEAD_ID)
+
+    def cap(self, mol, implicit=symbols.IMPLICIT):
+        """
+        Cap the moiety by star atom mutation or deletion.
 
         :param mol 'Moiety': the moiety to extend with.
-        :param marker str: the marker of bonded atoms.
-        :return 'Moiety': the extended molecule.
+        :param implicit str: the implicit hydrogen property.
+        :return `Moiety`: the capped moiety.
         """
-        # Increase residue number
-        nums = [x.GetMonomerInfo().GetResidueNumber() for x in self.GetAtoms()]
-        start = max(nums) + 1 if nums else 0
-        for atom in mol.GetAtoms():
-            info = atom.GetMonomerInfo()
-            info.SetResidueNumber(info.GetResidueNumber() + start)
-        # Combine molecules, add bond, and remove capping atoms
-        caps = self.tail[:1] + mol.head[:1]
-        # FIXME: support multiple tails bonded to the copies of molecules
-        if len(caps) == 2:
-            for cap in caps:
-                cap.SetBoolProp(marker, True)
-            combined = Chem.CombineMols(self, mol)
-            caps = [x for x in combined.GetAtoms() if x.HasProp(marker)]
-            editable = EditableMol(combined).addBonds([caps])
-            return Moiety(editable.GetMol())
-        # Either self or mol is empty
-        atom = caps[0].GetNeighbors()[0]
-        try:
-            implicit_h = atom.GetIntProp(symbols.IMPLICIT_H)
-        except KeyError:
-            atom = caps[0]
-            atom.SetAtomicNum(1)
-        else:
-            atom.SetIntProp(symbols.IMPLICIT_H, implicit_h + 1)
-        atom.SetBoolProp(structutils.GrownMol.POLYM_HT, True)
+        stars = self.tail + mol.head
+        for atom in stars:
+            if atom.GetNeighbors()[0].HasProp(implicit):
+                atom = atom.GetNeighbors()[0]
+                atom.SetIntProp(implicit, atom.GetIntProp(implicit) + 1)
+            else:
+                atom.SetAtomicNum(1)
+            atom.SetBoolProp(structutils.GrownMol.POLYM_HT, True)
+        stars = [x for x in stars if x.GetSymbol() == symbols.STAR]
         editable = EditableMol(self if self.GetNumAtoms() else mol)
-        editable.removeAtoms([x.GetIdx() for x in caps])
+        editable.removeAtoms([x.GetIdx() for x in stars])
         return Moiety(editable.GetMol())
-
-    def new(self, info=None):
-        """
-        Create a new moiety.
-
-        :param info dict: the residue information.
-        :return 'Moiety': the copied fragment.
-        """
-        return Moiety(self, info=info)
 
     def EmbedMolecule(self, *args, **kwargs):
         """
@@ -233,7 +265,8 @@ class Sequence(list):
 
         :return 'Moiety': the chain built from monomers.
         """
-        mol = Moiety(functools.reduce(Chem.CombineMols, self))
+        mols = [x.new(dict(res_num=i)) for i, x in enumerate(self)]
+        mol = Moiety(functools.reduce(Chem.CombineMols, mols))
         # FIXME: Support head-head and tail-tail coupling
         pairs = list(zip(mol.getCapping()[:-1], mol.getCapping(0)[1:]))
         editable = EditableMol(mol)
@@ -352,8 +385,7 @@ class Moieties(list, logutils.Base):
         :return Sequence: moieties to build a chain
         """
         # FIXME: Support input sequence (e.g., AABA) and moiety ratios
-        seq = [np.random.choice(self.mers) for _ in range(self.cru_num)]
-        return Sequence([x.new(dict(res_num=i)) for i, x in enumerate(seq)])
+        return Sequence(np.random.choice(self.mers, self.cru_num))
 
     @methodtools.lru_cache()
     def getLength(self,
@@ -385,7 +417,7 @@ class Moieties(list, logutils.Base):
         with rdkitutils.capture_logging():
             mol.EmbedMolecule(useRandomCoords=True,
                               randomSeed=self.options.seed)
-        return Chem.rdMolTransforms.GetBondLength(mol.GetConformer(), *bonded)
+        return mol.GetConformer().measure(bonded)
 
 
 class Repeated(list):
