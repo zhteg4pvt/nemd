@@ -1,6 +1,7 @@
 from unittest import mock
 
 import pytest
+from rdkit import Chem
 
 from nemd import np
 from nemd import parserutils
@@ -63,6 +64,28 @@ class TestMoiety:
         moiety.EmbedMolecule()
         value = moiety.GetConformer().measure([0, 1, 2, 3]) % 180
         np.testing.assert_almost_equal(value, 0)
+
+
+class TestEditableMol:
+
+    @pytest.fixture
+    def editable(self, mol):
+        return polymutils.EditableMol(mol)
+
+    @pytest.mark.parametrize('smiles,aids,expected', [('CCCCl', (3, 0), 'CC')])
+    def testRemoveAtoms(self, editable, aids, expected):
+        editable.removeAtoms(aids)
+        assert expected == Chem.MolToSmiles(editable.GetMol())
+
+    @pytest.mark.parametrize('smiles,pairs,expected',
+                             [('CCC*.*O*.Cl*', ((0, 6), (8, 4)), 'CCCOCl')])
+    def testAddBonds(self, editable, pairs, expected):
+        mol = editable.GetMol()
+        pairs = [[mol.GetAtomWithIdx(y) for y in x] for x in pairs]
+        for idx, cap in enumerate(y for x in pairs for y in x):
+            cap.SetIntProp('maid', idx)
+        editable.addBonds(pairs)
+        assert expected == Chem.MolToSmiles(editable.GetMol())
 
 
 class TestSequence:

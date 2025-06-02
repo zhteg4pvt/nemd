@@ -136,27 +136,27 @@ class Moiety(cru.Moiety):
         for atom in mol.GetAtoms():
             info = atom.GetMonomerInfo()
             info.SetResidueNumber(info.GetResidueNumber() + start)
-        # Add Implicit / explicit hydrogen
-        caps = self.tail[:1] + mol.head[:1]
-        if len(caps) == 1:
-            atom = caps[0].GetNeighbors()[0]
-            try:
-                implicit_h = atom.GetIntProp(symbols.IMPLICIT_H)
-            except KeyError:
-                atom = caps[0]
-                atom.SetAtomicNum(1)
-            else:
-                atom.SetIntProp(symbols.IMPLICIT_H, implicit_h + 1)
-            atom.SetBoolProp(structutils.GrownMol.POLYM_HT, True)
-        # FIXME: support multiple tails bonded to the copies of molecules
         # Combine molecules, add bond, and remove capping atoms
-        for cap in caps:
-            cap.SetBoolProp(marker, True)
-        combined = Chem.CombineMols(self, mol)
-        caps = [x for x in combined.GetAtoms() if x.HasProp(marker)]
-        editable = EditableMol(combined)
+        caps = self.tail[:1] + mol.head[:1]
+        # FIXME: support multiple tails bonded to the copies of molecules
         if len(caps) == 2:
-            editable = editable.addBonds([caps])
+            for cap in caps:
+                cap.SetBoolProp(marker, True)
+            combined = Chem.CombineMols(self, mol)
+            caps = [x for x in combined.GetAtoms() if x.HasProp(marker)]
+            editable = EditableMol(combined).addBonds([caps])
+            return Moiety(editable.GetMol())
+        # Either self or mol is empty
+        atom = caps[0].GetNeighbors()[0]
+        try:
+            implicit_h = atom.GetIntProp(symbols.IMPLICIT_H)
+        except KeyError:
+            atom = caps[0]
+            atom.SetAtomicNum(1)
+        else:
+            atom.SetIntProp(symbols.IMPLICIT_H, implicit_h + 1)
+        atom.SetBoolProp(structutils.GrownMol.POLYM_HT, True)
+        editable = EditableMol(self if self.GetNumAtoms() else mol)
         editable.removeAtoms([x.GetIdx() for x in caps])
         return Moiety(editable.GetMol())
 
@@ -200,7 +200,7 @@ class EditableMol(Chem.EditableMol):
 
     def addBonds(self, pairs):
         """
-        Add and mark bonds between head & tail pairs.
+        Add and mark bonds.
 
         :param pairs list: each item is a capping atom pair of a head & a tail.
         :return `EditableMol`: the edited molecule.
@@ -217,7 +217,9 @@ class EditableMol(Chem.EditableMol):
             bond = chain.GetBondBetweenAtoms(*bonded)
             bond.SetIntProp(BEGIN, begin)
             bond.SetIntProp(END, end)
-        return EditableMol(chain)
+        chain = EditableMol(chain)
+        chain.removeAtoms([y.GetIdx() for x in pairs for y in x])
+        return chain
 
 
 class Sequence(list):
@@ -236,7 +238,6 @@ class Sequence(list):
         pairs = list(zip(mol.getCapping()[:-1], mol.getCapping(0)[1:]))
         editable = EditableMol(mol)
         editable = editable.addBonds(pairs)
-        editable.removeAtoms([y.GetIdx() for x in pairs for y in x])
         return Moiety(editable.GetMol())
 
 

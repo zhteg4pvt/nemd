@@ -343,6 +343,9 @@ class Mol(lmpatomic.Mol):
     Id = Id
 
     def setUp(self, *args, **kwargs):
+        """
+        See parent.
+        """
         super().setUp(*args, **kwargs)
         self.setInternal()
         self.setSubstruct()
