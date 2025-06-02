@@ -9,9 +9,9 @@ from nemd import check
 class TestExist:
 
     @pytest.fixture
-    def exist(self, args, copied):
+    def exist(self, args, called, copied):
         exist = check.Exist(*args)
-        exist.error = mock.Mock()
+        exist.error = called
         return exist
 
     @pytest.mark.parametrize('dirname,args,expected',
@@ -19,17 +19,15 @@ class TestExist:
                               ('0000', ('cmd', 'check'), None)])
     def testRun(self, exist, expected):
         exist.run()
-        exist.error.assert_called_with(
-            expected) if expected else exist.error.assert_not_called()
 
 
 @pytest.mark.parametrize('dirname', ['0000'])
 class TestGlob:
 
     @pytest.fixture
-    def glob(self, args, kwargs, copied):
+    def glob(self, args, kwargs, called, copied):
         glob = check.Glob(*args, **kwargs)
-        glob.error = mock.Mock()
+        glob.error = called
         return glob
 
     @pytest.mark.parametrize('args,kwargs,expected',
@@ -40,17 +38,15 @@ class TestGlob:
                               (('cmd*', 'check'), dict(num=3), None)])
     def testRun(self, glob, expected):
         glob.run()
-        glob.error.assert_called_with(
-            expected) if expected else glob.error.assert_not_called()
 
 
 @pytest.mark.parametrize('dirname', ['0000'])
 class TestHas:
 
     @pytest.fixture
-    def has(self, args, copied):
+    def has(self, args, called, copied):
         has = check.Has(*args)
-        has.error = mock.Mock()
+        has.error = called
         return has
 
     @pytest.mark.parametrize(
@@ -63,17 +59,15 @@ class TestHas:
             has.run()
         except FileNotFoundError:
             pass
-        has.error.assert_called_with(
-            expected) if expected else has.error.assert_not_called()
 
 
 @pytest.mark.parametrize('dirname', ['0000'])
 class TestCmp:
 
     @pytest.fixture
-    def cmp(self, args, kwargs, copied):
+    def cmp(self, args, kwargs, called, copied):
         cmp = check.Cmp(*args, **kwargs)
-        cmp.error = mock.Mock()
+        cmp.errorDiff = called
         return cmp
 
     @pytest.mark.parametrize(
@@ -83,8 +77,6 @@ class TestCmp:
          (['cmd', 'check'], dict(equal_nan='True'), None)])
     def testFile(self, cmp, expected):
         cmp.file()
-        cmp.error.assert_called_with(
-            expected) if expected else cmp.error.assert_not_called()
 
     @pytest.mark.parametrize(
         'args,kwargs,expected',
@@ -100,8 +92,6 @@ class TestCmp:
             cmp.csv()
         except ValueError:
             pass
-        cmp.error.assert_called_with(
-            expected) if expected else cmp.error.assert_not_called()
 
     @pytest.mark.parametrize(
         'args,kwargs,expected',
@@ -117,8 +107,6 @@ class TestCmp:
             cmp.data()
         except ValueError:
             pass
-        cmp.error.assert_called_with(
-            expected) if expected else cmp.error.assert_not_called()
 
 
 class TestCollect:

@@ -239,3 +239,19 @@ def random_seed(seed):
     """
     np.random.seed(seed)
     random.seed(seed)
+
+
+@pytest.fixture
+def called(expected):
+    """
+    Assert function called with the expected.
+
+    :param expected str: expected called with.
+    :return `mock.Mock`: the mocked function.
+    """
+    mocked = mock.Mock()
+    yield mocked
+    if expected:
+        mocked.assert_called_with(expected)
+    else:
+        mocked.assert_not_called()

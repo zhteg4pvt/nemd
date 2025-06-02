@@ -122,7 +122,7 @@ class Cmp(Exist):
         for target in self.args[1:]:
             if filecmp.cmp(self.args[0], target):
                 continue
-            self.error(target)
+            self.errorDiff(target)
 
     def errorDiff(self, target):
         """
