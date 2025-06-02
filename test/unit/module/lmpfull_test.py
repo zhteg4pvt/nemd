@@ -144,12 +144,12 @@ class TestConformer:
         measured = Chem.rdMolTransforms.GetDihedralDeg(conf, *aids)
         np.testing.assert_almost_equal(measured, val)
 
-    @pytest.mark.parametrize('args,expected', [([], None), (['CC'], 1.526),
-                                               (['CC', '1.6'], 1.6),
-                                               (['CCC'], 112.4),
-                                               (['CCC', '120'], 120),
-                                               (['CCCC'], 141.3842856),
-                                               (['CCCC', '30'], 30)])
+    @pytest.mark.parametrize('args,expected',
+                             [([], None),
+                              (['C'], [1.9976941, -0.034285, -0.3056107]),
+                              (['CC'], 1.526), (['CC', '1.6'], 1.6),
+                              (['CCC'], 112.4), (['CCC', '120'], 120),
+                              (['CCCC'], 141.3842856), (['CCCC', '30'], 30)])
     def testMeasure(self, conf, smiles, args, expected):
         args = [smiles, '-substruct'] + args if args else [smiles]
         options = parserutils.MolBase().parse_args(args)

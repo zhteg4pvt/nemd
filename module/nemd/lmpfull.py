@@ -324,13 +324,14 @@ class Conf(lmpatomic.Conf):
 
         :param aids list: atom ids
         :param name str: the measurement name.
-        :return float: the measurement.
+        :return np.ndarray or float: the measurement.
         """
         if aids is None:
             aids = self.GetOwningMol().getSubstructMatch()
             name = aids.name
-        value = super().measure(aids)
-        return builtinsutils.Float(value, name=name)
+        value = super().measure(aids.tolist())
+        return builtinsutils.Float(value, name=name) if isinstance(
+            value, float) else value
 
 
 class Mol(lmpatomic.Mol):
@@ -401,6 +402,8 @@ class Mol(lmpatomic.Mol):
         if gid:
             ids = self.GetConformer().gids[list(ids)]
         match len(ids):
+            case 1:
+                name = 'coordinates (angstrom)'
             case 2:
                 name = 'distance (angstrom)'
             case 3:

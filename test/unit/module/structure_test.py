@@ -24,6 +24,16 @@ class TestConformer:
         conf.setPositions(xyz)
         np.testing.assert_equal(xyz, conf.GetPositions())
 
+    @pytest.mark.parametrize('smiles,cnum,seed', [('CCCC', 1, 123)])
+    @pytest.mark.parametrize('aids,expected',
+                             [([0], [-1.8139675, -0.2029386, -0.2367584]),
+                              ([0, 1], 1.50384324), ((0, 1, 2), 107.78527533),
+                              ((0, 1, 2, 3), 138.626372)])
+    def testMeasure(self, emol, aids, expected, random_seed):
+
+        np.testing.assert_almost_equal(emol.GetConformer().measure(aids),
+                                       expected)
+
 
 class TestMol:
 

@@ -58,12 +58,14 @@ class Conf(Chem.rdchem.Conformer):
 
     def measure(self, aids):
         """
-        Measure the bond length, angle degree, or dihedral angle.
+        Measure the position, bond length, angle degree, or dihedral angle.
 
-        :return float: the measurement.
+        :return np.array or float: the measurement.
         """
         num = len(aids)
         match num:
+            case 1:
+                return np.array(self.GetAtomPosition(aids[0]))
             case 2:
                 return Chem.rdMolTransforms.GetBondLength(self, *aids)
             case 3:
