@@ -327,11 +327,12 @@ class Conf(lmpatomic.Conf):
         :return np.ndarray or float: the measurement.
         """
         if aids is None:
-            aids = self.GetOwningMol().getSubstructMatch()
-            name = aids.name
-        value = super().measure(aids.tolist())
-        return builtinsutils.Float(value, name=name) if isinstance(
-            value, float) else value
+            match = self.GetOwningMol().getSubstructMatch()
+            aids, name = match.tolist(), match.name
+        value = super().measure(aids)
+        if isinstance(value, float):
+            return builtinsutils.Float(value, name=name)
+        return value
 
 
 class Mol(lmpatomic.Mol):

@@ -6,6 +6,7 @@ This module builds polymers.
 import collections
 import functools
 
+import itertools
 import methodtools
 import numpy as np
 import scipy
@@ -109,11 +110,9 @@ class Moiety(cru.Moiety):
         :param mol 'Moiety': the moiety to extend with.
         :return 'Moiety': the extended molecule.
         """
-        if self.GetNumAtoms() and mol.GetNumAtoms():
-            return self.combine(mol)
-        return self.cap(mol)
+        return self.combine(mol) or self.cap(mol)
 
-    def combine(self, mol, marker='marker', res=-1):
+    def combine(self, mol, marker='marker', tail=None, head=None, res=-1):
         """
         Combine molecules with bond creation and capping removal.
 
@@ -122,12 +121,18 @@ class Moiety(cru.Moiety):
         :param res int: the previous residue number.
         :return `Moiety`: the combined moiety.
         """
-        mols = [mol.new() for _ in range(len(self.tail))]
+        if any([self.empty(), mol.empty()]):
+            return
+        for atom in itertools.chain(self.GetAtoms(), mol.GetAtoms()):
+            atom.ClearProp(marker)
+        tails = self.tail if tail is None else [tail]
+        mols = [mol.new() for _ in range(len(tails))]
+        for idx, (tail, mol) in enumerate(zip(tails, mols)):
+            tail.SetIntProp(marker, idx)
+            atom = mol.head[0] if head is None else mol.GetAtomWithIdx(head.GetIdx())
+            atom.SetIntProp(marker, idx)
         for mol in [self] + mols:
             res = mol.incrRes(delta=res + 1)
-        for idx, (tail, mol) in enumerate(zip(self.tail, mols)):
-            tail.SetIntProp(marker, idx)
-            mol.head[0].SetIntProp(marker, idx)
         combined = functools.reduce(Chem.CombineMols, [self] + mols)
         pairs = collections.defaultdict(list)
         for atom in combined.GetAtoms():
@@ -135,6 +140,14 @@ class Moiety(cru.Moiety):
                 pairs[atom.GetIntProp(marker)].append(atom)
         editable = EditableMol(combined).addBonds(pairs.values())
         return Moiety(editable.GetMol())
+
+    def empty(self):
+        """
+        Whether the moiety is empty.
+
+        :return 'bool': True when the moiety is empty.
+        """
+        return self.GetNumAtoms() == 0
 
     def new(self, info=None):
         """
@@ -188,6 +201,8 @@ class Moiety(cru.Moiety):
         :param implicit str: the implicit hydrogen property.
         :return `Moiety`: the capped moiety.
         """
+        if self.empty() == mol.empty():
+            return
         stars = self.tail + mol.head
         for atom in stars:
             if atom.GetNeighbors()[0].HasProp(implicit):
@@ -388,36 +403,24 @@ class Moieties(list, logutils.Base):
         return Sequence(np.random.choice(self.mers, self.cru_num))
 
     @methodtools.lru_cache()
-    def getLength(self,
-                  hashed,
-                  marker='marker',
-                  star=Chem.MolFromSmiles(symbols.STAR)):
+    def getLength(self, hashed):
         """
         Get the length of a bond between moieties.
 
         :param hashed tuple: moiety serial number, the moiety atom index,
             the bonded moiety serial number, the bonded moiety atom index
-        :param marker str: the marker of bonded atoms.
-        :param star 'Chem.Molecule': the start molecule (capping atom).
         :return float: the bond length in Angstroms.
         """
         # Mark atoms to form bond
         moieties = [self[x].new() for x in hashed[::2]]
-        for moiety, idx in zip(moieties, hashed[1::2]):
-            moiety.GetAtomWithIdx(idx).SetBoolProp(marker, True)
-        # Combine moieties, delete stars, and add the bond
-        # FIXME: remove one star per moiety, and replace the rest with hydrogen
-        moieties = [Chem.DeleteSubstructs(x, star) for x in moieties]
-        combined = Chem.CombineMols(*moieties)
-        bonded = [x.GetIdx() for x in combined.GetAtoms() if x.HasProp(marker)]
-        editable = Chem.EditableMol(combined)
-        editable.AddBond(*bonded, order=Chem.rdchem.BondType.SINGLE)
-        # Measure the bond length
-        mol = structure.Mol(editable.GetMol())
+        atoms = [x.GetAtomWithIdx(y) for x, y in zip(moieties, hashed[1::2])]
+        tail, head = [next(y for y in x.GetNeighbors() if y.GetSymbol() == symbols.STAR) for x in atoms]
+        mol = moieties[0].combine(moieties[1], tail=tail, head=head)
         with rdkitutils.capture_logging():
-            mol.EmbedMolecule(useRandomCoords=True,
-                              randomSeed=self.options.seed)
-        return mol.GetConformer().measure(bonded)
+            mol.EmbedMolecule(randomSeed=self.options.seed)
+        bond = next(x for x in mol.GetBonds() if x.HasProp(BEGIN))
+        aids = [bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()]
+        return mol.GetConformer().measure(aids)
 
 
 class Repeated(list):
@@ -473,12 +476,11 @@ class Mol(structure.Mol, logutils.Base):
         with rdkitutils.capture_logging(self.logger):
             # ERROR UFFTYPER: Unrecognized charge state for atom: 0 (Mg+2)
             # WARNING UFFTYPER: Warning: hybridization set to SP3 for atom 0
-            kwargs = dict(useRandomCoords=True, randomSeed=self.options.seed)
             if not self.polym:
-                super().EmbedMolecule(**kwargs)
+                super().EmbedMolecule(randomSeed=self.options.seed)
                 return
             for moiety in self.moieties:
-                moiety.EmbedMolecule(**kwargs)
+                moiety.EmbedMolecule(randomSeed=self.options.seed)
 
         Chem.GetSymmSSSR(self)
         conf = structure.Conf(self.GetNumAtoms())

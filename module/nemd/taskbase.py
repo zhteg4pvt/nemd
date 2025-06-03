@@ -289,7 +289,7 @@ class Cmd(Job):
     def quote(arg,
               single=re.compile("^'.*'$"),
               double=re.compile('^".*"$'),
-              spec=re.compile(r"[@!#%^&*()<>?|}{:\[\]]")):
+              spec=re.compile(r"[@!#%^&*()<?|}{:\[\]]")):
         """
         Quote if the unquoted argument containing special characters.
 
