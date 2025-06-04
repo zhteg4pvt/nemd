@@ -19,6 +19,41 @@ def moieties(args):
                                    options=options)
 
 
+class TestBond:
+
+    @pytest.fixture
+    def bond(self, mol):
+        return polymutils.Bond(mol.GetBonds()[0])
+
+    @pytest.mark.parametrize('smiles,idx,expected',
+                             [('Cl*.*C[*:1]', 0, (0, 2, 1, 0)),
+                              ('CC*.*CC[*:1]', 2, (0, 0, 1, 3))])
+    def testHash(self, smiles, idx, expected):
+        moieties = polymutils.Moieties(smiles)
+        bond = polymutils.Bond(moieties.polym.GetBonds()[idx])
+        assert expected == bond.hash
+
+    @pytest.mark.parametrize('smiles,expected', [('Cl*.*C[*:1]', 3)])
+    def testBegin(self, bond, expected):
+        bond.begin = expected
+        assert expected == bond.begin
+
+    @pytest.mark.parametrize('smiles,expected', [('Cl*.*C[*:1]', 3)])
+    def testEnd(self, bond, expected):
+        bond.end = expected
+        assert expected == bond.end
+
+    @pytest.mark.parametrize('smiles,expected', [('Cl*.*C[*:1]', [1.1, 2, 3])])
+    def testVec(self, bond, expected):
+        bond.vec = expected
+        assert expected == bond.vec
+
+    @pytest.mark.parametrize('smiles,expected', [('Cl*.*C[*:1]', [0, 1.2, 3])])
+    def testXyz(self, bond, expected):
+        bond.xyz = expected
+        assert expected == bond.xyz
+
+
 @pytest.mark.parametrize('smiles', ['*CC*'])
 class TestConf:
 

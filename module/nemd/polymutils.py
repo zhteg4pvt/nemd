@@ -26,7 +26,6 @@ class Bond:
     """
     Wrapper of inter-moiety bond.
     """
-
     BEGIN = 'begin'
     END = 'end'
     VEC = ['vx', 'vy', 'vz']
@@ -43,60 +42,45 @@ class Bond:
         """
         Get the hash value.
 
-        :return tuple: begin moiety serial number, the begin moiety atom index,
-            the end moiety serial number, the end moiety atom index
+        :return tuple: the begin serial number, the begin capping atom aid,
+            the end serial number, the end capping atom aid.
         """
         atoms = [self.bond.GetBeginAtom(), self.bond.GetEndAtom()]
         nums = [x.GetMonomerInfo().GetSerialNumber() for x in atoms]
-        maids = [x.GetIntProp(MAID) for x in atoms]
-        return tuple(y for x in sorted(x for x in zip(nums, maids)) for y in x)
-
-    def setVec(self, vec):
-        """
-        Set vector.
-
-        :param vec list: the vector from the atom in begin moiety to the atom
-            in the end moiety.
-        """
-        for prop, val in zip(self.VEC, vec):
-            self.bond.SetDoubleProp(prop, val)
-
-    def setXYZ(self, xyz):
-        """
-        Set xyz.
-
-        :param xyz list: the target coordinates of the atom in the end moiety.
-        """
-        for prop, val in zip(self.XYZU, xyz):
-            self.bond.SetDoubleProp(prop, val)
-
-    def setBeginEnd(self, begin, end):
-        """
-        Set begin and end atom index.
-
-        :param begin int: the capping atom index of the begin moiety.
-        :param end int: the capping atom index of the end moiety.
-        """
-        self.bond.SetIntProp(self.BEGIN, begin)
-        self.bond.SetIntProp(self.END, end)
+        caps = [self.begin, self.end]
+        return tuple(y for x in sorted(x for x in zip(nums, caps)) for y in x)
 
     @property
     def begin(self):
         """
-        Get the begin atom index.
+        Get the begin capping atom aid.
 
-        :return int: the capping atom index of the begin moiety.
+        :return int: the atom index of the begin capping atom.
         """
         return self.bond.GetIntProp(self.BEGIN)
+
+    @begin.setter
+    def begin(self, value):
+        """
+        See def begin.
+        """
+        self.bond.SetIntProp(self.BEGIN, value)
 
     @property
     def end(self):
         """
-        Get the end atom index.
+        Get the end capping atom aid.
 
-        :return int: the capping atom index of the end moiety.
+        :return int: the atom index of the end capping atom.
         """
         return self.bond.GetIntProp(self.END)
+
+    @end.setter
+    def end(self, value):
+        """
+        See def end.
+        """
+        self.bond.SetIntProp(self.END, value)
 
     @property
     def vec(self):
@@ -107,6 +91,14 @@ class Bond:
         """
         return [self.bond.GetDoubleProp(x) for x in self.VEC]
 
+    @vec.setter
+    def vec(self, value):
+        """
+        See def vec.
+        """
+        for prop, val in zip(self.VEC, value):
+            self.bond.SetDoubleProp(prop, val)
+
     @property
     def xyz(self):
         """
@@ -115,6 +107,14 @@ class Bond:
         :return list: the target coordinates.
         """
         return [self.bond.GetDoubleProp(x) for x in self.XYZU]
+
+    @xyz.setter
+    def xyz(self, value):
+        """
+        See def xyz.
+        """
+        for prop, val in zip(self.XYZU, value):
+            self.bond.SetDoubleProp(prop, val)
 
 
 class Conf(structutils.Conf):
@@ -353,7 +353,9 @@ class EditableMol(Chem.EditableMol):
         # Record capping atoms moiety atom ids on the formed bonds
         chain = self.GetMol()
         for bonded, (begin, end) in maids.items():
-            Bond(chain.GetBondBetweenAtoms(*bonded)).setBeginEnd(begin, end)
+            bond = Bond(chain.GetBondBetweenAtoms(*bonded))
+            bond.begin = begin
+            bond.end = end
         chain = EditableMol(chain)
         chain.removeAtoms([y.GetIdx() for x in pairs for y in x])
         return chain
@@ -461,10 +463,8 @@ class Moieties(list, logutils.Base):
         """
         if not self.mols:
             # Build polymer
-            chain = self.inr.bond(self.getChain()) if self.mers else self.inr
-            polym = chain.bond(self.ter)
-            self.log(f"Polymer SMILES: {Chem.MolToSmiles(polym)}")
-            self.mols.append(polym)
+            self.mols.append(self.polym)
+            self.log(f"Polymer SMILES: {Chem.MolToSmiles(self.polym)}")
         # Embed conformer
         for idx, mol in enumerate(self.mols):
             self.mols[idx] = Mol(mol,
@@ -482,6 +482,12 @@ class Moieties(list, logutils.Base):
         :return list: regular molecules or built polymer.
         """
         return [x for x in self if x.role == cru.REGULAR]
+
+    @methodtools.lru_cache()
+    @property
+    def polym(self):
+        chain = self.inr.bond(self.getChain()) if self.mers else self.inr
+        return chain.bond(self.ter)
 
     def getChain(self):
         """
@@ -503,10 +509,8 @@ class Moieties(list, logutils.Base):
         """
         # Mark atoms to form bond
         moieties = [self[x].new() for x in hashed[::2]]
-        atoms = [x.GetAtomWithIdx(y) for x, y in zip(moieties, hashed[1::2])]
         tail, head = [
-            next(y for y in x.GetNeighbors() if y.GetSymbol() == symbols.STAR)
-            for x in atoms
+            x.GetAtomWithIdx(y) for x, y in zip(moieties, hashed[1::2])
         ]
         mol = moieties[0].combine(moieties[1], tail=tail, head=head)
         with rdkitutils.capture_logging():
@@ -537,6 +541,7 @@ class Residue(list):
     """
     Residue container of atoms.
     """
+
     def __init__(self, *args, res=0, mol=None, **keyword):
         super().__init__(*args, **keyword)
         """
@@ -560,8 +565,8 @@ class Residue(list):
         """
         Get the bonds from current moiety to the next moieties.
 
-        :return generator of (`bond`, int), the bond from begin to end, the
-            capping atom index of the begin atom.
+        :return generator of (`bond`, int): the bond from begin to end,
+            the monomer atom index of the begin atom.
         """
         for atom in self:
             for nbr in atom.GetNeighbors():
@@ -586,6 +591,7 @@ class Mol(structure.Mol, logutils.Base):
         """
         :param mol `Chem.Mol`: the molecule or polymer.
         :param mol_num int: the number of conformer.
+        :param moieties Moieties: the moieties from which the polymer is built
         :param options 'argparse.Namespace': command-line options.
         :param delay bool: delay the initiation if True.
         """
@@ -620,24 +626,25 @@ class Mol(structure.Mol, logutils.Base):
         while bonds:
             bonds.extend(self.setConformer(bonds.pop()))
 
-    def setConformer(self, bond):
+    def setConformer(self, bond, num=0):
         """
         Partially set the conformer of one residue (moiety).
 
         :param bond Chem.Bond: bond from previous to the current moiety.
-        :return list: the bonds between the current and next moieties
+        :param num int: the residue number whose coordinates are to set.
+        :return generator: the bond between the current and next moieties.
         """
-        res = self.res[bond.GetEndAtom().GetMonomerInfo().GetResidueNumber(
-        ) if bond else 0]
+        if bond:
+            num = bond.GetEndAtom().GetMonomerInfo().GetResidueNumber()
+        res = self.res[num]
         serial = res[0].GetMonomerInfo().GetSerialNumber()
         xyzs = self.moieties[serial].GetConformer().getAligned(bond=bond)
         res.setXYZ(xyzs)
-        # Return the next bonds with target vector and coordinates recorded.
-        for bond, cap in res.getBond():
-            vec = xyzs[bond.begin] - xyzs[cap]
+        for bond, begin in res.getBond():
+            vec = xyzs[bond.begin] - xyzs[begin]
             vec *= self.moieties.getLength(bond.hash) / np.linalg.norm(vec)
-            bond.setVec(vec)
-            bond.setXYZ(xyzs[cap] + vec)
+            bond.vec = vec
+            bond.xyz = xyzs[begin] + vec
             yield bond.bond
 
     @property
