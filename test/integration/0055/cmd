@@ -1,0 +1,2 @@
+# Amorphous builder on initiator only
+nemd_run amorp_bldr_driver.py "[*:1]C([*:1])[*:1]" -seed 1234

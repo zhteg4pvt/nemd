@@ -41,7 +41,7 @@ class Moiety(structure.Mol):
         :raises MoietyError: the wildcard caps > 1 atoms.
         """
         if not all([len(x.GetNeighbors()) == 1 for x in self.stars]):
-            raise MoietyError(f"{STAR} of {self.smiles} caps > 1 atoms.")
+            raise MoietyError(f"{STAR} of {self.smiles} doesn't cap one atom.")
         return [x for x in self.stars if x.GetAtomMapNum() == role_id]
 
     @property
@@ -166,8 +166,8 @@ class Mol(structure.Mol):
 
         :raise MoietyError: The monomer does not have a head marked.
         """
-        if not self.moieties[MONOMER] and not self.moieties[REGULAR]:
-            raise MoietyError(f'Neither regular nor monomer found.')
+        if not self.moieties:
+            raise MoietyError(f'Neither molecules nor moieties found.')
         for mol in self.moieties[MONOMER]:
             map_nums = [x.GetAtomMapNum() for x in mol.stars]
             if Moiety.HEAD_ID not in map_nums:

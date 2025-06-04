@@ -1,0 +1,2 @@
+# Amorphous builder on terminator only
+nemd_run amorp_bldr_driver.py "*C" -seed 1234

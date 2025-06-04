@@ -371,8 +371,8 @@ class Moieties(list, logutils.Base):
         """
         if not self.mols:
             # Build polymer
-            chain = self.getSeq().build()
-            polym = self.inr.bond(chain).bond(self.ter)
+            chain =  self.inr.bond(self.getChain()) if self.mers else self.inr
+            polym = chain.bond(self.ter)
             self.log(f"Polymer SMILES: {Chem.MolToSmiles(polym)}")
             self.mols.append(polym)
         # Embed conformer
@@ -393,14 +393,14 @@ class Moieties(list, logutils.Base):
         """
         return [x for x in self if x.role == cru.REGULAR]
 
-    def getSeq(self):
+    def getChain(self):
         """
         Get the moiety sequence.
 
-        :return Sequence: moieties to build a chain
+        :return `Moiety`: Chan build from moieties.
         """
         # FIXME: Support input sequence (e.g., AABA) and moiety ratios
-        return Sequence(np.random.choice(self.mers, self.cru_num))
+        return Sequence(np.random.choice(self.mers, self.cru_num)).build()
 
     @methodtools.lru_cache()
     def getLength(self, hashed):
