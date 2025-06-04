@@ -19,6 +19,37 @@ def moieties(args):
                                    options=options)
 
 
+@pytest.mark.parametrize('smiles', ['*CC*'])
+class TestConf:
+
+    @pytest.fixture
+    def conf(self, smiles):
+        chain = polymutils.Moiety.MolFromSmiles(smiles)
+        chain.EmbedMolecule()
+        return chain.GetConformer()
+
+    @pytest.mark.parametrize('bond,expected',
+                             [(None, 0), ((0, [1, 2, 3], [-1, 1, 2]), 0)])
+    def testGetAligned(self, conf, bond, expected):
+        if bond is not None:
+            cap, xyz, vec = bond
+            bond = conf.mol.GetAtomWithIdx(cap).GetBonds()[0]
+            bond.SetIntProp('end', 0)
+            # Target bond vector
+            for prop, val in zip(self.VEC, vec):
+                bond.SetDoubleProp(prop, val)
+            # Target atom coordinates
+            for prop, val in zip(symbols.XYZU, xyz + vec):
+                bond.SetDoubleProp(prop, val)
+        xyzs = conf.getAligned(bond=bond)
+        np.testing.assert_almost_equal(xyzs.mean(), expected)
+
+    @pytest.mark.parametrize('cap,expected', [(None, 0), (0, -0.3056338651)])
+    def testGetXYZ(self, conf, cap, expected):
+        xyzs = conf.getXYZ(cap=cap)
+        np.testing.assert_almost_equal(xyzs.mean(), expected)
+
+
 class TestMoiety:
 
     @pytest.fixture
