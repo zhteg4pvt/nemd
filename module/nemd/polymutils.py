@@ -343,7 +343,7 @@ class EditableMol(Chem.EditableMol):
         """
         Add and mark bonds.
 
-        :param pairs list: each item is a capping atom pair of a head & a tail.
+        :param pairs list: each item is a pair of capping atoms.
         :return `EditableMol`: the edited molecule.
         """
         maids = {}

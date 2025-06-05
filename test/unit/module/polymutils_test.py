@@ -185,26 +185,22 @@ class TestEditableMol:
         assert expected == Chem.MolToSmiles(editable.GetMol())
 
     @pytest.mark.parametrize('smiles,pairs,expected',
-                             [('CCC*.*O*.Cl*', ((0, 6), (8, 4)), 'CCCOCl')])
-    def testAddBonds(self, editable, pairs, expected):
-        mol = editable.GetMol()
-        pairs = [[mol.GetAtomWithIdx(y) for y in x] for x in pairs]
-        for idx, cap in enumerate(y for x in pairs for y in x):
-            cap.SetIntProp('maid', idx)
-        editable.addBonds(pairs)
-        assert expected == Chem.MolToSmiles(editable.GetMol())
+                             [('CCC*.*O*.Cl*', [(0, 6), (8, 4)], 'CCCOCl')])
+    def testAddBonds(self, editable, mol, pairs, expected):
+        for idx, aids in enumerate(pairs):
+            pairs[idx] = [mol.GetAtomWithIdx(x) for x in aids]
+            [x.SetIntProp('maid', idx) for x in pairs[idx]]
+        chain = editable.addBonds(pairs)
+        assert expected == Chem.MolToSmiles(chain.GetMol())
 
 
 class TestSequence:
 
-    @pytest.fixture
-    def seq(self, moieties):
-        return moieties.getSeq()
-
-    @pytest.mark.parametrize('args,expected',
-                             [(['*CO*', '-cru_num', '3', '-seed', '1'], 8)])
-    def testBuild(self, seq, expected):
-        assert expected == seq.build().GetNumAtoms()
+    @pytest.mark.parametrize(
+        'args,expected', [(['*CO*', '-cru_num', '3'], '*[C]O[C]O[C]O[*:1]')])
+    def testBuild(self, moieties, expected):
+        mers = [moieties[0] for _ in range(moieties.options.cru_num[0])]
+        assert expected == polymutils.Sequence(mers).build().smiles
 
 
 class TestMoieties:
