@@ -62,25 +62,25 @@ class TestConf:
         chain.EmbedMolecule()
         return chain.GetConformer()
 
-    @pytest.mark.parametrize('bond,expected',
-                             [(None, 0), ((0, [1, 2, 3], [-1, 1, 2]), 0)])
-    def testGetAligned(self, conf, bond, expected):
+    @pytest.mark.parametrize('bond,prop,aids',
+                             [(None, None, [0, 1, 2, 3]),
+                              (0, (0, [1, 2, 3], [-1, 1, 2]), [1])])
+    def testGetAligned(self, conf, bond, prop, aids):
         if bond is not None:
-            end, xyz, vec = bond
+            bond = polymutils.Bond(conf.mol.GetBondWithIdx(bond))
+            bond.end, bond.xyz, bond.vec = prop
+        xyz = conf.getAligned(bond=bond)
+        if bond:
+            vec = xyz[bond.end] - xyz[aids]
+            np.testing.assert_almost_equal(np.cross(vec, bond.vec), 0)
+            np.testing.assert_almost_equal(xyz[aids][0], bond.xyz)
+        else:
+            np.testing.assert_almost_equal(xyz[aids].mean(), 0)
 
-        xyzs = conf.getAligned(bond=bond)
-        np.testing.assert_almost_equal(xyzs.mean(), expected)
-
-    @pytest.mark.parametrize('cap,expected', [(None, 0),
-                                              (0, [1.50384324, 0, 0])])
-    def testGetXYZ(self, conf, cap, expected):
-        xyz = conf.getXYZ(cap=cap)
-        if cap is None:
-            np.testing.assert_almost_equal(xyz.mean(), expected)
-            return
-        capped = conf.mol.GetAtomWithIdx(cap).GetNeighbors()[0].GetIdx()
-        np.testing.assert_almost_equal(xyz[capped].mean(), 0)
-        np.testing.assert_almost_equal(xyz[capped] - xyz[cap], expected)
+    @pytest.mark.parametrize('cap,aids', [(None, [0, 1, 2, 3]), (0, [1])])
+    def testTranslated(self, conf, cap, aids):
+        xyz = conf.translated(cap=cap)[aids]
+        np.testing.assert_almost_equal(xyz.mean(), 0)
 
 
 class TestMoiety:

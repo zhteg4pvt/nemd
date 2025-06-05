@@ -126,13 +126,12 @@ class Conf(structutils.Conf):
         """
         Get the conformer coordinates aligned according to the bond.
 
-        :param bond `Chem.Bond`: bond from previous moiety to this one.
+        :param bond `Bond`: wrapper of bond from the previous moiety to current.
         :return `np.ndarray`: the conformer aligned according to the bond.
         """
         if bond is None:
             return self.translated()
 
-        bond = Bond(bond)
         xyz = self.translated(bond.end)
         rotation, _ = scipy.spatial.transform.Rotation.align_vectors(
             bond.vec, xyz[bond.end])
@@ -559,7 +558,7 @@ class Residue(list):
         """
         Get the bonds from current moiety to the next moieties.
 
-        :return generator of (`bond`, int): the bond from begin to end,
+        :return generator of (`Bond`, int): the bond wrapper from begin to end,
             the monomer atom index of the begin atom.
         """
         for atom in self:
@@ -626,10 +625,10 @@ class Mol(structure.Mol, logutils.Base):
 
         :param bond Chem.Bond: bond from previous to the current moiety.
         :param num int: the residue number whose coordinates are to set.
-        :return generator: the bond between the current and next moieties.
+        :return generator: the bond wrapper from the current to next moieties.
         """
         if bond:
-            num = bond.GetEndAtom().GetMonomerInfo().GetResidueNumber()
+            num = bond.bond.GetEndAtom().GetMonomerInfo().GetResidueNumber()
         res = self.res[num]
         serial = res[0].GetMonomerInfo().GetSerialNumber()
         xyz = self.moieties[serial].GetConformer().getAligned(bond=bond)
@@ -639,7 +638,7 @@ class Mol(structure.Mol, logutils.Base):
             vec *= self.moieties.getLength(bond.hash) / np.linalg.norm(vec)
             bond.xyz = xyz[begin] + vec
             bond.vec = -vec
-            yield bond.bond
+            yield bond
 
     @property
     @functools.cache
