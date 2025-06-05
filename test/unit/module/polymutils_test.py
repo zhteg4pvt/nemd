@@ -86,48 +86,91 @@ class TestConf:
 class TestMoiety:
 
     @pytest.fixture
-    def moiety(self, mol, info):
-        return polymutils.Moiety(mol, info=info)
+    def moiety(self, mol):
+        moiety = polymutils.Moiety(mol, info=dict(res_num=0))
+        moiety.setMaids()
+        return moiety
+
+    @pytest.fixture
+    def other_moiety(self, other):
+        other = polymutils.Moiety.MolFromSmiles(other, info=dict(res_num=0))
+        other.setMaids()
+        return other
 
     @pytest.mark.parametrize('smiles', ['C'])
     @pytest.mark.parametrize('info,expected',
                              [(None, None),
                               (dict(res_num=1, serial=3), (1, 3))])
-    def testSetup(self, moiety, expected):
+    def testSetup(self, mol, info, expected):
+        moiety = polymutils.Moiety(mol, info=info)
         info = next(x.GetMonomerInfo() for x in moiety.GetAtoms())
-        if info:
-            info = (info.GetResidueNumber(), info.GetSerialNumber())
-        assert expected == info
+        assert expected == ((info.GetResidueNumber(),
+                             info.GetSerialNumber()) if info else None)
 
-    @pytest.mark.parametrize('smiles,info,expected', [('*C[*:1]', None, [0])])
-    def testHead(self, moiety, expected):
-        assert expected == [x.GetIdx() for x in moiety.head]
+    @pytest.mark.parametrize('smiles,expected', [('C', [0]),
+                                                 ('*C[*:1]', [0, 1, 2])])
+    def testSetMaids(self, moiety, expected):
+        assert expected == [x.GetIntProp('maid') for x in moiety.GetAtoms()]
 
-    @pytest.mark.parametrize('smiles,info,expected', [('*C[*:1]', None, [2])])
+    @pytest.mark.parametrize('smiles,other,expected',
+                             [('C[*:1]', '*C[*:1]', 'CC[*:1]'),
+                              ('', '*C[*:1]', 'C[*:1]'),
+                              ('*C[*:1]', '', '*C')])
+    def testBond(self, moiety, other_moiety, expected):
+        assert expected == moiety.bond(other_moiety).smiles
+
+    @pytest.mark.parametrize('smiles,tail,other,head,expected',
+                             [('C[*:1]', None, '*C[*:1]', None,
+                               ('CC[*:1]', 0, 1, 1)),
+                              ('C[*:1]', 1, '*C[*:1]', 2, ('*CC', 0, 1, 1)),
+                              ('', None, '*C[*:1]', None, None),
+                              ('*C[*:1]', None, '', None, None)])
+    def testCombine(self, moiety, tail, other_moiety, head, expected):
+        chain = moiety.combine(other_moiety, tail=tail, head=head)
+        if expected is None:
+            assert chain is None
+            return
+        res = [x.GetMonomerInfo().GetResidueNumber() for x in chain.GetAtoms()]
+        assert expected == (chain.smiles, *res)
+
+    @pytest.mark.parametrize('smiles,expected', [('*C[*:1]', [2])])
     def testTail(self, moiety, expected):
         assert expected == [x.GetIdx() for x in moiety.tail]
 
-    @pytest.mark.parametrize('info', [dict(res_num=0)])
-    @pytest.mark.parametrize('smiles,other,expected',
-                             [('*C[*:1]', '*C*', '*CC*'), ('', '*C*', '*C'),
-                              ('*C[*:1]', '', '*C')])
-    def testBond(self, moiety, other, expected):
-        mol = polymutils.Moiety.MolFromSmiles(other, info=dict(res_num=0))
-        assert expected == moiety.bond(mol).smiles
+    @pytest.mark.parametrize('smiles,expected', [('*C[*:1]', [0])])
+    def testHead(self, moiety, expected):
+        assert expected == [x.GetIdx() for x in moiety.head]
 
-    @pytest.mark.parametrize('smiles,info,expected',
-                             [('*C[*:1]', dict(res_num=0), 1)])
+    @pytest.mark.parametrize('smiles,expected', [('*C[*:1]', False),
+                                                 ('', True)])
+    def testEmpty(self, moiety, expected):
+        assert expected == moiety.empty
+
+    @pytest.mark.parametrize('smiles,expected', [('*C[*:1]', 1)])
     def testNew(self, moiety, expected):
-        nmoiety = moiety.new(info=dict(res_num=expected))
-        for atom in nmoiety.GetAtoms():
+        new = moiety.new(info=dict(res_num=expected))
+        for atom in new.GetAtoms():
             assert expected == atom.GetMonomerInfo().GetResidueNumber()
 
-    @pytest.mark.parametrize('smiles,info,expected',
-                             [('*CCCC[*:1]', dict(res_num=0), 1)])
-    def testEmbedMolecule(self, moiety, expected):
+    @pytest.mark.parametrize('smiles,delta,expected', [('*C[*:1]', 2, [2, 4])])
+    def testIncrRes(self, moiety, delta, expected):
+        max_res = moiety.incrRes(delta=delta)
+        assert expected == [max_res, moiety.incrRes(delta=delta)]
+
+    @pytest.mark.parametrize('smiles,other,expected',
+                             [('C[*:1]', '*C[*:1]', None),
+                              ('', '*C[*:1]', 'C[*:1]'), ('*C[*:1]', '', '*C'),
+                              ('', '', None)])
+    def testCap(self, moiety, other_moiety, expected):
+        capped = moiety.cap(other_moiety)
+        assert expected == (capped.smiles if capped else None)
+
+    @pytest.mark.parametrize('smiles,aids,expected',
+                             [('*CCCC[*:1]', [0, 1, 2, 3], 1)])
+    def testEmbedMolecule(self, moiety, aids, expected):
         moiety.EmbedMolecule()
-        value = moiety.GetConformer().measure([0, 1, 2, 3]) % 180
-        np.testing.assert_almost_equal(value, 0)
+        measured = moiety.GetConformer().measure(aids)
+        np.testing.assert_almost_equal(measured % 180, 0)
 
 
 class TestEditableMol:

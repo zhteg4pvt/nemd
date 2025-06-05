@@ -187,9 +187,16 @@ class Moiety(cru.Moiety):
                         info.SetSerialNumber(value)
             atom.SetMonomerInfo(info)
 
+    def setMaids(self):
+        """
+        Set the monomer atom ids.
+        """
+        for atom in self.GetAtoms():
+            atom.SetIntProp(MAID, atom.GetIdx())
+
     def bond(self, mol):
         """
-        Bond the tails of current moiety and the heads of the input moieties.
+        Bond to the input moiety.
 
         :param mol 'Moiety': the moiety to extend with.
         :return 'Moiety': the extended molecule.
@@ -202,19 +209,20 @@ class Moiety(cru.Moiety):
 
         :param mol list: the moiety to combine with.
         :param marker str: the marker of bonded atoms.
+        :param tail `int`: the index of tail atom in the current moiety.
+        :param head `int`: the index of head atom in the input moiety.
         :param res int: the previous residue number.
         :return `Moiety`: the combined moiety.
         """
-        if any([self.empty(), mol.empty()]):
+        if any([self.empty, mol.empty]):
             return
         for atom in itertools.chain(self.GetAtoms(), mol.GetAtoms()):
             atom.ClearProp(marker)
-        tails = self.tail if tail is None else [tail]
+        tails = self.tail if tail is None else [self.GetAtomWithIdx(tail)]
         mols = [mol.new() for _ in range(len(tails))]
         for idx, (tail, mol) in enumerate(zip(tails, mols)):
             tail.SetIntProp(marker, idx)
-            atom = mol.head[0] if head is None else mol.GetAtomWithIdx(
-                head.GetIdx())
+            atom = mol.head[0] if head is None else mol.GetAtomWithIdx(head)
             atom.SetIntProp(marker, idx)
         for mol in [self] + mols:
             res = mol.incrRes(delta=res + 1)
@@ -226,6 +234,27 @@ class Moiety(cru.Moiety):
         editable = EditableMol(combined).addBonds(pairs.values())
         return Moiety(editable.GetMol())
 
+    @property
+    @functools.cache
+    def tail(self):
+        """
+        Get the capping atom of the tail.
+
+        :return `Chem.Atom`: the capping atom of the tail.
+        """
+        return self.getCapping(self.TAIL_ID)
+
+    @property
+    @functools.cache
+    def head(self):
+        """
+        Get the capping atom of the head.
+
+        :return `Chem.Atom`: the capping atom of the head.
+        """
+        return self.getCapping(self.HEAD_ID)
+
+    @property
     def empty(self):
         """
         Whether the moiety is empty.
@@ -258,26 +287,6 @@ class Moiety(cru.Moiety):
             max_res = max(max_res, res)
         return max_res
 
-    @property
-    @functools.cache
-    def tail(self):
-        """
-        Get the capping atom of the tail.
-
-        :return `Chem.Atom`: the capping atom of the tail.
-        """
-        return self.getCapping(self.TAIL_ID)
-
-    @property
-    @functools.cache
-    def head(self):
-        """
-        Get the capping atom of the head.
-
-        :return `Chem.Atom`: the capping atom of the head.
-        """
-        return self.getCapping(self.HEAD_ID)
-
     def cap(self, mol, implicit=symbols.IMPLICIT):
         """
         Cap the moiety by star atom mutation or deletion.
@@ -286,7 +295,7 @@ class Moiety(cru.Moiety):
         :param implicit str: the implicit hydrogen property.
         :return `Moiety`: the capped moiety.
         """
-        if self.empty() == mol.empty():
+        if self.empty == mol.empty:
             return
         stars = self.tail + mol.head
         for atom in stars:
@@ -401,8 +410,7 @@ class Moieties(list, logutils.Base):
         mols = structure.Mol.MolFromSmiles(self.cru).GetMolFrags(asMols=True)
         self.extend(Moiety(x, info=dict(serial=i)) for i, x in enumerate(mols))
         for moiety in [self.inr, self.ter, *self.mers]:
-            for atom in moiety.GetAtoms():
-                atom.SetIntProp(MAID, atom.GetIdx())
+            moiety.setMaids()
 
     @methodtools.lru_cache()
     @property
@@ -502,9 +510,7 @@ class Moieties(list, logutils.Base):
         """
         # Mark atoms to form bond
         moieties = [self[x].new() for x in hashed[::2]]
-        tail, head = [
-            x.GetAtomWithIdx(y) for x, y in zip(moieties, hashed[1::2])
-        ]
+        tail, head = hashed[1::2]
         mol = moieties[0].combine(moieties[1], tail=tail, head=head)
         with rdkitutils.capture_logging():
             mol.EmbedMolecule(randomSeed=self.options.seed)
