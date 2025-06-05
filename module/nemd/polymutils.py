@@ -85,9 +85,9 @@ class Bond:
     @property
     def vec(self):
         """
-        Get the vector.
+        Get the vector to align with.
 
-        :return list: the vector from the atom to the target coordinates.
+        :return list: the vector from end atom to the target begin atom.
         """
         return [self.bond.GetDoubleProp(x) for x in self.VEC]
 
@@ -102,9 +102,9 @@ class Bond:
     @property
     def xyz(self):
         """
-        Set xyz.
+        Set target coordinates.
 
-        :return list: the target coordinates.
+        :return list: the target end atom xyz.
         """
         return [self.bond.GetDoubleProp(x) for x in self.XYZU]
 
@@ -121,42 +121,36 @@ class Conf(structutils.Conf):
     """
     Customized for alignment.
     """
-    AXIS = (1, 0, 0)
 
     def getAligned(self, bond=None):
         """
         Get the conformer coordinates aligned according to the bond.
 
-        :param bond `Chem.Bond`: bond from previous moiety to this one
+        :param bond `Chem.Bond`: bond from previous moiety to this one.
         :return `np.ndarray`: the conformer aligned according to the bond.
         """
         if bond is None:
-            return self.getXYZ()
+            return self.translated()
 
         bond = Bond(bond)
+        xyz = self.translated(bond.end)
         rotation, _ = scipy.spatial.transform.Rotation.align_vectors(
-            bond.vec, self.AXIS)
-        xyz = rotation.apply(self.getXYZ(bond.end))
-        return xyz + bond.xyz
+            bond.vec, xyz[bond.end])
+        return rotation.apply(xyz) + bond.xyz
 
     @functools.cache
-    def getXYZ(self, cap=None):
+    def translated(self, cap=None):
         """
-        Get the xyz of the moiety aligned to origin and axis.
+        Get the translated xyz of the moiety.
 
         :param cap `int`: the atom index of a capping atom.
         :return `np.ndarray`: the transformed coordinates.
         """
-        if cap is None:
-            self.translate(-self.centroid())
-            return self.GetPositions()
-
-        atoms = self.GetOwningMol().GetAtomWithIdx(cap).GetNeighbors()
-        centroid = self.centroid(aids=[x.GetIdx() for x in atoms])
+        aids = None if cap is None else [
+            x.GetIdx() for x in self.mol.GetAtomWithIdx(cap).GetNeighbors()
+        ]
+        centroid = self.centroid(aids=aids)
         self.translate(-centroid)
-        rotation, _ = scipy.spatial.transform.Rotation.align_vectors(
-            self.AXIS, -np.array(self.GetAtomPosition(cap)))
-        self.rotate(rotation=rotation)
         return self.GetPositions()
 
 
@@ -638,13 +632,13 @@ class Mol(structure.Mol, logutils.Base):
             num = bond.GetEndAtom().GetMonomerInfo().GetResidueNumber()
         res = self.res[num]
         serial = res[0].GetMonomerInfo().GetSerialNumber()
-        xyzs = self.moieties[serial].GetConformer().getAligned(bond=bond)
-        res.setXYZ(xyzs)
+        xyz = self.moieties[serial].GetConformer().getAligned(bond=bond)
+        res.setXYZ(xyz)
         for bond, begin in res.getBond():
-            vec = xyzs[bond.begin] - xyzs[begin]
+            vec = xyz[bond.begin] - xyz[begin]
             vec *= self.moieties.getLength(bond.hash) / np.linalg.norm(vec)
-            bond.vec = vec
-            bond.xyz = xyzs[begin] + vec
+            bond.xyz = xyz[begin] + vec
+            bond.vec = -vec
             yield bond.bond
 
     @property
@@ -653,7 +647,7 @@ class Mol(structure.Mol, logutils.Base):
         """
         The residue.
 
-        :return dict: residue number -> the atoms
+        :return dict: residue number -> the atoms.
         """
         atoms = collections.defaultdict(list)
         for atom in self.GetAtoms():

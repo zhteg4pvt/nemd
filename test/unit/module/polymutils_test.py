@@ -29,9 +29,8 @@ class TestBond:
                              [('Cl*.*C[*:1]', 0, (0, 2, 1, 0)),
                               ('CC*.*CC[*:1]', 2, (0, 0, 1, 3))])
     def testHash(self, smiles, idx, expected):
-        moieties = polymutils.Moieties(smiles)
-        bond = polymutils.Bond(moieties.polym.GetBonds()[idx])
-        assert expected == bond.hash
+        bond = polymutils.Moieties(smiles).polym.GetBonds()[idx]
+        assert expected == polymutils.Bond(bond).hash
 
     @pytest.mark.parametrize('smiles,expected', [('Cl*.*C[*:1]', 3)])
     def testBegin(self, bond, expected):
@@ -67,22 +66,21 @@ class TestConf:
                              [(None, 0), ((0, [1, 2, 3], [-1, 1, 2]), 0)])
     def testGetAligned(self, conf, bond, expected):
         if bond is not None:
-            cap, xyz, vec = bond
-            bond = conf.mol.GetAtomWithIdx(cap).GetBonds()[0]
-            bond.SetIntProp('end', 0)
-            # Target bond vector
-            for prop, val in zip(self.VEC, vec):
-                bond.SetDoubleProp(prop, val)
-            # Target atom coordinates
-            for prop, val in zip(symbols.XYZU, xyz + vec):
-                bond.SetDoubleProp(prop, val)
+            end, xyz, vec = bond
+
         xyzs = conf.getAligned(bond=bond)
         np.testing.assert_almost_equal(xyzs.mean(), expected)
 
-    @pytest.mark.parametrize('cap,expected', [(None, 0), (0, -0.3056338651)])
+    @pytest.mark.parametrize('cap,expected', [(None, 0),
+                                              (0, [1.50384324, 0, 0])])
     def testGetXYZ(self, conf, cap, expected):
-        xyzs = conf.getXYZ(cap=cap)
-        np.testing.assert_almost_equal(xyzs.mean(), expected)
+        xyz = conf.getXYZ(cap=cap)
+        if cap is None:
+            np.testing.assert_almost_equal(xyz.mean(), expected)
+            return
+        capped = conf.mol.GetAtomWithIdx(cap).GetNeighbors()[0].GetIdx()
+        np.testing.assert_almost_equal(xyz[capped].mean(), 0)
+        np.testing.assert_almost_equal(xyz[capped] - xyz[cap], expected)
 
 
 class TestMoiety:

@@ -1,2 +1,2 @@
 nemd_check cmp amorp_bldr.data amorp_bldr.data
-nemd_check has amorp_bldr.log 'Density is reduced to 1.0500'
+nemd_check has amorp_bldr.log 'Density is reduced to 1.1500'
