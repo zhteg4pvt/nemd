@@ -487,17 +487,15 @@ class Moieties(list, logutils.Base):
     @methodtools.lru_cache()
     @property
     def polym(self):
-        chain = self.inr.bond(self.getChain()) if self.mers else self.inr
+        """
+        Get the polymer built from initiator, monomer, and terminator.
+        """
+        chain = self.inr
+        if self.mers:
+            # FIXME: Support input sequence (e.g., AABA) and moiety ratios
+            sequence = Sequence(np.random.choice(self.mers, self.cru_num))
+            chain = chain.bond(sequence.build())
         return chain.bond(self.ter)
-
-    def getChain(self):
-        """
-        Get the moiety sequence.
-
-        :return `Moiety`: Chan build from moieties.
-        """
-        # FIXME: Support input sequence (e.g., AABA) and moiety ratios
-        return Sequence(np.random.choice(self.mers, self.cru_num)).build()
 
     @methodtools.lru_cache()
     def getLength(self, hashed):

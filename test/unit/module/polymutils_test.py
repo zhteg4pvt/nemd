@@ -9,6 +9,13 @@ from nemd import polymutils
 
 
 @pytest.fixture
+def moiety(mol):
+    moiety = polymutils.Moiety(mol, info=dict(res_num=0))
+    moiety.setMaids()
+    return moiety
+
+
+@pytest.fixture
 def moieties(args):
     options = parserutils.MolBase().parse_args(args)
     for cru, cru_num, mol_num in zip(options.cru, options.cru_num,
@@ -16,7 +23,8 @@ def moieties(args):
         return polymutils.Moieties(cru,
                                    cru_num=cru_num,
                                    mol_num=mol_num,
-                                   options=options)
+                                   options=options,
+                                   logger=mock.MagicMock())
 
 
 class TestBond:
@@ -84,12 +92,6 @@ class TestConf:
 
 
 class TestMoiety:
-
-    @pytest.fixture
-    def moiety(self, mol):
-        moiety = polymutils.Moiety(mol, info=dict(res_num=0))
-        moiety.setMaids()
-        return moiety
 
     @pytest.fixture
     def other_moiety(self, other):
@@ -186,10 +188,10 @@ class TestEditableMol:
 
     @pytest.mark.parametrize('smiles,pairs,expected',
                              [('CCC*.*O*.Cl*', [(0, 6), (8, 4)], 'CCCOCl')])
-    def testAddBonds(self, editable, mol, pairs, expected):
+    def testAddBonds(self, moiety, pairs, expected):
         for idx, aids in enumerate(pairs):
-            pairs[idx] = [mol.GetAtomWithIdx(x) for x in aids]
-            [x.SetIntProp('maid', idx) for x in pairs[idx]]
+            pairs[idx] = [moiety.GetAtomWithIdx(x) for x in aids]
+        editable = polymutils.EditableMol(moiety)
         chain = editable.addBonds(pairs)
         assert expected == Chem.MolToSmiles(chain.GetMol())
 
@@ -205,29 +207,24 @@ class TestSequence:
 
 class TestMoieties:
 
-    @pytest.fixture
-    def moieties(self, args):
-        options = parserutils.MolBase().parse_args(args)
-        for cru, cru_num, mol_num in zip(options.cru, options.cru_num,
-                                         options.mol_num):
-            return polymutils.Moieties(cru,
-                                       cru_num=cru_num,
-                                       mol_num=mol_num,
-                                       options=options,
-                                       logger=mock.MagicMock())
-
     @pytest.mark.parametrize('args,expected', [(['C'], (1, 0)),
                                                (['C.Cl'], (2, 0)),
                                                (['C*.*C*.Cl*'], (3, 7))])
     def testSetUp(self, moieties, expected):
-        atoms = [y for x in moieties for y in x.GetAtoms()]
-        amid_num = len([x for x in atoms if x.HasProp('maid')])
-        assert expected == (len(moieties), amid_num)
+        vals = (1 for x in moieties for y in x.GetAtoms() if y.HasProp('maid'))
+        assert expected == (len(moieties), sum(vals))
 
     @pytest.mark.parametrize('args,expected', [(['C'], 0), (['C[*:1].*C*'], 2),
                                                (['*C*'], 0)])
     def testInr(self, moieties, expected):
         assert expected == moieties.inr.GetNumAtoms()
+
+    @pytest.mark.parametrize('args', [['*CC*.[*:1]C[*:1].C*']])
+    @pytest.mark.parametrize('role,expected',
+                             [('initiator', 3), ('monomer', 4),
+                              ('terminator', 2), ('regular', 0)])
+    def testGetMoiety(self, moieties, role, expected):
+        assert expected == moieties.getMoiety(role).GetNumAtoms()
 
     @pytest.mark.parametrize('args,expected', [(['C'], 0), (['C*.*C*'], 2),
                                                (['*C*'], 0)])
@@ -251,11 +248,11 @@ class TestMoieties:
         assert expected == len(moieties.mols)
 
     @pytest.mark.parametrize('args,expected', [(['*C*', '-cru_num', '3'], 3)])
-    def testGetSeq(self, moieties, expected):
-        assert expected == len(moieties.getSeq())
+    def testPolym(self, moieties, expected):
+        assert expected == moieties.polym.GetNumAtoms()
 
     @pytest.mark.parametrize('args,hashed,expected',
                              [(['*CO*', '-cru_num', '3', '-seed', '1'],
-                               (0, 1, 0, 2), 1.3977891330176333)])
+                               (0, 0, 0, 3), 1.3742332)])
     def testGetLength(self, moieties, hashed, expected):
         np.testing.assert_almost_equal(moieties.getLength(hashed), expected)
