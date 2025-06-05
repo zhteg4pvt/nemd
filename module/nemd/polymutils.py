@@ -517,21 +517,21 @@ class Moieties(list, logutils.Base):
         return mol.GetConformer().measure(aids)
 
 
-class Repeated(list):
+class Repeated:
     """
-    List that repeat the first value on iteration.
+    Save value and iterate the same one.
     """
 
-    def __init__(self, *args, repeat=1, **kwargs):
+    def __init__(self, val, repeat=1):
         """
         :param repeat int: the repeated times on iteration.
         """
-        super().__init__(*args, **kwargs)
+        self.val = val
         self.repeat = repeat
 
     def __iter__(self):
         for _ in range(self.repeat):
-            yield self[0]
+            yield self.val
 
 
 class Residue(list):
@@ -539,13 +539,13 @@ class Residue(list):
     Residue container of atoms.
     """
 
-    def __init__(self, *args, res=0, mol=None, **keyword):
+    def __init__(self, *args, num=0, mol=None, **keyword):
         super().__init__(*args, **keyword)
         """
-        :param res int: the residue number.
+        :param num int: the residue number.
         :param mol `Chem.Mol`: the molecule the residue belongs to.
         """
-        self.res = res
+        self.num = num
         self.mol = mol
 
     def setXYZ(self, xyz):
@@ -567,7 +567,7 @@ class Residue(list):
         """
         for atom in self:
             for nbr in atom.GetNeighbors():
-                if nbr.GetMonomerInfo().GetResidueNumber() <= self.res:
+                if nbr.GetMonomerInfo().GetResidueNumber() <= self.num:
                     continue
                 bnd = self.mol.GetBondBetweenAtoms(atom.GetIdx(), nbr.GetIdx())
                 yield Bond(bnd), atom.GetIntProp(MAID)
@@ -655,7 +655,7 @@ class Mol(structure.Mol, logutils.Base):
         atoms = collections.defaultdict(list)
         for atom in self.GetAtoms():
             atoms[atom.GetMonomerInfo().GetResidueNumber()].append(atom)
-        return {i: Residue(x, res=i, mol=self) for i, x in atoms.items()}
+        return {i: Residue(x, num=i, mol=self) for i, x in atoms.items()}
 
     def addConfRefs(self):
         """
@@ -668,7 +668,7 @@ class Mol(structure.Mol, logutils.Base):
         10000  x [Ar]: 0.0001331 per call
         100000 x [Ar]: 0.001781 per call
         """
-        self.confs = Repeated(self.confs, repeat=self.mol_num)
+        self.confs = Repeated(self.confs[0], repeat=self.mol_num)
 
     def write(self, filename):
         """

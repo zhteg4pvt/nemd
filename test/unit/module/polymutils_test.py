@@ -240,7 +240,7 @@ class TestMoieties:
                                                (['*C*'], 1)])
     def testRun(self, moieties, expected):
         moieties.run()
-        assert expected == sum(x.GetNumConformers() for x in moieties.mols)
+        assert expected == len(moieties.mols)
 
     @pytest.mark.parametrize('args,expected', [(['C'], 1), (['C.Cl'], 2),
                                                (['*C*'], 0)])
@@ -256,3 +256,43 @@ class TestMoieties:
                                (0, 0, 0, 3), 1.3742332)])
     def testGetLength(self, moieties, hashed, expected):
         np.testing.assert_almost_equal(moieties.getLength(hashed), expected)
+
+
+@pytest.mark.parametrize('val,repeat', [(1, 3)])
+class TestRepeated:
+
+    @pytest.fixture
+    def repeated(self, val, repeat):
+        return polymutils.Repeated(val, repeat=repeat)
+
+    def testIter(self, repeated):
+        assert repeated.repeat == len([x for x in repeated])
+
+
+@pytest.mark.parametrize('args', [['[*:1]C[*:1].*CC*', '-cru_num', '2']])
+class TestResidue:
+
+    @pytest.fixture
+    def res(self, moieties, num):
+        mol = moieties.polym
+        mol.EmbedMolecule()
+        atoms = [
+            x for x in mol.GetAtoms()
+            if x.GetMonomerInfo().GetResidueNumber() == num
+        ]
+        return polymutils.Residue(atoms, num=num, mol=moieties.polym)
+
+    @pytest.mark.parametrize(
+        'num,xyz,aids,maids',
+        [(0, [[0, 1, 2]], [0], [0]),
+         (1, [None, [0, 1, 2], [3, 4, 5]], [1, 2], [1, 2])])
+    def testSetXyz(self, res, xyz, aids, maids):
+        res.setXYZ(xyz)
+        for aid, maid in zip(aids, maids):
+            atom_xyz = res.mol.GetConformer().GetAtomPosition(aid)
+            np.testing.assert_almost_equal(atom_xyz, xyz[maid])
+
+    @pytest.mark.parametrize('num,expected', [(0, [[6, 0], [7, 0]]),
+                                              (1, [[2, 2]])])
+    def testGetBond(self, res, num, expected):
+        assert expected == [[x.bond.GetIdx(), y] for x, y in res.getBond()]
