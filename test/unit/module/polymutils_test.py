@@ -1,3 +1,4 @@
+import os.path
 from unittest import mock
 
 import pytest
@@ -296,3 +297,58 @@ class TestResidue:
                                               (1, [[2, 2]])])
     def testGetBond(self, res, num, expected):
         assert expected == [[x.bond.GetIdx(), y] for x, y in res.getBond()]
+
+
+class TestMol:
+
+    @pytest.fixture
+    def mol(self, moieties):
+        mol = moieties.mols[0] if moieties.mols else moieties.polym
+        return polymutils.Mol(mol,
+                              moieties=moieties,
+                              options=moieties.options,
+                              mol_num=moieties.options.mol_num[0],
+                              delay=True)
+
+    @pytest.mark.parametrize('args', [(['[*:1]C[*:1].*CC*']), (['CCCC'])])
+    def testEmbedMolecule(self, mol):
+        mol.EmbedMolecule()
+        assert 1 == len([x for x in mol.confs])
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['[*:1]C[*:1].*CC*', '-cru_num', '2'], (2, 1))])
+    def testSetConformer(self, mol, expected):
+        with mock.patch.object(mol, 'setConformer', return_value=[]):
+            mol.EmbedMolecule()
+        bonds = list(mol.setConformer(None))
+        assert expected[0] == len(bonds)
+        assert expected[1] == len(list(mol.setConformer(bonds[0])))
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['[*:1]C[*:1].*CC*', '-cru_num', '2'], 5),
+                              (['CCCC'], 1)])
+    def testRes(self, mol, expected):
+        assert expected == len(mol.res)
+
+    @pytest.mark.parametrize(
+        'args', [(['[*:1]C[*:1].*CC*', '-cru_num', '2', '-mol_num', '2']),
+                 (['CCCC', '-mol_num', '2'])])
+    def testAddConfRefs(self, mol):
+        mol.EmbedMolecule()
+        mol.addConfRefs()
+        assert 2 == len([x for x in mol.confs])
+
+    @pytest.mark.parametrize('filename', ['filename'])
+    @pytest.mark.parametrize('args', [(['[*:1]C[*:1].*CC*']), (['CCCC'])])
+    def testWrite(self, mol, filename, tmp_dir):
+        mol.write(filename)
+        assert os.path.exists(filename)
+
+    @pytest.mark.parametrize('filename', ['filename'])
+    @pytest.mark.parametrize('args,expected', [(['[*:1]C[*:1].*CC*'], (5, 5)),
+                                               (['CCCC'], (4, 0))])
+    def testRead(self, mol, filename, expected, tmp_dir):
+        mol.write(filename)
+        mol = polymutils.Mol.read(filename)
+        maid_num = sum(1 for x in mol.GetAtoms() if x.HasProp('maid'))
+        assert expected == (mol.GetNumAtoms(), maid_num)

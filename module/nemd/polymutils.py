@@ -661,9 +661,8 @@ class Mol(structure.Mol, logutils.Base):
         """
         Add multiple conformer references pointing to the first one.
 
-        FIXME: Add multiple conformers at once for real.
+        FIXME: Add multiple conformers at once is instead of the repeated.
         Currently, each AddConformer(conf, **kwargs) call becomes more expensive
-
         1000   x [Ar]: 3.438e-05 per call
         10000  x [Ar]: 0.0001331 per call
         100000 x [Ar]: 0.001781 per call
@@ -676,13 +675,9 @@ class Mol(structure.Mol, logutils.Base):
 
         :param filename str: The file path to write into
         """
-        try:
-            maids = [x.GetIntProp(MAID) for x in self.GetAtoms()]
-        except KeyError:
-            pass
-        else:
-            self.SetProps([MAID])
-            self.SetProp(MAID, ' '.join(map(str, maids)))
+        vals = [x.GetIntProp(MAID) for x in self.GetAtoms() if x.HasProp(MAID)]
+        if vals:
+            self.SetProp(MAID, ' '.join(map(str, vals)))
         with Chem.SDWriter(filename) as fh:
             fh.write(self)
 
@@ -696,12 +691,7 @@ class Mol(structure.Mol, logutils.Base):
         """
         suppl = Chem.SDMolSupplier(filename, sanitize=False, removeHs=False)
         mol = next(suppl)
-        Chem.GetSymmSSSR(mol)
-        try:
-            maids = mol.GetProp(MAID).split()
-        except KeyError:
-            pass
-        else:
-            for atom, maid in zip(mol.GetAtoms(), maids):
-                atom.SetProp(MAID, maid)
+        if mol.HasProp(MAID):
+            for atom, maid in zip(mol.GetAtoms(), mol.GetProp(MAID).split()):
+                atom.SetIntProp(MAID, int(maid))
         return mol
