@@ -25,8 +25,14 @@ class Crystal(crystals.Crystal):
         self.options = options
 
     @classmethod
-    def from_database(cls, options=None, **kwargs):
-        crystal = super().from_database(options.name)
+    def fromDatabase(cls, options, **kwargs):
+        """
+        Get crystal from th database with unit cell stretched or compressed.
+
+        :param options namedtuple: the command line options.
+        :return `Crystal`: the crystal.
+        """
+        crystal = cls.from_database(options.name)
         vecs = crystal.lattice_vectors
         if not np.allclose(options.scale_factor or 0, 1):
             vecs = [x * y for x, y in zip(vecs, options.scale_factor)]
@@ -34,13 +40,11 @@ class Crystal(crystals.Crystal):
 
     @property
     @functools.cache
-    def super_cell(self):
+    def supercell(self):
         """
-        Stretched (or compressed) the unit cell, and duplicate in dimensions.
-
-        :return 'crystals.crystal.Supercell': the super cell.
+        See parent.
         """
-        return self.supercell(*self.options.dimension)
+        return super().supercell(*self.options.dimension)
 
     @property
     @functools.cache
@@ -48,9 +52,9 @@ class Crystal(crystals.Crystal):
         """
         Return the crystal as a molecule.
 
-        :return 'rdkit.Chem.rdchem.Mol': the molecule in the supercell.
+        :return 'Chem.Mol': the supercell molecule.
         """
-        atoms = sorted(self.super_cell.atoms,
+        atoms = sorted(self.supercell.atoms,
                        key=lambda x: tuple(x.coords_fractional))
         # Build molecule from atoms
         emol = Chem.EditableMol(Chem.Mol())
@@ -58,13 +62,12 @@ class Crystal(crystals.Crystal):
             emol.AddAtom(Chem.rdchem.Atom(atom.atomic_number))
         mol = emol.GetMol()
         # Set lattice parameters for the molecule
-        lattice_params = self.super_cell.lattice_parameters
-        vecs = tuple(np.array(lattice_params[:3]) * self.super_cell.dimensions)
+        lattice_params = self.supercell.lattice_parameters
+        vecs = tuple(np.array(lattice_params[:3]) * self.supercell.dimensions)
         vecs += lattice_params[3:]
         mol = structure.Mol(mol, vecs=vecs)
         # Add conformer
         conf = structure.Conf(mol.GetNumAtoms())
-        xyz = np.array([x.coords_cartesian for x in atoms])
-        conf.setPositions(xyz)
+        conf.setPositions([x.coords_cartesian for x in atoms])
         mol.AddConformer(conf)
         return mol

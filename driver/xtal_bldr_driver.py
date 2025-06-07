@@ -29,7 +29,7 @@ class Crystal(logutils.Base):
         """
         Main method to run.
         """
-        crystal = xtal.Crystal.from_database(options=self.options)
+        crystal = xtal.Crystal.fromDatabase(options=self.options)
         self.struct = stillinger.Struct.fromMols([crystal.mol],
                                                  options=self.options)
         self.struct.writeData()

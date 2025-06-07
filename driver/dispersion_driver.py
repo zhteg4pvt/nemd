@@ -125,7 +125,7 @@ class Dispersion(logutils.Base):
         """
         Build the supercell based on the unit cell.
         """
-        self.crystal = alamode.Crystal.from_database(options=self.options)
+        self.crystal = alamode.Crystal.fromDatabase(self.options)
         params = map("{:.4}".format, self.crystal.lattice_parameters)
         self.log(
             f"The lattice parameters of the supper cell is {' '.join(params)}")

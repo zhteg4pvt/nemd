@@ -205,7 +205,7 @@ class General(Base):
         self.KD = species  # The atom specie names
         if self.crystal.mode in [SUGGEST, OPTIMIZE]:
             # The total atoms in the supercell
-            self.NAT = len(self.crystal.super_cell.atoms)
+            self.NAT = len(self.crystal.supercell.atoms)
             return
         # The masses of the specie
         self.MASS = [table.TABLE.loc[x].atomic_weight for x in species]
@@ -274,7 +274,7 @@ class Cell:
         :return 'pd.DataFrame': cell vectors (with a scale factor).
         """
         vecs = self.crystal.primitive().lattice_vectors if self.crystal.mode == PHONONS \
-            else self.crystal.super_cell.scaled_lattice_vectors
+            else self.crystal.supercell.scaled_lattice_vectors
         vecs = [x * constants.ANG_TO_BOHR for x in vecs]
         data = pd.DataFrame(vecs)
         data.index.name = 1  # scale factor
@@ -315,7 +315,7 @@ class Position(Cell):
 
         :return 'pd.DataFrame': atom positions (fractional).
         """
-        supercell = self.crystal.super_cell
+        supercell = self.crystal.supercell
         data = [x.coords_fractional for x in supercell.atoms]
         index = [x.element for x in supercell.atoms]
         data = pd.DataFrame(data, index=index) / supercell.dimensions

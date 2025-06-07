@@ -53,8 +53,8 @@ class Conf(Chem.rdchem.Conformer):
 
         :param xyz `np.ndarray`: the xyz coordinates.
         """
-        for idx in range(xyz.shape[0]):
-            self.SetAtomPosition(idx, xyz[idx, :])
+        for idx in range(len(xyz)):
+            self.SetAtomPosition(idx, xyz[idx])
 
     def measure(self, aids):
         """
