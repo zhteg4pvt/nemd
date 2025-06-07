@@ -25,8 +25,8 @@ class Base(builtinsutils.Object):
 
     def __init__(self, dirname=None, jobname=None):
         """
-        :param driname str: the subdirectory to run
-        :param files list: input files
+        :param dirname str: the subdirectory to run.
+        :param files list: input files.
         """
         self.dirname = dirname or os.curdir
         self.jobname = jobname or envutils.get_jobname() or self.name
