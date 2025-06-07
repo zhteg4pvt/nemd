@@ -31,6 +31,7 @@ class Base(builtinsutils.Object):
         self.dirname = dirname or os.curdir
         self.jobname = jobname or envutils.get_jobname() or self.name
         self.logfile = f'{self.jobname}{symbols.LOG_EXT}'
+        self.start = os.getcwd()
 
     def run(self):
         """
@@ -102,7 +103,6 @@ class Submodule(Base):
     """
     Build command, execute subprocess, and search for output files
     """
-
     PRE_RUN = jobutils.NEMD_MODULE
     EXT = symbols.LOG_EXT
     EXTS = {}
@@ -116,13 +116,6 @@ class Submodule(Base):
         self.mode = mode
         self._files = files
         self.dirname = self.mode
-
-    @property
-    def name(self):
-        """
-        See parent.
-        """
-        return self.mode or super().name
 
     def getCmd(self, *args, **kwargs):
         """
@@ -138,7 +131,6 @@ class Submodule(Base):
         pass
 
     @property
-    @functools.cache
     def outfiles(self):
         """
         Search for output files from the extension, directory, and jobname.
@@ -147,14 +139,9 @@ class Submodule(Base):
         :raise FileNotFoundError: no outfiles found
         """
         pattern = f"{self.jobname}{self.EXTS.get(self.mode, self.EXT)}"
-        relpath = os.path.join(self.dirname, pattern)
-        outfiles = glob.glob(relpath)
-        if not outfiles:
-            raise FileNotFoundError(f"No output file found with {relpath}")
-        return outfiles
+        return glob.glob(os.path.join(self.dirname, pattern))
 
     @property
-    @functools.cache
     def files(self):
         """
         The input files to run the program with paths modified with the name.
@@ -163,7 +150,7 @@ class Submodule(Base):
         """
         if not self._files:
             return []
-        relpath = os.path.relpath(os.curdir, start=self.dirname)
+        relpath = os.path.relpath(self.start, start=os.curdir)
         return [
             x if os.path.isabs(x) else os.path.join(relpath, x)
             for x in self._files

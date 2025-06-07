@@ -2,6 +2,7 @@ import os.path
 
 import pytest
 
+from nemd import osutils
 from nemd import process
 
 
@@ -28,3 +29,51 @@ class TestBase:
     @pytest.mark.parametrize('dirname,jobname', [(None, None)])
     def testArgs(self, base):
         assert ['echo', 'hi'] == base.args
+
+
+class TestProcess:
+
+    @pytest.mark.parametrize('tokens', [['echo', 'hello']])
+    def testArgs(self, tokens):
+        assert tokens == process.Process(tokens).args
+
+
+class TestCheck:
+
+    @pytest.mark.parametrize('tokens,expected',
+                             [(['echo', 'hello'], 'echo;hello')])
+    def testGetCmd(self, tokens, expected):
+        assert expected == process.Check(tokens).getCmd(write_cmd=False)
+
+
+@pytest.mark.parametrize('ekey,evalue', [('JOBNAME', None)])
+class TestSubmodule:
+
+    @pytest.fixture
+    def submodule(self, mode, files, env, tmp_dir):
+        return process.Submodule(mode, files=files)
+
+    @pytest.mark.parametrize('mode,files,expected',
+                             [('suggest', None, 'nemd_module echo hi')])
+    def testGetCmd(self, submodule, expected):
+        assert expected == submodule.getCmd(write_cmd=False)
+
+    @pytest.mark.parametrize(
+        'mode,files,expected',
+        [('suggest', None, os.path.join('suggest', 'submodule.log'))])
+    def testOutfiles(self, submodule, expected, raises):
+        assert not submodule.outfiles
+        with osutils.chdir('suggest'):
+            with open('submodule.log', 'w'):
+                pass
+        assert expected == submodule.outfiles[0]
+
+    @pytest.mark.parametrize('mode,files,expected',
+                             [('suggest', ['dispersion.data'], 'suggest')])
+    def testFiles(self, submodule, files, expected):
+        for file in files:
+            with open(file, 'w'):
+                pass
+        assert all([os.path.exists(x) for x in submodule.files])
+        with osutils.chdir('new_dir'):
+            assert all([os.path.exists(x) for x in submodule.files])
