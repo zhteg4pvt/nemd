@@ -139,7 +139,11 @@ class Submodule(Base):
         :raise FileNotFoundError: no outfiles found
         """
         pattern = f"{self.jobname}{self.EXTS.get(self.mode, self.EXT)}"
-        return glob.glob(os.path.join(self.dirname, pattern))
+        pattern = os.path.join(self.dirname, pattern)
+        outfiles = glob.glob(pattern)
+        if not outfiles:
+            raise FileNotFoundError(f"{pattern} not found.")
+        return outfiles
 
     @property
     def files(self):
@@ -161,17 +165,17 @@ class Lmp(Submodule):
     """
     Class to run lammps simulations.
     """
-
     EXT = lammpsfix.CUSTOM_EXT
 
-    def __init__(self, struct, jobname=None, files=None, **kwargs):
+    def __init__(self, struct, **kwargs):
         """
         :param struct Struct: the structure to get in script and data file from.
         """
-        basename = os.path.splitext(os.path.basename(files[0]))[0]
-        mode = f"lammps{basename.removeprefix(jobname)}"
-        super().__init__(mode, jobname=jobname, files=files, **kwargs)
+        super().__init__(None, **kwargs)
         self.struct = struct
+        basename = os.path.splitext(os.path.basename(self._files[0]))[0]
+        self.mode = f"lammps{basename.removeprefix(self.jobname)}"
+        self.dirname = self.mode
 
     def setUp(self):
         """

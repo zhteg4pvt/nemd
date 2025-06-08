@@ -1,0 +1,1 @@
+nemd_run /Users/zhteg4/git/nemd/module/alamode/alamode/tools/displace.py --prefix dispersion --mag 0.01 --LAMMPS ../dispersion.data -pf ../suggest/dispersion.pattern_HARMONIC

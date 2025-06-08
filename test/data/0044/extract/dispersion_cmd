@@ -1,0 +1,1 @@
+nemd_run /Users/zhteg4/git/nemd/module/alamode/alamode/tools/extract.py --LAMMPS ../dispersion.data ../lammps1/dispersion.custom

@@ -2,7 +2,10 @@ import os.path
 
 import pytest
 
+from nemd import alamode
+from nemd import envutils
 from nemd import osutils
+from nemd import parserutils
 from nemd import process
 
 
@@ -58,15 +61,15 @@ class TestSubmodule:
     def testGetCmd(self, submodule, expected):
         assert expected == submodule.getCmd(write_cmd=False)
 
-    @pytest.mark.parametrize(
-        'mode,files,expected',
-        [('suggest', None, os.path.join('suggest', 'submodule.log'))])
+    @pytest.mark.parametrize('mode,files,expected',
+                             [('suggest', None, FileNotFoundError)])
     def testOutfiles(self, submodule, expected, raises):
-        assert not submodule.outfiles
+        with raises:
+            submodule.outfiles
         with osutils.chdir('suggest'):
             with open('submodule.log', 'w'):
                 pass
-        assert expected == submodule.outfiles[0]
+        assert submodule.outfiles
 
     @pytest.mark.parametrize('mode,files,expected',
                              [('suggest', ['dispersion.data'], 'suggest')])
@@ -77,3 +80,25 @@ class TestSubmodule:
         assert all([os.path.exists(x) for x in submodule.files])
         with osutils.chdir('new_dir'):
             assert all([os.path.exists(x) for x in submodule.files])
+
+
+@pytest.mark.parametrize('jobname,files', [('dispersion', [
+    envutils.test_data('0044', 'displace', 'dispersion1.lammps')
+])])
+class TestLmp:
+
+    @pytest.fixture
+    def lmp(self, jobname, files, tmp_dir):
+        options = parserutils.XtalBldr().parse_args(['-JOBNAME', 'dispersion'])
+        mols = [alamode.Crystal.fromDatabase(options).mol]
+        struct = alamode.Struct.fromMols(mols, options=options)
+        return process.Lmp(struct, jobname=jobname, files=files)
+
+    def testSetUp(self, lmp, tmp_dir):
+        lmp.setUp()
+        assert os.path.isfile(lmp.struct.datafile)
+        assert os.path.isfile(lmp.struct.inscript)
+
+    def testArg(self, lmp, tmp_dir):
+        lmp.setUp()
+        assert 7 == len(lmp.args)

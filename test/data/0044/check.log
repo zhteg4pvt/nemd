@@ -1,0 +1,3 @@
+python -m nemd.check cmp /Users/zhteg4/git/nemd/test/integration/0044/dispersion.data dispersion.data
+python -m nemd.check cmp /Users/zhteg4/git/nemd/test/integration/0044/dispersion.pattern_HARMONIC suggest/dispersion.pattern_HARMONIC
+python -m nemd.check cmp /Users/zhteg4/git/nemd/test/integration/0044/dispersion.bands phonons/dispersion.bands

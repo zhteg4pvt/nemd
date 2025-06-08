@@ -1,0 +1,2 @@
+/Users/zhteg4/git/nemd/module/lammps/build/lmp -in dispersion.in -screen lmp.log -log lmp.log
+[Tengs-MacBook-Pro.local:24626] shmem: mmap: an error occurred while determining whether or not /var/folders/bk/wg487n5j7573mcb1vjqqz1j00000gn/T//ompi.Tengs-MacBook-Pro.501/jf.0/2575040512/sm_segment.Tengs-MacBook-Pro.501.997c0000.0 could be created.
