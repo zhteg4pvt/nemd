@@ -8,6 +8,8 @@ from nemd import osutils
 from nemd import parserutils
 from nemd import process
 
+DISPLACE_DAT = envutils.test_data('0044', 'displace', 'dispersion1.lammps')
+
 
 @pytest.mark.parametrize('ekey,evalue', [('JOBNAME', None)])
 class TestBase:
@@ -82,9 +84,7 @@ class TestSubmodule:
             assert all([os.path.exists(x) for x in submodule.files])
 
 
-@pytest.mark.parametrize('jobname,files', [('dispersion', [
-    envutils.test_data('0044', 'displace', 'dispersion1.lammps')
-])])
+@pytest.mark.parametrize('jobname,files', [('dispersion', [DISPLACE_DAT])])
 class TestLmp:
 
     @pytest.fixture
@@ -99,6 +99,44 @@ class TestLmp:
         assert os.path.isfile(lmp.struct.datafile)
         assert os.path.isfile(lmp.struct.inscript)
 
-    def testArg(self, lmp, tmp_dir):
-        lmp.setUp()
+    def testArg(self, lmp):
         assert 7 == len(lmp.args)
+
+
+@pytest.mark.parametrize('jobname', ['dispersion'])
+class TestAlamode:
+
+    EXTRACT_LOG = envutils.test_data('0044', 'extract', 'dispersion.log')
+
+    @pytest.fixture
+    def ala(self, jobname, mode, files, tmp_dir):
+        options = parserutils.XtalBldr().parse_args(['-JOBNAME', 'dispersion'])
+        crystal = alamode.Crystal.fromDatabase(options, mode=mode)
+        return process.Alamode(crystal, jobname=jobname, files=files)
+
+    @pytest.mark.parametrize(
+        'files,mode,expected',
+        [([None], 'suggest', ['dispersion.in']),
+         ([EXTRACT_LOG], 'optimize', ['dispersion.in', 'dispersion.dfset'])])
+    def testSetUp(self, ala, expected, tmp_dir):
+        ala.setUp()
+        for file in expected:
+            assert os.path.isfile(file)
+
+    @pytest.mark.parametrize('files,mode,expected', [([None], 'suggest', 2)])
+    def testArg(self, ala, expected):
+        assert expected == len(ala.args)
+
+
+class TestTools:
+    DATA = envutils.test_data('0044', 'dispersion.data')
+    PATTERN = envutils.test_data('0044', 'suggest',
+                                 'dispersion.pattern_HARMONIC')
+    CUSTOM = envutils.test_data('0044', 'lammps1', 'dispersion.custom')
+
+    @pytest.mark.parametrize('files,mode,expected',
+                             [([DATA, PATTERN], 'displace', 9),
+                              ([DATA, CUSTOM], 'extract', 4)])
+    def testArgs(self, files, mode, expected):
+        tools = process.Tools(files=files, mode=mode)
+        assert expected == len(tools.args)

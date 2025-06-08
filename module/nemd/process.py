@@ -3,7 +3,6 @@
 """
 This class processes the executables.
 """
-import functools
 import glob
 import os
 import subprocess
