@@ -1,3 +1,5 @@
+import os.path
+
 import pytest
 
 from nemd import alamode
@@ -33,6 +35,25 @@ class TestFunc:
     @pytest.mark.parametrize(
         'obj,kwargs,expected',
         [(alamode.Crystal.fromDatabase(OPTIONS), {}, 1), (STRUCT, {}, 1),
-         ('displace', dict(files=[DAT, PATT], jobname='dispersion'), 1)])
-    def testExe(self, obj, kwargs, expected, tmp_dir):
-        assert expected == len(alamode.exe(obj, **kwargs))
+         ('displace', dict(files=[DAT, PATT], jobname='dispersion'), 1),
+         ('unknown', {}, ValueError)])
+    def testExe(self, obj, kwargs, expected, raises, tmp_dir):
+        with raises:
+            assert expected == len(alamode.exe(obj, **kwargs))
+
+
+@pytest.mark.parametrize('options', [OPTIONS])
+class TestCrystal:
+
+    @pytest.fixture
+    def crystal(self, options, mode):
+        return alamode.Crystal.fromDatabase(options, mode=mode)
+
+    @pytest.mark.parametrize('mode,expected',
+                             [('suggest', 34), ('optimize', 38),
+                              ('phonons', 23)])
+    def testWrite(self, crystal, expected, tmp_dir):
+        crystal.write()
+        assert os.path.exists(crystal.outfile)
+        with open(crystal.outfile, 'r') as fh:
+            assert expected == len(fh.readlines())

@@ -6,7 +6,6 @@ ALAMODE utilities.
 https://github.com/ttadano/alamode
 """
 import collections
-import functools
 import itertools
 
 import pandas as pd
@@ -41,7 +40,7 @@ class Struct(stillinger.Struct):
 
 class Lmp(process.Lmp):
     """
-    Customized to set force dump as the output.
+    Customized with force dump as the output.
     """
 
     @property
@@ -75,86 +74,37 @@ def exe(obj, **kwargs):
     return runner.outfiles
 
 
-class Crystal(xtal.Crystal):
-
-    IN = '.in'
+class Crystal(xtal.Crystal, builtinsutils.Object):
+    """
+    Customized to generate alamode input script.
+    """
 
     def __init__(self, *args, mode=SUGGEST, **kwargs):
         """
-        :param mode str: the mode of the calculation
+        :param mode str: the mode of the calculation.
         """
         super().__init__(*args, **kwargs)
         self.mode = mode
-        if self.options is None:
-            return
-        self.inscript = f"{self.options.JOBNAME}{self.IN}"
+        self.outfile = f"{self.options.JOBNAME if self.options else self.name}.in"
 
     def write(self):
         """
         Write out the alamode input script.
         """
-        with open(self.inscript, 'w') as fh:
-            self.general.write(fh)
-            self.optimize.write(fh)
-            self.interaction.write(fh)
-            self.cutoff.write(fh)
-            self.cell.write(fh)
-            self.position.write(fh)
-            self.kpoint.write(fh)
-
-    @property
-    def general(self):
-        return General(self)
-
-    @property
-    def optimize(self):
-        """
-        Set the &optimize-filed.
-        """
-        return Optimize(self)
-
-    @property
-    def interaction(self):
-        """
-        Set the &interaction-field.
-        """
-        return Interaction(self)
-
-    @property
-    def cutoff(self):
-        """
-        Set the cutoff for neighbor searching.
-        """
-        return Cutoff(self)
-
-    @property
-    def kpoint(self):
-        """
-        Set the &kpoint-field
-        """
-        return Kpoint(self)
-
-    @property
-    def cell(self):
-        """
-        Set the &cell-field.
-        """
-        return Cell(self)
-
-    @property
-    def position(self):
-        return Position(self)
+        with open(self.outfile, 'w') as fh:
+            General(self).write(fh)
+            Optimize(self).write(fh)
+            Interaction(self).write(fh)
+            Cutoff(self).write(fh)
+            Cell.fromCrystal(self).write(fh)
+            Position.fromCrystal(self).write(fh)
+            Kpoint.fromCrystal(self).write(fh)
 
 
-class Base(builtinsutils.Dict):
+class General(builtinsutils.Dict):
     """
-    Class to store key value pairs by dot notation.
+    The &general-filed.
     """
-
-    NAME = 'name'
-    MODES = None
-    SEP = ' = '
-    FLOAT_FORMAT = None
 
     def __init__(self, crystal):
         """
@@ -162,17 +112,9 @@ class Base(builtinsutils.Dict):
         """
         super().__init__()
         self.setattr('crystal', crystal)
-        if self.MODES and self.crystal.mode not in self.MODES:
-            return
         self.setUp()
 
-    def setUp(self):
-        """
-        Set up the block content.
-        """
-        pass
-
-    def write(self, fh):
+    def write(self, fh, sep=' = '):
         """
         Write the key value pairs to the file handle.
 
@@ -180,41 +122,14 @@ class Base(builtinsutils.Dict):
         """
         if not self:
             return
-
-        fh.write(f"{symbols.AND}{self.NAME}\n")
+        fh.write(f"{symbols.AND}{self.__class__.__name__.lower()}\n")
         for key, val in self.items():
-            fh.write(f"{INDENT}{key}{self.SEP}{self.format(val)}\n")
+            fh.write(f"{INDENT}{key}{sep}{self.format(val)}\n")
         fh.write(f"{symbols.FORWARDSLASH}\n\n")
-
-    def format(self, value):
-        """
-        Format the value to be written out.
-
-        :param value object convertible to str: the value to be written out.
-        :return str: the str representation of the value.
-        """
-        if isinstance(value, str):
-            return value
-        if isinstance(value, float) and self.FLOAT_FORMAT:
-            return format(value, self.FLOAT_FORMAT)
-        if isinstance(value, collections.abc.Iterable):
-            if not self.FLOAT_FORMAT:
-                return symbols.SPACE.join(map(str, value))
-            val = [
-                format(value, self.FLOAT_FORMAT) if isinstance(x, float) else x
-                for x in value
-            ]
-            return symbols.SPACE.join(map(str, val))
-        return value
-
-
-class General(Base):
-
-    NAME = 'general'
 
     def setUp(self):
         """
-        Set up the key / value pairs for the &general-field.
+        Set up.
         """
         self.PREFIX = self.crystal.options.JOBNAME
         self.MODE = self.crystal.mode
@@ -230,73 +145,72 @@ class General(Base):
         # File containing force constants generated by the program alm
         self.FCSXML = f"{self.crystal.options.JOBNAME}{symbols.XML_EXT}"
 
-
-class Optimize(Base):
-
-    NAME = 'optimize'
-    MODES = [OPTIMIZE]
-
-    def setUp(self):
+    def format(self, val):
         """
-        Set up the key / value pairs for the &optimize-field.
+        Format the value to be written out.
+
+        :param value object convertible to str: the value to be written out.
+        :return str: the str representation of the value.
         """
+        if isinstance(val,
+                      collections.abc.Iterable) and not isinstance(val, str):
+            return symbols.SPACE.join(map(str, val))
+        return val
+
+
+class Optimize(General):
+    """
+    The &optimize-filed.
+    """
+
+    def setUp(self, mode=OPTIMIZE):
+        """
+        See parent.
+        """
+        if self.crystal.mode != OPTIMIZE:
+            return
         # The displacement-force data set
         self.DFSET = f"{self.crystal.options.JOBNAME}{symbols.DFSET_EXT}"
 
 
-class Interaction(Base):
+class Interaction(General):
+    """
+    The &interaction-filed.
+    """
 
-    NAME = 'interaction'
-    MODES = [SUGGEST, OPTIMIZE]
-
-    def setUp(self):
+    def setUp(self, modes=(SUGGEST, OPTIMIZE)):
         """
-        Set up the key / value pairs for the &interaction-field.
+        See parent.
         """
+        if self.crystal.mode not in modes:
+            return
         # The order of force constant: 1) harmonic; 2) cubic; ..
         self.NORDER = 1
 
 
-class Cutoff(Base):
+class Cutoff(General):
+    """
+    The &cutoff-field
+    """
 
-    NAME = 'cutoff'
-    SEP = symbols.SPACE
-    MODES = [SUGGEST, OPTIMIZE]
-
-    def setUp(self):
+    def setUp(self, modes=(SUGGEST, OPTIMIZE)):
         """
-        Set up the key / value pairs for the &cutoff-field.
+        See parent.
         """
+        if self.crystal.mode not in modes:
+            return
         species = self.crystal.chemical_composition.keys()
         pairs = itertools.combinations_with_replacement(species, 2)
         self.update({f"{x}-{y}": 7.3 for x, y in pairs})
 
-
-class Cell:
-
-    NAME = 'cell'
-    MODES = None
-
-    def __init__(self, crystal):
+    def write(self, *args, sep=symbols.SPACE, **kwargs):
         """
-        :param crystal Crystal: the crystal to get in script from.
+        See parent.
         """
-        self.crystal = crystal
+        super().write(*args, sep=sep, **kwargs)
 
-    @property
-    @functools.cache
-    def data(self):
-        """
-        The cell parameters.
 
-        :return 'pd.DataFrame': cell vectors (with a scale factor).
-        """
-        vecs = self.crystal.primitive().lattice_vectors if self.crystal.mode == PHONONS \
-            else self.crystal.supercell.scaled_lattice_vectors
-        vecs = [x * constants.ANG_TO_BOHR for x in vecs]
-        data = pd.DataFrame(vecs)
-        data.index.name = 1  # scale factor
-        return data
+class Cell(pd.DataFrame):
 
     def write(self, fh, header=False, float_format='%0.8f', index=False):
         """
@@ -307,48 +221,58 @@ class Cell:
         :param float_format str: the format of the float values.
         :param index bool: whether the index is written out.
         """
-        if self.MODES and self.crystal.mode not in self.MODES:
+        if self.empty:
             return
-        fh.write(f"{symbols.AND}{self.NAME}\n")
-        if self.data.index.name is not None:
-            fh.write(f"{INDENT}{self.data.index.name}\n")
-        lines = self.data.to_string(header=header,
-                                    float_format=float_format,
-                                    index=index)
+        fh.write(f"{symbols.AND}{self.__class__.__name__.lower()}\n")
+        if self.index.name is not None:
+            fh.write(f"{INDENT}{self.index.name}\n")
+        lines = self.to_string(header=header,
+                               float_format=float_format,
+                               index=index)
         for line in lines.split('\n'):
             fh.write(f"{INDENT}{line}\n")
         fh.write(f"{symbols.FORWARDSLASH}\n\n")
 
+    @classmethod
+    def fromCrystal(cls, crystal):
+        """
+        The cell parameters.
+
+        :return 'Cell': cell vectors (with a scale factor).
+        """
+        vecs = crystal.primitive().lattice_vectors if crystal.mode == PHONONS \
+            else crystal.supercell.scaled_lattice_vectors
+        vecs = [x * constants.ANG_TO_BOHR for x in vecs]
+        data = cls(vecs)
+        data.index.name = 1  # scale factor
+        return data
+
 
 class Position(Cell):
 
-    NAME = 'position'
-    MODES = [SUGGEST, OPTIMIZE]
-
-    @property
-    @functools.cache
-    def data(self):
+    @classmethod
+    def fromCrystal(cls, crystal, modes=(SUGGEST, OPTIMIZE)):
         """
-        The position parameters.
-
-        :return 'pd.DataFrame': atom positions (fractional).
+        See parent.
         """
-        supercell = self.crystal.supercell
-        data = [x.coords_fractional for x in supercell.atoms]
-        index = [x.element for x in supercell.atoms]
-        data = pd.DataFrame(data, index=index) / supercell.dimensions
+        if crystal.mode not in modes:
+            return cls()
+        cell = crystal.supercell
+        data = [x.coords_fractional / cell.dimensions for x in cell.atoms]
+        index = [x.element for x in cell.atoms]
+        data = cls(data, index=index)
         data.sort_values(by=list(data.columns), inplace=True)
-        species = self.crystal.chemical_composition.keys()
+        species = crystal.chemical_composition.keys()
         id_map = {x: i for i, x in enumerate(species, start=1)}
         data.rename(index=id_map, inplace=True)
-        return data.reset_index()
+        data.reset_index(inplace=True)
+        return data
 
 
 class Kpoint(Cell):
-
-    NAME = 'kpoint'
-    MODES = [PHONONS]
-
+    """
+    The &kpoint-field
+    """
     # https://en.wikipedia.org/wiki/Brillouin_zone
     # https://www.businessballs.com/glossaries-and-terminology/greek-alphabet/
     # Center of the Brillouin zone
@@ -359,19 +283,18 @@ class Kpoint(Cell):
     LAMBDA = pd.Series([0.5, 0.5, 0.5], name='L')  # Center of a hexagonal face
     GRID = 51
 
-    @property
-    @functools.cache
-    def data(self):
+    @classmethod
+    def fromCrystal(cls, crystal, mode=PHONONS):
         """
-        The kspace points.
-
-        :return 'pd.DataFrame': kspace points (with mode).
+        See parent.
         """
-        lines = [[self.GAMMA, self.CHI], [self.RHO, self.GAMMA, self.LAMBDA]]
+        if crystal.mode != mode:
+            return cls()
+        lines = [[cls.GAMMA, cls.CHI], [cls.RHO, cls.GAMMA, cls.LAMBDA]]
         pairs = [[y, z] for x in lines for y, z in zip(x[:-1], x[1:])]
         start = pd.DataFrame([x[0] for x in pairs]).reset_index()
         end = pd.DataFrame([x[1] for x in pairs]).reset_index()
         data = pd.concat([start, end], axis=1)
-        data.insert(len(data.columns), 'grid', self.GRID)
+        data.insert(len(data.columns), 'grid', cls.GRID)
         data.index.name = 1  # line mode
-        return data
+        return cls(data)

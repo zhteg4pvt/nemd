@@ -286,4 +286,4 @@ class Alamode(Submodules):
         """
         See parent.
         """
-        return [self.EXES[self.mode], self.crystal.inscript]
+        return [self.EXES[self.mode], self.crystal.outfile]
