@@ -148,7 +148,7 @@ class In(builtinsutils.Object):
 
         :param min_style str: cg, fire, spin, etc.
         """
-        if self.options.no_minimize:
+        if self.options is None or self.options.no_minimize:
             return
         if self.rest:
             self.fh.write(self.rest)
@@ -187,7 +187,7 @@ class In(builtinsutils.Object):
         """
         Write commands related to timestep.
         """
-        if not self.options.temp:
+        if self.options is None or not self.options.temp:
             return
         time = self.options.timestep * scipy.constants.femto
         self.fh.write(f'\n{self.TIMESTEP} {time / self.time_unit() }\n')
@@ -200,6 +200,8 @@ class In(builtinsutils.Object):
 
         :param atom_total int: total atom number.
         """
+        if self.options is None:
+            return
         fwriter = FixWriter(self.fh,
                             options=self.options,
                             atom_total=atom_total)

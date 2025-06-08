@@ -27,9 +27,8 @@ PHONONS = symbols.PHONONS
 
 class Struct(stillinger.Struct):
     """
-    Structure class with force reading.
+    Customized to dump force.
     """
-
     CUSTOM_EXT = process.Lmp.EXT
 
     def traj(self, force=True, sort=False, fmt="float '%20.15f'"):
@@ -39,20 +38,22 @@ class Struct(stillinger.Struct):
         super().traj(force=force, sort=sort, fmt=fmt)
 
 
-def exe(obj, **kwargs):
+def exe(obj, jobname=None, **kwargs):
     """
-    Choose class, build command, execute subprocess, and return output files.
+    Run the executables and return output files.
 
     :param obj str, Crystal, or Struct: based on which the Runner is chosen
-    :return list: the output files
+    :param jobname str: the jobname.
+    :return list: the output files.
     """
+    if jobname is None and hasattr(obj, 'options'):
+        jobname = obj.options.JOBNAME
     if isinstance(obj, Struct):
-        Runner = process.Lmp
+        runner = process.Lmp(obj, jobname=jobname, **kwargs)
     elif isinstance(obj, Crystal):
-        Runner = process.Alamode
-    elif obj in [process.Tools.DISPLACE, process.Tools.EXTRACT]:
-        Runner = process.Tools
-    runner = Runner(obj, **kwargs)
+        runner = process.Alamode(obj, jobname=jobname, **kwargs)
+    if obj in [process.Tools.DISPLACE, process.Tools.EXTRACT]:
+        runner = process.Tools(obj, jobname=jobname, **kwargs)
     runner.run()
     return runner.outfiles
 

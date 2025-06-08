@@ -30,7 +30,6 @@ class Base(builtinsutils.Object):
         self.dirname = dirname or os.curdir
         self.jobname = jobname or envutils.get_jobname() or self.name
         self.logfile = f'{self.jobname}{symbols.LOG_EXT}'
-        self.start = os.getcwd()
 
     def run(self):
         """
@@ -106,15 +105,15 @@ class Submodule(Base):
     EXT = symbols.LOG_EXT
     EXTS = {}
 
-    def __init__(self, mode, *args, files=None, **kwargs):
+    def __init__(self, *args, files=None, **kwargs):
         """
         :param mode str: the mode
         :param files list: input files
         """
         super().__init__(*args, **kwargs)
-        self.mode = mode
         self._files = files
-        self.dirname = self.mode
+        self.mode = None
+        self.start = os.getcwd()
 
     def getCmd(self, *args, **kwargs):
         """
@@ -138,7 +137,8 @@ class Submodule(Base):
         :raise FileNotFoundError: no outfiles found
         """
         pattern = f"{self.jobname}{self.EXTS.get(self.mode, self.EXT)}"
-        pattern = os.path.join(self.dirname, pattern)
+        relpath = os.path.relpath(self.dirname, start=os.curdir)
+        pattern = os.path.join(relpath, pattern)
         outfiles = glob.glob(pattern)
         if not outfiles:
             raise FileNotFoundError(f"{pattern} not found.")
@@ -170,18 +170,22 @@ class Lmp(Submodule):
         """
         :param struct Struct: the structure to get in script and data file from.
         """
-        super().__init__(None, **kwargs)
+        super().__init__(**kwargs)
         self.struct = struct
+        if not self._files:
+            return
         basename = os.path.splitext(os.path.basename(self._files[0]))[0]
-        self.mode = f"lammps{basename.removeprefix(self.jobname)}"
-        self.dirname = self.mode
+        self.dirname = f"lammps{basename.removeprefix(self.jobname)}"
 
     def setUp(self):
         """
         See parent.
         """
         self.struct.writeIn()
-        osutils.symlink(self.files[0], self.struct.datafile)
+        if self.files:
+            osutils.symlink(self.files[0], self.struct.datafile)
+        else:
+            self.struct.writeData()
 
     @property
     def args(self):
@@ -213,8 +217,11 @@ class Alamode(Submodule):
         """
         :param crystal Crystal: the crystal to get in script from.
         """
-        super().__init__(crystal.mode, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.crystal = crystal
+        self.mode = crystal.mode
+        if self.mode:
+            self.dirname = self.mode
 
     def setUp(self):
         """
@@ -245,19 +252,24 @@ class Tools(Submodule):
     EXTRACT = 'extract'
     EXTS = {DISPLACE: "*.lammps"}
 
+    def __init__(self, mode, *args, **kwargs):
+        """
+        :param mode str: the mode.
+        """
+        super().__init__(*args, **kwargs)
+        self.mode = mode
+
     @property
     def args(self):
         """
         See parent.
         """
-        script = envutils.get_data('tools',
-                                   f'{self.mode}.py',
-                                   module='alamode')
+        scr = envutils.get_data('tools', f'{self.mode}.py', module='alamode')
         match self.mode:
             case self.EXTRACT:
-                return [script, '--LAMMPS'] + self.files
+                return [scr, '--LAMMPS'] + self.files
             case self.DISPLACE:
                 return [
-                    script, '--prefix', self.jobname, '--mag', '0.01',
-                    '--LAMMPS', self.files[0], '-pf', self.files[1]
+                    scr, '--prefix', self.jobname, '--mag', '0.01', '--LAMMPS',
+                    self.files[0], '-pf', self.files[1]
                 ]
