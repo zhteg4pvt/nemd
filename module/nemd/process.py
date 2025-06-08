@@ -99,20 +99,16 @@ class Check(Process):
 
 class Submodule(Base):
     """
-    Build command, execute subprocess, and search for output files
+    Customized with setup and outfiles.
     """
     PRE_RUN = jobutils.NEMD_MODULE
-    EXT = symbols.LOG_EXT
-    EXTS = {}
 
     def __init__(self, *args, files=None, **kwargs):
         """
-        :param mode str: the mode
         :param files list: input files
         """
         super().__init__(*args, **kwargs)
         self._files = files
-        self.mode = None
         self.start = os.getcwd()
 
     def getCmd(self, *args, **kwargs):
@@ -136,13 +132,21 @@ class Submodule(Base):
         :return list: the outfiles found.
         :raise FileNotFoundError: no outfiles found
         """
-        pattern = f"{self.jobname}{self.EXTS.get(self.mode, self.EXT)}"
-        relpath = os.path.relpath(self.dirname, start=os.curdir)
-        pattern = os.path.join(relpath, pattern)
-        outfiles = glob.glob(pattern)
+        pattern = os.path.join(self.start, self.dirname,
+                               f"{self.jobname}{self.ext}")
+        outfiles = glob.glob(os.path.relpath(pattern, start=os.curdir))
         if not outfiles:
             raise FileNotFoundError(f"{pattern} not found.")
         return outfiles
+
+    @property
+    def ext(self):
+        """
+        Get the output file extension.
+
+        :return str: the file extension.
+        """
+        return symbols.LOG_EXT
 
     @property
     def files(self):
@@ -164,7 +168,6 @@ class Lmp(Submodule):
     """
     Class to run lammps simulations.
     """
-    EXT = lammpsfix.CUSTOM_EXT
 
     def __init__(self, struct, **kwargs):
         """
@@ -198,8 +201,62 @@ class Lmp(Submodule):
             symbols.LMP_LOG
         ]
 
+    @property
+    def ext(self):
+        """
+        See parent.
+        """
+        return lammpsfix.CUSTOM_EXT
 
-class Alamode(Submodule):
+
+class Submodules(Submodule):
+    """
+    Customized with mode.
+    """
+    EXTS = {}
+
+    def __init__(self, mode, *args, **kwargs):
+        """
+        param mode str: the mode.
+        """
+        super().__init__(*args, **kwargs)
+        self.mode = mode
+        self.dirname = self.mode
+
+    @property
+    def ext(self):
+        """
+        See parent.
+        """
+        return self.EXTS.get(self.mode, super().ext)
+
+
+class Tools(Submodules):
+    """
+    Class to run the scripts in the 'tools' directory.
+    """
+    PRE_RUN = jobutils.NEMD_RUN
+    DISPLACE = 'displace'
+    EXTRACT = 'extract'
+    EXTS = {DISPLACE: "*.lammps"}
+
+    @property
+    def args(self):
+        """
+        See parent.
+        """
+        scr = envutils.get_data('tools', f'{self.mode}.py', module='alamode')
+        match self.mode:
+            case self.EXTRACT:
+                return [scr, '--LAMMPS'] + self.files
+            case self.DISPLACE:
+                return [
+                    scr, '--prefix', self.jobname, '--mag', '0.01', '--LAMMPS',
+                    self.files[0], '-pf', self.files[1]
+                ]
+
+
+class Alamode(Submodules):
     """
     Class to run one alamode binary.
     """
@@ -217,11 +274,8 @@ class Alamode(Submodule):
         """
         :param crystal Crystal: the crystal to get in script from.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(crystal.mode, *args, **kwargs)
         self.crystal = crystal
-        self.mode = crystal.mode
-        if self.mode:
-            self.dirname = self.mode
 
     def setUp(self):
         """
@@ -241,35 +295,3 @@ class Alamode(Submodule):
         See parent.
         """
         return [self.EXES[self.mode], self.crystal.inscript]
-
-
-class Tools(Submodule):
-    """
-    Class to run the scripts in the 'tools' directory.
-    """
-    PRE_RUN = jobutils.NEMD_RUN
-    DISPLACE = 'displace'
-    EXTRACT = 'extract'
-    EXTS = {DISPLACE: "*.lammps"}
-
-    def __init__(self, mode, *args, **kwargs):
-        """
-        :param mode str: the mode.
-        """
-        super().__init__(*args, **kwargs)
-        self.mode = mode
-
-    @property
-    def args(self):
-        """
-        See parent.
-        """
-        scr = envutils.get_data('tools', f'{self.mode}.py', module='alamode')
-        match self.mode:
-            case self.EXTRACT:
-                return [scr, '--LAMMPS'] + self.files
-            case self.DISPLACE:
-                return [
-                    scr, '--prefix', self.jobname, '--mag', '0.01', '--LAMMPS',
-                    self.files[0], '-pf', self.files[1]
-                ]

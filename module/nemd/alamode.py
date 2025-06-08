@@ -13,6 +13,7 @@ import pandas as pd
 
 from nemd import builtinsutils
 from nemd import constants
+from nemd import lammpsfix
 from nemd import process
 from nemd import stillinger
 from nemd import symbols
@@ -29,7 +30,7 @@ class Struct(stillinger.Struct):
     """
     Customized to dump force.
     """
-    CUSTOM_EXT = process.Lmp.EXT
+    CUSTOM_EXT = lammpsfix.CUSTOM_EXT
 
     def traj(self, force=True, sort=False, fmt="float '%20.15f'"):
         """
