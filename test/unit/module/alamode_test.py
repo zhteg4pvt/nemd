@@ -1,7 +1,12 @@
 import pytest
 
 from nemd import alamode
+from nemd import envutils
 from nemd import parserutils
+
+OPTIONS = parserutils.XtalBldr().parse_args(['-JOBNAME', 'dispersion'])
+STRUCT = alamode.Struct.fromMols([alamode.Crystal.fromDatabase(OPTIONS).mol],
+                                 options=OPTIONS)
 
 
 class TestStruct:
@@ -14,14 +19,20 @@ class TestStruct:
         assert "format float '%20.15f'\n" in lines
 
 
+class TestLmp:
+
+    @pytest.mark.parametrize('struct,expected', [(STRUCT, '.custom')])
+    def testExt(self, struct, expected):
+        assert expected == alamode.Lmp(struct).ext
+
+
 class TestFunc:
+    DAT = envutils.test_data('0044', 'dispersion.data')
+    PATT = envutils.test_data('0044', 'suggest', 'dispersion.pattern_HARMONIC')
 
-    OPTIONS = parserutils.XtalBldr().parse_args(['-JOBNAME', 'dispersion'])
-    STRUCT = alamode.Struct.fromMols(
-        [alamode.Crystal.fromDatabase(OPTIONS).mol], options=OPTIONS)
-
-    @pytest.mark.parametrize('obj,kwargs,expected',
-                             [(alamode.Crystal.fromDatabase(OPTIONS), {}, 1),
-                              (STRUCT, {}, 1)])
+    @pytest.mark.parametrize(
+        'obj,kwargs,expected',
+        [(alamode.Crystal.fromDatabase(OPTIONS), {}, 1), (STRUCT, {}, 1),
+         ('displace', dict(files=[DAT, PATT], jobname='dispersion'), 1)])
     def testExe(self, obj, kwargs, expected, tmp_dir):
         assert expected == len(alamode.exe(obj, **kwargs))

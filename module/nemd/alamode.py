@@ -39,22 +39,38 @@ class Struct(stillinger.Struct):
         super().traj(force=force, sort=sort, fmt=fmt)
 
 
-def exe(obj, jobname=None, **kwargs):
+class Lmp(process.Lmp):
+    """
+    Customized to set force dump as the output.
+    """
+
+    @property
+    def ext(self):
+        """
+        See parent.
+        """
+        return Struct.CUSTOM_EXT
+
+
+def exe(obj, **kwargs):
     """
     Run the executables and return output files.
 
     :param obj str, Crystal, or Struct: based on which the Runner is chosen
-    :param jobname str: the jobname.
     :return list: the output files.
+    :raise ValueError: if the obj is unknown.
     """
-    if jobname is None and hasattr(obj, 'options'):
-        jobname = obj.options.JOBNAME
+    if hasattr(obj, 'options'):
+        kwargs.setdefault('jobname', obj.options.JOBNAME)
     if isinstance(obj, Struct):
-        runner = process.Lmp(obj, jobname=jobname, **kwargs)
+        Runner = Lmp
     elif isinstance(obj, Crystal):
-        runner = process.Alamode(obj, jobname=jobname, **kwargs)
-    if obj in [process.Tools.DISPLACE, process.Tools.EXTRACT]:
-        runner = process.Tools(obj, jobname=jobname, **kwargs)
+        Runner = process.Alamode
+    elif obj in [process.Tools.DISPLACE, process.Tools.EXTRACT]:
+        Runner = process.Tools
+    else:
+        raise ValueError(f"Unknown {obj}.")
+    runner = Runner(obj, **kwargs)
     runner.run()
     return runner.outfiles
 

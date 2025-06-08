@@ -10,7 +10,6 @@ import subprocess
 from nemd import builtinsutils
 from nemd import envutils
 from nemd import jobutils
-from nemd import lammpsfix
 from nemd import osutils
 from nemd import symbols
 
@@ -200,13 +199,6 @@ class Lmp(Submodule):
             jobutils.FLAG_SCREEN, symbols.LMP_LOG, jobutils.FLAG_LOG,
             symbols.LMP_LOG
         ]
-
-    @property
-    def ext(self):
-        """
-        See parent.
-        """
-        return lammpsfix.CUSTOM_EXT
 
 
 class Submodules(Submodule):

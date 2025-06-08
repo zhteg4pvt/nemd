@@ -103,6 +103,29 @@ class TestLmp:
         assert 7 == len(lmp.args)
 
 
+class TestSubmodules:
+
+    @pytest.mark.parametrize('mode,expected', [('mode', '.xyz')])
+    def testExt(self, mode, expected):
+        assert '.log' == process.Submodules(mode).ext
+        Sub = type('', (process.Submodules, ), dict(EXTS={mode: expected}))
+        assert expected == Sub(mode).ext
+
+
+class TestTools:
+    DATA = envutils.test_data('0044', 'dispersion.data')
+    PATTERN = envutils.test_data('0044', 'suggest',
+                                 'dispersion.pattern_HARMONIC')
+    CUSTOM = envutils.test_data('0044', 'lammps1', 'dispersion.custom')
+
+    @pytest.mark.parametrize('files,mode,expected',
+                             [([DATA, PATTERN], 'displace', 9),
+                              ([DATA, CUSTOM], 'extract', 4)])
+    def testArgs(self, files, mode, expected):
+        tools = process.Tools(files=files, mode=mode)
+        assert expected == len(tools.args)
+
+
 @pytest.mark.parametrize('jobname', ['dispersion'])
 class TestAlamode:
 
@@ -126,17 +149,3 @@ class TestAlamode:
     @pytest.mark.parametrize('files,mode,expected', [([None], 'suggest', 2)])
     def testArg(self, ala, expected):
         assert expected == len(ala.args)
-
-
-class TestTools:
-    DATA = envutils.test_data('0044', 'dispersion.data')
-    PATTERN = envutils.test_data('0044', 'suggest',
-                                 'dispersion.pattern_HARMONIC')
-    CUSTOM = envutils.test_data('0044', 'lammps1', 'dispersion.custom')
-
-    @pytest.mark.parametrize('files,mode,expected',
-                             [([DATA, PATTERN], 'displace', 9),
-                              ([DATA, CUSTOM], 'extract', 4)])
-    def testArgs(self, files, mode, expected):
-        tools = process.Tools(files=files, mode=mode)
-        assert expected == len(tools.args)
