@@ -11,6 +11,11 @@ STRUCT = alamode.Struct.fromMols([alamode.Crystal.fromDatabase(OPTIONS).mol],
                                  options=OPTIONS)
 
 
+@pytest.fixture
+def crystal(mode):
+    return alamode.Crystal.fromDatabase(OPTIONS, mode=mode)
+
+
 class TestStruct:
 
     def testTraj(self, tmp_dir):
@@ -42,12 +47,7 @@ class TestFunc:
             assert expected == len(alamode.exe(obj, **kwargs))
 
 
-@pytest.mark.parametrize('options', [OPTIONS])
 class TestCrystal:
-
-    @pytest.fixture
-    def crystal(self, options, mode):
-        return alamode.Crystal.fromDatabase(options, mode=mode)
 
     @pytest.mark.parametrize('mode,expected',
                              [('suggest', 34), ('optimize', 38),
@@ -57,3 +57,114 @@ class TestCrystal:
         assert os.path.exists(crystal.outfile)
         with open(crystal.outfile, 'r') as fh:
             assert expected == len(fh.readlines())
+
+
+class TestGeneral:
+
+    @pytest.fixture
+    def general(self, crystal):
+        return alamode.General(crystal)
+
+    @pytest.mark.parametrize('mode,expected', [('suggest', 5), ('optimize', 5),
+                                               ('phonons', 6)])
+    def testSetUp(self, general, expected):
+        assert expected == len(general)
+
+    @pytest.mark.parametrize('mode,expected', [('suggest', 8), ('optimize', 8),
+                                               ('phonons', 9)])
+    def testWrite(self, general, expected, tmp_line):
+        with tmp_line() as (fh, lines):
+            general.write(fh)
+        assert expected == len(lines)
+
+    @pytest.mark.parametrize('val,expected', [('hi', 'hi'), (1.2, 1.2),
+                                              ((1, 2), '1 2')])
+    def testFormat(self, val, expected):
+        assert expected == alamode.General.format(val)
+
+
+class TestOptimize:
+
+    @pytest.fixture
+    def optimize(self, crystal):
+        return alamode.Optimize(crystal)
+
+    @pytest.mark.parametrize('mode,expected', [('suggest', 0), ('optimize', 1),
+                                               ('phonons', 0)])
+    def testSetUp(self, optimize, expected):
+        assert expected == len(optimize)
+
+
+class TestInteraction:
+
+    @pytest.fixture
+    def interaction(self, crystal):
+        return alamode.Interaction(crystal)
+
+    @pytest.mark.parametrize('mode,expected', [('suggest', 1), ('optimize', 1),
+                                               ('phonons', 0)])
+    def testSetUp(self, interaction, expected):
+        assert expected == len(interaction)
+
+
+class TestCutoff:
+
+    @pytest.fixture
+    def cutoff(self, crystal):
+        return alamode.Cutoff(crystal)
+
+    @pytest.mark.parametrize('mode,expected', [('suggest', 1), ('optimize', 1),
+                                               ('phonons', 0)])
+    def testSetUp(self, cutoff, expected):
+        assert expected == len(cutoff)
+
+    @pytest.mark.parametrize('mode,expected', [('suggest', '  Si-Si 7.3\n'),
+                                               ('optimize', '  Si-Si 7.3\n'),
+                                               ('phonons', None)])
+    def testWrite(self, cutoff, expected, tmp_line):
+        with tmp_line() as (fh, lines):
+            cutoff.write(fh)
+        assert (not lines) if expected is None else (expected in lines)
+
+
+class TestCell:
+
+    @pytest.fixture
+    def cell(self, crystal):
+        return alamode.Cell.fromCrystal(crystal)
+
+    @pytest.mark.parametrize('mode,expected', [('suggest', 7)])
+    def testWrite(self, cell, expected, tmp_line):
+        with tmp_line() as (fh, lines):
+            cell.write(fh)
+        assert expected == len(lines)
+
+    @pytest.mark.parametrize('mode,expected', [('suggest', (3, 3))])
+    def testFromCrystal(self, cell, expected):
+        assert expected == cell.shape
+
+
+class TestPosition:
+
+    @pytest.fixture
+    def position(self, crystal):
+        return alamode.Position.fromCrystal(crystal)
+
+    @pytest.mark.parametrize('mode,expected', [('suggest', (8, 4)),
+                                               ('optimize', (8, 4)),
+                                               ('phonons', (0, 0))])
+    def testFromCrystal(self, position, expected):
+        assert expected == position.shape
+
+
+class TestKpoint:
+
+    @pytest.fixture
+    def kpoint(self, crystal):
+        return alamode.Kpoint.fromCrystal(crystal)
+
+    @pytest.mark.parametrize('mode,expected', [('suggest', (0, 0)),
+                                               ('optimize', (0, 0)),
+                                               ('phonons', (3, 9))])
+    def testFromCrystal(self, kpoint, expected):
+        assert expected == kpoint.shape
