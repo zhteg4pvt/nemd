@@ -15,8 +15,8 @@ import pandas as pd
 from rdkit import Chem
 
 from nemd import builtinsutils
-from nemd import lammpsin
 from nemd import lmpatomic
+from nemd import lmpin
 from nemd import numpyutils
 from nemd import oplsua
 from nemd import symbols
@@ -623,12 +623,12 @@ class Mol(lmpatomic.Mol):
         return nbr_charge.reshape(-1, 1)
 
 
-class In(lammpsin.In):
+class In(lmpin.In):
     """
     Class to write out LAMMPS in script.
     """
-    V_UNITS = lammpsin.In.REAL
-    V_ATOM_STYLE = lammpsin.In.FULL
+    V_UNITS = lmpin.In.REAL
+    V_ATOM_STYLE = lmpin.In.FULL
 
     def setup(self, harmonic='harmonic'):
         """

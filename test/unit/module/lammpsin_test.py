@@ -4,7 +4,7 @@ import types
 
 import pytest
 
-from nemd import lammpsin
+from nemd import lmpin
 from nemd import parserutils
 
 
@@ -29,7 +29,7 @@ class TestIn(Base):
 
     @pytest.fixture
     def lmp_in(self):
-        lmp_in = lammpsin.In(options=self.getOptions())
+        lmp_in = lmpin.In(options=self.getOptions())
         lmp_in.fh = io.StringIO()
         return lmp_in
 
@@ -76,7 +76,7 @@ class TestFixWriter(Base):
                                             atypes=[1],
                                             testing=False)
         options = types.SimpleNamespace(**options, **struct_info.__dict__)
-        return lammpsin.FixWriter(io.StringIO(), options=options)
+        return lmpin.FixWriter(io.StringIO(), options=options)
 
     @staticmethod
     def getContents(obj):

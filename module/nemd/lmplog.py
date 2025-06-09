@@ -8,12 +8,12 @@ import io
 import pandas as pd
 import scipy
 
-from nemd import lammpsin
+from nemd import lmpin
 from nemd import symbols
 
-LJ = lammpsin.In.LJ
-METAL = lammpsin.In.METAL
-REAL = lammpsin.In.REAL
+LJ = lmpin.In.LJ
+METAL = lmpin.In.METAL
+REAL = lmpin.In.REAL
 
 
 class Thermo(pd.DataFrame):
@@ -83,7 +83,7 @@ class Thermo(pd.DataFrame):
         return self.index[self.idx], self.index[-1]
 
 
-class Log(lammpsin.In):
+class Log(lmpin.In):
     """
     Class to parse LAMMPS log file and extract data.
     """

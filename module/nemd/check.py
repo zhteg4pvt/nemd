@@ -11,7 +11,7 @@ import sys
 
 from nemd import envutils
 from nemd import jobutils
-from nemd import lammpsdata
+from nemd import lmpdata
 from nemd import logutils
 from nemd import np
 from nemd import pd
@@ -160,9 +160,9 @@ class Cmp(Exist):
         """
         if not self.keys or not all(x.endswith('.data') for x in self.args):
             return
-        origin = lammpsdata.read(self.args[0])
+        origin = lmpdata.read(self.args[0])
         for target in self.args[1:]:
-            if origin.allClose(lammpsdata.read(target), **self.kwargs):
+            if origin.allClose(lmpdata.read(target), **self.kwargs):
                 continue
             self.errorDiff(target)
 

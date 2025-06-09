@@ -8,7 +8,7 @@ This driver analyzes the trajectory from previous molecular dynamics simulations
 import sys
 
 from nemd import analyzer
-from nemd import lammpsdata
+from nemd import lmpdata
 from nemd import logutils
 from nemd import parserutils
 from nemd import symbols
@@ -51,7 +51,7 @@ class Traj(logutils.Base):
         """
         if not self.options.data_file:
             return
-        self.rdr = lammpsdata.read(self.options.data_file)
+        self.rdr = lmpdata.read(self.options.data_file)
 
     def setAtoms(self):
         """

@@ -12,7 +12,7 @@ import scipy
 
 from nemd import builtinsutils
 from nemd import constants
-from nemd import lammpsfix
+from nemd import lmpfix
 from nemd import symbols
 
 
@@ -25,7 +25,7 @@ class In(builtinsutils.Object):
 
     IN_EXT = '.in'
     DATA_EXT = '.data'
-    CUSTOM_EXT = f"{lammpsfix.CUSTOM_EXT}.gz"
+    CUSTOM_EXT = f"{lmpfix.CUSTOM_EXT}.gz"
 
     UNITS = 'units'
     REAL = 'real'
@@ -45,16 +45,16 @@ class In(builtinsutils.Object):
     DEFAULT_COUL_CUT = f"{DEFAULT_CUT} {DEFAULT_CUT}"
 
     PAIR_COEFF = 'pair_coeff'
-    DUMP_ID, DUMP_Q = lammpsfix.DUMP_ID, lammpsfix.DUMP_Q
+    DUMP_ID, DUMP_Q = lmpfix.DUMP_ID, lmpfix.DUMP_Q
 
-    FIX_RESTRAIN = lammpsfix.FIX_RESTRAIN
-    UNFIX_RESTRAIN = lammpsfix.UNFIX_RESTRAIN
+    FIX_RESTRAIN = lmpfix.FIX_RESTRAIN
+    UNFIX_RESTRAIN = lmpfix.UNFIX_RESTRAIN
 
     MIN_STYLE = 'min_style'
     FIRE = 'fire'
     MINIMIZE = 'minimize'
 
-    FIX_RIGID_SHAKE = lammpsfix.FIX_RIGID_SHAKE
+    FIX_RIGID_SHAKE = lmpfix.FIX_RIGID_SHAKE
 
     TIMESTEP = 'timestep'
     THERMO_MODIFY = 'thermo_modify'
@@ -107,7 +107,7 @@ class In(builtinsutils.Object):
         """
         Write data file related information.
         """
-        self.fh.write(f"{lammpsfix.READ_DATA} {self.datafile}\n\n")
+        self.fh.write(f"{lmpfix.READ_DATA} {self.datafile}\n\n")
 
     def coeff(self):
         """
@@ -130,7 +130,7 @@ class In(builtinsutils.Object):
         if force:
             attrib += ['fx', 'fy', 'fz']
         attrib = ' '.join(attrib)
-        cmd = lammpsfix.DUMP_CUSTOM.format(file=self.dumpfile, attrib=attrib)
+        cmd = lmpfix.DUMP_CUSTOM.format(file=self.dumpfile, attrib=attrib)
         self.fh.write(cmd)
         # Dumpy modify
         attrib = []
@@ -140,7 +140,7 @@ class In(builtinsutils.Object):
             attrib += ['format', fmt]
         if not attrib:
             return
-        self.fh.write(lammpsfix.DUMP_MODIFY.format(attrib=' '.join(attrib)))
+        self.fh.write(lmpfix.DUMP_MODIFY.format(attrib=' '.join(attrib)))
 
     def minimize(self, min_style=FIRE):
         """
@@ -229,47 +229,47 @@ class FixWriter:
     This the wrapper for LAMMPS fix command writer. which usually includes an
     "unfix" after the run command.
     """
-    VELOCITY = lammpsfix.VELOCITY
-    SET_VAR = lammpsfix.SET_VAR
-    NVE = lammpsfix.NVE
-    NVT = lammpsfix.NVT
-    NPT = lammpsfix.NPT
-    FIX = lammpsfix.FIX
-    FIX_NVE = lammpsfix.FIX_NVE
-    BERENDSEN = lammpsfix.BERENDSEN
-    FIX_TEMP_BERENDSEN = lammpsfix.FIX_TEMP_BERENDSEN
-    FIX_PRESS_BERENDSEN = lammpsfix.FIX_PRESS_BERENDSEN
-    RUN_STEP = lammpsfix.RUN_STEP
-    UNFIX = lammpsfix.UNFIX
-    RECORD_BDRY = lammpsfix.RECORD_BDRY
-    DUMP_EVERY = lammpsfix.DUMP_EVERY
-    DUMP_ID = lammpsfix.DUMP_ID
-    DUMP_Q = lammpsfix.DUMP_Q
-    VOL = lammpsfix.VOL
-    AMP = lammpsfix.AMP
-    IMMED_PRESS = lammpsfix.IMMED_PRESS
-    SET_IMMED_PRESS = lammpsfix.SET_IMMED_PRESS
-    PRESS = lammpsfix.PRESS
-    SET_PRESS = lammpsfix.SET_PRESS
-    IMMED_MODULUS = lammpsfix.IMMED_MODULUS
-    SET_IMMED_MODULUS = lammpsfix.SET_IMMED_MODULUS
-    MODULUS = lammpsfix.MODULUS
-    SET_MODULUS = lammpsfix.SET_MODULUS
-    FACTOR = lammpsfix.FACTOR
-    SET_FACTOR = lammpsfix.SET_FACTOR
-    SET_LABEL = lammpsfix.SET_LABEL
-    FIX_DEFORM = lammpsfix.FIX_DEFORM
-    WIGGLE_VOL = lammpsfix.WIGGLE_VOL
-    RECORD_PRESS_VOL = lammpsfix.RECORD_PRESS_VOL
-    CHANGE_BDRY = lammpsfix.CHANGE_BDRY
-    SET_LOOP = lammpsfix.SET_LOOP
-    MKDIR = lammpsfix.MKDIR
-    CD = lammpsfix.CD
-    JUMP = lammpsfix.JUMP
-    IF_JUMP = lammpsfix.IF_JUMP
-    PRINT = lammpsfix.PRINT
-    NEXT = lammpsfix.NEXT
-    DEL_VAR = lammpsfix.DEL_VAR
+    VELOCITY = lmpfix.VELOCITY
+    SET_VAR = lmpfix.SET_VAR
+    NVE = lmpfix.NVE
+    NVT = lmpfix.NVT
+    NPT = lmpfix.NPT
+    FIX = lmpfix.FIX
+    FIX_NVE = lmpfix.FIX_NVE
+    BERENDSEN = lmpfix.BERENDSEN
+    FIX_TEMP_BERENDSEN = lmpfix.FIX_TEMP_BERENDSEN
+    FIX_PRESS_BERENDSEN = lmpfix.FIX_PRESS_BERENDSEN
+    RUN_STEP = lmpfix.RUN_STEP
+    UNFIX = lmpfix.UNFIX
+    RECORD_BDRY = lmpfix.RECORD_BDRY
+    DUMP_EVERY = lmpfix.DUMP_EVERY
+    DUMP_ID = lmpfix.DUMP_ID
+    DUMP_Q = lmpfix.DUMP_Q
+    VOL = lmpfix.VOL
+    AMP = lmpfix.AMP
+    IMMED_PRESS = lmpfix.IMMED_PRESS
+    SET_IMMED_PRESS = lmpfix.SET_IMMED_PRESS
+    PRESS = lmpfix.PRESS
+    SET_PRESS = lmpfix.SET_PRESS
+    IMMED_MODULUS = lmpfix.IMMED_MODULUS
+    SET_IMMED_MODULUS = lmpfix.SET_IMMED_MODULUS
+    MODULUS = lmpfix.MODULUS
+    SET_MODULUS = lmpfix.SET_MODULUS
+    FACTOR = lmpfix.FACTOR
+    SET_FACTOR = lmpfix.SET_FACTOR
+    SET_LABEL = lmpfix.SET_LABEL
+    FIX_DEFORM = lmpfix.FIX_DEFORM
+    WIGGLE_VOL = lmpfix.WIGGLE_VOL
+    RECORD_PRESS_VOL = lmpfix.RECORD_PRESS_VOL
+    CHANGE_BDRY = lmpfix.CHANGE_BDRY
+    SET_LOOP = lmpfix.SET_LOOP
+    MKDIR = lmpfix.MKDIR
+    CD = lmpfix.CD
+    JUMP = lmpfix.JUMP
+    IF_JUMP = lmpfix.IF_JUMP
+    PRINT = lmpfix.PRINT
+    NEXT = lmpfix.NEXT
+    DEL_VAR = lmpfix.DEL_VAR
     PRESS_VAR = f'${{{PRESS}}}'
     MODULUS_VAR = f'${{{MODULUS}}}'
 

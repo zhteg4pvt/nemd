@@ -1,7 +1,7 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
-Python functions called by the lammps script (see lammpsfix.py).
+Python functions called by the lammps script (see lmpfix.py).
 """
 import math
 import os

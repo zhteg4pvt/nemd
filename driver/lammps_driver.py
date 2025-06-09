@@ -9,8 +9,8 @@ import subprocess
 import sys
 
 from nemd import jobutils
-from nemd import lammpsfix
-from nemd import lammpsin
+from nemd import lmpfix
+from nemd import lmpin
 from nemd import logutils
 from nemd import parserutils
 from nemd import symbols
@@ -22,9 +22,9 @@ class Lammps(logutils.Base):
     """
     FLAG_IN = '-in'
     KEYWORD_RE = r"\b{key}\s+(\S*)\s+(\S*)\s+(\S*)"
-    READ_DATA_RE = KEYWORD_RE.format(key=lammpsfix.READ_DATA)
-    PAIR_STYLE_RE = KEYWORD_RE.format(key=lammpsin.In.PAIR_STYLE)
-    PAIR_COEFF_RE = KEYWORD_RE.format(key=lammpsin.In.PAIR_COEFF)
+    READ_DATA_RE = KEYWORD_RE.format(key=lmpfix.READ_DATA)
+    PAIR_STYLE_RE = KEYWORD_RE.format(key=lmpin.In.PAIR_STYLE)
+    PAIR_COEFF_RE = KEYWORD_RE.format(key=lmpin.In.PAIR_COEFF)
     ERROR_RE = re.compile(f'ERROR: (.*)')
 
     def __init__(self, options, logger=None):

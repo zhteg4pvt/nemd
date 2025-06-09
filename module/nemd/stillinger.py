@@ -3,26 +3,26 @@
 """
 LAMMPS input file generator for Stillinger force field.
 """
-from nemd import lammpsin
 from nemd import lmpatomic
+from nemd import lmpin
 from nemd import pbc
 from nemd import symbols
 
 
-class Struct(lmpatomic.Struct, lammpsin.In):
+class Struct(lmpatomic.Struct, lmpin.In):
     """
     The Stillinger structure.
     """
-    V_UNITS = lammpsin.In.METAL
-    V_ATOM_STYLE = lammpsin.In.ATOMIC
-    V_PAIR_STYLE = lammpsin.In.SW
+    V_UNITS = lmpin.In.METAL
+    V_ATOM_STYLE = lmpin.In.ATOMIC
+    V_PAIR_STYLE = lmpin.In.SW
 
     def __init__(self, *args, options=None, **kwargs):
         """
         :param options 'argparse.Namespace': parsed command line options.
         """
         super().__init__(*args, options=options, **kwargs)
-        lammpsin.In.__init__(self, options=options)
+        lmpin.In.__init__(self, options=options)
 
     def coeff(self):
         """

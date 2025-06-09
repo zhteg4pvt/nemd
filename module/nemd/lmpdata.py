@@ -3,12 +3,12 @@
 """
 This module generates and parses the LAMMPS data file.
 """
-from nemd import lammpsin
 from nemd import lmpatomic
 from nemd import lmpfull
+from nemd import lmpin
 
 
-def get_reader(pathname, style=lammpsin.In.ATOMIC):
+def get_reader(pathname, style=lmpin.In.ATOMIC):
     """
     Get the appropriate reader based on the style of the data file style.
 
@@ -17,9 +17,9 @@ def get_reader(pathname, style=lammpsin.In.ATOMIC):
     :return `Reader`: the corresponding data file reader
     """
     match lmpatomic.Reader.getStyle(pathname):
-        case lammpsin.In.ATOMIC:
+        case lmpin.In.ATOMIC:
             return lmpatomic.Reader
-        case lammpsin.In.FULL:
+        case lmpin.In.FULL:
             return lmpfull.Reader
         case _:
             raise ValueError(f'Unsupported style: {style}')
