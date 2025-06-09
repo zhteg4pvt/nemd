@@ -394,7 +394,7 @@ class TestStruct:
     @pytest.mark.parametrize(
         'smiless,expected',
         [(['[Ar]'], []),
-         (['[Ar]', 'O'], ['fix rigid all shake 0.0001 10 10000  b 1 a 1\n'])])
+         (['[Ar]', 'O'], ['fix rigid all shake 0.0001 10 10000  b 1 a 1'])])
     def testShake(self, struct, expected, tmp_line):
         with tmp_line() as (struct.fh, lines):
             struct.shake()

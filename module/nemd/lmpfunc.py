@@ -9,7 +9,7 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from scipy.signal import savgol_filter
+import scipy
 
 from nemd import plotutils
 from nemd import symbols
@@ -19,7 +19,6 @@ class Base:
     """
     Analyze file dumped by the LAMMPS.
     """
-
     DATA = 'Data'
     PNG_EXT = '.png'
 
@@ -187,7 +186,8 @@ class Modulus(Press):
                 self.ave[column + self.STD_DEV] = np.nanstd(data, axis=0)
             smoothed_lb = column + self.SMOOTHED
             window = int(self.record_num / 10)
-            self.ave[smoothed_lb] = savgol_filter(self.ave[column], window, 3)
+            self.ave[smoothed_lb] = scipy.signal.savgol_filter(
+                self.ave[column], window, 3)
 
     def setModulus(self, lower_bound=10):
         """

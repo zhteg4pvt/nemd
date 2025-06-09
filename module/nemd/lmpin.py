@@ -18,47 +18,24 @@ from nemd import symbols
 
 class In(builtinsutils.Object):
     """
-    Class to write a LAMMPS in script.
+    Class to write a LAMMPS in script for simulation setting and protocol.
 
     https://docs.lammps.org/commands_list.html
     """
-
-    IN_EXT = '.in'
-    DATA_EXT = '.data'
     CUSTOM_EXT = f"{lmpfix.CUSTOM_EXT}.gz"
 
     UNITS = 'units'
+    LJ = 'lj'
     REAL = 'real'
     METAL = 'metal'
 
-    ATOM_STYLE = 'atom_style'
-    LJ = 'LJ'
-    FULL = 'full'
     ATOMIC = 'atomic'
 
     PAIR_STYLE = 'pair_style'
     SW = 'sw'
-    LJ_CUT = 'lj/cut'
-    LJ_CUT_COUL_LONG = 'lj/cut/coul/long'
-    DEFAULT_CUT = symbols.DEFAULT_CUT
-    DEFAULT_LJ_CUT = DEFAULT_CUT
-    DEFAULT_COUL_CUT = f"{DEFAULT_CUT} {DEFAULT_CUT}"
 
     PAIR_COEFF = 'pair_coeff'
-    DUMP_ID, DUMP_Q = lmpfix.DUMP_ID, lmpfix.DUMP_Q
-
-    FIX_RESTRAIN = lmpfix.FIX_RESTRAIN
-    UNFIX_RESTRAIN = lmpfix.UNFIX_RESTRAIN
-
-    MIN_STYLE = 'min_style'
-    FIRE = 'fire'
-    MINIMIZE = 'minimize'
-
-    FIX_RIGID_SHAKE = lmpfix.FIX_RIGID_SHAKE
-
     TIMESTEP = 'timestep'
-    THERMO_MODIFY = 'thermo_modify'
-    THERMO = 'thermo'
 
     V_UNITS = METAL
     V_ATOM_STYLE = ATOMIC
@@ -70,10 +47,10 @@ class In(builtinsutils.Object):
         """
         self.options = options
         self.fh = None
-        jobname = self.options.JOBNAME if self.options else self.name
-        self.inscript = jobname + self.IN_EXT
-        self.datafile = jobname + self.DATA_EXT
-        self.dumpfile = jobname + self.CUSTOM_EXT
+        self.jobname = self.options.JOBNAME if self.options else self.name
+        self.inscript = f"{self.jobname}.in"
+        self.datafile = f"{self.jobname}.data"
+        self.dumpfile = f"{self.jobname}{self.CUSTOM_EXT}"
 
     def writeIn(self):
         """
@@ -95,7 +72,7 @@ class In(builtinsutils.Object):
         Write the setup section including unit and atom styles.
         """
         self.fh.write(f"{self.UNITS} {self.V_UNITS}\n")
-        self.fh.write(f"{self.ATOM_STYLE} {self.V_ATOM_STYLE}\n")
+        self.fh.write(f"atom_style {self.V_ATOM_STYLE}\n")
 
     def pair(self):
         """
@@ -109,11 +86,13 @@ class In(builtinsutils.Object):
         """
         self.fh.write(f"{lmpfix.READ_DATA} {self.datafile}\n\n")
 
-    def coeff(self):
+    def coeff(self, ff=None, elements=None):
         """
         Write pair coefficients when data file doesn't contain the coefficients.
         """
-        pass
+        if ff is None:
+            return
+        self.fh.write(f"{self.PAIR_COEFF} * * {ff} {elements}\n")
 
     def traj(self, xyz=True, force=False, sort=True, fmt=None):
         """
@@ -124,12 +103,14 @@ class In(builtinsutils.Object):
         :param sort bool: sort by atom id if True
         :param fmt str: the float format
         """
-        attrib = ['id']
+        attrib = []
         if xyz:
             attrib += ['xu', 'yu', 'zu']
         if force:
             attrib += ['fx', 'fy', 'fz']
-        attrib = ' '.join(attrib)
+        if not attrib:
+            return
+        attrib = ' '.join(['id'] + attrib)
         cmd = lmpfix.DUMP_CUSTOM.format(file=self.dumpfile, attrib=attrib)
         self.fh.write(cmd)
         # Dumpy modify
@@ -142,7 +123,7 @@ class In(builtinsutils.Object):
             return
         self.fh.write(lmpfix.DUMP_MODIFY.format(attrib=' '.join(attrib)))
 
-    def minimize(self, min_style=FIRE):
+    def minimize(self, min_style='fire'):
         """
         Write commands related to minimization.
 
@@ -152,16 +133,17 @@ class In(builtinsutils.Object):
             return
         if self.rest:
             self.fh.write(self.rest)
-        self.fh.write(f"{self.MIN_STYLE} {min_style}\n")
-        self.fh.write(f"{self.MINIMIZE} 1.0e-6 1.0e-8 1000000 10000000\n")
+        self.fh.write(f"min_style {min_style}\n")
+        self.fh.write(f"minimize 1.0e-6 1.0e-8 1000000 10000000\n")
         if self.rest:
-            self.fh.write(self.UNFIX_RESTRAIN)
+            self.fh.write(lmpfix.UNFIX_RESTRAIN)
 
     @property
     @functools.cache
     def rest(self):
         """
-        Return the command to enforce specified restrain on the geometry.
+        Return the command to enforce specified restrain on the geometry during
+        minimization.
 
         :return str: the command to fix the restrained geometry
         """
@@ -181,7 +163,7 @@ class In(builtinsutils.Object):
             fixed_types += f' a {angles}'
         if not fixed_types:
             return
-        self.fh.write(self.FIX_RIGID_SHAKE.format(types=fixed_types))
+        self.fh.write(lmpfix.FIX_RIGID_SHAKE.format(types=fixed_types))
 
     def timestep(self):
         """
@@ -191,8 +173,8 @@ class In(builtinsutils.Object):
             return
         time = self.options.timestep * scipy.constants.femto
         self.fh.write(f'\n{self.TIMESTEP} {time / self.time_unit() }\n')
-        self.fh.write(f'{self.THERMO_MODIFY} flush yes\n')
-        self.fh.write(f'{self.THERMO} 1000\n')
+        self.fh.write(f'thermo_modify flush yes\n')
+        self.fh.write(f'thermo 1000\n')
 
     def simulation(self, atom_total=1):
         """
@@ -212,8 +194,9 @@ class In(builtinsutils.Object):
         """
         Return the time unit in the LAMMPS input file.
 
-        :unit str: the unit of the input script.
+        :param unit str: the unit of the input script.
         :return float: the time unit in the LAMMPS input file.
+        :raise ValueError: when the unit is unknown.
         """
         match unit if unit else cls.V_UNITS:
             case cls.REAL:
@@ -221,7 +204,7 @@ class In(builtinsutils.Object):
             case cls.METAL:
                 return scipy.constants.pico
             case _:
-                raise ValueError(f"Invalid unit: {unit}")
+                raise ValueError(f"Unknown unit: {unit}")
 
 
 class FixWriter:

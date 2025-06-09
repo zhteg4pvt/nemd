@@ -19,7 +19,7 @@ def get_reader(pathname, style=lmpin.In.ATOMIC):
     match lmpatomic.Reader.getStyle(pathname):
         case lmpin.In.ATOMIC:
             return lmpatomic.Reader
-        case lmpin.In.FULL:
+        case lmpfull.In.FULL:
             return lmpfull.Reader
         case _:
             raise ValueError(f'Unsupported style: {style}')

@@ -28,8 +28,7 @@ class Struct(lmpatomic.Struct, lmpin.In):
         """
         See parent.
         """
-        elements = symbols.SPACE.join(self.masses.comment).strip()
-        self.fh.write(f"{self.PAIR_COEFF} * * {self.ff} {elements}\n")
+        super().coeff(self.ff, symbols.SPACE.join(self.masses.comment).strip())
 
     def writeData(self):
         """

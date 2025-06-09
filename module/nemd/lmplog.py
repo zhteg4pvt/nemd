@@ -20,7 +20,6 @@ class Thermo(pd.DataFrame):
     """
     Backend thermodynamic data with time in ps, column renaming, start index
     """
-
     FS = 'fs'
     PS = 'ps'
     N_STEP = 'n'

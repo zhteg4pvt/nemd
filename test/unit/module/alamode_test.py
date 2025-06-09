@@ -118,8 +118,8 @@ class TestCutoff:
     def testSetUp(self, cutoff, expected):
         assert expected == len(cutoff)
 
-    @pytest.mark.parametrize('mode,expected', [('suggest', '  Si-Si 7.3\n'),
-                                               ('optimize', '  Si-Si 7.3\n'),
+    @pytest.mark.parametrize('mode,expected', [('suggest', '  Si-Si 7.3'),
+                                               ('optimize', '  Si-Si 7.3'),
                                                ('phonons', None)])
     def testWrite(self, cutoff, expected, tmp_line):
         with tmp_line() as (fh, lines):

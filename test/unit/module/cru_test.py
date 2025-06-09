@@ -81,10 +81,10 @@ class TestMol:
             mol.setTerminator()
             assert expected == len(mol.moieties['terminator'])
 
-    @pytest.mark.parametrize('smiles,expected',
-                             [('*C*', 1), ('*C*.*O*', 2), ('*C[*:1]', 1),
-                              ('[*:1]C[*:1]', 0),
-                              ('C*', 0)])
+    @pytest.mark.parametrize('smiles,expected', [('*C*', 1), ('*C*.*O*', 2),
+                                                 ('*C[*:1]', 1),
+                                                 ('[*:1]C[*:1]', 0),
+                                                 ('C*', 0)])
     def testSetMonomer(self, mol, expected):
         mol.setMoieties()
         mol.setMonomer()

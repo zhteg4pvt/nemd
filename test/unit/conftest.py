@@ -37,7 +37,7 @@ def lines(filename='filename'):
             yield wfh, lines
     finally:
         with open(filename, 'r') as rfh:
-            lines += rfh.readlines()
+            lines += [x.rstrip('\n') for x in rfh.readlines()]
 
 
 @pytest.fixture

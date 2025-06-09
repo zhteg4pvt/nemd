@@ -21,7 +21,7 @@ class TestBase:
     def testWriteCount(self, base, tmp_line):
         with tmp_line() as (fh, lines):
             base.writeCount(fh)
-        assert ['0 label\n'] == lines
+        assert ['0 label'] == lines
 
     @pytest.mark.parametrize('lines,expected', [(['1 2'], [0, 2])])
     def testFromLines(self, base, lines, expected):

@@ -16,6 +16,7 @@ from rdkit import Chem
 
 from nemd import builtinsutils
 from nemd import lmpatomic
+from nemd import lmpfix
 from nemd import lmpin
 from nemd import numpyutils
 from nemd import oplsua
@@ -627,31 +628,28 @@ class In(lmpin.In):
     """
     Class to write out LAMMPS in script.
     """
+    FULL = 'full'
     V_UNITS = lmpin.In.REAL
-    V_ATOM_STYLE = lmpin.In.FULL
+    V_ATOM_STYLE = FULL
+    DEFAULT_CUT = symbols.DEFAULT_CUT
 
-    def setup(self, harmonic='harmonic'):
+    def setup(self):
         """
         Write the setup section including unit, topology styles, and specials.
-
-        :param harmonic str: the harmonic style.
         """
         super().setup()
-        self.fh.write(f"bond_style {harmonic}\n")
-        self.fh.write(f"angle_style {harmonic}\n")
+        self.fh.write(f"bond_style harmonic\n")
+        self.fh.write(f"angle_style harmonic\n")
         self.fh.write("dihedral_style opls\n")
         self.fh.write("improper_style cvff\n")
         self.fh.write("special_bonds lj/coul 0 0 0.5\n")
 
-    def pair(self):
+    def pair(self, lj_cut='lj/cut', lj_cut_coul_long='lj/cut/coul/long'):
         """
         Write pair style, coefficients, and mixing rules as well as k-space.
         """
-        pair_style, cuts = self.LJ_CUT, self.DEFAULT_LJ_CUT
-        if self.hasCharge():
-            pair_style = self.LJ_CUT_COUL_LONG
-            cuts = self.DEFAULT_COUL_CUT
-        self.fh.write(f"{self.PAIR_STYLE} {pair_style} {cuts}\n")
+        pair_style = lj_cut_coul_long if self.hasCharge() else lj_cut
+        self.fh.write(f"{self.PAIR_STYLE} {pair_style} {self.DEFAULT_CUT}\n")
         self.fh.write(f"pair_modify mix geometric\n")
         if self.hasCharge():
             self.fh.write(f"kspace_style pppm 0.0001\n")
@@ -887,7 +885,8 @@ class Struct(lmpatomic.Struct, In):
         if gids.empty or self.options.substruct[1] is None:
             return
         geo = f"{gids.name.split()[0]} {' '.join(map(str, gids + 1))}"
-        return self.FIX_RESTRAIN.format(geo=geo, val=self.options.substruct[1])
+        return lmpfix.FIX_RESTRAIN.format(geo=geo,
+                                          val=self.options.substruct[1])
 
     def shake(self):
         """
