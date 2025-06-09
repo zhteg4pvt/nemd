@@ -18,19 +18,17 @@ prod_time: 1
 prod_ens: NVE
 seed: 4321
 no_minimize: False
-rigid_bond: None
-rigid_angle: None
 NAME: amorp_bldr
 JOBNAME: amorp_bldr
 INTERAC: False
 PYTHON: 2
 CPU: 1
 DEBUG: None
-JobStart: 20:29:15 04/27/2025
+JobStart: 11:02:56 06/09/2025
 ...........................
-WARNING: The minimum box span (5.78 Å) is smaller than 22.00 Å (Lennard-Jones Cutoff x 2) 
+WARNING: Box span (4.87 Å) < 22.00 Å (cutoff x 2)
 Data file written into amorp_bldr.data
 In script written into amorp_bldr.in
 Finished.
 Peak memory usage: 183.6974 MB
-20:29:16 04/27/2025
+11:02:57 06/09/2025

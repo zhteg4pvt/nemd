@@ -129,7 +129,7 @@ class TestCmd:
         assert not glob.glob('workspace/*/workspace')
 
     @pytest.mark.parametrize('dirname,expected', [('0049_test', 332),
-                                                  ('0001_cmd', 161)])
+                                                  ('0001_cmd', 154)])
     def testGetCmd(self, cmd, expected):
         cmd.setArgs()
         assert expected == len(cmd.getCmd())

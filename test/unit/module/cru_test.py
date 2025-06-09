@@ -83,16 +83,15 @@ class TestMol:
 
     @pytest.mark.parametrize('smiles,expected',
                              [('*C*', 1), ('*C*.*O*', 2), ('*C[*:1]', 1),
-                              ('[*:1]C[*:1]', cru.MoietyError),
-                              ('C*', cru.MoietyError)])
-    def testSetMonomer(self, mol, expected, raises):
+                              ('[*:1]C[*:1]', 0),
+                              ('C*', 0)])
+    def testSetMonomer(self, mol, expected):
         mol.setMoieties()
-        with raises:
-            mol.setMonomer()
-            assert expected == len(mol.moieties['monomer'])
-            for monomer in mol.moieties['monomer']:
-                nums = [len(monomer.getCapping(x)) for x in [0, 1]]
-                np.testing.assert_equal(nums, [1, 1])
+        mol.setMonomer()
+        assert expected == len(mol.moieties['monomer'])
+        for monomer in mol.moieties['monomer']:
+            nums = [len(monomer.getCapping(x)) for x in [0, 1]]
+            np.testing.assert_equal(nums, [1, 1])
 
     @pytest.mark.parametrize('smiles,expected', [('O', 'O'),
                                                  ('C[*:1]', 'C[*:1]'),

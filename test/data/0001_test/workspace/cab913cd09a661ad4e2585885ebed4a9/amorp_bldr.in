@@ -13,7 +13,7 @@ dump 1 all custom 1000 amorp_bldr.custom.gz id xu yu zu
 dump_modify 1 sort id
 min_style fire
 minimize 1.0e-6 1.0e-8 1000000 10000000
-fix rigid all shake 0.0001 10 10000  b 2 a 2
+fix rigid all shake 0.0001 10 10000  b 2 a 1
 
 timestep 1.0
 thermo_modify flush yes

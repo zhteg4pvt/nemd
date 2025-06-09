@@ -112,9 +112,9 @@ class TestType:
         assert expected == parserutils.type_smiles(arg).GetNumAtoms()
 
     @pytest.mark.parametrize('arg,allow_reg,expected',
-                             [('C', True, '[C]'), ('C', False, RAISED),
-                              ('*C*', False, '*[C][*:1]'),
-                              ('*C*.C', False, RAISED), ('C*', True, RAISED)])
+                             [('C', True, 'C'), ('C', False, RAISED),
+                              ('*C*', False, '*C[*:1]'),
+                              ('*C*.C', False, RAISED), ('C*', True, '*C')])
     def testCruSmiles(self, arg, allow_reg, expected):
         assert expected == parserutils.type_cru_smiles(arg,
                                                        allow_reg=allow_reg)

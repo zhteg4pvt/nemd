@@ -10,12 +10,12 @@ JOBNAME: test
 INTERAC: False
 PYTHON: 2
 CPU: None
-DEBUG: False
+DEBUG: None
 jtype: task aggregator
 prj_path: None
 clean: False
-screen: serial
-JobStart: 20:29:13 04/27/2025
+screen: off
+JobStart: 11:03:13 06/09/2025
 ...........................
 1 / 1 completed jobs.
 2 / 2 succeed sub-jobs.
@@ -25,4 +25,4 @@ Task Total Timing: 00:00:01
 | 00:01 ave   |
 | 00:01 cab   |
 Finished.
-20:29:19 04/27/2025
+11:03:16 06/09/2025

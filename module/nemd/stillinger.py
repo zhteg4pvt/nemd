@@ -26,7 +26,7 @@ class Struct(lmpatomic.Struct, lammpsin.In):
 
     def coeff(self):
         """
-        Write pair coefficients when data file doesn't contain the coefficients.
+        See parent.
         """
         elements = symbols.SPACE.join(self.masses.comment).strip()
         self.fh.write(f"{self.PAIR_COEFF} * * {self.ff} {elements}\n")

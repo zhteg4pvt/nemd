@@ -1,1 +1,1 @@
-{"args": ["1"], "prereq": {"check": ["cmd"]}, "_status": {}}
+{"prereq": {"check": ["cmd"]}, "args": ["1", "-CPU", "1"], "_status": {}}

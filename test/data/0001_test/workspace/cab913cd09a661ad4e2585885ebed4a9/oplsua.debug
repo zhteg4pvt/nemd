@@ -1,0 +1,17 @@
+assignAtomType CC(C)O, ((0, 1, 2, 3),)
+CC(C)O: 1 matches (5*1)
+0 / 5 unmarked
+1 residues found.
+1 residues reassigned.
+No exact match for bond between atom (84, 107).
+['6_4', '6_4'] replaced by ['6_4', '6_4']
+No exact match for bond between atom (107, 84).
+['6_4', '6_4'] replaced by ['6_4', '6_4']
+No exact match for angle between atom (84, 107, 104).
+['6_4', '8_2'] replaced by ['6_4', '8_2']
+No exact match for angle between atom (84, 107, 104).
+['6_4', '8_2'] replaced by ['6_4', '8_2']
+No exact match for dihedral between atom (84, 107, 104, 105).
+['6_4', '1_1'] replaced by ['6_4', '1_2']
+No exact match for dihedral between atom (84, 107, 104, 105).
+['6_4', '1_1'] replaced by ['6_4', '1_2']

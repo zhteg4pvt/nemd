@@ -177,7 +177,7 @@ class TestReader:
     def reader(self, data):
         return logutils.Reader(data)
 
-    @pytest.mark.parametrize('data,num', [(AMORP_LOG, 36), (MB_LMP_LOG, 59)])
+    @pytest.mark.parametrize('data,num', [(AMORP_LOG, 34), (MB_LMP_LOG, 59)])
     def testRead(self, num, raw):
         assert num == len(raw.lines)
 
@@ -188,7 +188,7 @@ class TestReader:
         assert debug == raw.options.DEBUG
         assert 2 == len(raw.options.JobStart)
 
-    @pytest.mark.parametrize('data,onum,num', [(AMORP_LOG, 28, 6),
+    @pytest.mark.parametrize('data,onum,num', [(AMORP_LOG, 26, 6),
                                                (MB_LMP_LOG, 35, 22)])
     def testCropOptions(self, onum, num, raw):
         assert onum == len(raw.cropOptions())
@@ -201,8 +201,8 @@ class TestReader:
 
     @pytest.mark.parametrize('data', [AMORP_LOG])
     @pytest.mark.parametrize('dtype,expected',
-                             [('start', '2025-04-27 20:29:15'),
-                              ('end', '2025-04-27 20:29:16'),
+                             [('start', '2025-06-09 11:02:56'),
+                              ('end', '2025-06-09 11:02:57'),
                               ('delta', '0:00:01')])
     def testTime(self, dtype, expected, reader):
         assert expected == str(reader.time(dtype=dtype))
