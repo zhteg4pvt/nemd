@@ -339,6 +339,8 @@ class Mol(lmpatomic.Mol):
         See parent.
         """
         super().setUp(*args, **kwargs)
+        if not self.GetNumConformers():
+            return
         self.setInternal()
         self.setSubstruct()
         self.updateAll()

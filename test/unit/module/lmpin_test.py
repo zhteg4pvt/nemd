@@ -3,6 +3,7 @@ from unittest import mock
 import pytest
 
 from nemd import lmpin
+from nemd import np
 from nemd import parserutils
 
 
@@ -58,24 +59,44 @@ class TestIn:
         assert (expected in lines) if expected else (1 == len(lines))
 
     @pytest.mark.parametrize(
-        'no_minimize,rest,expected',
-        [(False, None, 'minimize 1.0e-6 1.0e-8 1000000 10000000'),
-         (False,
-          'fix rest all restrain dihedral 1 2 3 4 -2000.0 -2000.0 120.0\n',
-          'minimize 1.0e-6 1.0e-8 1000000 10000000')])
-    def testMinimize(self, args, no_minimize, rest, expected, tmp_line):
-        if no_minimize:
-            args += ['-no_minimize']
-        options = parserutils.MolBase().parse_args(args)
-        with mock.patch('nemd.lmpin.In.rest',
-                        new_callable=mock.PropertyMock,
-                        return_value=rest):
-            lmp_in = lmpin.In(options=options)
-            with tmp_line() as (lmp_in.fh, lines):
-                lmp_in.minimize()
+        'no_minimize,geo,val,expected',
+        [(False, None, None, 'minimize 1.0e-6 1.0e-8 1000000 10000000'),
+         (True, None, None, None),
+         (True, 'dihedral 1 2 3 4', 120,
+          'fix rest all restrain dihedral 1 2 3 4 -2000.0 -2000.0 120')])
+    def testMinimize(self, lmp_in, no_minimize, geo, val, expected, tmp_line):
+        lmp_in.no_minimize = no_minimize
+        lmp_in.options.substruct = [None, val]
+        with tmp_line() as (lmp_in.fh, lines):
+            lmp_in.minimize(geo=geo)
+        assert (expected in lines) if expected else (2 == len(lines))
+
+    @pytest.mark.parametrize(
+        'bonds,angles,expected',
+        [(None, None, None),
+         ('4', '4', 'fix rigid all shake 0.0001 10 10000  b 4 a 4')])
+    def testShake(self, lmp_in, bonds, angles, expected, tmp_line):
+        with tmp_line() as (lmp_in.fh, lines):
+            lmp_in.shake(bonds=bonds, angles=angles)
         assert (expected in lines) if expected else (not lines)
-        if lines and rest:
-            assert rest in lines
+
+    @pytest.mark.parametrize('temp,expected', [(300, 4), (0, 0)])
+    def testTimestep(self, lmp_in, expected, temp, tmp_line):
+        lmp_in.options.temp = temp
+        with tmp_line() as (lmp_in.fh, lines):
+            lmp_in.timestep()
+        assert expected == len(lines)
+
+    @pytest.mark.parametrize('atom_total,expected', [(1, 2), (100, 6)])
+    def testSimulation(self, lmp_in, atom_total, expected, tmp_line):
+        with tmp_line() as (lmp_in.fh, lines):
+            lmp_in.simulation(atom_total=atom_total)
+        assert expected == len(lines)
+
+    @pytest.mark.parametrize('unit,expected', [('real', 1e-12),
+                                               ('metal', 1e-9)])
+    def testTimeUnit(self, lmp_in, unit, expected):
+        np.testing.assert_almost_equal(lmp_in.time_unit(unit), expected)
 
 
 # class TestFixWriter:

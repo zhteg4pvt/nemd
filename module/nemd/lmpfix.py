@@ -19,7 +19,7 @@ DUMP_MODIFY = f"{DUMP_MODIFY} {DUMP_ID} {{attrib}}\n"
 DUMP_EVERY = "dump_modify {id} every {arg}\n"
 
 FIX = 'fix'
-FIX_RIGID_SHAKE = f'{FIX} rigid all shake 0.0001 10 10000 {{types}}\n'
+FIX_RIGID_SHAKE = f'{FIX} rigid all shake 0.0001 10 10000 {{fixed}}\n'
 FIX_RESTRAIN = f'fix rest all restrain {{geo}} -2000.0 -2000.0 {{val}}\n'
 UNFIX_RESTRAIN = f'unfix rest\n'
 VELOCITY = 'velocity'

@@ -132,6 +132,8 @@ class In(builtinsutils.Object):
         Write commands related to minimization.
 
         :param min_style str: cg, fire, spin, etc.
+        :param geo str: the geometry to restrain (e.g., dihedral 1 2 3 4).
+        :param val float: the value of the restraint.
         """
         if self.options is None or self.options.no_minimize:
             return
@@ -143,32 +145,21 @@ class In(builtinsutils.Object):
         if val:
             self.fh.write(lmpfix.UNFIX_RESTRAIN)
 
-    @property
-    @functools.cache
-    def rest(self):
-        """
-        Return the command to enforce specified restrain on the geometry during
-        minimization.
-
-        :return str: the command to fix the restrained geometry
-        """
-        pass
-
     def shake(self, bonds=None, angles=None):
         """
         Write fix shake command to enforce constant bond length and angel values.
 
-        :param bonds list: the rigid bond type ids.
-        :param angles list: the rigid angle type ids.
+        :param bonds str: the rigid bond type ids.
+        :param angles str: the rigid angle type ids.
         """
-        fixed_types = ''
+        fixed = ''
         if bonds:
-            fixed_types += f' b {bonds}'
+            fixed += f' b {bonds}'
         if angles:
-            fixed_types += f' a {angles}'
-        if not fixed_types:
+            fixed += f' a {angles}'
+        if not fixed:
             return
-        self.fh.write(lmpfix.FIX_RIGID_SHAKE.format(types=fixed_types))
+        self.fh.write(lmpfix.FIX_RIGID_SHAKE.format(fixed=fixed))
 
     def timestep(self):
         """

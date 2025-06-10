@@ -128,21 +128,11 @@ class TestConformer:
     def testImpropers(self, conf):
         assert (1, 5) == conf.impropers.shape
 
-    @pytest.mark.parametrize('aids,val', [((2, 3), 2.12)])
-    def testSetBondLength(self, conf, aids, val):
-        conf.setBondLength(aids, val)
-        assert val == Chem.rdMolTransforms.GetBondLength(conf, *aids)
-
-    @pytest.mark.parametrize('aids,val', [((0, 1, 2), 121)])
-    def testSetAngleDeg(self, conf, aids, val):
-        conf.setAngleDeg(aids, val)
-        assert val == Chem.rdMolTransforms.GetAngleDeg(conf, *aids)
-
-    @pytest.mark.parametrize('aids,val', [((0, 1, 2, 4), 171)])
-    def testGetDihedralDeg(self, conf, aids, val):
+    @pytest.mark.parametrize('aids,val', [((2, 3), 2.12), ((0, 1, 2), 121),
+                                          ((0, 1, 2, 4), 171)])
+    def testSetGeo(self, conf, aids, val):
         conf.setGeo(aids, val)
-        measured = Chem.rdMolTransforms.GetDihedralDeg(conf, *aids)
-        np.testing.assert_almost_equal(measured, val)
+        np.testing.assert_almost_equal(conf.measure(aids), val)
 
     @pytest.mark.parametrize('args,expected',
                              [([], None),
@@ -385,11 +375,13 @@ class TestStruct:
         'args,expected',
         [([], None), (['CCC'], None),
          (['CCC', '120'
-           ], 'fix rest all restrain angle 1 2 3 -2000.0 -2000.0 120.0\n')])
-    def testRest(self, struct, smiless, args, expected):
+           ], 'fix rest all restrain angle 1 2 3 -2000.0 -2000.0 120.0')])
+    def testMinimize(self, struct, smiless, args, expected, tmp_line):
         args = smiless + ['-substruct'] + args if args else smiless
         struct.options = parserutils.MolBase().parse_args(args)
-        assert expected == struct.rest
+        with tmp_line() as (struct.fh, lines):
+            struct.minimize()
+        assert (expected in lines) if expected else (2 == len(lines))
 
     @pytest.mark.parametrize(
         'smiless,expected',
