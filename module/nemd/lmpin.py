@@ -2,8 +2,9 @@
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
 This module writes Lammps in script.
+
+https://docs.lammps.org/commands_list.html
 """
-import functools
 import os
 import string
 
@@ -19,8 +20,6 @@ from nemd import symbols
 class In(builtinsutils.Object):
     """
     LAMMPS in-script writer for simulation configurations and protocol.
-
-    https://docs.lammps.org/commands_list.html
     """
     CUSTOM_EXT = f"{lmpfix.CUSTOM_EXT}.gz"
 
@@ -47,10 +46,10 @@ class In(builtinsutils.Object):
         """
         self.options = options
         self.fh = None
-        self.jobname = self.options.JOBNAME if self.options else self.name
-        self.inscript = f"{self.jobname}.in"
-        self.datafile = f"{self.jobname}.data"
-        self.dumpfile = f"{self.jobname}{self.CUSTOM_EXT}"
+        name = self.options.JOBNAME if self.options else self.name
+        self.inscript = f"{name}.in"
+        self.datafile = f"{name}.data"
+        self.dumpfile = f"{name}{self.CUSTOM_EXT}"
 
     def writeIn(self):
         """
@@ -135,7 +134,7 @@ class In(builtinsutils.Object):
         :param geo str: the geometry to restrain (e.g., dihedral 1 2 3 4).
         :param val float: the value of the restraint.
         """
-        if self.options is None or self.options.no_minimize:
+        if self.options.no_minimize:
             return
         val = geo and self.options.substruct[1]
         if val:
@@ -165,7 +164,7 @@ class In(builtinsutils.Object):
         """
         Write commands related to timestep.
         """
-        if self.options is None or not self.options.temp:
+        if not self.options.temp:
             return
         time = self.options.timestep * scipy.constants.femto
         self.fh.write(f'\n{self.TIMESTEP} {time / self.time_unit() }\n')
@@ -178,12 +177,7 @@ class In(builtinsutils.Object):
 
         :param atom_total int: total atom number.
         """
-        if self.options is None:
-            return
-        fwriter = FixWriter(self.fh,
-                            options=self.options,
-                            atom_total=atom_total)
-        fwriter.run()
+        FixWriter(self.fh, options=self.options, atom_total=atom_total).run()
 
     @classmethod
     def time_unit(cls, unit=None):
@@ -203,82 +197,41 @@ class In(builtinsutils.Object):
                 raise ValueError(f"Unknown unit: {unit}")
 
 
-class FixWriter:
+class FixWriter(list):
     """
-    This the wrapper for LAMMPS fix command writer. which usually includes an
-    "unfix" after the run command.
+    LAMMPS fix command writer.
     """
-    VELOCITY = lmpfix.VELOCITY
-    SET_VAR = lmpfix.SET_VAR
     NVE = lmpfix.NVE
     NVT = lmpfix.NVT
     NPT = lmpfix.NPT
     FIX = lmpfix.FIX
     FIX_NVE = lmpfix.FIX_NVE
     BERENDSEN = lmpfix.BERENDSEN
-    FIX_TEMP_BERENDSEN = lmpfix.FIX_TEMP_BERENDSEN
-    FIX_PRESS_BERENDSEN = lmpfix.FIX_PRESS_BERENDSEN
     RUN_STEP = lmpfix.RUN_STEP
     UNFIX = lmpfix.UNFIX
-    RECORD_BDRY = lmpfix.RECORD_BDRY
-    DUMP_EVERY = lmpfix.DUMP_EVERY
-    DUMP_ID = lmpfix.DUMP_ID
-    DUMP_Q = lmpfix.DUMP_Q
-    VOL = lmpfix.VOL
-    AMP = lmpfix.AMP
-    IMMED_PRESS = lmpfix.IMMED_PRESS
-    SET_IMMED_PRESS = lmpfix.SET_IMMED_PRESS
     PRESS = lmpfix.PRESS
-    SET_PRESS = lmpfix.SET_PRESS
-    IMMED_MODULUS = lmpfix.IMMED_MODULUS
-    SET_IMMED_MODULUS = lmpfix.SET_IMMED_MODULUS
     MODULUS = lmpfix.MODULUS
-    SET_MODULUS = lmpfix.SET_MODULUS
-    FACTOR = lmpfix.FACTOR
-    SET_FACTOR = lmpfix.SET_FACTOR
-    SET_LABEL = lmpfix.SET_LABEL
-    FIX_DEFORM = lmpfix.FIX_DEFORM
-    WIGGLE_VOL = lmpfix.WIGGLE_VOL
-    RECORD_PRESS_VOL = lmpfix.RECORD_PRESS_VOL
-    CHANGE_BDRY = lmpfix.CHANGE_BDRY
-    SET_LOOP = lmpfix.SET_LOOP
-    MKDIR = lmpfix.MKDIR
-    CD = lmpfix.CD
-    JUMP = lmpfix.JUMP
-    IF_JUMP = lmpfix.IF_JUMP
-    PRINT = lmpfix.PRINT
-    NEXT = lmpfix.NEXT
-    DEL_VAR = lmpfix.DEL_VAR
     PRESS_VAR = f'${{{PRESS}}}'
     MODULUS_VAR = f'${{{MODULUS}}}'
 
     def __init__(self, fh, options=None, atom_total=1):
         """
-        :param fh '_io.TextIOWrapper': file handler to write fix commands
-        :param options 'types.Namespace': command line options and structure
-            information such as bond types, angle types, and testing flag.
+        :param fh '_io.TextIOWrapper': file handler to write fix commands.
+        :param options 'types.Namespace': command line options.
         :param atom_total int: total number of atoms.
         """
+        super().__init__()
         self.fh = fh
         self.options = options
         self.atom_total = atom_total
         self.single_point = atom_total == 1 or not self.options.temp
-        self.cmd = []
-        if not self.options.temp:
-            return
-        self.timestep = self.options.timestep
-        self.relax_time = self.options.relax_time
-        self.prod_time = self.options.prod_time
-        self.stemp = self.options.stemp
-        self.temp = self.options.temp
         self.tdamp = self.options.timestep * self.options.tdamp
-        self.press = self.options.press
         self.pdamp = self.options.timestep * self.options.pdamp
         timestep = self.options.timestep / constants.NANO_TO_FEMTO
-        self.prod_step = int(self.prod_time / timestep)
-        self.relax_step = int(self.relax_time / timestep)
+        self.prod_step = int(self.options.prod_time / timestep)
+        self.relax_step = int(self.options.relax_time / timestep)
         if self.relax_step:
-            self.relax_step = min(round(self.relax_time / 1E3), 1) * 1E3
+            self.relax_step = round(self.relax_step, -3) or 1E3
 
     def run(self):
         """
@@ -288,32 +241,28 @@ class FixWriter:
         self.velocity()
         self.startLow()
         self.rampUp()
-        self.relaxAndDefrom()
+        self.relaxation()
         self.production()
         self.write()
 
     def singlePoint(self):
         """
         Single point energy calculation.
-
-        :nstep int: run this steps for time integration.
         """
         if not self.single_point:
             return
-        self.fh.write(self.RUN_STEP % 0)
+        self.append(self.RUN_STEP % 0)
 
     def velocity(self):
         """
         Create initial velocity for the system.
-
-        https://docs.lammps.org/velocity.html
         """
         if self.single_point:
             return
         seed = np.random.randint(1, high=symbols.MAX_INT32)
         temp = self.options.stemp if self.relax_step else self.options.temp
-        cmd = f"{self.VELOCITY} all create {temp} {seed}"
-        self.cmd.append(cmd)
+        cmd = f"{lmpfix.VELOCITY} all create {temp} {seed}"
+        self.append(cmd)
 
     def startLow(self):
         """
@@ -322,35 +271,36 @@ class FixWriter:
         if self.single_point or not self.relax_step:
             return
         self.nvt(nstep=self.relax_step / 1E3,
-                 stemp=self.stemp,
-                 temp=self.stemp)
+                 stemp=self.options.stemp,
+                 temp=self.options.stemp)
 
     def nvt(self, nstep=1E4, stemp=None, temp=300, style=BERENDSEN, pre=''):
         """
         Append command for constant volume and temperature.
 
-        :nstep int: run this steps for time integration
-        :stemp float: starting temperature
-        :temp float: target temperature
-        :style str: the style for the command
-        :pre str: additional pre-conditions
+        :param nstep int: run this steps for time integration.
+        :param stemp float: starting temperature.
+        :param temp float: target temperature.
+        :param style str: the style for the command.
+        :param pre str: additional pre-conditions.
         """
         if stemp is None:
             stemp = temp
         if style == self.BERENDSEN:
-            cmd1 = self.FIX_TEMP_BERENDSEN.format(stemp=stemp,
-                                                  temp=temp,
-                                                  tdamp=self.tdamp)
+            cmd1 = lmpfix.FIX_TEMP_BERENDSEN.format(stemp=stemp,
+                                                    temp=temp,
+                                                    tdamp=self.tdamp)
             cmd2 = self.FIX_NVE
+        # FIXME: support thermostat more than berendsen.
         cmd = pre + cmd1 + cmd2
         fix = [x for x in cmd.split(symbols.RETURN) if x.startswith(self.FIX)]
-        self.cmd.append(cmd + self.RUN_STEP % nstep + self.UNFIX * len(fix))
+        self.append(cmd + self.RUN_STEP % nstep + self.UNFIX * len(fix))
 
     def rampUp(self, ensemble=None):
         """
         Ramp up temperature to the targe value.
 
-        :ensemble str: the ensemble to ramp up temperature.
+        :param ensemble str: the ensemble to ramp up temperature.
 
         NOTE: ensemble=None runs NVT at low temperature and ramp up with constant
         volume, calculate the averaged pressure at high temperature, and changes
@@ -360,20 +310,24 @@ class FixWriter:
             return
         if ensemble == self.NPT:
             self.npt(nstep=self.relax_step / 1E1,
-                     stemp=self.stemp,
-                     temp=self.temp,
-                     press=self.press)
+                     stemp=self.options.stemp,
+                     temp=self.options.temp,
+                     press=self.options.press)
             return
 
-        self.nvt(nstep=self.relax_step / 2E1, stemp=self.stemp, temp=self.temp)
-        self.nvt(nstep=self.relax_step / 2E1, stemp=self.temp, temp=self.temp)
+        self.nvt(nstep=self.relax_step / 2E1,
+                 stemp=self.options.stemp,
+                 temp=self.options.temp)
+        self.nvt(nstep=self.relax_step / 2E1,
+                 stemp=self.options.temp,
+                 temp=self.options.temp)
         self.cycleToPress()
-        self.nvt(nstep=self.relax_step / 1E1, temp=self.temp)
+        self.nvt(nstep=self.relax_step / 1E1, temp=self.options.temp)
         self.npt(nstep=self.relax_step / 1E1,
-                 stemp=self.temp,
-                 temp=self.temp,
+                 stemp=self.options.temp,
+                 temp=self.options.temp,
                  spress=self.PRESS_VAR,
-                 press=self.press,
+                 press=self.options.press,
                  modulus=self.MODULUS_VAR)
 
     def npt(self,
@@ -388,28 +342,29 @@ class FixWriter:
         """
         Append command for constant pressure and temperature.
 
-        :nstep int: run this steps for time integration
-        :stemp int: starting temperature
-        :temp float: target temperature
-        :spress float: starting pressure
-        :press float: target pressure
-        :style str: the style for the command
-        :pre str: additional pre-conditions
+        :param nstep int: run this steps for time integration
+        :param stemp int: starting temperature
+        :param temp float: target temperature
+        :param spress float: starting pressure
+        :param press float: target pressure
+        :param style str: the style for the command
+        :param pre str: additional pre-conditions
         """
         if spress is None:
             spress = press
         if style == self.BERENDSEN:
-            cmd1 = self.FIX_PRESS_BERENDSEN.format(spress=spress,
-                                                   press=press,
-                                                   pdamp=self.pdamp,
-                                                   modulus=modulus)
-            cmd2 = self.FIX_TEMP_BERENDSEN.format(stemp=stemp,
-                                                  temp=temp,
-                                                  tdamp=self.tdamp)
+            cmd1 = lmpfix.FIX_PRESS_BERENDSEN.format(spress=spress,
+                                                     press=press,
+                                                     pdamp=self.pdamp,
+                                                     modulus=modulus)
+            cmd2 = lmpfix.FIX_TEMP_BERENDSEN.format(stemp=stemp,
+                                                    temp=temp,
+                                                    tdamp=self.tdamp)
             cmd3 = self.FIX_NVE
+        # FIXME: support thermostat more than berendsen.
         cmd = pre + cmd1 + cmd2 + cmd3
         fix = [x for x in cmd.split(symbols.RETURN) if x.startswith(self.FIX)]
-        self.cmd.append(cmd + self.RUN_STEP % nstep + self.UNFIX * len(fix))
+        self.append(cmd + self.RUN_STEP % nstep + self.UNFIX * len(fix))
 
     def cycleToPress(self,
                      max_loop=1000,
@@ -437,54 +392,59 @@ class FixWriter:
         # Maximum Total Cycle Steps (cyc_nstep): self.relax_steps * 10
         cyc_nstep = nstep * (num + 1)
         # Each cycle dumps one trajectory frame
-        self.cmd.append(self.DUMP_EVERY.format(id=self.DUMP_ID, arg=cyc_nstep))
+        self.append(lmpfix.DUMP_EVERY.format(id=lmpfix.DUMP_ID, arg=cyc_nstep))
         # Set variables used in the loop
-        self.cmd.append(self.SET_VAR.format(var=self.VOL, expr=self.VOL))
-        expr = f'0.01*v_{self.VOL}^(1/3)'
-        self.cmd.append(self.SET_VAR.format(var=self.AMP, expr=expr))
-        self.cmd.append(self.SET_IMMED_PRESS)
-        self.cmd.append(self.SET_IMMED_MODULUS.format(record_num=record_num))
-        self.cmd.append(self.SET_FACTOR.format(press=self.options.press))
-        self.cmd.append(self.SET_LOOP.format(id=defm_id, end=max_loop - 1))
-        self.cmd.append(self.SET_LABEL.format(label=defm_start))
-        self.cmd.append(self.PRINT.format(var=defm_id))
+        self.append(lmpfix.SET_VAR.format(var=lmpfix.VOL, expr=lmpfix.VOL))
+        expr = f'0.01*v_{lmpfix.VOL}^(1/3)'
+        self.append(lmpfix.SET_VAR.format(var=lmpfix.AMP, expr=expr))
+        self.append(lmpfix.SET_IMMED_PRESS)
+        self.append(lmpfix.SET_IMMED_MODULUS.format(record_num=record_num))
+        self.append(lmpfix.SET_FACTOR.format(press=self.options.press))
+        self.append(lmpfix.SET_LOOP.format(id=defm_id, end=max_loop - 1))
+        self.append(lmpfix.SET_LABEL.format(label=defm_start))
+        self.append(lmpfix.PRINT.format(var=defm_id))
         # Run in a subdirectory as some output files are of the same names
         dirname = f"defm_${{{defm_id}}}"
-        self.cmd.append(self.MKDIR.format(dir=dirname))
-        self.cmd.append(self.CD.format(dir=dirname))
-        self.cmd.append("")
+        self.append(lmpfix.MKDIR.format(dir=dirname))
+        self.append(lmpfix.CD.format(dir=dirname))
+        self.append("")
         pre = self.getCyclePre(nstep, record_num=record_num)
-        self.nvt(nstep=nstep * num, stemp=self.temp, temp=self.temp, pre=pre)
-        self.cmd.append(self.PRINT.format(var=self.IMMED_PRESS))
-        self.cmd.append(self.PRINT.format(var=self.IMMED_MODULUS))
-        self.cmd.append(self.PRINT.format(var=self.FACTOR))
-        cond = f"${{{defm_id}}} == {max_loop - 1} || ${{{self.FACTOR}}} == 1"
-        self.cmd.append(self.IF_JUMP.format(cond=cond, label=defm_break))
-        self.cmd.append("")
+        self.nvt(nstep=nstep * num,
+                 stemp=self.options.temp,
+                 temp=self.options.temp,
+                 pre=pre)
+        self.append(lmpfix.PRINT.format(var=lmpfix.IMMED_PRESS))
+        self.append(lmpfix.PRINT.format(var=lmpfix.IMMED_MODULUS))
+        self.append(lmpfix.PRINT.format(var=lmpfix.FACTOR))
+        cond = f"${{{defm_id}}} == {max_loop - 1} || ${{{lmpfix.FACTOR}}} == 1"
+        self.append(lmpfix.IF_JUMP.format(cond=cond, label=defm_break))
+        self.append("")
         self.nvt(nstep=nstep / 2,
-                 stemp=self.temp,
-                 temp=self.temp,
-                 pre=self.FIX_DEFORM)
-        self.nvt(nstep=nstep / 2, stemp=self.temp, temp=self.temp)
-        self.cmd.append(self.CD.format(dir=os.pardir))
-        self.cmd.append(self.NEXT.format(id=defm_id))
-        self.cmd.append(self.JUMP.format(label=defm_start))
-        self.cmd.append("")
-        self.cmd.append(self.SET_LABEL.format(label=defm_break))
+                 stemp=self.options.temp,
+                 temp=self.options.temp,
+                 pre=lmpfix.FIX_DEFORM)
+        self.nvt(nstep=nstep / 2,
+                 stemp=self.options.temp,
+                 temp=self.options.temp)
+        self.append(lmpfix.CD.format(dir=os.pardir))
+        self.append(lmpfix.NEXT.format(id=defm_id))
+        self.append(lmpfix.JUMP.format(label=defm_start))
+        self.append("")
+        self.append(lmpfix.SET_LABEL.format(label=defm_break))
         # Record press and modulus as immediate variable evaluation uses files
-        self.cmd.append(self.SET_MODULUS)
-        self.cmd.append(self.SET_PRESS)
-        self.cmd.append(self.CD.format(dir=os.pardir))
+        self.append(lmpfix.SET_MODULUS)
+        self.append(lmpfix.SET_PRESS)
+        self.append(lmpfix.CD.format(dir=os.pardir))
         # Delete variables used in the loop
-        self.cmd.append(self.DEL_VAR.format(var=self.VOL))
-        self.cmd.append(self.DEL_VAR.format(var=self.AMP))
-        self.cmd.append(self.DEL_VAR.format(var=self.IMMED_PRESS))
-        self.cmd.append(self.DEL_VAR.format(var=self.IMMED_MODULUS))
-        self.cmd.append(self.DEL_VAR.format(var=self.FACTOR))
-        self.cmd.append(self.DEL_VAR.format(var=defm_id))
+        self.append(lmpfix.DEL_VAR.format(var=lmpfix.VOL))
+        self.append(lmpfix.DEL_VAR.format(var=lmpfix.AMP))
+        self.append(lmpfix.DEL_VAR.format(var=lmpfix.IMMED_PRESS))
+        self.append(lmpfix.DEL_VAR.format(var=lmpfix.IMMED_MODULUS))
+        self.append(lmpfix.DEL_VAR.format(var=lmpfix.FACTOR))
+        self.append(lmpfix.DEL_VAR.format(var=defm_id))
         # Restore dump defaults
-        cmd = '\n' + self.DUMP_EVERY.format(id=self.DUMP_ID, arg=self.DUMP_Q)
-        self.cmd.append(cmd)
+        cmd = lmpfix.DUMP_EVERY.format(id=lmpfix.DUMP_ID, arg=lmpfix.DUMP_Q)
+        self.append('\n' + cmd)
 
     def getCyclePre(self, nstep, record_num=100):
         """
@@ -494,13 +454,12 @@ class FixWriter:
         :param record_num int: each cycle records this number of data
         :return str: the prefix string of the cycle stage.
         """
-
-        wiggle = self.WIGGLE_VOL.format(period=nstep * self.timestep)
+        wiggle = lmpfix.WIGGLE_VOL.format(period=nstep * self.options.timestep)
         record_period = int(nstep / record_num)
-        record_press = self.RECORD_PRESS_VOL.format(period=record_period)
+        record_press = lmpfix.RECORD_PRESS_VOL.format(period=record_period)
         return record_press + wiggle
 
-    def relaxAndDefrom(self):
+    def relaxation(self):
         """
         Longer relaxation at constant temperature and deform to the mean size.
         """
@@ -508,21 +467,23 @@ class FixWriter:
             return
         if self.options.prod_ens == self.NPT:
             self.npt(nstep=self.relax_step,
-                     stemp=self.temp,
-                     temp=self.temp,
-                     press=self.press,
+                     stemp=self.options.temp,
+                     temp=self.options.temp,
+                     press=self.options.press,
                      modulus=self.MODULUS_VAR)
             return
         # NVE and NVT production runs use averaged cell
-        pre = self.RECORD_BDRY.format(num=self.relax_step / 1E1)
+        pre = lmpfix.RECORD_BDRY.format(num=self.relax_step / 1E1)
         self.npt(nstep=self.relax_step,
-                 stemp=self.temp,
-                 temp=self.temp,
-                 press=self.press,
+                 stemp=self.options.temp,
+                 temp=self.options.temp,
+                 press=self.options.press,
                  modulus=self.MODULUS_VAR,
                  pre=pre)
-        self.cmd.append(self.CHANGE_BDRY)
-        self.nvt(nstep=self.relax_step / 1E2, stemp=self.temp, temp=self.temp)
+        self.append(lmpfix.CHANGE_BDRY)
+        self.nvt(nstep=self.relax_step / 1E2,
+                 stemp=self.options.temp,
+                 temp=self.options.temp)
 
     def production(self):
         """
@@ -535,29 +496,30 @@ class FixWriter:
         if self.options.prod_ens == self.NVE:
             self.nve(nstep=self.prod_step)
         elif self.options.prod_ens == self.NVT:
-            self.nvt(nstep=self.prod_step, stemp=self.temp, temp=self.temp)
+            self.nvt(nstep=self.prod_step,
+                     stemp=self.options.temp,
+                     temp=self.options.temp)
         else:
             self.npt(nstep=self.prod_step,
-                     stemp=self.temp,
-                     temp=self.temp,
-                     press=self.press,
+                     stemp=self.options.temp,
+                     temp=self.options.temp,
+                     press=self.options.press,
                      modulus=self.MODULUS_VAR)
 
     def nve(self, nstep=1E3):
         """
-        Append command for constant energy and volume.
+        Constant energy and volume.
 
         :param nstep int: run this steps for time integration.
         """
-        # NVT on single molecule gives nan coords (guess due to translation)
-        cmd = self.FIX_NVE + self.RUN_STEP % nstep + self.UNFIX
-        self.cmd.append(cmd)
+        # NVT on single molecule gives nan xyz (guess due to translation)
+        self.append(self.FIX_NVE + self.RUN_STEP % nstep + self.UNFIX)
 
     def write(self):
         """
         Write the command to the file.
         """
-        for idx, cmd in enumerate(self.cmd, 1):
+        for idx, cmd in enumerate(self, 1):
             num = round(cmd.count('%s') / 2)
             ids = [f'{idx}{string.ascii_lowercase[x]}' for x in range(num)]
             ids += [x for x in reversed(ids)]

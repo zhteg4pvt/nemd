@@ -1,5 +1,3 @@
-from unittest import mock
-
 import pytest
 
 from nemd import lmpin
@@ -87,7 +85,7 @@ class TestIn:
             lmp_in.timestep()
         assert expected == len(lines)
 
-    @pytest.mark.parametrize('atom_total,expected', [(1, 2), (100, 6)])
+    @pytest.mark.parametrize('atom_total,expected', [(1, 3), (100, 147)])
     def testSimulation(self, lmp_in, atom_total, expected, tmp_line):
         with tmp_line() as (lmp_in.fh, lines):
             lmp_in.simulation(atom_total=atom_total)
