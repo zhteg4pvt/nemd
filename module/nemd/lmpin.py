@@ -18,7 +18,7 @@ from nemd import symbols
 
 class In(builtinsutils.Object):
     """
-    Class to write a LAMMPS in script for simulation setting and protocol.
+    LAMMPS in-script writer for simulation configurations and protocol.
 
     https://docs.lammps.org/commands_list.html
     """
@@ -89,10 +89,14 @@ class In(builtinsutils.Object):
     def coeff(self, ff=None, elements=None):
         """
         Write pair coefficients when data file doesn't contain the coefficients.
+
+        :param ff str: the force field file.
+        :param elements list: the elements (or symbols).
         """
-        if ff is None:
+        if ff is None or elements is None:
             return
-        self.fh.write(f"{self.PAIR_COEFF} * * {ff} {elements}\n")
+        self.fh.write(
+            f"{self.PAIR_COEFF} * * {ff} {symbols.SPACE.join(elements)}\n")
 
     def traj(self, xyz=True, force=False, sort=True, fmt=None):
         """
@@ -123,7 +127,7 @@ class In(builtinsutils.Object):
             return
         self.fh.write(lmpfix.DUMP_MODIFY.format(attrib=' '.join(attrib)))
 
-    def minimize(self, min_style='fire'):
+    def minimize(self, min_style='fire', geo=None):
         """
         Write commands related to minimization.
 
@@ -131,11 +135,12 @@ class In(builtinsutils.Object):
         """
         if self.options is None or self.options.no_minimize:
             return
-        if self.rest:
-            self.fh.write(self.rest)
+        val = geo and self.options.substruct[1]
+        if val:
+            self.fh.write(lmpfix.FIX_RESTRAIN.format(geo=geo, val=val))
         self.fh.write(f"min_style {min_style}\n")
         self.fh.write(f"minimize 1.0e-6 1.0e-8 1000000 10000000\n")
-        if self.rest:
+        if val:
             self.fh.write(lmpfix.UNFIX_RESTRAIN)
 
     @property

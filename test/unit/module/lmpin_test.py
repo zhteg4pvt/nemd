@@ -1,3 +1,5 @@
+from unittest import mock
+
 import pytest
 
 from nemd import lmpin
@@ -21,9 +23,14 @@ class TestIn:
             lmp_in.pair()
         assert 'pair_style sw' in lines
 
+    def testData(self, lmp_in, tmp_line):
+        with tmp_line() as (lmp_in.fh, lines):
+            lmp_in.data()
+        assert 'read_data name.data' in lines
+
     def testCoeff(self, lmp_in, tmp_line):
         with tmp_line() as (lmp_in.fh, lines):
-            lmp_in.coeff('ff', 'Si')
+            lmp_in.coeff('ff', ['Si'])
         assert 'pair_coeff * * ff Si' in lines
 
     @pytest.mark.parametrize(
@@ -45,10 +52,30 @@ class TestIn:
           "dump_modify 1 sort id format float '%20.15f'"),
          (False, "float '%20.15f'", "dump_modify 1 format float '%20.15f'"),
          (False, None, None)])
-    def testTraj2(self, lmp_in, sort, fmt, expected, tmp_line):
+    def testTrajModify(self, lmp_in, sort, fmt, expected, tmp_line):
         with tmp_line() as (lmp_in.fh, lines):
             lmp_in.traj(sort=sort, fmt=fmt)
         assert (expected in lines) if expected else (1 == len(lines))
+
+    @pytest.mark.parametrize(
+        'no_minimize,rest,expected',
+        [(False, None, 'minimize 1.0e-6 1.0e-8 1000000 10000000'),
+         (False,
+          'fix rest all restrain dihedral 1 2 3 4 -2000.0 -2000.0 120.0\n',
+          'minimize 1.0e-6 1.0e-8 1000000 10000000')])
+    def testMinimize(self, args, no_minimize, rest, expected, tmp_line):
+        if no_minimize:
+            args += ['-no_minimize']
+        options = parserutils.MolBase().parse_args(args)
+        with mock.patch('nemd.lmpin.In.rest',
+                        new_callable=mock.PropertyMock,
+                        return_value=rest):
+            lmp_in = lmpin.In(options=options)
+            with tmp_line() as (lmp_in.fh, lines):
+                lmp_in.minimize()
+        assert (expected in lines) if expected else (not lines)
+        if lines and rest:
+            assert rest in lines
 
 
 # class TestFixWriter:

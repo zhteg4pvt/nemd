@@ -322,7 +322,7 @@ class Moiety(cru.Moiety):
         conf = self.GetConformer()
         src, tgt = [[y.GetIdx() for y in x] for x in [self.head, self.tail]]
         for dihe in self.getDihes(sources=src, targets=tgt):
-            conf.setDihedralDeg(dihe, 180)
+            conf.setGeo(dihe, 180)
 
 
 class EditableMol(Chem.EditableMol):

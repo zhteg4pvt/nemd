@@ -6,7 +6,6 @@ LAMMPS input file generator for Stillinger force field.
 from nemd import lmpatomic
 from nemd import lmpin
 from nemd import pbc
-from nemd import symbols
 
 
 class Struct(lmpatomic.Struct, lmpin.In):
@@ -28,7 +27,7 @@ class Struct(lmpatomic.Struct, lmpin.In):
         """
         See parent.
         """
-        super().coeff(self.ff, symbols.SPACE.join(self.masses.comment).strip())
+        super().coeff(ff=self.ff, elements=self.masses.comment)
 
     def writeData(self):
         """

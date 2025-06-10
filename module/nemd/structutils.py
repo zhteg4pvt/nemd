@@ -169,7 +169,7 @@ class GrownConf(PackedConf):
         """
         frag = self.frags.pop(0)
         while frag.vals:
-            self.setDihedralDeg(frag.dihe, frag.vals.pop())
+            self.setGeo(frag.dihe, frag.vals.pop())
             if self.checkClash(frag.ids):
                 self.frags += frag.nfrags
                 return
@@ -224,9 +224,9 @@ class GrownConf(PackedConf):
         """
         oxyz = self.GetPositions()
         oval = Chem.rdMolTransforms.GetDihedralDeg(self, *dihe)
-        self.setDihedralDeg(dihe, oval + 5)
+        self.setGeo(dihe, oval + 5)
         changed = ~np.isclose(oxyz, self.GetPositions()).all(axis=1)
-        self.setDihedralDeg(dihe, oval)
+        self.setGeo(dihe, oval)
         return self.mol.aids[changed.nonzero()].tolist()
 
     def reset(self):

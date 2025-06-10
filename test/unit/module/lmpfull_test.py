@@ -140,7 +140,7 @@ class TestConformer:
 
     @pytest.mark.parametrize('aids,val', [((0, 1, 2, 4), 171)])
     def testGetDihedralDeg(self, conf, aids, val):
-        conf.setDihedralDeg(aids, val)
+        conf.setGeo(aids, val)
         measured = Chem.rdMolTransforms.GetDihedralDeg(conf, *aids)
         np.testing.assert_almost_equal(measured, val)
 

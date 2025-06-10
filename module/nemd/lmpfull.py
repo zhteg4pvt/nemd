@@ -292,32 +292,22 @@ class Conf(lmpatomic.Conf):
         """
         return self.GetOwningMol().impropers.to_numpy(gids=self.gids)
 
-    def setBondLength(self, bonded, val):
+    def setGeo(self, aids, val):
         """
-        Set bond length of the given dihedral.
+        Set the bond length, angle degree, or dihedral angle.
 
-        :param bonded tuple of int: the bonded atom indices.
-        :param val float: the bond distance.
+        :param aids list: atom ids
+        :param val float: the value to set.
         """
-        Chem.rdMolTransforms.SetBondLength(self, *bonded, val)
-
-    def setAngleDeg(self, aids, val):
-        """
-        Set bond length of the given dihedral.
-
-        :param aids tuple of int: the atom indices in one angle.
-        :param val float: the angle degree.
-        """
-        Chem.rdMolTransforms.SetAngleDeg(self, *aids, val)
-
-    def setDihedralDeg(self, dihe, val):
-        """
-        Set angle degree of the given dihedral.
-
-        :param dihe tuple of int: the dihedral atom indices.
-        :param val float: the angle degree.
-        """
-        Chem.rdMolTransforms.SetDihedralDeg(self, *dihe, val)
+        if val is None:
+            return
+        match len(aids):
+            case 2:
+                Chem.rdMolTransforms.SetBondLength(self, *aids, val)
+            case 3:
+                Chem.rdMolTransforms.SetAngleDeg(self, *aids, val)
+            case 4:
+                Chem.rdMolTransforms.SetDihedralDeg(self, *aids, val)
 
     def measure(self, aids=None, name=None):
         """
@@ -363,31 +353,21 @@ class Mol(lmpatomic.Mol):
         """
         Set the internal coordinates.
         """
-        if not self.GetNumConformers():
-            return
         tpl = self.GetConformer()
         for tid, *ids in self.bonds.values:
-            tpl.setBondLength(list(map(int, ids)), self.ff.bonds.loc[tid].dist)
+            tpl.setGeo(list(map(int, ids)), self.ff.bonds.loc[tid].dist)
         for tid, *ids in self.angles.values:
-            tpl.setAngleDeg(list(map(int, ids)), self.ff.angles.loc[tid].deg)
+            tpl.setGeo(list(map(int, ids)), self.ff.angles.loc[tid].deg)
 
     def setSubstruct(self):
         """
         Set substructure.
         """
-        if not self.GetNumConformers():
+        try:
+            value = self.struct.options.substruct[1]
+        except (TypeError, AttributeError):
             return
-        aids = self.getSubstructMatch()
-        if aids.empty or self.struct.options.substruct[1] is None:
-            return
-        template = self.GetConformer()
-        match len(aids):
-            case 2:
-                template.setBondLength(aids, self.struct.options.substruct[1])
-            case 3:
-                template.setAngleDeg(aids, self.struct.options.substruct[1])
-            case 4:
-                template.setDihedralDeg(aids, self.struct.options.substruct[1])
+        self.GetConformer().setGeo(self.getSubstructMatch(), value)
 
     def getSubstructMatch(self, gid=False):
         """
@@ -644,11 +624,11 @@ class In(lmpin.In):
         self.fh.write("improper_style cvff\n")
         self.fh.write("special_bonds lj/coul 0 0 0.5\n")
 
-    def pair(self, lj_cut='lj/cut', lj_cut_coul_long='lj/cut/coul/long'):
+    def pair(self):
         """
         Write pair style, coefficients, and mixing rules as well as k-space.
         """
-        pair_style = lj_cut_coul_long if self.hasCharge() else lj_cut
+        pair_style = 'lj/cut/coul/long' if self.hasCharge() else 'lj/cut'
         self.fh.write(f"{self.PAIR_STYLE} {pair_style} {self.DEFAULT_CUT}\n")
         self.fh.write(f"pair_modify mix geometric\n")
         if self.hasCharge():
@@ -872,21 +852,16 @@ class Struct(lmpatomic.Struct, In):
         """
         return self.charges.size and not np.isclose(self.charges, 0).any()
 
-    @property
-    @functools.cache
-    def rest(self):
+    def minimize(self, *args, geo=None, **kwargs):
         """
-        See the parent class for docstring.
+        See parent.
         """
-        mol = next((x for x in self.mols if x.GetNumConformers()), None)
-        if not mol:
-            return
-        gids = mol.getSubstructMatch(gid=True)
-        if gids.empty or self.options.substruct[1] is None:
-            return
-        geo = f"{gids.name.split()[0]} {' '.join(map(str, gids + 1))}"
-        return lmpfix.FIX_RESTRAIN.format(geo=geo,
-                                          val=self.options.substruct[1])
+        if geo is None:
+            mol = next((x for x in self.mols if x.GetNumConformers()), None)
+            gids = mol.getSubstructMatch(gid=True)
+            if not gids.empty:
+                geo = f"{gids.name.split()[0]} {' '.join(map(str, gids + 1))}"
+        super().minimize(*args, geo=geo, **kwargs)
 
     def shake(self):
         """
