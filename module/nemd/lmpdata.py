@@ -8,7 +8,7 @@ from nemd import lmpfull
 from nemd import lmpin
 
 
-def get_reader(pathname, style=lmpin.In.ATOMIC):
+def get_reader(pathname, style=lmpin.Script.ATOMIC):
     """
     Get the appropriate reader based on the style of the data file style.
 
@@ -17,9 +17,9 @@ def get_reader(pathname, style=lmpin.In.ATOMIC):
     :return `Reader`: the corresponding data file reader
     """
     match lmpatomic.Reader.getStyle(pathname):
-        case lmpin.In.ATOMIC:
+        case lmpin.Script.ATOMIC:
             return lmpatomic.Reader
-        case lmpfull.In.FULL:
+        case lmpfull.Script.FULL:
             return lmpfull.Reader
         case _:
             raise ValueError(f'Unsupported style: {style}')

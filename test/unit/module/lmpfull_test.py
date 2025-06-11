@@ -240,37 +240,59 @@ class TestMol:
         assert expected == fmol.nbr_charge.shape
 
 
-class TestIn:
+@pytest.mark.parametrize('cnum', [1])
+class TestSetup:
 
     @pytest.fixture
-    def lmp_in(self):
-        return lmpfull.In()
+    def script(self, smiles, emol):
+        options = parserutils.AmorpBldr().parse_args([smiles])
+        return lmpfull.Struct.fromMols([emol], options=options).script
 
-    def testSetup(self, lmp_in, tmp_line):
-        with tmp_line() as (lmp_in.fh, lines):
-            lmp_in.setup()
+    @pytest.mark.parametrize('smiles', ['O'])
+    def testSetup(self, script, tmp_line):
+        with tmp_line() as (script.fh, lines):
+            script.setup()
         assert 7 == len(lines)
 
-    @pytest.mark.parametrize('has_charge,expected', [(True, 3), (False, 2)])
-    def testPair(self, lmp_in, has_charge, expected, tmp_line):
-        with mock.patch.object(lmp_in, 'hasCharge') as mocked:
-            mocked.return_value = has_charge
-            with tmp_line() as (lmp_in.fh, lines):
-                lmp_in.pair()
-            assert expected == len(lines)
+    @pytest.mark.parametrize('smiles,expected', [('O', 3), ('C', 2)])
+    def testPair(self, script, expected, tmp_line):
+        with tmp_line() as (script.fh, lines):
+            script.pair()
+        assert expected == len(lines)
 
-    def testHasCharge(self, lmp_in):
-        assert lmp_in.hasCharge()
+    @pytest.mark.parametrize('smiles', ['CCCC'])
+    @pytest.mark.parametrize(
+        'substruct,expected',
+        [
+            # (None, None), (['CCC', None], None),
+            (['CCC', 120
+              ], 'fix rest all restrain angle 1 2 3 -2000.0 -2000.0 120')
+        ])
+    def testMinimize(self, script, substruct, expected, tmp_line):
+        script.struct.options.substruct = substruct
+        with tmp_line() as (script.fh, lines):
+            script.minimize()
+        assert (expected in lines) if expected else (2 == len(lines))
+
+    @pytest.mark.parametrize(
+        'smiles,expected',
+        [('[Ar]', 'run 0'),
+         ('O', 'fix rigid all shake 0.0001 10 10000  b 1 a 1')])
+    def testSimulation(self, script, expected, tmp_line):
+        with tmp_line() as (script.fh, lines):
+            script.simulation()
+        assert expected == lines[0]
 
 
 class TestStruct:
 
     @pytest.fixture
     def struct(self, smiless):
+        options = parserutils.AmorpBldr().parse_args(smiless)
         mols = [lmpfull.Mol.MolFromSmiles(x) for x in smiless]
         for cnum, mol in enumerate(mols):
             mol.EmbedMultipleConfs(numConfs=cnum)
-        return lmpfull.Struct.fromMols(mols)
+        return lmpfull.Struct.fromMols(mols, options=options)
 
     @pytest.mark.parametrize('smiless,expected',
                              [(['O'], [216, 151, 310, 631, 76])])
@@ -370,28 +392,6 @@ class TestStruct:
     def testHasCharge(self, struct, expected):
         assert expected == struct.hasCharge()
 
-    @pytest.mark.parametrize('smiless', [(['CCCC', 'CCC'])])
-    @pytest.mark.parametrize(
-        'args,expected',
-        [([], None), (['CCC'], None),
-         (['CCC', '120'
-           ], 'fix rest all restrain angle 1 2 3 -2000.0 -2000.0 120.0')])
-    def testMinimize(self, struct, smiless, args, expected, tmp_line):
-        args = smiless + ['-substruct'] + args if args else smiless
-        struct.options = parserutils.MolBase().parse_args(args)
-        with tmp_line() as (struct.fh, lines):
-            struct.minimize()
-        assert (expected in lines) if expected else (2 == len(lines))
-
-    @pytest.mark.parametrize(
-        'smiless,expected',
-        [(['[Ar]'], []),
-         (['[Ar]', 'O'], ['fix rigid all shake 0.0001 10 10000  b 1 a 1'])])
-    def testShake(self, struct, expected, tmp_line):
-        with tmp_line() as (struct.fh, lines):
-            struct.shake()
-        assert expected == lines
-
     @pytest.mark.parametrize('smiless,expected', [(['[Ar]'], ''),
                                                   (['[Ar]', 'O'], '1')])
     def testGetRigid(self, struct, expected):
@@ -400,7 +400,7 @@ class TestStruct:
     @pytest.mark.parametrize(
         'smiless,edge,expected',
         [(['[Na+]', 'O'], None, None), (['[Na+]', 'O'], 40, None),
-         (['[Na+]', 'O'], 10, 'Box span (10.00 Å) < 22.00 Å (cutoff x 2)'),
+         (['[Na+]', 'O'], 10, 'Box span / 2 (5.00 Å) < 11.00 Å (cutoff)'),
          (['[Ar]', '[Na+]'], None, 'The system has a net charge of 1.0000')])
     def testGetWarnings(self, struct, edge, expected):
         if edge:

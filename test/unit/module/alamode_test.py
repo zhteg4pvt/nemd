@@ -16,11 +16,11 @@ def crystal(mode):
     return alamode.Crystal.fromDatabase(OPTIONS, mode=mode)
 
 
-class TestStruct:
+class TestIn:
 
     def testTraj(self, tmp_dir):
-        alamode.Struct(options=OPTIONS).writeIn()
-        with open('dispersion.in', 'r') as fh:
+        STRUCT.script.write()
+        with open(STRUCT.script.outfile, 'r') as fh:
             lines = fh.read()
         assert 'id xu yu zu fx fy fz' in lines
         assert "format float '%20.15f'\n" in lines

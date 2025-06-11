@@ -11,15 +11,14 @@ import string
 import numpy as np
 import scipy
 
-from nemd import builtinsutils
 from nemd import constants
 from nemd import lmpfix
 from nemd import symbols
 
 
-class In(builtinsutils.Object):
+class Script:
     """
-    LAMMPS in-script writer for simulation configurations and protocol.
+    LAMMPS in-script writer for simulation configuration and protocol.
     """
     CUSTOM_EXT = f"{lmpfix.CUSTOM_EXT}.gz"
 
@@ -47,22 +46,18 @@ class In(builtinsutils.Object):
         self.struct = struct
         self.options = self.struct.options
         self.fh = None
-        name = self.options.JOBNAME if self.options else self.name
-        self.inscript = f"{name}.in"
-        self.datafile = f"{name}.data"
-        self.dumpfile = f"{name}{self.CUSTOM_EXT}"
+        self.outfile = f"{self.options.JOBNAME}.in"
 
     def write(self):
         """
         Write out LAMMPS in script.
         """
-        with open(self.inscript, 'w') as self.fh:
+        with open(self.outfile, 'w') as self.fh:
             self.setup()
             self.pair()
             self.data()
             self.traj()
             self.minimize()
-            self.shake()
             self.timestep()
             self.simulation()
 
@@ -83,7 +78,7 @@ class In(builtinsutils.Object):
         """
         Write data file related information.
         """
-        self.fh.write(f"{lmpfix.READ_DATA} {self.datafile}\n\n")
+        self.fh.write(f"{lmpfix.READ_DATA} {self.options.JOBNAME}.data\n\n")
 
     def traj(self, xyz=True, force=False, sort=True, fmt=None):
         """
@@ -102,7 +97,8 @@ class In(builtinsutils.Object):
         if not attrib:
             return
         attrib = ' '.join(['id'] + attrib)
-        cmd = lmpfix.DUMP_CUSTOM.format(file=self.dumpfile, attrib=attrib)
+        cmd = lmpfix.DUMP_CUSTOM.format(
+            file=f"{self.options.JOBNAME}{self.CUSTOM_EXT}", attrib=attrib)
         self.fh.write(cmd)
         # Dumpy modify
         attrib = []
@@ -131,22 +127,6 @@ class In(builtinsutils.Object):
         self.fh.write(f"minimize 1.0e-6 1.0e-8 1000000 10000000\n")
         if val:
             self.fh.write(lmpfix.UNFIX_RESTRAIN)
-
-    def shake(self, bonds=None, angles=None):
-        """
-        Write fix shake command to enforce constant bond length and angel values.
-
-        :param bonds str: the rigid bond type ids.
-        :param angles str: the rigid angle type ids.
-        """
-        fixed = ''
-        if bonds:
-            fixed += f' b {bonds}'
-        if angles:
-            fixed += f' a {angles}'
-        if not fixed:
-            return
-        self.fh.write(lmpfix.FIX_RIGID_SHAKE.format(fixed=fixed))
 
     def timestep(self):
         """

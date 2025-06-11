@@ -14,7 +14,6 @@ from nemd import logutils
 from nemd import parserutils
 from nemd import pd
 from nemd import plotutils
-from nemd import stillinger
 from nemd import symbols
 
 

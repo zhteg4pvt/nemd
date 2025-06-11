@@ -33,12 +33,11 @@ class Crystal(logutils.Base):
         self.struct = stillinger.Struct.fromMols([crystal.mol],
                                                  options=self.options)
         self.struct.write()
-        self.log(f"LAMMPS data file written as {self.struct.datafile}")
+        self.log(f'Data file written into {self.struct.datafile}')
         jobutils.Job.reg(self.struct.datafile)
-        script = stillinger.In(self.struct)
-        script.write()
-        self.log(f"LAMMPS input script written as {script.inscript}")
-        jobutils.Job.reg(script.inscript, file=True)
+        self.struct.script.write()
+        self.log(f'In script written into {self.struct.script.outfile}')
+        jobutils.Job.reg(self.struct.script.outfile, file=True)
 
 
 def main(argv):

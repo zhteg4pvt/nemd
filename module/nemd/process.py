@@ -174,7 +174,6 @@ class Lmp(Submodule):
         """
         super().__init__(**kwargs)
         self.struct = struct
-        self.script = self.struct.In(self.struct)
         if not self._files:
             return
         basename = os.path.splitext(os.path.basename(self._files[0]))[0]
@@ -184,7 +183,7 @@ class Lmp(Submodule):
         """
         See parent.
         """
-        self.script.write()
+        self.struct.script.write()
         if self.files:
             osutils.symlink(self.files[0], self.struct.datafile)
         else:
@@ -196,7 +195,7 @@ class Lmp(Submodule):
         See parent.
         """
         return [
-            symbols.LMP, jobutils.FLAG_IN, self.script.inscript,
+            symbols.LMP, jobutils.FLAG_IN, self.struct.script.outfile,
             jobutils.FLAG_SCREEN, symbols.LMP_LOG, jobutils.FLAG_LOG,
             symbols.LMP_LOG
         ]

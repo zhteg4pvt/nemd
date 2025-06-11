@@ -3,13 +3,15 @@
 """
 LAMMPS input file generator for Stillinger force field.
 """
+import functools
+
 from nemd import lmpatomic
 from nemd import lmpin
 from nemd import pbc
 from nemd import symbols
 
 
-class In(lmpin.In):
+class Script(lmpin.Script):
 
     def data(self):
         """
@@ -24,10 +26,9 @@ class Struct(lmpatomic.Struct):
     """
     The Stillinger structure.
     """
-    In = In
-    V_UNITS = lmpin.In.METAL
-    V_ATOM_STYLE = lmpin.In.ATOMIC
-    V_PAIR_STYLE = lmpin.In.SW
+    V_UNITS = lmpin.Script.METAL
+    V_ATOM_STYLE = lmpin.Script.ATOMIC
+    V_PAIR_STYLE = lmpin.Script.SW
 
     def write(self):
         """
@@ -44,3 +45,13 @@ class Struct(lmpatomic.Struct):
             self.box.write(self.hdl)
             self.masses.write(self.hdl)
             self.atoms.write(self.hdl)
+
+    @property
+    @functools.cache
+    def script(self):
+        """
+        Get the LAMMPS in-script writer.
+
+        :return `Script`: the in-script.
+        """
+        return Script(self)

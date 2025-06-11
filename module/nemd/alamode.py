@@ -5,6 +5,7 @@ ALAMODE utilities.
 
 https://github.com/ttadano/alamode
 """
+import functools
 import itertools
 
 import pandas as pd
@@ -24,7 +25,7 @@ OPTIMIZE = symbols.OPTIMIZE
 PHONONS = symbols.PHONONS
 
 
-class In(stillinger.In):
+class Script(stillinger.Script):
     """
     Customized to dump force.
     """
@@ -38,7 +39,14 @@ class In(stillinger.In):
 
 
 class Struct(stillinger.Struct):
-    In = In
+
+    @property
+    @functools.cache
+    def script(self):
+        """
+        See parent.
+        """
+        return Script(self)
 
 
 class Lmp(process.Lmp):
@@ -51,7 +59,7 @@ class Lmp(process.Lmp):
         """
         See parent.
         """
-        return In.CUSTOM_EXT
+        return Script.CUSTOM_EXT
 
 
 def exe(obj, **kwargs):

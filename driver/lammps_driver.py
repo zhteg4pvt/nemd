@@ -23,8 +23,8 @@ class Lammps(logutils.Base):
     FLAG_IN = '-in'
     KEYWORD_RE = r"\b{key}\s+(\S*)\s+(\S*)\s+(\S*)"
     READ_DATA_RE = KEYWORD_RE.format(key=lmpfix.READ_DATA)
-    PAIR_STYLE_RE = KEYWORD_RE.format(key=lmpin.In.PAIR_STYLE)
-    PAIR_COEFF_RE = KEYWORD_RE.format(key=lmpin.In.PAIR_COEFF)
+    PAIR_STYLE_RE = KEYWORD_RE.format(key=lmpin.Script.PAIR_STYLE)
+    PAIR_COEFF_RE = KEYWORD_RE.format(key=lmpin.Script.PAIR_COEFF)
     ERROR_RE = re.compile(f'ERROR: (.*)')
 
     def __init__(self, options, logger=None):

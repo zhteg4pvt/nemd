@@ -3,34 +3,32 @@ import pytest
 from nemd import lmpin
 from nemd import np
 from nemd import parserutils
+import types
 
 
-@pytest.mark.parametrize('args', [['C', '-JOBNAME', 'name']])
-class TestIn:
+@pytest.mark.parametrize('smiles,cnum', [('C', 1)])
+class TestScript:
 
     @pytest.fixture
-    def lmp_in(self, args, tmp_dir):
-        return lmpin.In(options=parserutils.MolBase().parse_args(args))
+    def script(self, smiles, emol, tmp_dir):
+        args = [smiles, '-JOBNAME', 'name']
+        options = parserutils.MolBase().parse_args(args)
+        return lmpin.Script(struct=types.SimpleNamespace(options=options))
 
-    def testSetup(self, lmp_in, tmp_line):
-        with tmp_line() as (lmp_in.fh, lines):
-            lmp_in.setup()
+    def testSetup(self, script, tmp_line):
+        with tmp_line() as (script.fh, lines):
+            script.setup()
         assert 'units metal' in lines
 
-    def testPair(self, lmp_in, tmp_line):
-        with tmp_line() as (lmp_in.fh, lines):
-            lmp_in.pair()
+    def testPair(self, script, tmp_line):
+        with tmp_line() as (script.fh, lines):
+            script.pair()
         assert 'pair_style sw' in lines
 
-    def testData(self, lmp_in, tmp_line):
-        with tmp_line() as (lmp_in.fh, lines):
-            lmp_in.data()
+    def testData(self, script, tmp_line):
+        with tmp_line() as (script.fh, lines):
+            script.data()
         assert 'read_data name.data' in lines
-
-    def testCoeff(self, lmp_in, tmp_line):
-        with tmp_line() as (lmp_in.fh, lines):
-            lmp_in.coeff('ff', ['Si'])
-        assert 'pair_coeff * * ff Si' in lines
 
     @pytest.mark.parametrize(
         'xyz,force,expected',
@@ -39,9 +37,9 @@ class TestIn:
          (False, False, None),
          (True, True,
           'dump 1 all custom 1000 name.custom.gz id xu yu zu fx fy fz')])
-    def testTraj(self, lmp_in, xyz, force, expected, tmp_line):
-        with tmp_line() as (lmp_in.fh, lines):
-            lmp_in.traj(xyz=xyz, force=force)
+    def testTraj(self, script, xyz, force, expected, tmp_line):
+        with tmp_line() as (script.fh, lines):
+            script.traj(xyz=xyz, force=force)
         assert (expected in lines) if expected else (not lines)
 
     @pytest.mark.parametrize(
@@ -51,9 +49,9 @@ class TestIn:
           "dump_modify 1 sort id format float '%20.15f'"),
          (False, "float '%20.15f'", "dump_modify 1 format float '%20.15f'"),
          (False, None, None)])
-    def testTrajModify(self, lmp_in, sort, fmt, expected, tmp_line):
-        with tmp_line() as (lmp_in.fh, lines):
-            lmp_in.traj(sort=sort, fmt=fmt)
+    def testTrajModify(self, script, sort, fmt, expected, tmp_line):
+        with tmp_line() as (script.fh, lines):
+            script.traj(sort=sort, fmt=fmt)
         assert (expected in lines) if expected else (1 == len(lines))
 
     @pytest.mark.parametrize(
@@ -62,39 +60,30 @@ class TestIn:
          (True, None, None, None),
          (True, 'dihedral 1 2 3 4', 120,
           'fix rest all restrain dihedral 1 2 3 4 -2000.0 -2000.0 120')])
-    def testMinimize(self, lmp_in, no_minimize, geo, val, expected, tmp_line):
-        lmp_in.no_minimize = no_minimize
-        lmp_in.options.substruct = [None, val]
-        with tmp_line() as (lmp_in.fh, lines):
-            lmp_in.minimize(geo=geo)
+    def testMinimize(self, script, no_minimize, geo, val, expected, tmp_line):
+        script.no_minimize = no_minimize
+        script.options.substruct = [None, val]
+        with tmp_line() as (script.fh, lines):
+            script.minimize(geo=geo)
         assert (expected in lines) if expected else (2 == len(lines))
 
-    @pytest.mark.parametrize(
-        'bonds,angles,expected',
-        [(None, None, None),
-         ('4', '4', 'fix rigid all shake 0.0001 10 10000  b 4 a 4')])
-    def testShake(self, lmp_in, bonds, angles, expected, tmp_line):
-        with tmp_line() as (lmp_in.fh, lines):
-            lmp_in.shake(bonds=bonds, angles=angles)
-        assert (expected in lines) if expected else (not lines)
-
     @pytest.mark.parametrize('temp,expected', [(300, 4), (0, 0)])
-    def testTimestep(self, lmp_in, expected, temp, tmp_line):
-        lmp_in.options.temp = temp
-        with tmp_line() as (lmp_in.fh, lines):
-            lmp_in.timestep()
+    def testTimestep(self, script, expected, temp, tmp_line):
+        script.options.temp = temp
+        with tmp_line() as (script.fh, lines):
+            script.timestep()
         assert expected == len(lines)
 
     @pytest.mark.parametrize('atom_total,expected', [(1, 3), (100, 147)])
-    def testSimulation(self, lmp_in, atom_total, expected, tmp_line):
-        with tmp_line() as (lmp_in.fh, lines):
-            lmp_in.simulation(atom_total=atom_total)
+    def testSimulation(self, script, atom_total, expected, tmp_line):
+        with tmp_line() as (script.fh, lines):
+            script.simulation(atom_total=atom_total)
         assert expected == len(lines)
 
     @pytest.mark.parametrize('unit,expected', [('real', 1e-12),
                                                ('metal', 1e-9)])
-    def testTimeUnit(self, lmp_in, unit, expected):
-        np.testing.assert_almost_equal(lmp_in.time_unit(unit), expected)
+    def testTimeUnit(self, script, unit, expected):
+        np.testing.assert_almost_equal(script.time_unit(unit), expected)
 
 
 # class TestFixWriter:

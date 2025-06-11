@@ -16,6 +16,7 @@ from rdkit import Chem
 
 from nemd import builtinsutils
 from nemd import lmpatomic
+from nemd import lmpfix
 from nemd import lmpin
 from nemd import numpyutils
 from nemd import oplsua
@@ -605,12 +606,12 @@ class Mol(lmpatomic.Mol):
         return nbr_charge.reshape(-1, 1)
 
 
-class In(lmpin.In):
+class Script(lmpin.Script):
     """
     Class to write out LAMMPS in script.
     """
     FULL = 'full'
-    V_UNITS = lmpin.In.REAL
+    V_UNITS = lmpin.Script.REAL
     V_ATOM_STYLE = FULL
     DEFAULT_CUT = symbols.DEFAULT_CUT
 
@@ -629,19 +630,12 @@ class In(lmpin.In):
         """
         Write pair style, coefficients, and mixing rules as well as k-space.
         """
-        pair_style = 'lj/cut/coul/long' if self.hasCharge() else 'lj/cut'
+        pair_style = 'lj/cut/coul/long' if self.struct.hasCharge(
+        ) else 'lj/cut'
         self.fh.write(f"{self.PAIR_STYLE} {pair_style} {self.DEFAULT_CUT}\n")
         self.fh.write(f"pair_modify mix geometric\n")
-        if self.hasCharge():
+        if self.struct.hasCharge():
             self.fh.write(f"kspace_style pppm 0.0001\n")
-
-    def hasCharge(self):
-        """
-        Whether any atom has charge.
-
-        :return `bool`: Whether any atom has charge
-        """
-        return self.struct.hasCharge()
 
     def minimize(self, *args, geo=None, **kwargs):
         """
@@ -654,12 +648,25 @@ class In(lmpin.In):
                 geo = f"{gids.name.split()[0]} {' '.join(map(str, gids + 1))}"
         super().minimize(*args, geo=geo, **kwargs)
 
+    def simulation(self):
+        """
+        See parent.
+        """
+        bonds, angles = self.struct.shake()
+        fixed = ''
+        if bonds:
+            fixed += f' b {bonds}'
+        if angles:
+            fixed += f' a {angles}'
+        if fixed:
+            self.fh.write(lmpfix.FIX_RIGID_SHAKE.format(fixed=fixed))
+        super().simulation()
 
-class Struct(lmpatomic.Struct, In):
+
+class Struct(lmpatomic.Struct):
     """
     Customized for molecules with bonds.
     """
-    In = In
     Id = Id
     Atom = Atom
     Mol = Mol
@@ -689,7 +696,8 @@ class Struct(lmpatomic.Struct, In):
         Write out a LAMMPS datafile or return the content.
         """
         with open(self.datafile, 'w') as self.hdl:
-            self.hdl.write(f"{self.DESCR.format(style=self.V_ATOM_STYLE)}\n\n")
+            self.hdl.write(
+                f"{self.DESCR.format(style=Script.V_ATOM_STYLE)}\n\n")
             # Topology counting
             self.atoms.writeCount(self.hdl)
             self.bonds.writeCount(self.hdl)
@@ -867,7 +875,7 @@ class Struct(lmpatomic.Struct, In):
         """
         bonds = self.getRigid(self.bnd_types, self.ff.bonds)
         angles = self.getRigid(self.ang_types, self.ff.angles)
-        super().shake(bonds=bonds, angles=angles)
+        return bonds, angles
 
     def getRigid(self, type_map, ff):
         """
@@ -893,9 +901,9 @@ class Struct(lmpatomic.Struct, In):
         if self.box.empty:
             return
         min_span = self.box.span.min()
-        if min_span < self.DEFAULT_CUT * 2:
-            yield f'Box span ({min_span:.2f} {symbols.ANGSTROM}) < ' \
-                  f'{self.DEFAULT_CUT * 2:.2f} {symbols.ANGSTROM} (cutoff x 2)'
+        if min_span < Script.DEFAULT_CUT * 2:
+            yield f'Box span / 2 ({min_span / 2:.2f} {symbols.ANGSTROM}) < ' \
+                  f'{Script.DEFAULT_CUT:.2f} {symbols.ANGSTROM} (cutoff)'
 
     @property
     @functools.cache
@@ -905,6 +913,16 @@ class Struct(lmpatomic.Struct, In):
         """
         ff = self.options.force_field if self.options else symbols.OPLSUA_TIP3P
         return oplsua.Parser.get(*ff[1:])
+
+    @property
+    @functools.cache
+    def script(self):
+        """
+        Get the LAMMPS in-script writer.
+
+        :return `Script`: the in-script.
+        """
+        return Script(self)
 
 
 class Reader(lmpatomic.Reader):

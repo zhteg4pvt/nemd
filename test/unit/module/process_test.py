@@ -97,7 +97,7 @@ class TestLmp:
     def testSetUp(self, lmp, tmp_dir):
         lmp.setUp()
         assert os.path.isfile(lmp.struct.datafile)
-        assert os.path.isfile(lmp.struct.inscript)
+        assert os.path.isfile(lmp.struct.script.outfile)
 
     def testArg(self, lmp):
         assert 7 == len(lmp.args)
