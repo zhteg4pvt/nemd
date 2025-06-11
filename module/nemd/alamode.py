@@ -24,17 +24,21 @@ OPTIMIZE = symbols.OPTIMIZE
 PHONONS = symbols.PHONONS
 
 
-class Struct(stillinger.Struct):
+class In(stillinger.In):
     """
     Customized to dump force.
     """
     CUSTOM_EXT = lmpfix.CUSTOM_EXT
 
-    def traj(self, force=True, sort=False, fmt="float '%20.15f'"):
+    def traj(self, force=True, sort=False, fmt="float '%20.15f'", **kwargs):
         """
         See parent for docs.
         """
-        super().traj(force=force, sort=sort, fmt=fmt)
+        super().traj(force=force, sort=sort, fmt=fmt, **kwargs)
+
+
+class Struct(stillinger.Struct):
+    In = In
 
 
 class Lmp(process.Lmp):
@@ -47,7 +51,7 @@ class Lmp(process.Lmp):
         """
         See parent.
         """
-        return Struct.CUSTOM_EXT
+        return In.CUSTOM_EXT
 
 
 def exe(obj, **kwargs):
@@ -60,7 +64,7 @@ def exe(obj, **kwargs):
     """
     if hasattr(obj, 'options'):
         kwargs.setdefault('jobname', obj.options.JOBNAME)
-    if isinstance(obj, Struct):
+    if isinstance(obj, stillinger.Struct):
         Runner = Lmp
     elif isinstance(obj, Crystal):
         Runner = process.Alamode

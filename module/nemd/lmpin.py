@@ -40,18 +40,19 @@ class In(builtinsutils.Object):
     V_ATOM_STYLE = ATOMIC
     V_PAIR_STYLE = SW
 
-    def __init__(self, options=None):
+    def __init__(self, struct=None):
         """
         :param options 'argparse.Namespace': command line options
         """
-        self.options = options
+        self.struct = struct
+        self.options = self.struct.options
         self.fh = None
         name = self.options.JOBNAME if self.options else self.name
         self.inscript = f"{name}.in"
         self.datafile = f"{name}.data"
         self.dumpfile = f"{name}{self.CUSTOM_EXT}"
 
-    def writeIn(self):
+    def write(self):
         """
         Write out LAMMPS in script.
         """
@@ -59,7 +60,6 @@ class In(builtinsutils.Object):
             self.setup()
             self.pair()
             self.data()
-            self.coeff()
             self.traj()
             self.minimize()
             self.shake()
@@ -85,23 +85,11 @@ class In(builtinsutils.Object):
         """
         self.fh.write(f"{lmpfix.READ_DATA} {self.datafile}\n\n")
 
-    def coeff(self, ff=None, elements=None):
-        """
-        Write pair coefficients when data file doesn't contain the coefficients.
-
-        :param ff str: the force field file.
-        :param elements list: the elements (or symbols).
-        """
-        if ff is None or elements is None:
-            return
-        self.fh.write(
-            f"{self.PAIR_COEFF} * * {ff} {symbols.SPACE.join(elements)}\n")
-
     def traj(self, xyz=True, force=False, sort=True, fmt=None):
         """
         Dump out trajectory.
 
-        :param xyz bool: write xyz coordinates if True
+        :param xyz bool: write xyz coordinates if Truef
         :param force bool: write force on each atom if True
         :param sort bool: sort by atom id if True
         :param fmt str: the float format

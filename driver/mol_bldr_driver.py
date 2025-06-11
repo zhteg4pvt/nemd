@@ -76,12 +76,13 @@ class Grid(logutils.Base):
         """
         Write amorphous cell into data file.
         """
-        self.struct.writeData()
-        self.struct.writeIn()
+        self.struct.write()
         self.log(f'Data file written into {self.struct.datafile}')
-        self.log(f'In script written into {self.struct.inscript}')
         jobutils.Job.reg(self.struct.datafile)
-        jobutils.Job.reg(self.struct.inscript, file=True)
+        script = self.struct.In(self.struct)
+        script.write()
+        self.log(f'In script written into {script.inscript}')
+        jobutils.Job.reg(script.inscript, file=True)
 
 
 def main(argv):

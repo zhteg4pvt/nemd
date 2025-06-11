@@ -294,7 +294,7 @@ class TestStruct:
     @pytest.mark.parametrize('smiless,expected', [(['O'], 32),
                                                   (['[Ar]', 'O'], 49)])
     def testWrite(self, struct, expected, tmp_dir):
-        struct.writeData()
+        struct.write()
         with open(struct.datafile) as fh:
             assert expected == len(fh.readlines())
 

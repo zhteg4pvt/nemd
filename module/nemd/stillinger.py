@@ -6,30 +6,30 @@ LAMMPS input file generator for Stillinger force field.
 from nemd import lmpatomic
 from nemd import lmpin
 from nemd import pbc
+from nemd import symbols
 
 
-class Struct(lmpatomic.Struct, lmpin.In):
+class In(lmpin.In):
+
+    def data(self):
+        """
+        Write pair coefficients in addition. (see parent)
+        """
+        super().data()
+        self.fh.write(f"{self.PAIR_COEFF} * * {self.struct.ff} "
+                      f"{symbols.SPACE.join(self.struct.masses.comment)}\n")
+
+
+class Struct(lmpatomic.Struct):
     """
     The Stillinger structure.
     """
+    In = In
     V_UNITS = lmpin.In.METAL
     V_ATOM_STYLE = lmpin.In.ATOMIC
     V_PAIR_STYLE = lmpin.In.SW
 
-    def __init__(self, *args, options=None, **kwargs):
-        """
-        :param options 'argparse.Namespace': parsed command line options.
-        """
-        super().__init__(*args, options=options, **kwargs)
-        lmpin.In.__init__(self, options=options)
-
-    def coeff(self):
-        """
-        See parent.
-        """
-        super().coeff(ff=self.ff, elements=self.masses.comment)
-
-    def writeData(self):
+    def write(self):
         """
         Write out a LAMMPS datafile or return the content.
         """

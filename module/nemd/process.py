@@ -129,7 +129,7 @@ class Submodule(Base):
         Search for output files from the extension, directory, and jobname.
 
         :return list: the outfiles found.
-        :raise FileNotFoundError: no outfiles found
+        :raise FileNotFoundError: no outfiles found.
         """
         pattern = os.path.join(self.start, self.dirname,
                                f"{self.jobname}{self.ext}")
@@ -174,6 +174,7 @@ class Lmp(Submodule):
         """
         super().__init__(**kwargs)
         self.struct = struct
+        self.script = self.struct.In(self.struct)
         if not self._files:
             return
         basename = os.path.splitext(os.path.basename(self._files[0]))[0]
@@ -183,11 +184,11 @@ class Lmp(Submodule):
         """
         See parent.
         """
-        self.struct.writeIn()
+        self.script.write()
         if self.files:
             osutils.symlink(self.files[0], self.struct.datafile)
         else:
-            self.struct.writeData()
+            self.struct.write()
 
     @property
     def args(self):
@@ -195,7 +196,7 @@ class Lmp(Submodule):
         See parent.
         """
         return [
-            symbols.LMP, jobutils.FLAG_IN, self.struct.inscript,
+            symbols.LMP, jobutils.FLAG_IN, self.script.inscript,
             jobutils.FLAG_SCREEN, symbols.LMP_LOG, jobutils.FLAG_LOG,
             symbols.LMP_LOG
         ]

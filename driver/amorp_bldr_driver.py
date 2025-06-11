@@ -108,14 +108,15 @@ class Amorphous(logutils.Base):
         """
         Write amorphous cell into data file.
         """
-        self.struct.writeData()
+        self.struct.write()
         for warning in self.struct.getWarnings():
             self.warning(f'{warning}')
-        self.struct.writeIn()
         self.log(f'Data file written into {self.struct.datafile}')
-        self.log(f'In script written into {self.struct.inscript}')
         jobutils.Job.reg(self.struct.datafile)
-        jobutils.Job.reg(self.struct.inscript, file=True)
+        script = self.struct.In(self.struct)
+        script.write()
+        self.log(f'In script written into {script.inscript}')
+        jobutils.Job.reg(script.inscript, file=True)
 
 
 def main(argv):

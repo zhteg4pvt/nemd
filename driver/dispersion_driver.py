@@ -14,6 +14,7 @@ from nemd import logutils
 from nemd import parserutils
 from nemd import pd
 from nemd import plotutils
+from nemd import stillinger
 from nemd import symbols
 
 
@@ -117,7 +118,6 @@ class Dispersion(logutils.Base):
         Main method to run.
         """
         self.buildCell()
-        self.writeData()
         self.write()
         self.plot()
 
@@ -130,20 +130,14 @@ class Dispersion(logutils.Base):
         self.log(
             f"The lattice parameters of the supper cell is {' '.join(params)}")
 
-    def writeData(self):
-        """
-        Write the LAMMPS data file with the original structure and in script to
-        calculate the force.
-        """
-        mols = [self.crystal.mol]
-        self.struct = alamode.Struct.fromMols(mols, options=self.options)
-        self.struct.writeData()
-        self.log(f"LAMMPS data file written as {self.struct.datafile}")
-
     def write(self):
         """
         Write the phonon dispersion.
         """
+        mols = [self.crystal.mol]
+        self.struct = alamode.Struct.fromMols(mols, options=self.options)
+        self.struct.write()
+        self.log(f"LAMMPS data file written as {self.struct.datafile}")
         self.crystal.mode = alamode.SUGGEST
         kwargs = dict(jobname=self.options.JOBNAME)
         suggest = alamode.exe(self.crystal, **kwargs)

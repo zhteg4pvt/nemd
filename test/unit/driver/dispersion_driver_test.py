@@ -25,7 +25,7 @@ class TestDispersion:
                      (['-name', 'Si', '-dimension', '2', '1', '1'], 16)])
     def testWriteDataFile(self, disp, num, tmp_dir):
         disp.buildCell()
-        disp.writeDataFile()
+        disp.writeFile()
         assert os.path.exists('dispersion.data')
         assert num == disp.struct.atom_total
 
@@ -35,14 +35,14 @@ class TestDispersion:
                               (['-name', 'Si', '-scale_factor', '1.1'])])
     def testWriteDispersion(self, disp, tmp_dir):
         disp.buildCell()
-        disp.writeDataFile()
+        disp.writeFile()
         disp.writeDispersion()
         assert os.path.exists(disp.outfile)
 
     @pytest.mark.parametrize("argv", [(['-name', 'Si'])])
     def testPlotDispersion(self, disp, tmp_dir):
         disp.buildCell()
-        disp.writeDataFile()
+        disp.writeFile()
         disp.writeDispersion()
         disp.plotDispersion()
         assert os.path.exists('dispersion.png')

@@ -16,7 +16,6 @@ from rdkit import Chem
 
 from nemd import builtinsutils
 from nemd import lmpatomic
-from nemd import lmpfix
 from nemd import lmpin
 from nemd import numpyutils
 from nemd import oplsua
@@ -235,7 +234,7 @@ class Improper(Dihedral):
         """
         Get the angle from each topology connectivity.
 
-        :param columns tuple: non-vertex atoms
+        :param columns tuple: non-vertex atoms.
         :return nx3x3 ndarray: each sublist contains three angles.
         """
         cols = [[x, ATOM3, y] for x, y in itertools.combinations(columns, 2)]
@@ -638,27 +637,35 @@ class In(lmpin.In):
 
     def hasCharge(self):
         """
-        Whether any atom has non-zero charge.
+        Whether any atom has charge.
 
-        :return bool: True if any atom has non-zero charge.
+        :return `bool`: Whether any atom has charge
         """
-        return True
+        return self.struct.hasCharge()
+
+    def minimize(self, *args, geo=None, **kwargs):
+        """
+        See parent.
+        """
+        if geo is None:
+            mol = next((x for x in self.struct.mols if x.GetNumConformers()))
+            gids = mol.getSubstructMatch(gid=True)
+            if not gids.empty:
+                geo = f"{gids.name.split()[0]} {' '.join(map(str, gids + 1))}"
+        super().minimize(*args, geo=geo, **kwargs)
 
 
 class Struct(lmpatomic.Struct, In):
     """
     Customized for molecules with bonds.
     """
+    In = In
     Id = Id
     Atom = Atom
     Mol = Mol
 
-    def __init__(self, *args, options=None, **kwargs):
-        """
-        :param options 'argparse.Namespace': parsed command line options.
-        """
-        super().__init__(*args, options=options, **kwargs)
-        In.__init__(self, options=options)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.atm_types = numpyutils.IntArray(self.ff.atoms.index.size)
         self.bnd_types = numpyutils.IntArray(self.ff.bonds.index.size)
         self.ang_types = numpyutils.IntArray(self.ff.angles.index.size)
@@ -677,7 +684,7 @@ class Struct(lmpatomic.Struct, In):
         self.dihe_types[mol.dihedrals.type_id] = True
         self.impr_types[mol.impropers.type_id] = True
 
-    def writeData(self):
+    def write(self):
         """
         Write out a LAMMPS datafile or return the content.
         """
@@ -853,17 +860,6 @@ class Struct(lmpatomic.Struct, In):
         :return `bool`: Whether any atom has charge
         """
         return self.charges.size and not np.isclose(self.charges, 0).any()
-
-    def minimize(self, *args, geo=None, **kwargs):
-        """
-        See parent.
-        """
-        if geo is None:
-            mol = next((x for x in self.mols if x.GetNumConformers()), None)
-            gids = mol.getSubstructMatch(gid=True)
-            if not gids.empty:
-                geo = f"{gids.name.split()[0]} {' '.join(map(str, gids + 1))}"
-        super().minimize(*args, geo=geo, **kwargs)
 
     def shake(self):
         """

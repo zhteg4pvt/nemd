@@ -227,6 +227,7 @@ class Struct(structure.Struct):
         # Atomic number of Og element
         self.atm_types = numpyutils.IntArray(shape=119)
         self.box = pbc.Box()
+        self.datafile = f"{self.options.JOBNAME}.data" if self.options else None
 
     def setUp(self, *arg, **kwargs):
         """
