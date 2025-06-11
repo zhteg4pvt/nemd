@@ -16,9 +16,9 @@ from nemd import lmpfix
 from nemd import symbols
 
 
-class Script:
+class SinglePoint(list):
     """
-    LAMMPS in-script writer for simulation configuration and protocol.
+    LAMMPS in-script writer for configuration and single point simulation.
     """
     CUSTOM_EXT = f"{lmpfix.CUSTOM_EXT}.gz"
 
@@ -34,6 +34,7 @@ class Script:
 
     PAIR_COEFF = 'pair_coeff'
     TIMESTEP = 'timestep'
+    RUN_STEP = lmpfix.RUN_STEP
 
     V_UNITS = METAL
     V_ATOM_STYLE = ATOMIC
@@ -41,44 +42,43 @@ class Script:
 
     def __init__(self, struct=None):
         """
-        :param options 'argparse.Namespace': command line options
+        :param options 'argparse.Namespace': command line options.
         """
+        super().__init__()
         self.struct = struct
         self.options = self.struct.options
-        self.fh = None
         self.outfile = f"{self.options.JOBNAME}.in"
 
-    def write(self):
+    def setUp(self):
         """
         Write out LAMMPS in script.
         """
-        with open(self.outfile, 'w') as self.fh:
-            self.setup()
-            self.pair()
-            self.data()
-            self.traj()
-            self.minimize()
-            self.timestep()
-            self.simulation()
+        self.setup()
+        self.pair()
+        self.data()
+        self.traj()
+        self.minimize()
+        self.timestep()
+        self.simulation()
 
     def setup(self):
         """
         Write the setup section including unit and atom styles.
         """
-        self.fh.write(f"{self.UNITS} {self.V_UNITS}\n")
-        self.fh.write(f"atom_style {self.V_ATOM_STYLE}\n")
+        self.append(f"{self.UNITS} {self.V_UNITS}")
+        self.append(f"atom_style {self.V_ATOM_STYLE}")
 
     def pair(self):
         """
         Write pair style.
         """
-        self.fh.write(f"{self.PAIR_STYLE} {self.V_PAIR_STYLE}\n")
+        self.append(f"{self.PAIR_STYLE} {self.V_PAIR_STYLE}")
 
     def data(self):
         """
         Write data file related information.
         """
-        self.fh.write(f"{lmpfix.READ_DATA} {self.options.JOBNAME}.data\n\n")
+        self.append(f"{lmpfix.READ_DATA} {self.options.JOBNAME}.data\n")
 
     def traj(self, xyz=True, force=False, sort=True, fmt=None):
         """
@@ -99,7 +99,7 @@ class Script:
         attrib = ' '.join(['id'] + attrib)
         cmd = lmpfix.DUMP_CUSTOM.format(
             file=f"{self.options.JOBNAME}{self.CUSTOM_EXT}", attrib=attrib)
-        self.fh.write(cmd)
+        self.append(cmd)
         # Dumpy modify
         attrib = []
         if sort:
@@ -108,7 +108,7 @@ class Script:
             attrib += ['format', fmt]
         if not attrib:
             return
-        self.fh.write(lmpfix.DUMP_MODIFY.format(attrib=' '.join(attrib)))
+        self.append(lmpfix.DUMP_MODIFY.format(attrib=' '.join(attrib)))
 
     def minimize(self, min_style='fire', geo=None):
         """
@@ -122,11 +122,11 @@ class Script:
             return
         val = geo and self.options.substruct[1]
         if val:
-            self.fh.write(lmpfix.FIX_RESTRAIN.format(geo=geo, val=val))
-        self.fh.write(f"min_style {min_style}\n")
-        self.fh.write(f"minimize 1.0e-6 1.0e-8 1000000 10000000\n")
+            self.append(lmpfix.FIX_RESTRAIN.format(geo=geo, val=val))
+        self.append(f"min_style {min_style}")
+        self.append(f"minimize 1.0e-6 1.0e-8 1000000 10000000")
         if val:
-            self.fh.write(lmpfix.UNFIX_RESTRAIN)
+            self.append(lmpfix.UNFIX_RESTRAIN)
 
     def timestep(self):
         """
@@ -135,17 +135,9 @@ class Script:
         if not self.options.temp:
             return
         time = self.options.timestep * scipy.constants.femto
-        self.fh.write(f'\n{self.TIMESTEP} {time / self.time_unit() }\n')
-        self.fh.write(f'thermo_modify flush yes\n')
-        self.fh.write(f'thermo 1000\n')
-
-    def simulation(self, atom_total=1):
-        """
-        Write command to further equilibration and production
-
-        :param atom_total int: total atom number.
-        """
-        FixWriter(self.fh, options=self.options, atom_total=atom_total).run()
+        self.append(f'\n{self.TIMESTEP} {time / self.time_unit() }')
+        self.append(f'thermo_modify flush yes')
+        self.append(f'thermo 1000')
 
     @classmethod
     def time_unit(cls, unit=None):
@@ -164,10 +156,16 @@ class Script:
             case _:
                 raise ValueError(f"Unknown unit: {unit}")
 
+    def simulation(self):
+        """
+        Single point energy calculation.
+        """
+        self.append(self.RUN_STEP % 0)
 
-class FixWriter(list):
+
+class Script(SinglePoint):
     """
-    LAMMPS fix command writer.
+    Customized for relaxation and production.
     """
     NVE = lmpfix.NVE
     NVT = lmpfix.NVT
@@ -175,58 +173,42 @@ class FixWriter(list):
     FIX = lmpfix.FIX
     FIX_NVE = lmpfix.FIX_NVE
     BERENDSEN = lmpfix.BERENDSEN
-    RUN_STEP = lmpfix.RUN_STEP
     UNFIX = lmpfix.UNFIX
     PRESS = lmpfix.PRESS
     MODULUS = lmpfix.MODULUS
     PRESS_VAR = f'${{{PRESS}}}'
     MODULUS_VAR = f'${{{MODULUS}}}'
 
-    def __init__(self, fh, options=None, atom_total=1):
+    def __init__(self, *args, **kwargs):
         """
-        :param fh '_io.TextIOWrapper': file handler to write fix commands.
-        :param options 'types.Namespace': command line options.
-        :param atom_total int: total number of atoms.
+        :param atom_total int: the total number of atoms.
         """
-        super().__init__()
-        self.fh = fh
-        self.options = options
-        self.atom_total = atom_total
-        self.single_point = atom_total == 1 or not self.options.temp
+        super().__init__(*args, **kwargs)
         self.tdamp = self.options.timestep * self.options.tdamp
         self.pdamp = self.options.timestep * self.options.pdamp
         timestep = self.options.timestep / constants.NANO_TO_FEMTO
         self.prod_step = int(self.options.prod_time / timestep)
         self.relax_step = int(self.options.relax_time / timestep)
         if self.relax_step:
-            self.relax_step = round(self.relax_step, -3) or 1E3
+            self.relax_step = int(round(self.relax_step, -3) or 1E3)
 
-    def run(self):
+    def simulation(self):
         """
         Main method to run the writer.
         """
-        self.singlePoint()
+        if not self.options.temp or (self.struct and self.struct.atom_total == 1):
+            super().simulation()
+            return
         self.velocity()
         self.startLow()
         self.rampUp()
         self.relaxation()
         self.production()
-        self.write()
-
-    def singlePoint(self):
-        """
-        Single point energy calculation.
-        """
-        if not self.single_point:
-            return
-        self.append(self.RUN_STEP % 0)
 
     def velocity(self):
         """
         Create initial velocity for the system.
         """
-        if self.single_point:
-            return
         seed = np.random.randint(1, high=symbols.MAX_INT32)
         temp = self.options.stemp if self.relax_step else self.options.temp
         cmd = f"{lmpfix.VELOCITY} all create {temp} {seed}"
@@ -236,7 +218,7 @@ class FixWriter(list):
         """
         Start simulation from low temperature and constant volume.
         """
-        if self.single_point or not self.relax_step:
+        if not self.relax_step:
             return
         self.nvt(nstep=self.relax_step / 1E3,
                  stemp=self.options.stemp,
@@ -274,7 +256,7 @@ class FixWriter(list):
         volume, calculate the averaged pressure at high temperature, and changes
         volume to reach the target pressure.
         """
-        if self.single_point or not self.relax_step:
+        if not self.relax_step:
             return
         if ensemble == self.NPT:
             self.npt(nstep=self.relax_step / 1E1,
@@ -431,7 +413,7 @@ class FixWriter(list):
         """
         Longer relaxation at constant temperature and deform to the mean size.
         """
-        if self.single_point or not self.relax_step:
+        if not self.relax_step:
             return
         if self.options.prod_ens == self.NPT:
             self.npt(nstep=self.relax_step,
@@ -441,7 +423,7 @@ class FixWriter(list):
                      modulus=self.MODULUS_VAR)
             return
         # NVE and NVT production runs use averaged cell
-        pre = lmpfix.RECORD_BDRY.format(num=self.relax_step / 1E1)
+        pre = lmpfix.RECORD_BDRY.format(num=int(self.relax_step / 1E1))
         self.npt(nstep=self.relax_step,
                  stemp=self.options.temp,
                  temp=self.options.temp,
@@ -459,8 +441,6 @@ class FixWriter(list):
         requires for good energy conservation in time integration. NVT and NPT
         may help for disturbance non-sensitive property.
         """
-        if self.single_point:
-            return
         if self.options.prod_ens == self.NVE:
             self.nve(nstep=self.prod_step)
         elif self.options.prod_ens == self.NVT:
@@ -487,10 +467,12 @@ class FixWriter(list):
         """
         Write the command to the file.
         """
-        for idx, cmd in enumerate(self, 1):
-            num = round(cmd.count('%s') / 2)
-            ids = [f'{idx}{string.ascii_lowercase[x]}' for x in range(num)]
-            ids += [x for x in reversed(ids)]
-            cmd = cmd % tuple(ids) if ids else cmd
-            self.fh.write(cmd + '\n')
-        self.fh.write('quit 0\n')
+        self.setUp()
+        with open(self.outfile, 'w') as fh:
+            for idx, cmd in enumerate(self, 1):
+                num = round(cmd.count('%s') / 2)
+                ids = [f'{idx}{string.ascii_lowercase[x]}' for x in range(num)]
+                ids += [x for x in reversed(ids)]
+                cmd = cmd % tuple(ids) if ids else cmd
+                fh.write(cmd + '\n')
+            fh.write('quit 0\n')

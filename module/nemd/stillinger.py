@@ -18,7 +18,7 @@ class Script(lmpin.Script):
         Write pair coefficients in addition. (see parent)
         """
         super().data()
-        self.fh.write(f"{self.PAIR_COEFF} * * {self.struct.ff} "
+        self.append(f"{self.PAIR_COEFF} * * {self.struct.ff} "
                       f"{symbols.SPACE.join(self.struct.masses.comment)}\n")
 
 
@@ -54,4 +54,4 @@ class Struct(lmpatomic.Struct):
 
         :return `Script`: the in-script.
         """
-        return Script(self)
+        return Script(struct=self)

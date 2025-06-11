@@ -611,8 +611,8 @@ class Script(lmpin.Script):
     Class to write out LAMMPS in script.
     """
     FULL = 'full'
-    V_UNITS = lmpin.Script.REAL
     V_ATOM_STYLE = FULL
+    V_UNITS = lmpin.Script.REAL
     DEFAULT_CUT = symbols.DEFAULT_CUT
 
     def setup(self):
@@ -620,22 +620,21 @@ class Script(lmpin.Script):
         Write the setup section including unit, topology styles, and specials.
         """
         super().setup()
-        self.fh.write(f"bond_style harmonic\n")
-        self.fh.write(f"angle_style harmonic\n")
-        self.fh.write("dihedral_style opls\n")
-        self.fh.write("improper_style cvff\n")
-        self.fh.write("special_bonds lj/coul 0 0 0.5\n")
+        self.append(f"bond_style harmonic")
+        self.append(f"angle_style harmonic")
+        self.append("dihedral_style opls")
+        self.append("improper_style cvff")
+        self.append("special_bonds lj/coul 0 0 0.5")
 
     def pair(self):
         """
         Write pair style, coefficients, and mixing rules as well as k-space.
         """
-        pair_style = 'lj/cut/coul/long' if self.struct.hasCharge(
-        ) else 'lj/cut'
-        self.fh.write(f"{self.PAIR_STYLE} {pair_style} {self.DEFAULT_CUT}\n")
-        self.fh.write(f"pair_modify mix geometric\n")
+        style = 'lj/cut/coul/long' if self.struct.hasCharge() else 'lj/cut'
+        self.append(f"{self.PAIR_STYLE} {style} {self.DEFAULT_CUT}")
+        self.append(f"pair_modify mix geometric")
         if self.struct.hasCharge():
-            self.fh.write(f"kspace_style pppm 0.0001\n")
+            self.append(f"kspace_style pppm 0.0001")
 
     def minimize(self, *args, geo=None, **kwargs):
         """
@@ -659,7 +658,7 @@ class Script(lmpin.Script):
         if angles:
             fixed += f' a {angles}'
         if fixed:
-            self.fh.write(lmpfix.FIX_RIGID_SHAKE.format(fixed=fixed))
+            self.append(lmpfix.FIX_RIGID_SHAKE.format(fixed=fixed))
         super().simulation()
 
 
