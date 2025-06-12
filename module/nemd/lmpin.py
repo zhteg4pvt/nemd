@@ -59,6 +59,20 @@ class SinglePoint(list):
         self.options = self.struct.options
         self.outfile = f"{self.options.JOBNAME}.in"
 
+    def write(self):
+        """
+        Write the command to the file.
+        """
+        self.setUp()
+        with open(self.outfile, 'w') as fh:
+            for idx, cmd in enumerate(self, 1):
+                num = round(cmd.count('%s') / 2)
+                ids = [f'{idx}{string.ascii_lowercase[x]}' for x in range(num)]
+                ids += [x for x in reversed(ids)]
+                cmd = cmd % tuple(ids) if ids else cmd
+                fh.write(cmd + '\n')
+            fh.write('quit 0\n')
+
     def setUp(self):
         """
         Write out LAMMPS in script.
@@ -173,9 +187,9 @@ class SinglePoint(list):
         self.append(self.RUN_STEP % 0)
 
 
-class Script(SinglePoint):
+class RampUp(SinglePoint):
     """
-    Customized for relaxation and production.
+    Customized for low temp NVT, ramp up NPT, NPT relaxation and production.
     """
     NVT = 'NVT'
     NPT = 'NPT'
@@ -189,10 +203,6 @@ class Script(SinglePoint):
     FIX_NVE = lmpfix.FIX_NVE
     BERENDSEN = lmpfix.BERENDSEN
     UNFIX = lmpfix.UNFIX
-    PRESS = lmpfix.PRESS
-    MODULUS = lmpfix.MODULUS
-    PRESS_VAR = f'${{{PRESS}}}'
-    MODULUS_VAR = f'${{{MODULUS}}}'
 
     def __init__(self, *args, **kwargs):
         """
@@ -224,17 +234,14 @@ class Script(SinglePoint):
         """
         Create initial velocity for the system.
         """
-        seed = np.random.randint(1, high=symbols.MAX_INT32)
         temp = self.options.stemp if self.relax_step else self.options.temp
-        cmd = f"{lmpfix.VELOCITY} all create {temp} {seed}"
-        self.append(cmd)
+        seed = np.random.randint(1, high=symbols.MAX_INT32)
+        self.append(f"{lmpfix.VELOCITY} all create {temp} {seed}")
 
     def startLow(self):
         """
         Start simulation from low temperature and constant volume.
         """
-        if not self.relax_step:
-            return
         self.nvt(nstep=self.relax_step / 1E3,
                  stemp=self.options.stemp,
                  temp=self.options.stemp)
@@ -249,6 +256,8 @@ class Script(SinglePoint):
         :param style str: the style for the command.
         :param pre str: additional pre-conditions.
         """
+        if not nstep:
+            return
         if stemp is None:
             stemp = temp
         if style == self.BERENDSEN:
@@ -261,39 +270,14 @@ class Script(SinglePoint):
         fix = [x for x in cmd.split(symbols.RETURN) if x.startswith(self.FIX)]
         self.append(cmd + self.RUN_STEP % nstep + self.UNFIX * len(fix))
 
-    def rampUp(self, ensemble=None):
+    def rampUp(self):
         """
         Ramp up temperature to the targe value.
-
-        :param ensemble str: the ensemble to ramp up temperature.
-
-        NOTE: ensemble=None runs NVT at low temperature and ramp up with constant
-        volume, calculate the averaged pressure at high temperature, and changes
-        volume to reach the target pressure.
         """
-        if not self.relax_step:
-            return
-        if ensemble == self.NPT:
-            self.npt(nstep=self.relax_step / 1E1,
-                     stemp=self.options.stemp,
-                     temp=self.options.temp,
-                     press=self.options.press)
-            return
-
-        self.nvt(nstep=self.relax_step / 2E1,
-                 stemp=self.options.stemp,
-                 temp=self.options.temp)
-        self.nvt(nstep=self.relax_step / 2E1,
-                 stemp=self.options.temp,
-                 temp=self.options.temp)
-        self.cycleToPress()
-        self.nvt(nstep=self.relax_step / 1E1, temp=self.options.temp)
         self.npt(nstep=self.relax_step / 1E1,
-                 stemp=self.options.temp,
+                 stemp=self.options.stemp,
                  temp=self.options.temp,
-                 spress=self.PRESS_VAR,
-                 press=self.options.press,
-                 modulus=self.MODULUS_VAR)
+                 press=self.options.press)
 
     def npt(self,
             nstep=20000,
@@ -315,6 +299,8 @@ class Script(SinglePoint):
         :param style str: the style for the command
         :param pre str: additional pre-conditions
         """
+        if not nstep:
+            return
         if spress is None:
             spress = press
         if style == self.BERENDSEN:
@@ -331,6 +317,111 @@ class Script(SinglePoint):
         fix = [x for x in cmd.split(symbols.RETURN) if x.startswith(self.FIX)]
         self.append(cmd + self.RUN_STEP % nstep + self.UNFIX * len(fix))
 
+    def relaxation(self, modulus=10):
+        """
+        Longer relaxation at constant temperature and deform to the mean size.
+        """
+        self.npt(nstep=self.relax_step,
+                 stemp=self.options.temp,
+                 temp=self.options.temp,
+                 press=self.options.press,
+                 modulus=modulus)
+
+    def production(self, modulus=10):
+        """
+        Production run.
+
+        NOTE: NVE is good for all, specially transport properties, but requires
+        good energy conservation during the time integration. NVT and NPT help
+        with properties non-sensitive to disturbance.
+        """
+        match self.options.prod_ens:
+            case self.NVE:
+                self.nve(nstep=self.prod_step)
+            case self.NVT:
+                self.nvt(nstep=self.prod_step,
+                         stemp=self.options.temp,
+                         temp=self.options.temp)
+            case self.NPT:
+                self.npt(nstep=self.prod_step,
+                         stemp=self.options.temp,
+                         temp=self.options.temp,
+                         press=self.options.press,
+                         modulus=modulus)
+
+    def nve(self, nstep=1E3):
+        """
+        Constant energy and volume.
+
+        :param nstep int: run this steps for time integration.
+        """
+        # NVT on single molecule -> nan xyz (guess due to translation)
+        self.append(self.FIX_NVE + self.RUN_STEP % nstep + self.UNFIX)
+
+
+class Ave(RampUp):
+    """
+    Customized with PBC averaging for NVT relaxation.
+    """
+
+    def relaxation(self, modulus=10):
+        """
+        Longer relaxation at constant temperature and deform to the mean size.
+        """
+        if self.options.prod_ens == self.NPT:
+            super().relaxation(modulus=modulus)
+            return
+        # NVE and NVT production runs use averaged cell
+        pre = lmpfix.RECORD_BDRY.format(num=int(self.relax_step / 1E1))
+        self.npt(nstep=self.relax_step,
+                 stemp=self.options.temp,
+                 temp=self.options.temp,
+                 press=self.options.press,
+                 modulus=modulus,
+                 pre=pre)
+        self.append(lmpfix.CHANGE_BDRY)
+        self.nvt(nstep=self.relax_step / 1E2,
+                 stemp=self.options.temp,
+                 temp=self.options.temp)
+
+
+class Script(Ave):
+    """
+    Customized with relaxation cycles.
+    """
+    PRESS = lmpfix.PRESS
+    MODULUS = lmpfix.MODULUS
+    PRESS_VAR = f'${{{PRESS}}}'
+    MODULUS_VAR = f'${{{MODULUS}}}'
+
+    def rampUp(self, ensemble=None):
+        """
+        Ramp up temperature to the targe value.
+
+        :param ensemble str: the ensemble to ramp up temperature.
+
+        NOTE: ensemble=None runs NVT at low temperature and ramp up with constant
+        volume, calculate the averaged pressure at high temperature, and changes
+        volume to reach the target pressure.
+        """
+        if ensemble == self.NPT:
+            super().rampUp()
+            return
+        self.nvt(nstep=self.relax_step / 2E1,
+                 stemp=self.options.stemp,
+                 temp=self.options.temp)
+        self.nvt(nstep=self.relax_step / 2E1,
+                 stemp=self.options.temp,
+                 temp=self.options.temp)
+        self.cycleToPress()
+        self.nvt(nstep=self.relax_step / 1E1, temp=self.options.temp)
+        self.npt(nstep=self.relax_step / 1E1,
+                 stemp=self.options.temp,
+                 temp=self.options.temp,
+                 spress=self.PRESS_VAR,
+                 press=self.options.press,
+                 modulus=self.MODULUS_VAR)
+
     def cycleToPress(self,
                      max_loop=1000,
                      num=3,
@@ -340,28 +431,24 @@ class Script(SinglePoint):
                      defm_break='defm_break'):
         """
         Deform the box by cycles to get close to the target pressure.
-        One cycle consists of sinusoidal wave, print properties, deformation,
-        and relaxation. The max total simulation time for the all cycles is the
-        regular relaxation simulation time.
+        One cycle: sinusoidal wave, printing, deformation, and relaxation.
 
         :param max_loop int: the maximum number of big cycle loops.
-        :param num int: the number of sinusoidal cycles.
+        :param num int: the number of sinusoidal waves in each cycle.
         :param record_num int: each sinusoidal wave records this number of data.
-        :param defm_id str: Deformation id loop from 0 to max_loop - 1
-        :param defm_start str: Each deformation loop starts with this label
-        :param defm_break str: Terminate the loop by go to this label
+        :param defm_id str: deformation id loop from 0 to max_loop - 1
+        :param defm_start str: label to start the deformation loop
+        :param defm_break str: terminated deformation goes to this label
         """
         nstep = int(self.relax_step * 10 / max_loop / (num + 1))
         # One sinusoidal cycle that yields at least 10 records
         nstep = max([int(nstep / record_num), 10]) * record_num
         # Maximum Total Cycle Steps (cyc_nstep): self.relax_steps * 10
-        cyc_nstep = nstep * (num + 1)
         # Each cycle dumps one trajectory frame
-        self.append(self.DUMP_EVERY.format(id=self.DUMP_ID, arg=cyc_nstep))
+        self.append(self.DUMP_EVERY.format(id=self.DUMP_ID, arg=nstep * (num + 1)))
         # Set variables used in the loop
         self.append(lmpfix.SET_VAR.format(var=lmpfix.VOL, expr=lmpfix.VOL))
-        expr = f'0.01*v_{lmpfix.VOL}^(1/3)'
-        self.append(lmpfix.SET_VAR.format(var=lmpfix.AMP, expr=expr))
+        self.append(lmpfix.SET_VAR.format(var=lmpfix.AMP, expr=f'0.01*v_{lmpfix.VOL}^(1/3)'))
         self.append(lmpfix.SET_IMMED_PRESS)
         self.append(lmpfix.SET_IMMED_MODULUS.format(record_num=record_num))
         self.append(lmpfix.SET_FACTOR.format(press=self.options.press))
@@ -424,70 +511,14 @@ class Script(SinglePoint):
         record_press = lmpfix.RECORD_PRESS_VOL.format(period=record_period)
         return record_press + wiggle
 
-    def relaxation(self):
+    def relaxation(self, modulus=MODULUS_VAR):
         """
-        Longer relaxation at constant temperature and deform to the mean size.
+        See parent.
         """
-        if not self.relax_step:
-            return
-        if self.options.prod_ens == self.NPT:
-            self.npt(nstep=self.relax_step,
-                     stemp=self.options.temp,
-                     temp=self.options.temp,
-                     press=self.options.press,
-                     modulus=self.MODULUS_VAR)
-            return
-        # NVE and NVT production runs use averaged cell
-        pre = lmpfix.RECORD_BDRY.format(num=int(self.relax_step / 1E1))
-        self.npt(nstep=self.relax_step,
-                 stemp=self.options.temp,
-                 temp=self.options.temp,
-                 press=self.options.press,
-                 modulus=self.MODULUS_VAR,
-                 pre=pre)
-        self.append(lmpfix.CHANGE_BDRY)
-        self.nvt(nstep=self.relax_step / 1E2,
-                 stemp=self.options.temp,
-                 temp=self.options.temp)
+        super().relaxation(modulus=modulus)
 
-    def production(self):
+    def production(self, modulus=MODULUS_VAR):
         """
-        Production run. NVE is good for all, specially transport properties, but
-        requires for good energy conservation in time integration. NVT and NPT
-        may help for disturbance non-sensitive property.
+        See parent.
         """
-        if self.options.prod_ens == self.NVE:
-            self.nve(nstep=self.prod_step)
-        elif self.options.prod_ens == self.NVT:
-            self.nvt(nstep=self.prod_step,
-                     stemp=self.options.temp,
-                     temp=self.options.temp)
-        else:
-            self.npt(nstep=self.prod_step,
-                     stemp=self.options.temp,
-                     temp=self.options.temp,
-                     press=self.options.press,
-                     modulus=self.MODULUS_VAR)
-
-    def nve(self, nstep=1E3):
-        """
-        Constant energy and volume.
-
-        :param nstep int: run this steps for time integration.
-        """
-        # NVT on single molecule gives nan xyz (guess due to translation)
-        self.append(self.FIX_NVE + self.RUN_STEP % nstep + self.UNFIX)
-
-    def write(self):
-        """
-        Write the command to the file.
-        """
-        self.setUp()
-        with open(self.outfile, 'w') as fh:
-            for idx, cmd in enumerate(self, 1):
-                num = round(cmd.count('%s') / 2)
-                ids = [f'{idx}{string.ascii_lowercase[x]}' for x in range(num)]
-                ids += [x for x in reversed(ids)]
-                cmd = cmd % tuple(ids) if ids else cmd
-                fh.write(cmd + '\n')
-            fh.write('quit 0\n')
+        super().production(modulus=modulus)
