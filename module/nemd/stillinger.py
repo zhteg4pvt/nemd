@@ -19,7 +19,7 @@ class Script(lmpin.Script):
         """
         super().data()
         self.append(f"{self.PAIR_COEFF} * * {self.struct.ff} "
-                      f"{symbols.SPACE.join(self.struct.masses.comment)}\n")
+                    f"{symbols.SPACE.join(self.struct.masses.comment)}\n")
 
 
 class Struct(lmpatomic.Struct):

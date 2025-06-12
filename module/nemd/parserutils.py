@@ -14,7 +14,7 @@ from nemd import builtinsutils
 from nemd import cru
 from nemd import envutils
 from nemd import jobutils
-from nemd import lmpfix
+from nemd import lmpin
 from nemd import np
 from nemd import rdkitutils
 from nemd import sw
@@ -449,7 +449,7 @@ class LmpValid(Valid):
 
         with open(self.options.inscript, 'r') as fh:
             contents = fh.read()
-        matched = re.search(lmpfix.READ_DATA_RE, contents)
+        matched = lmpin.Script.READ_DATA_RE.search(contents)
         if not matched:
             return
         data_file = matched.group(1)
@@ -764,8 +764,8 @@ class Md(Driver):
                             default=1,
                             help='Production simulation time.')
         parser.add_argument(cls.FLAG_PROD_ENS,
-                            choices=lmpfix.ENSEMBLES,
-                            default=lmpfix.NVE,
+                            choices=lmpin.Script.ENSEMBLES,
+                            default=lmpin.Script.NVE,
                             help='Production ensemble.')
         cls.addSeed(parser)
         # Skip the structure minimization step
@@ -794,7 +794,7 @@ class MolBldr(MolBase):
                         press=1,
                         relax_time=0,
                         prod_time=0,
-                        prod_ens=lmpfix.NVE)
+                        prod_ens=lmpin.Script.NVE)
 
 
 class AmorpBldr(MolBase):

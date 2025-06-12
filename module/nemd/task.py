@@ -17,6 +17,7 @@ import pandas as pd
 from nemd import analyzer
 from nemd import jobutils
 from nemd import lmpfix
+from nemd import lmpin
 from nemd import logutils
 from nemd import osutils
 from nemd import parserutils
@@ -80,7 +81,7 @@ class LmpLog(taskbase.Cmd):
         data_file = self.getMatch().group(1)
         self.args += [parserutils.LmpLog.FLAG_DATA_FILE, data_file]
 
-    def getMatch(self, match_re=re.compile(lmpfix.READ_DATA_RE)):
+    def getMatch(self, match_re=lmpin.SinglePoint.READ_DATA_RE):
         """
         Get the regular expression match.
 
@@ -98,8 +99,9 @@ class LmpTraj(LmpLog):
     """
     FILE = 'lmp_traj_driver.py'
     ParserClass = parserutils.LmpTraj
+    DUMP_RE = re.compile(rf"{lmpin.Script.DUMP_ALL_CUSTOM} (\d*) ([\w.]*)")
 
-    def addfiles(self, match_re=re.compile(lmpfix.DUMP_RE)):
+    def addfiles(self, match_re=DUMP_RE):
         """
         Set arguments to analyze the custom dump file.
 

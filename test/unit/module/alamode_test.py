@@ -6,7 +6,8 @@ from nemd import alamode
 from nemd import envutils
 from nemd import parserutils
 
-OPTIONS = parserutils.XtalBldr().parse_args(['-JOBNAME', 'dispersion'])
+OPTIONS = parserutils.XtalBldr().parse_args(
+    ['-JOBNAME', 'dispersion', '-temp', '0'])
 STRUCT = alamode.Struct.fromMols([alamode.Crystal.fromDatabase(OPTIONS).mol],
                                  options=OPTIONS)
 

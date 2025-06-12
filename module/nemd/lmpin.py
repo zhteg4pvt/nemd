@@ -6,6 +6,7 @@ This module writes Lammps in script.
 https://docs.lammps.org/commands_list.html
 """
 import os
+import re
 import string
 
 import numpy as np
@@ -15,13 +16,14 @@ from nemd import constants
 from nemd import lmpfix
 from nemd import symbols
 
+DUMP = 'dump'
+DUMP_MODIFY = f'{DUMP}_modify'
+
 
 class SinglePoint(list):
     """
     LAMMPS in-script writer for configuration and single point simulation.
     """
-    CUSTOM_EXT = f"{lmpfix.CUSTOM_EXT}.gz"
-
     UNITS = 'units'
     LJ = 'lj'
     REAL = 'real'
@@ -32,8 +34,16 @@ class SinglePoint(list):
     PAIR_STYLE = 'pair_style'
     SW = 'sw'
 
+    READ_DATA = 'read_data'
+    READ_DATA_RE = re.compile(rf'{READ_DATA}\s*([\w.]*)')
     PAIR_COEFF = 'pair_coeff'
     TIMESTEP = 'timestep'
+    CUSTOM_EXT = '.custom'
+    DUMP_ID, DUMP_Q = 1, 1000
+    DUMP_ALL_CUSTOM = f"{DUMP} {DUMP_ID} all custom"
+    DUMP_CUSTOM = f"{DUMP_ALL_CUSTOM} {DUMP_Q} {{file}} {{attrib}}"
+    DUMP_MODIFY = f"{DUMP_MODIFY} {DUMP_ID} {{attrib}}"
+
     RUN_STEP = lmpfix.RUN_STEP
 
     V_UNITS = METAL
@@ -78,7 +88,7 @@ class SinglePoint(list):
         """
         Write data file related information.
         """
-        self.append(f"{lmpfix.READ_DATA} {self.options.JOBNAME}.data\n")
+        self.append(f"{self.READ_DATA} {self.options.JOBNAME}.data")
 
     def traj(self, xyz=True, force=False, sort=True, fmt=None):
         """
@@ -97,7 +107,7 @@ class SinglePoint(list):
         if not attrib:
             return
         attrib = ' '.join(['id'] + attrib)
-        cmd = lmpfix.DUMP_CUSTOM.format(
+        cmd = self.DUMP_CUSTOM.format(
             file=f"{self.options.JOBNAME}{self.CUSTOM_EXT}", attrib=attrib)
         self.append(cmd)
         # Dumpy modify
@@ -108,7 +118,7 @@ class SinglePoint(list):
             attrib += ['format', fmt]
         if not attrib:
             return
-        self.append(lmpfix.DUMP_MODIFY.format(attrib=' '.join(attrib)))
+        self.append(self.DUMP_MODIFY.format(attrib=' '.join(attrib)))
 
     def minimize(self, min_style='fire', geo=None):
         """
@@ -167,9 +177,14 @@ class Script(SinglePoint):
     """
     Customized for relaxation and production.
     """
-    NVE = lmpfix.NVE
-    NVT = lmpfix.NVT
-    NPT = lmpfix.NPT
+    NVT = 'NVT'
+    NPT = 'NPT'
+    NVE = 'NVE'
+    ENSEMBLES = [NVE, NVT, NPT]
+
+    CUSTOM_EXT = f"{SinglePoint.CUSTOM_EXT}.gz"
+    DUMP_EVERY = f"{DUMP_MODIFY} {{id}} every {{arg}}\n"
+
     FIX = lmpfix.FIX
     FIX_NVE = lmpfix.FIX_NVE
     BERENDSEN = lmpfix.BERENDSEN
@@ -196,7 +211,7 @@ class Script(SinglePoint):
         """
         Main method to run the writer.
         """
-        if not self.options.temp or (self.struct and self.struct.atom_total == 1):
+        if not self.options.temp or self.struct.atom_total == 1:
             super().simulation()
             return
         self.velocity()
@@ -342,7 +357,7 @@ class Script(SinglePoint):
         # Maximum Total Cycle Steps (cyc_nstep): self.relax_steps * 10
         cyc_nstep = nstep * (num + 1)
         # Each cycle dumps one trajectory frame
-        self.append(lmpfix.DUMP_EVERY.format(id=lmpfix.DUMP_ID, arg=cyc_nstep))
+        self.append(self.DUMP_EVERY.format(id=self.DUMP_ID, arg=cyc_nstep))
         # Set variables used in the loop
         self.append(lmpfix.SET_VAR.format(var=lmpfix.VOL, expr=lmpfix.VOL))
         expr = f'0.01*v_{lmpfix.VOL}^(1/3)'
@@ -393,7 +408,7 @@ class Script(SinglePoint):
         self.append(lmpfix.DEL_VAR.format(var=lmpfix.FACTOR))
         self.append(lmpfix.DEL_VAR.format(var=defm_id))
         # Restore dump defaults
-        cmd = lmpfix.DUMP_EVERY.format(id=lmpfix.DUMP_ID, arg=lmpfix.DUMP_Q)
+        cmd = self.DUMP_EVERY.format(id=self.DUMP_ID, arg=self.DUMP_Q)
         self.append('\n' + cmd)
 
     def getCyclePre(self, nstep, record_num=100):

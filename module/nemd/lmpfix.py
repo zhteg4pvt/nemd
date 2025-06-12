@@ -5,31 +5,13 @@ lammps commands: fix, unfix, run, variable, dump, etc.
 """
 SET_VAR = "variable {var} equal {expr}"
 
-READ_DATA = 'read_data'
-READ_DATA_RE = f'{READ_DATA}\s*([\w.]*)'
-
-DUMP = 'dump'
-DUMP_ID, DUMP_Q = 1, 1000
-CUSTOM_EXT = '.custom'
-DUMP_ALL_CUSTOM = f"{DUMP} {DUMP_ID} all custom"
-DUMP_CUSTOM = f"{DUMP_ALL_CUSTOM} {DUMP_Q} {{file}} {{attrib}}"
-DUMP_RE = f"{DUMP_ALL_CUSTOM} (\d*) ([\w.]*)"
-DUMP_MODIFY = f'{DUMP}_modify'
-DUMP_MODIFY = f"{DUMP_MODIFY} {DUMP_ID} {{attrib}}"
-DUMP_EVERY = "dump_modify {id} every {arg}\n"
-
 FIX = 'fix'
-FIX_RIGID_SHAKE = f'{FIX} rigid all shake 0.0001 10 10000 {{fixed}}\n'
+FIX_RIGID_SHAKE = f'{FIX} rigid all shake 0.0001 10 10000 {{fixed}}'
 FIX_RESTRAIN = f'fix rest all restrain {{geo}} -2000.0 -2000.0 {{val}}'
 UNFIX_RESTRAIN = f'unfix rest\n'
 VELOCITY = 'velocity'
 RUN_STEP = "run %i\n"
 UNFIX = "unfix %s\n"
-
-NVT = 'NVT'
-NPT = 'NPT'
-NVE = 'NVE'
-ENSEMBLES = [NVE, NVT, NPT]
 
 FIX_NVE = f"{FIX} %s all nve\n"
 FIX_NVT = f"{FIX} %s all nvt temp {{stemp}} {{temp}} {{tdamp}}\n"
@@ -91,7 +73,8 @@ variable ave_yl python getYL
 python getYL input 1 {XYZL_FILE} return v_ave_yl format sf here "from nemd.lmpfunc import getYL"
 variable ave_zl python getZL
 python getZL input 1 {XYZL_FILE} return v_ave_zl format sf here "from nemd.lmpfunc import getZL"
-print "Averaged  xl = ${{ave_xl}} yl = ${{ave_yl}} zl = ${{ave_zl}}"\n
+print "Averaged  xl = ${{ave_xl}} yl = ${{ave_yl}} zl = ${{ave_zl}}"
+
 variable ave_xr equal "v_ave_xl / v_xl"
 variable ave_yr equal "v_ave_yl / v_yl"
 variable ave_zr equal "v_ave_zl / v_zl"

@@ -1,46 +1,42 @@
+import types
+
 import pytest
 
 from nemd import lmpin
 from nemd import np
 from nemd import parserutils
-import types
 
 
 @pytest.mark.parametrize('smiles,cnum', [('C', 1)])
-class TestScript:
+class TestSinglePoint:
 
     @pytest.fixture
-    def script(self, smiles, emol, tmp_dir):
+    def single(self, smiles, emol, tmp_dir):
         args = [smiles, '-JOBNAME', 'name']
         options = parserutils.MolBase().parse_args(args)
-        return lmpin.Script(struct=types.SimpleNamespace(options=options))
+        return lmpin.SinglePoint(struct=types.SimpleNamespace(options=options))
 
-    def testSetup(self, script, tmp_line):
-        with tmp_line() as (script.fh, lines):
-            script.setup()
-        assert 'units metal' in lines
+    def testSetup(self, single):
+        single.setup()
+        assert ['units metal', 'atom_style atomic'] == single
 
-    def testPair(self, script, tmp_line):
-        with tmp_line() as (script.fh, lines):
-            script.pair()
-        assert 'pair_style sw' in lines
+    def testPair(self, single):
+        single.pair()
+        assert 'pair_style sw' == single[0]
 
-    def testData(self, script, tmp_line):
-        with tmp_line() as (script.fh, lines):
-            script.data()
-        assert 'read_data name.data' in lines
+    def testData(self, single):
+        single.data()
+        assert 'read_data name.data' == single[0]
 
-    @pytest.mark.parametrize(
-        'xyz,force,expected',
-        [(True, False, 'dump 1 all custom 1000 name.custom.gz id xu yu zu'),
-         (False, True, 'dump 1 all custom 1000 name.custom.gz id fx fy fz'),
-         (False, False, None),
-         (True, True,
-          'dump 1 all custom 1000 name.custom.gz id xu yu zu fx fy fz')])
-    def testTraj(self, script, xyz, force, expected, tmp_line):
-        with tmp_line() as (script.fh, lines):
-            script.traj(xyz=xyz, force=force)
-        assert (expected in lines) if expected else (not lines)
+    @pytest.mark.parametrize('xyz,force,expected', [
+        (True, False, 'dump 1 all custom 1000 name.custom id xu yu zu'),
+        (False, True, 'dump 1 all custom 1000 name.custom id fx fy fz'),
+        (False, False, None),
+        (True, True, 'dump 1 all custom 1000 name.custom id xu yu zu fx fy fz')
+    ])
+    def testTraj(self, single, xyz, force, expected):
+        single.traj(xyz=xyz, force=force)
+        assert (expected in single) if expected else (not single)
 
     @pytest.mark.parametrize(
         'sort,fmt,expected',
@@ -49,10 +45,9 @@ class TestScript:
           "dump_modify 1 sort id format float '%20.15f'"),
          (False, "float '%20.15f'", "dump_modify 1 format float '%20.15f'"),
          (False, None, None)])
-    def testTrajModify(self, script, sort, fmt, expected, tmp_line):
-        with tmp_line() as (script.fh, lines):
-            script.traj(sort=sort, fmt=fmt)
-        assert (expected in lines) if expected else (1 == len(lines))
+    def testTrajModify(self, single, sort, fmt, expected):
+        single.traj(sort=sort, fmt=fmt)
+        assert (expected in single) if expected else (1 == len(single))
 
     @pytest.mark.parametrize(
         'no_minimize,geo,val,expected',
@@ -60,30 +55,26 @@ class TestScript:
          (True, None, None, None),
          (True, 'dihedral 1 2 3 4', 120,
           'fix rest all restrain dihedral 1 2 3 4 -2000.0 -2000.0 120')])
-    def testMinimize(self, script, no_minimize, geo, val, expected, tmp_line):
-        script.no_minimize = no_minimize
-        script.options.substruct = [None, val]
-        with tmp_line() as (script.fh, lines):
-            script.minimize(geo=geo)
-        assert (expected in lines) if expected else (2 == len(lines))
+    def testMinimize(self, single, no_minimize, geo, val, expected):
+        single.no_minimize = no_minimize
+        single.options.substruct = [None, val]
+        single.minimize(geo=geo)
+        assert (expected in single) if expected else (2 == len(single))
 
-    @pytest.mark.parametrize('temp,expected', [(300, 4), (0, 0)])
-    def testTimestep(self, script, expected, temp, tmp_line):
-        script.options.temp = temp
-        with tmp_line() as (script.fh, lines):
-            script.timestep()
-        assert expected == len(lines)
-
-    @pytest.mark.parametrize('atom_total,expected', [(1, 3), (100, 147)])
-    def testSimulation(self, script, atom_total, expected, tmp_line):
-        with tmp_line() as (script.fh, lines):
-            script.simulation(atom_total=atom_total)
-        assert expected == len(lines)
+    @pytest.mark.parametrize('temp,expected', [(300, 3), (0, 0)])
+    def testTimestep(self, single, expected, temp):
+        single.options.temp = temp
+        single.timestep()
+        assert expected == len(single)
 
     @pytest.mark.parametrize('unit,expected', [('real', 1e-12),
                                                ('metal', 1e-9)])
-    def testTimeUnit(self, script, unit, expected):
-        np.testing.assert_almost_equal(script.time_unit(unit), expected)
+    def testTimeUnit(self, single, unit, expected):
+        np.testing.assert_almost_equal(single.time_unit(unit), expected)
+
+    def testSimulation(self, single):
+        single.simulation()
+        assert 'run 0\n' == single[0]
 
 
 # class TestFixWriter:

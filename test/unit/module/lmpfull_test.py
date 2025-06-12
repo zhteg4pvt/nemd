@@ -241,7 +241,7 @@ class TestMol:
 
 
 @pytest.mark.parametrize('cnum', [1])
-class TestSetup:
+class TestScript:
 
     @pytest.fixture
     def script(self, smiles, emol):
@@ -249,39 +249,31 @@ class TestSetup:
         return lmpfull.Struct.fromMols([emol], options=options).script
 
     @pytest.mark.parametrize('smiles', ['O'])
-    def testSetup(self, script, tmp_line):
-        with tmp_line() as (script.fh, lines):
-            script.setup()
-        assert 7 == len(lines)
+    def testSetup(self, script):
+        script.setup()
+        assert 7 == len(script)
 
     @pytest.mark.parametrize('smiles,expected', [('O', 3), ('C', 2)])
-    def testPair(self, script, expected, tmp_line):
-        with tmp_line() as (script.fh, lines):
-            script.pair()
-        assert expected == len(lines)
+    def testPair(self, script, expected):
+        script.pair()
+        assert expected == len(script)
 
     @pytest.mark.parametrize('smiles', ['CCCC'])
-    @pytest.mark.parametrize(
-        'substruct,expected',
-        [
-            # (None, None), (['CCC', None], None),
-            (['CCC', 120
-              ], 'fix rest all restrain angle 1 2 3 -2000.0 -2000.0 120')
-        ])
-    def testMinimize(self, script, substruct, expected, tmp_line):
+    @pytest.mark.parametrize('substruct,expected', [
+        (None, None), (['CCC', None], None),
+        (['CCC', 120], 'fix rest all restrain angle 1 2 3 -2000.0 -2000.0 120')
+    ])
+    def testMinimize(self, script, substruct, expected):
         script.struct.options.substruct = substruct
-        with tmp_line() as (script.fh, lines):
-            script.minimize()
-        assert (expected in lines) if expected else (2 == len(lines))
+        script.minimize()
+        assert (expected in script) if expected else (2 == len(script))
 
     @pytest.mark.parametrize(
         'smiles,expected',
-        [('[Ar]', 'run 0'),
-         ('O', 'fix rigid all shake 0.0001 10 10000  b 1 a 1')])
-    def testSimulation(self, script, expected, tmp_line):
-        with tmp_line() as (script.fh, lines):
-            script.simulation()
-        assert expected == lines[0]
+        [('C', None), ('O', 'fix rigid all shake 0.0001 10 10000 b 1 a 1')])
+    def testMinimizeShake(self, script, expected):
+        script.minimize()
+        assert (expected in script) if expected else (2 == len(script))
 
 
 class TestStruct:

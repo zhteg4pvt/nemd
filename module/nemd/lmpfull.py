@@ -646,20 +646,11 @@ class Script(lmpin.Script):
             if not gids.empty:
                 geo = f"{gids.name.split()[0]} {' '.join(map(str, gids + 1))}"
         super().minimize(*args, geo=geo, **kwargs)
-
-    def simulation(self):
-        """
-        See parent.
-        """
-        bonds, angles = self.struct.shake()
-        fixed = ''
-        if bonds:
-            fixed += f' b {bonds}'
-        if angles:
-            fixed += f' a {angles}'
-        if fixed:
-            self.append(lmpfix.FIX_RIGID_SHAKE.format(fixed=fixed))
-        super().simulation()
+        fixed = [[x, y] for x, y in zip(['b', 'a'], self.struct.shake()) if y]
+        if not fixed:
+            return
+        fixed = ' '.join([y for x in fixed for y in x])
+        self.append(lmpfix.FIX_RIGID_SHAKE.format(fixed=fixed))
 
 
 class Struct(lmpatomic.Struct):
@@ -921,7 +912,7 @@ class Struct(lmpatomic.Struct):
 
         :return `Script`: the in-script.
         """
-        return Script(self)
+        return Script(struct=self)
 
 
 class Reader(lmpatomic.Reader):

@@ -9,7 +9,6 @@ import subprocess
 import sys
 
 from nemd import jobutils
-from nemd import lmpfix
 from nemd import lmpin
 from nemd import logutils
 from nemd import parserutils
@@ -22,7 +21,7 @@ class Lammps(logutils.Base):
     """
     FLAG_IN = '-in'
     KEYWORD_RE = r"\b{key}\s+(\S*)\s+(\S*)\s+(\S*)"
-    READ_DATA_RE = KEYWORD_RE.format(key=lmpfix.READ_DATA)
+    READ_DATA_RE = KEYWORD_RE.format(key=lmpin.Script.READ_DATA)
     PAIR_STYLE_RE = KEYWORD_RE.format(key=lmpin.Script.PAIR_STYLE)
     PAIR_COEFF_RE = KEYWORD_RE.format(key=lmpin.Script.PAIR_COEFF)
     ERROR_RE = re.compile(f'ERROR: (.*)')

@@ -12,7 +12,7 @@ import pandas as pd
 
 from nemd import builtinsutils
 from nemd import constants
-from nemd import lmpfix
+from nemd import lmpin
 from nemd import process
 from nemd import stillinger
 from nemd import symbols
@@ -29,7 +29,7 @@ class Script(stillinger.Script):
     """
     Customized to dump force.
     """
-    CUSTOM_EXT = lmpfix.CUSTOM_EXT
+    CUSTOM_EXT = lmpin.SinglePoint.CUSTOM_EXT
 
     def traj(self, force=True, sort=False, fmt="float '%20.15f'", **kwargs):
         """
@@ -46,7 +46,7 @@ class Struct(stillinger.Struct):
         """
         See parent.
         """
-        return Script(self)
+        return Script(struct=self)
 
 
 class Lmp(process.Lmp):
