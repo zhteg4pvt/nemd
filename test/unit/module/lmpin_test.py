@@ -74,7 +74,7 @@ class TestSinglePoint:
 
     def testSimulation(self, single):
         single.simulation()
-        assert 'run 0\n' == single[0]
+        assert 'run 0' == single[0]
 
 
 # class TestFixWriter:

@@ -650,7 +650,7 @@ class Script(lmpin.Script):
         if not fixed:
             return
         fixed = ' '.join([y for x in fixed for y in x])
-        self.append(lmpfix.FIX_RIGID_SHAKE.format(fixed=fixed))
+        self.append(f'fix rigid all shake 0.0001 10 10000 {fixed}')
 
 
 class Struct(lmpatomic.Struct):

@@ -144,13 +144,12 @@ class SinglePoint(list):
         """
         if self.options.no_minimize:
             return
-        val = geo and self.options.substruct[1]
-        if val:
-            self.append(lmpfix.FIX_RESTRAIN.format(geo=geo, val=val))
+        if val := geo and self.options.substruct[1]:
+            self.append(f'fix rest all restrain {geo} -2000.0 -2000.0 {val}')
         self.append(f"min_style {min_style}")
         self.append(f"minimize 1.0e-6 1.0e-8 1000000 10000000")
         if val:
-            self.append(lmpfix.UNFIX_RESTRAIN)
+            self.append('unfix rest')
 
     def timestep(self):
         """
@@ -189,7 +188,7 @@ class SinglePoint(list):
 
 class RampUp(SinglePoint):
     """
-    Customized for low temp NVT, ramp up NPT, NPT relaxation and production.
+    Customized for low temp NVT, NPT ramp up, NPT relaxation and production.
     """
     NVT = 'NVT'
     NPT = 'NPT'
@@ -197,11 +196,10 @@ class RampUp(SinglePoint):
     ENSEMBLES = [NVE, NVT, NPT]
 
     CUSTOM_EXT = f"{SinglePoint.CUSTOM_EXT}.gz"
-    DUMP_EVERY = f"{DUMP_MODIFY} {{id}} every {{arg}}\n"
 
-    FIX = lmpfix.FIX
-    FIX_NVE = lmpfix.FIX_NVE
-    BERENDSEN = lmpfix.BERENDSEN
+    FIX_ID = f"fix %s"
+    FIX_NVE = "fix %s all nve"
+    BERENDSEN = 'berendsen'
     UNFIX = lmpfix.UNFIX
 
     def __init__(self, *args, **kwargs):
@@ -236,7 +234,7 @@ class RampUp(SinglePoint):
         """
         temp = self.options.stemp if self.relax_step else self.options.temp
         seed = np.random.randint(1, high=symbols.MAX_INT32)
-        self.append(f"{lmpfix.VELOCITY} all create {temp} {seed}")
+        self.append(f"velocity all create {temp} {seed}")
 
     def startLow(self):
         """
@@ -246,7 +244,7 @@ class RampUp(SinglePoint):
                  stemp=self.options.stemp,
                  temp=self.options.stemp)
 
-    def nvt(self, nstep=1E4, stemp=None, temp=300, style=BERENDSEN, pre=''):
+    def nvt(self, nstep=1E4, stemp=None, temp=300, style=BERENDSEN, pre=None):
         """
         Append command for constant volume and temperature.
 
@@ -260,15 +258,16 @@ class RampUp(SinglePoint):
             return
         if stemp is None:
             stemp = temp
+        cmds = pre if pre else []
         if style == self.BERENDSEN:
-            cmd1 = lmpfix.FIX_TEMP_BERENDSEN.format(stemp=stemp,
-                                                    temp=temp,
-                                                    tdamp=self.tdamp)
-            cmd2 = self.FIX_NVE
+            cmds.append(
+                lmpfix.TEMP_BERENDSEN.format(stemp=stemp,
+                                             temp=temp,
+                                             tdamp=self.tdamp))
+            cmds.append(self.FIX_NVE)
         # FIXME: support thermostat more than berendsen.
-        cmd = pre + cmd1 + cmd2
-        fix = [x for x in cmd.split(symbols.RETURN) if x.startswith(self.FIX)]
-        self.append(cmd + self.RUN_STEP % nstep + self.UNFIX * len(fix))
+        unfixes = [self.UNFIX for x in cmds if x.startswith(self.FIX_ID)]
+        self.append('\n'.join(cmds + [self.RUN_STEP % nstep] + unfixes) + '\n')
 
     def rampUp(self):
         """
@@ -287,7 +286,7 @@ class RampUp(SinglePoint):
             press=1.,
             style=BERENDSEN,
             modulus=10,
-            pre=''):
+            pre=None):
         """
         Append command for constant pressure and temperature.
 
@@ -297,25 +296,27 @@ class RampUp(SinglePoint):
         :param spress float: starting pressure
         :param press float: target pressure
         :param style str: the style for the command
-        :param pre str: additional pre-conditions
+        :param pre list: additional pre-conditions
         """
         if not nstep:
             return
         if spress is None:
             spress = press
+        cmds = pre if pre else []
         if style == self.BERENDSEN:
-            cmd1 = lmpfix.FIX_PRESS_BERENDSEN.format(spress=spress,
-                                                     press=press,
-                                                     pdamp=self.pdamp,
-                                                     modulus=modulus)
-            cmd2 = lmpfix.FIX_TEMP_BERENDSEN.format(stemp=stemp,
-                                                    temp=temp,
-                                                    tdamp=self.tdamp)
-            cmd3 = self.FIX_NVE
+            cmds.append(
+                lmpfix.PRESS_BERENDSEN.format(spress=spress,
+                                              press=press,
+                                              pdamp=self.pdamp,
+                                              modulus=modulus))
+            cmds.append(
+                lmpfix.TEMP_BERENDSEN.format(stemp=stemp,
+                                             temp=temp,
+                                             tdamp=self.tdamp))
+            cmds.append(self.FIX_NVE)
         # FIXME: support thermostat more than berendsen.
-        cmd = pre + cmd1 + cmd2 + cmd3
-        fix = [x for x in cmd.split(symbols.RETURN) if x.startswith(self.FIX)]
-        self.append(cmd + self.RUN_STEP % nstep + self.UNFIX * len(fix))
+        unfixes = [self.UNFIX for x in cmds if x.startswith(self.FIX_ID)]
+        self.append('\n'.join(cmds + [self.RUN_STEP % nstep] + unfixes) + '\n')
 
     def relaxation(self, modulus=10):
         """
@@ -372,27 +373,54 @@ class Ave(RampUp):
             super().relaxation(modulus=modulus)
             return
         # NVE and NVT production runs use averaged cell
-        pre = lmpfix.RECORD_BDRY.format(num=int(self.relax_step / 1E1))
+        self.average(modulus=modulus)
+        self.nvt(nstep=self.relax_step / 1E2,
+                 stemp=self.options.temp,
+                 temp=self.options.temp)
+
+    def average(self, modulus=10, file='xyzl'):
+        """
+        Average the boundary based on NPT ensemble.
+
+        :param modulus float: the modules in berendsen barostat.
+        :param file str: the filename to record boundary.
+        """
+        pre = [f'variable {i}l equal "{i}hi - {i}lo"' for i in 'xyz']
+        num = int(self.relax_step / 1E1)
+        pre.append(
+            f"fix %s all ave/time 1 {num} {num} v_xl v_yl v_zl file {file}")
         self.npt(nstep=self.relax_step,
                  stemp=self.options.temp,
                  temp=self.options.temp,
                  press=self.options.press,
                  modulus=modulus,
                  pre=pre)
-        self.append(lmpfix.CHANGE_BDRY)
-        self.nvt(nstep=self.relax_step / 1E2,
-                 stemp=self.options.temp,
-                 temp=self.options.temp)
+        self.extend([
+            'print "Final Boundary: xl = ${xl}, yl = ${yl}, zl = ${zl}"',
+            'variable ave_xl python getXL',
+            f'python getXL input 1 {file} return v_ave_xl format sf here "from nemd.lmpfunc import getXL"',
+            'variable ave_yl python getYL',
+            f'python getYL input 1 {file} return v_ave_yl format sf here "from nemd.lmpfunc import getYL"',
+            'variable ave_zl python getZL',
+            f'python getZL input 1 {file} return v_ave_zl format sf here "from nemd.lmpfunc import getZL"',
+            'print "Averaged  xl = ${ave_xl} yl = ${ave_yl} zl = ${ave_zl}"',
+            'variable ave_xr equal "v_ave_xl / v_xl"',
+            'variable ave_yr equal "v_ave_yl / v_yl"',
+            'variable ave_zr equal "v_ave_zl / v_zl"',
+            'change_box all x scale ${ave_xr} y scale ${ave_yr} z scale ${ave_zr} remap',
+            'variable ave_xr delete', 'variable ave_yr delete',
+            'variable ave_zr delete', 'variable ave_xl delete',
+            'variable ave_yl delete', 'variable ave_zl delete',
+            'variable xl delete', 'variable yl delete', 'variable zl delete'
+        ])
 
 
 class Script(Ave):
     """
     Customized with relaxation cycles.
     """
-    PRESS = lmpfix.PRESS
-    MODULUS = lmpfix.MODULUS
-    PRESS_VAR = f'${{{PRESS}}}'
-    MODULUS_VAR = f'${{{MODULUS}}}'
+    MODULUS_VAR = f'${{{lmpfix.MODULUS}}}'
+    DUMP_EVERY = f"{DUMP_MODIFY} {{id}} every {{arg}}\n"
 
     def rampUp(self, ensemble=None):
         """
@@ -413,22 +441,22 @@ class Script(Ave):
         self.nvt(nstep=self.relax_step / 2E1,
                  stemp=self.options.temp,
                  temp=self.options.temp)
-        self.cycleToPress()
+        self.cycle()
         self.nvt(nstep=self.relax_step / 1E1, temp=self.options.temp)
         self.npt(nstep=self.relax_step / 1E1,
                  stemp=self.options.temp,
                  temp=self.options.temp,
-                 spress=self.PRESS_VAR,
+                 spress=f'${{{lmpfix.PRESS}}}',
                  press=self.options.press,
                  modulus=self.MODULUS_VAR)
 
-    def cycleToPress(self,
-                     max_loop=1000,
-                     num=3,
-                     record_num=100,
-                     defm_id='defm_id',
-                     defm_start='defm_start',
-                     defm_break='defm_break'):
+    def cycle(self,
+              max_loop=1000,
+              num=3,
+              record_num=100,
+              defm_id='defm_id',
+              defm_start='defm_start',
+              defm_break='defm_break'):
         """
         Deform the box by cycles to get close to the target pressure.
         One cycle: sinusoidal wave, printing, deformation, and relaxation.
@@ -445,10 +473,11 @@ class Script(Ave):
         nstep = max([int(nstep / record_num), 10]) * record_num
         # Maximum Total Cycle Steps (cyc_nstep): self.relax_steps * 10
         # Each cycle dumps one trajectory frame
-        self.append(self.DUMP_EVERY.format(id=self.DUMP_ID, arg=nstep * (num + 1)))
+        self.append(
+            self.DUMP_EVERY.format(id=self.DUMP_ID, arg=nstep * (num + 1)))
         # Set variables used in the loop
-        self.append(lmpfix.SET_VAR.format(var=lmpfix.VOL, expr=lmpfix.VOL))
-        self.append(lmpfix.SET_VAR.format(var=lmpfix.AMP, expr=f'0.01*v_{lmpfix.VOL}^(1/3)'))
+        self.append(f"variable {lmpfix.VOL} equal {lmpfix.VOL}")
+        self.append(f"variable {lmpfix.AMP} equal 0.01*v_{lmpfix.VOL}^(1/3)")
         self.append(lmpfix.SET_IMMED_PRESS)
         self.append(lmpfix.SET_IMMED_MODULUS.format(record_num=record_num))
         self.append(lmpfix.SET_FACTOR.format(press=self.options.press))
@@ -474,7 +503,7 @@ class Script(Ave):
         self.nvt(nstep=nstep / 2,
                  stemp=self.options.temp,
                  temp=self.options.temp,
-                 pre=lmpfix.FIX_DEFORM)
+                 pre=[lmpfix.FIX_DEFORM])
         self.nvt(nstep=nstep / 2,
                  stemp=self.options.temp,
                  temp=self.options.temp)
@@ -504,12 +533,12 @@ class Script(Ave):
 
         :param nstep int: the simulation steps of the one cycles
         :param record_num int: each cycle records this number of data
-        :return str: the prefix string of the cycle stage.
+        :return list: the prefix string of the cycle stage.
         """
         wiggle = lmpfix.WIGGLE_VOL.format(period=nstep * self.options.timestep)
         record_period = int(nstep / record_num)
         record_press = lmpfix.RECORD_PRESS_VOL.format(period=record_period)
-        return record_press + wiggle
+        return [record_press, wiggle]
 
     def relaxation(self, modulus=MODULUS_VAR):
         """
