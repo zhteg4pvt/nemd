@@ -16,7 +16,6 @@ import pandas as pd
 
 from nemd import analyzer
 from nemd import jobutils
-from nemd import lmpfix
 from nemd import lmpin
 from nemd import logutils
 from nemd import osutils
@@ -74,22 +73,22 @@ class LmpLog(taskbase.Cmd):
         """
         Set arguments to analyze the log file.
 
-        :param match_re 're.Pattern': the re to search data file
+        :param rex 're.Pattern': the re to search data file
         """
         super().addfiles()
         # Set the args with the data file from the log file
         data_file = self.getMatch().group(1)
         self.args += [parserutils.LmpLog.FLAG_DATA_FILE, data_file]
 
-    def getMatch(self, match_re=lmpin.SinglePoint.READ_DATA_RE):
+    def getMatch(self, rex=lmpin.SinglePoint.READ_DATA_RE):
         """
         Get the regular expression match.
 
-        :param match_re 're.Pattern': the re to search pattern
+        :param rex 're.Pattern': the re to search pattern
         :return 're.Match': the found match
         """
         with open(self.args[0], 'r') as fh:
-            matches = (match_re.match(line) for line in fh)
+            matches = (rex.match(line) for line in fh)
             return next(x for x in matches if x)
 
 
@@ -99,17 +98,16 @@ class LmpTraj(LmpLog):
     """
     FILE = 'lmp_traj_driver.py'
     ParserClass = parserutils.LmpTraj
-    DUMP_RE = re.compile(rf"{lmpin.Script.DUMP_ALL_CUSTOM} (\d*) ([\w.]*)")
 
-    def addfiles(self, match_re=DUMP_RE):
+    def addfiles(self, rex=re.compile(r"dump 1 all custom (\d*) ([\w.]*)")):
         """
         Set arguments to analyze the custom dump file.
 
-        :param match_re 're.Pattern': the re to search trajectory file
+        :param rex 're.Pattern': the re to search trajectory file
         """
         super().addfiles()
         # Set the args with the trajectory file from the log file
-        self.args[0] = self.getMatch(match_re=match_re).group(2)
+        self.args[0] = self.getMatch(rex=rex).group(2)
 
 
 class Cmd(taskbase.Cmd):

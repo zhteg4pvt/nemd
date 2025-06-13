@@ -43,7 +43,6 @@ WIGGLE_VOL = f"fix %s all 'deform' 100 {PARAM}"
 DEL_VAR = "variable {var} delete"
 
 SET_LABEL = "label {label}"
-SET_LOOP = "variable {id} loop 0 {end} pad"
 MKDIR = "shell mkdir {dir}"
 CD = "shell cd {dir}"
 JUMP = "jump SELF {label}"

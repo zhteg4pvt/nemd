@@ -16,9 +16,6 @@ from nemd import constants
 from nemd import lmpfix
 from nemd import symbols
 
-DUMP = 'dump'
-DUMP_MODIFY = f'{DUMP}_modify'
-
 
 class SinglePoint(list):
     """
@@ -40,9 +37,6 @@ class SinglePoint(list):
     TIMESTEP = 'timestep'
     CUSTOM_EXT = '.custom'
     DUMP_ID, DUMP_Q = 1, 1000
-    DUMP_ALL_CUSTOM = f"{DUMP} {DUMP_ID} all custom"
-    DUMP_CUSTOM = f"{DUMP_ALL_CUSTOM} {DUMP_Q} {{file}} {{attrib}}"
-    DUMP_MODIFY = f"{DUMP_MODIFY} {DUMP_ID} {{attrib}}"
 
     RUN_STEP = lmpfix.RUN_STEP
 
@@ -113,26 +107,39 @@ class SinglePoint(list):
         :param sort bool: sort by atom id if True
         :param fmt str: the float format
         """
-        attrib = []
+        args = []
         if xyz:
-            attrib += ['xu', 'yu', 'zu']
+            args += ['xu', 'yu', 'zu']
         if force:
-            attrib += ['fx', 'fy', 'fz']
-        if not attrib:
+            args += ['fx', 'fy', 'fz']
+        if not args:
             return
-        attrib = ' '.join(['id'] + attrib)
-        cmd = self.DUMP_CUSTOM.format(
-            file=f"{self.options.JOBNAME}{self.CUSTOM_EXT}", attrib=attrib)
-        self.append(cmd)
+        file = f"{self.options.JOBNAME}{self.CUSTOM_EXT}"
+        args = [self.DUMP_ID, 'all', 'custom', self.DUMP_Q, file, 'id'] + args
+        self.join(*args, key='dump')
         # Dumpy modify
-        attrib = []
+        args = []
         if sort:
-            attrib += ['sort', 'id']
+            args += ['sort', 'id']
         if fmt:
-            attrib += ['format', fmt]
-        if not attrib:
+            args += ['format', fmt]
+        if not args:
             return
-        self.append(self.DUMP_MODIFY.format(attrib=' '.join(attrib)))
+        self.dump_modify(self.DUMP_ID, *args)
+
+    def join(self, *args, key='variable'):
+        """
+        Join the arguments to form a lammps command.
+
+        :param key str: the command name. (variable defines lammps variable)
+        """
+        self.append(f'{key} {" ".join(map(str, args))}')
+
+    def dump_modify(self, *args, key='dump_modify'):
+        """
+        Modify the trajectory dump.
+        """
+        self.join(*args, key=key)
 
     def minimize(self, min_style='fire', geo=None):
         """
@@ -389,10 +396,10 @@ class Ave(RampUp):
         # Record the xyz span durning NPT
         spans = [f'{i}l' for i in xyz]
         for name, dim in zip(spans, xyz):
-            self.variable(name, 'equal', f'"{dim}hi - {dim}lo"')
+            self.join(name, 'equal', f'"{dim}hi - {dim}lo"')
         num = int(self.relax_step / record_num)
-        record = ' '.join(f'v_{i}' for i in spans)
-        record = f"fix %s all ave/time 1 {num} {num} {record} file {xyz}"
+        args = ' '.join(f'v_{i}' for i in spans)
+        record = f"fix %s all ave/time 1 {num} {num} {args} file {xyz}"
         self.npt(nstep=self.relax_step,
                  stemp=self.options.temp,
                  temp=self.options.temp,
@@ -404,25 +411,37 @@ class Ave(RampUp):
         aves = [f'ave_{i}' for i in xyz]
         for name, dim in zip(aves, xyz):
             func = f'get{dim.upper()}L'
-            self.variable(name, 'python', func)
-            self.append(f'python {func} input 1 {xyz} return v_{name} format '
-                        f'sf here "from nemd.lmpfunc import {func}"')
+            self.join(name, 'python', func)
+            self.python(func, iargs=[1, xyz], rargs=[name], farg='sf')
         self.print(*aves, label='Averaged')
         # Calculate the ratio and change the box
         ratios = [f'ratio_{i}' for i in xyz]
         for ratio, ave, span in zip(ratios, aves, spans):
-            self.variable(ratio, 'equal', f'"v_{ave} / v_{span}"')
-        scales = ' '.join(f'{i} scale ${{{r}}}' for i, r in zip(xyz, ratios))
-        self.append(f"change_box all {scales} remap")
+            self.join(ratio, 'equal', f'"v_{ave} / v_{span}"')
+        scales = [f'{i} scale ${{{r}}}' for i, r in zip(xyz, ratios)]
+        self.join('all', *scales, 'remap', key='change_box')
         # Delete used variables
         for name in spans + aves + ratios:
-            self.variable(name, 'delete')
+            self.join(name, 'delete')
 
-    def variable(self, *args):
+    def python(self, func, iargs=None, rargs=None, farg=None, key='python'):
         """
-        Define a lammps variable.
+        Construct a python command.
+
+        :param func str: the function name.
+        :param iargs list: the input variables of the function.
+        :param rargs list: the output variables of the function.
+        :param farg str: the type of the input and output variables.
         """
-        self.append(f'variable {" ".join(args)}')
+        args = [func]
+        if iargs:
+            args += ['input', *iargs]
+        if rargs:
+            args += ['return'] + [f'v_{x}' for x in rargs]
+        if farg:
+            args += ['format', farg]
+        args += ('here', f'"from nemd.lmpfunc import {func}"')
+        self.join(*args, key=key)
 
     def print(self, *args, label=None):
         """
@@ -442,7 +461,6 @@ class Script(Ave):
     Customized with relaxation cycles.
     """
     MODULUS_VAR = f'${{{lmpfix.MODULUS}}}'
-    DUMP_EVERY = f"{DUMP_MODIFY} {{id}} every {{arg}}\n"
 
     def rampUp(self, ensemble=None):
         """
@@ -495,15 +513,14 @@ class Script(Ave):
         nstep = max([int(nstep / record_num), 10]) * record_num
         # Maximum Total Cycle Steps (cyc_nstep): self.relax_steps * 10
         # Each cycle dumps one trajectory frame
-        self.append(
-            self.DUMP_EVERY.format(id=self.DUMP_ID, arg=nstep * (num + 1)))
+        self.dump_modify(self.DUMP_ID, 'every', nstep * (num + 1))
         # Set variables used in the loop
-        self.append(f"variable {lmpfix.VOL} equal {lmpfix.VOL}")
-        self.append(f"variable {lmpfix.AMP} equal 0.01*v_{lmpfix.VOL}^(1/3)")
+        self.join(lmpfix.VOL, 'equal', lmpfix.VOL)
+        self.join(lmpfix.AMP, 'equal', f"0.01*v_{lmpfix.VOL}^(1/3)")
         self.append(lmpfix.SET_IMMED_PRESS)
         self.append(lmpfix.SET_IMMED_MODULUS.format(record_num=record_num))
         self.append(lmpfix.SET_FACTOR.format(press=self.options.press))
-        self.append(lmpfix.SET_LOOP.format(id=defm_id, end=max_loop - 1))
+        self.join(defm_id, 'loop', 0, max_loop - 1, 'pad')
         self.append(lmpfix.SET_LABEL.format(label=defm_start))
         self.append(lmpfix.PRINT.format(var=defm_id))
         # Run in a subdirectory as some output files are of the same names
@@ -539,15 +556,14 @@ class Script(Ave):
         self.append(lmpfix.SET_PRESS)
         self.append(lmpfix.CD.format(dir=os.pardir))
         # Delete variables used in the loop
-        self.append(lmpfix.DEL_VAR.format(var=lmpfix.VOL))
-        self.append(lmpfix.DEL_VAR.format(var=lmpfix.AMP))
-        self.append(lmpfix.DEL_VAR.format(var=lmpfix.IMMED_PRESS))
-        self.append(lmpfix.DEL_VAR.format(var=lmpfix.IMMED_MODULUS))
-        self.append(lmpfix.DEL_VAR.format(var=lmpfix.FACTOR))
-        self.append(lmpfix.DEL_VAR.format(var=defm_id))
+        self.join(lmpfix.VOL, 'delete')
+        self.join(lmpfix.AMP, 'delete')
+        self.join(lmpfix.IMMED_PRESS, 'delete')
+        self.join(lmpfix.IMMED_MODULUS, 'delete')
+        self.join(lmpfix.FACTOR, 'delete')
+        self.join(defm_id, 'delete')
         # Restore dump defaults
-        cmd = self.DUMP_EVERY.format(id=self.DUMP_ID, arg=self.DUMP_Q)
-        self.append('\n' + cmd)
+        self.dump_modify(self.DUMP_ID, 'every', self.DUMP_Q)
 
     def getCyclePre(self, nstep, record_num=100):
         """
