@@ -367,7 +367,7 @@ class Ave(RampUp):
 
     def relaxation(self, modulus=10):
         """
-        Longer relaxation at constant temperature and deform to the mean size.
+        Relaxation simulation.
         """
         if self.options.prod_ens == self.NPT:
             super().relaxation(modulus=modulus)
@@ -378,41 +378,63 @@ class Ave(RampUp):
                  stemp=self.options.temp,
                  temp=self.options.temp)
 
-    def average(self, modulus=10, file='xyzl'):
+    def average(self, modulus=10, xyz='xyz', record_num=10):
         """
         Average the boundary based on NPT ensemble.
 
         :param modulus float: the modules in berendsen barostat.
-        :param file str: the filename to record boundary.
+        :param xyz str: the filename to record boundary.
+        :param record_num int: the number of records.
         """
-        pre = [f'variable {i}l equal "{i}hi - {i}lo"' for i in 'xyz']
-        num = int(self.relax_step / 1E1)
-        pre.append(
-            f"fix %s all ave/time 1 {num} {num} v_xl v_yl v_zl file {file}")
+        # Record the xyz span durning NPT
+        spans = [f'{i}l' for i in xyz]
+        for name, dim in zip(spans, xyz):
+            self.variable(name, 'equal', f'"{dim}hi - {dim}lo"')
+        num = int(self.relax_step / record_num)
+        record = ' '.join(f'v_{i}' for i in spans)
+        record = f"fix %s all ave/time 1 {num} {num} {record} file {xyz}"
         self.npt(nstep=self.relax_step,
                  stemp=self.options.temp,
                  temp=self.options.temp,
                  press=self.options.press,
                  modulus=modulus,
-                 pre=pre)
-        self.extend([
-            'print "Final Boundary: xl = ${xl}, yl = ${yl}, zl = ${zl}"',
-            'variable ave_xl python getXL',
-            f'python getXL input 1 {file} return v_ave_xl format sf here "from nemd.lmpfunc import getXL"',
-            'variable ave_yl python getYL',
-            f'python getYL input 1 {file} return v_ave_yl format sf here "from nemd.lmpfunc import getYL"',
-            'variable ave_zl python getZL',
-            f'python getZL input 1 {file} return v_ave_zl format sf here "from nemd.lmpfunc import getZL"',
-            'print "Averaged  xl = ${ave_xl} yl = ${ave_yl} zl = ${ave_zl}"',
-            'variable ave_xr equal "v_ave_xl / v_xl"',
-            'variable ave_yr equal "v_ave_yl / v_yl"',
-            'variable ave_zr equal "v_ave_zl / v_zl"',
-            'change_box all x scale ${ave_xr} y scale ${ave_yr} z scale ${ave_zr} remap',
-            'variable ave_xr delete', 'variable ave_yr delete',
-            'variable ave_zr delete', 'variable ave_xl delete',
-            'variable ave_yl delete', 'variable ave_zl delete',
-            'variable xl delete', 'variable yl delete', 'variable zl delete'
-        ])
+                 pre=[record])
+        self.print(*spans, label='Final')
+        # Calculate the aves span
+        aves = [f'ave_{i}' for i in xyz]
+        for name, dim in zip(aves, xyz):
+            func = f'get{dim.upper()}L'
+            self.variable(name, 'python', func)
+            self.append(f'python {func} input 1 {xyz} return v_{name} format '
+                        f'sf here "from nemd.lmpfunc import {func}"')
+        self.print(*aves, label='Averaged')
+        # Calculate the ratio and change the box
+        ratios = [f'ratio_{i}' for i in xyz]
+        for ratio, ave, span in zip(ratios, aves, spans):
+            self.variable(ratio, 'equal', f'"v_{ave} / v_{span}"')
+        scales = ' '.join(f'{i} scale ${{{r}}}' for i, r in zip(xyz, ratios))
+        self.append(f"change_box all {scales} remap")
+        # Delete used variables
+        for name in spans + aves + ratios:
+            self.variable(name, 'delete')
+
+    def variable(self, *args):
+        """
+        Define a lammps variable.
+        """
+        self.append(f'variable {" ".join(args)}')
+
+    def print(self, *args, label=None):
+        """
+        Print variables with header.
+
+        :param args tuple of str: the variables to be printed.
+        :param label str: the label of the variables.
+        """
+        to_print = ' '.join(f'{i}=${{{i}}}' for i in args)
+        if label:
+            to_print = f'{label}: {to_print}'
+        self.append(f'print "{to_print}"')
 
 
 class Script(Ave):
