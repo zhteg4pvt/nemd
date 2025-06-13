@@ -16,7 +16,6 @@ from rdkit import Chem
 
 from nemd import builtinsutils
 from nemd import lmpatomic
-from nemd import lmpfix
 from nemd import lmpin
 from nemd import numpyutils
 from nemd import oplsua
