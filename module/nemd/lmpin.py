@@ -5,6 +5,7 @@ This module writes Lammps in script.
 
 https://docs.lammps.org/commands_list.html
 """
+import contextlib
 import os
 import re
 import string
@@ -37,8 +38,6 @@ class SinglePoint(list):
     CUSTOM_EXT = '.custom'
     DUMP_ID, DUMP_Q = 1, 1000
 
-    RUN_STEP = "run %i"
-
     V_UNITS = METAL
     V_ATOM_STYLE = ATOMIC
     V_PAIR_STYLE = SW
@@ -57,14 +56,10 @@ class SinglePoint(list):
         Write the command to the file.
         """
         self.setUp()
+        self.finalize()
         with open(self.outfile, 'w') as fh:
-            for idx, cmd in enumerate(self, 1):
-                num = round(cmd.count('%s') / 2)
-                ids = [f'{idx}{string.ascii_lowercase[x]}' for x in range(num)]
-                ids += [x for x in reversed(ids)]
-                cmd = cmd % tuple(ids) if ids else cmd
-                fh.write(cmd + '\n')
-            fh.write('quit 0\n')
+            for line in self:
+                fh.write(line + '\n')
 
     def setUp(self):
         """
@@ -82,20 +77,20 @@ class SinglePoint(list):
         """
         Write the setup section including unit and atom styles.
         """
-        self.append(f"{self.UNITS} {self.V_UNITS}")
-        self.append(f"atom_style {self.V_ATOM_STYLE}")
+        self.join(self.UNITS, self.V_UNITS)
+        self.join('atom_style', self.V_ATOM_STYLE)
 
     def pair(self):
         """
         Write pair style.
         """
-        self.append(f"{self.PAIR_STYLE} {self.V_PAIR_STYLE}")
+        self.join(self.PAIR_STYLE, self.V_PAIR_STYLE)
 
     def data(self):
         """
         Write data file related information.
         """
-        self.append(f"{self.READ_DATA} {self.options.JOBNAME}.data")
+        self.join(self.READ_DATA, f"{self.options.JOBNAME}.data")
 
     def traj(self, xyz=True, force=False, sort=True, fmt=None):
         """
@@ -136,6 +131,16 @@ class SinglePoint(list):
     def variable(self, *args, **kwargs):
         self.join('variable', *args, **kwargs)
 
+    @contextlib.contextmanager
+    def block(self, newline=True):
+        block = self.__class__(struct=self.struct)
+        try:
+            yield block
+        finally:
+            self.append(block)
+            if newline:
+                self.append('')
+
     def join(self, *args, newline=False):
         """
         Join the arguments to form a lammps command.
@@ -161,7 +166,7 @@ class SinglePoint(list):
             return
         if val := geo and self.options.substruct[1]:
             self.append(f'fix rest all restrain {geo} -2000.0 -2000.0 {val}')
-        self.append(f"min_style {min_style}")
+        self.join('min_style', min_style)
         self.append(f"minimize 1.0e-6 1.0e-8 1000000 10000000")
         if val:
             self.append('unfix rest')
@@ -172,10 +177,11 @@ class SinglePoint(list):
         """
         if not self.options.temp:
             return
-        time = self.options.timestep * scipy.constants.femto
-        self.append(f'\n{self.TIMESTEP} {time / self.time_unit() }')
-        self.append(f'thermo_modify flush yes')
-        self.append(f'thermo 1000')
+        self.join(
+            self.TIMESTEP,
+            self.options.timestep * scipy.constants.femto / self.time_unit())
+        self.append('thermo_modify flush yes')
+        self.append('thermo 1000')
 
     @classmethod
     def time_unit(cls, unit=None):
@@ -198,7 +204,26 @@ class SinglePoint(list):
         """
         Single point energy calculation.
         """
-        self.append(self.RUN_STEP % 0)
+        self.runStep()
+
+    def runStep(self, nstep=0):
+        self.join('run', int(nstep))
+
+    def finalize(self, block_id=0):
+        for idx, cmds in enumerate(self):
+            if isinstance(cmds, str):
+                continue
+            ascii_id = 0
+            for sub_idx, cmd in enumerate(cmds[:]):
+                if not cmd.startswith("fix %s"):
+                    continue
+                fid = f'{block_id}{string.ascii_lowercase[ascii_id]}'
+                cmds[sub_idx] = cmd % fid
+                cmds.append("unfix %s" % fid)
+                ascii_id += 1
+            self[idx:idx + 1] = cmds
+            block_id += 1
+        self.join('quit 0')
 
 
 class RampUp(SinglePoint):
@@ -208,14 +233,10 @@ class RampUp(SinglePoint):
     NVT = 'NVT'
     NPT = 'NPT'
     NVE = 'NVE'
+    MODULUS = 'modulus'
     ENSEMBLES = [NVE, NVT, NPT]
     CUSTOM_EXT = f"{SinglePoint.CUSTOM_EXT}.gz"
-    FIX_ID = f"fix %s"
-    FIX_ALL = f"{FIX_ID} all"
-    FIX_NVE = f"{FIX_ALL} nve"
     BERENDSEN = 'berendsen'
-    TEMP_BERENDSEN = f"{FIX_ALL} temp/berendsen {{stemp}} {{temp}} {{tdamp}}"
-    UNFIX = "unfix %s"
 
     def __init__(self, *args, **kwargs):
         """
@@ -259,7 +280,12 @@ class RampUp(SinglePoint):
                  stemp=self.options.stemp,
                  temp=self.options.stemp)
 
-    def nvt(self, nstep=1E4, stemp=None, temp=300, style=BERENDSEN, pre=None):
+    def nvt(self,
+            nstep=1E4,
+            stemp=None,
+            temp=300,
+            style=BERENDSEN,
+            block=None):
         """
         Append command for constant volume and temperature.
 
@@ -273,16 +299,12 @@ class RampUp(SinglePoint):
             return
         if stemp is None:
             stemp = temp
-        cmds = pre if pre else []
-        if style == self.BERENDSEN:
-            cmds.append(
-                self.TEMP_BERENDSEN.format(stemp=stemp,
-                                           temp=temp,
-                                           tdamp=self.tdamp))
-            cmds.append(self.FIX_NVE)
-        # FIXME: support thermostat more than berendsen.
-        unfixes = [self.UNFIX for x in cmds if x.startswith(self.FIX_ID)]
-        self.append('\n'.join(cmds + [self.RUN_STEP % nstep] + unfixes) + '\n')
+        with contextlib.nullcontext(block) if block else self.block() as block:
+            if style == self.BERENDSEN:
+                block.join('fix %s all temp/berendsen', stemp, temp,
+                           self.tdamp)
+                block.nve(nstep=nstep, block=block)
+            # FIXME: support thermostat more than berendsen.
 
     def rampUp(self):
         """
@@ -295,13 +317,12 @@ class RampUp(SinglePoint):
 
     def npt(self,
             nstep=20000,
-            stemp=300,
-            temp=300,
             spress=1.,
             press=1.,
             style=BERENDSEN,
             modulus=10,
-            pre=None):
+            block=None,
+            **kwargs):
         """
         Append command for constant pressure and temperature.
 
@@ -317,18 +338,12 @@ class RampUp(SinglePoint):
             return
         if spress is None:
             spress = press
-        cmds = pre if pre else []
-        if style == self.BERENDSEN:
-            cmd = f"fix %s all press/berendsen iso {spress} {press} {self.pdamp} modulus {modulus}"
-            cmds.append(cmd)
-            cmd = self.TEMP_BERENDSEN.format(stemp=stemp,
-                                             temp=temp,
-                                             tdamp=self.tdamp)
-            cmds.append(cmd)
-            cmds.append(self.FIX_NVE)
+        with contextlib.nullcontext(block) if block else self.block() as block:
+            if style == self.BERENDSEN:
+                block.join('fix %s all press/berendsen iso', spress, press,
+                           self.pdamp, self.MODULUS, modulus)
+                block.nvt(nstep=nstep, **kwargs, block=block)
         # FIXME: support thermostat more than berendsen.
-        unfixes = [self.UNFIX for x in cmds if x.startswith(self.FIX_ID)]
-        self.append('\n'.join(cmds + [self.RUN_STEP % nstep] + unfixes) + '\n')
 
     def relaxation(self, modulus=10):
         """
@@ -362,15 +377,16 @@ class RampUp(SinglePoint):
                          press=self.options.press,
                          modulus=modulus)
 
-    def nve(self, nstep=1E3):
+    def nve(self, nstep=1E3, block=None):
         """
         Constant energy and volume.
 
+        NOTE: NVT works with single module while NVT yields nan xyz
         :param nstep int: run this steps for time integration.
         """
-        # NVT on single molecule -> nan xyz (guess due to translation)
-        self.append('\n'.join(
-            [self.FIX_NVE, self.RUN_STEP % nstep, self.UNFIX]))
+        with contextlib.nullcontext(block) if block else self.block() as block:
+            block.append('fix %s all nve')
+            self.runStep(nstep=nstep)
 
 
 class Ave(RampUp):
@@ -405,13 +421,14 @@ class Ave(RampUp):
             self.equal(name, f'{dim}hi - {dim}lo', quoted=True)
         num = int(self.relax_step / rec_num)
         args = ' '.join(f'v_{i}' for i in spans)
-        record = f"fix %s all ave/time 1 {num} {num} {args} file {xyz}"
+        with self.block() as block:
+            block.aveTime(1, num, num, args, 'file', xyz)
         self.npt(nstep=self.relax_step,
                  stemp=self.options.temp,
                  temp=self.options.temp,
                  press=self.options.press,
                  modulus=modulus,
-                 pre=[record])
+                 block=block)
         self.print(*spans, label='Final')
         # Calculate the aves span
         aves = [f'ave_{i}' for i in xyz]
@@ -427,6 +444,9 @@ class Ave(RampUp):
         self.join('change_box', 'all', *scales, 'remap')
         # Delete used variables
         self.delete(*spans, *aves, *ratios)
+
+    def aveTime(self, *args):
+        self.join('fix %s all ave/time', *args)
 
     def python(self, name, func, fmt, *inputs):
         """
@@ -466,8 +486,7 @@ class Script(Ave):
     """
     Customized with relaxation cycles.
     """
-    MODULUS = 'modulus'
-    MODULUS_VAR = f'${{{MODULUS}}}'
+    MODULUS_VAR = f'${{{RampUp.MODULUS}}}'
     FACT = 'fact'
 
     def __init__(self, *args, loop_num=1000, wnum=3, rec_num=100, **kwargs):
@@ -518,7 +537,7 @@ class Script(Ave):
               defm_id='defm_id',
               defm_start='defm_start',
               defm_break='defm_break',
-              imodulus=f'i{MODULUS}'):
+              imodulus='imodulus'):
         """
         Deform the box by cycles to get close to the target pressure.
         One cycle: sinusoidal wave, printing, deformation, and relaxation.
@@ -557,25 +576,28 @@ class Script(Ave):
     def wiggle(self, file='press_vol', vol='vol', amp='amp'):
         self.equal(vol, vol)
         self.equal(amp, f"0.01*v_{vol}^(1/3)")
-        period = self.wstep * self.options.timestep
-        args = [f"{i} wiggle ${{{amp}}} {period}" for i in 'xyz']
-        deform = f"fix %s all deform {self.rec_num} {' '.join(args)}"
-        per = int(self.wstep / self.rec_num)
-        record = f"fix %s all ave/time 1 {per} {per} c_thermo_press v_{vol} file {file}"
-        self.nvt(nstep=self.wstep * self.wnum,
-                 stemp=self.options.temp,
-                 temp=self.options.temp,
-                 pre=[deform, record])
+        with self.block() as block:
+            period = self.wstep * self.options.timestep
+            args = [f"{i} wiggle ${{{amp}}} {period}" for i in 'xyz']
+            block.join(f"fix %s all deform {self.rec_num} {' '.join(args)}")
+            per = int(self.wstep / self.rec_num)
+            block.aveTime(1, per, per, 'c_thermo_press', f'v_{vol}', 'file',
+                          file)
+            self.nvt(nstep=self.wstep * self.wnum,
+                     stemp=self.options.temp,
+                     temp=self.options.temp,
+                     block=block)
         self.delete(vol, amp)
         return file
 
     def deform(self):
-        args = [f"{i} scale ${{{self.FACT}}}" for i in 'xyz']
-        cmd = f"fix %s all deform 100 {' '.join(args)} remap v"
-        self.nvt(nstep=self.wstep / 2,
-                 stemp=self.options.temp,
-                 temp=self.options.temp,
-                 pre=[cmd])
+        with self.block() as block:
+            args = [f"{i} scale ${{{self.FACT}}}" for i in 'xyz']
+            block.join(f"fix %s all deform 100 {' '.join(args)} remap v")
+            self.nvt(nstep=self.wstep / 2,
+                     stemp=self.options.temp,
+                     temp=self.options.temp,
+                     block=block)
         self.delete(self.FACT)
         self.nvt(nstep=self.wstep / 2,
                  stemp=self.options.temp,
