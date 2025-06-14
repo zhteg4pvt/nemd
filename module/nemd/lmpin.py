@@ -115,7 +115,7 @@ class SinglePoint(list):
             return
         file = f"{self.options.JOBNAME}{self.CUSTOM_EXT}"
         args = [self.DUMP_ID, 'all', 'custom', self.DUMP_Q, file, 'id'] + args
-        self.join(*args, key='dump')
+        self.join('dump', *args)
         # Dumpy modify
         args = []
         if sort:
@@ -126,20 +126,28 @@ class SinglePoint(list):
             return
         self.dump_modify(self.DUMP_ID, *args)
 
-    def join(self, *args, key='variable', newline=False):
+    def equal(self, name, expr, bracked=False, quoted=False, **kwargs):
+        if bracked:
+            expr = f'${{{expr}}}'
+        if quoted:
+            expr = f'"{expr}"'
+        self.variable(name, 'equal', expr, **kwargs)
+
+    def variable(self, *args, **kwargs):
+        self.join('variable', *args, **kwargs)
+
+    def join(self, *args, newline=False):
         """
         Join the arguments to form a lammps command.
-
-        :param key str: the command name. (variable defines lammps variable)
         """
-        cmd = f'{key} {" ".join(map(str, args))}'
+        cmd = " ".join(map(str, args))
         self.append(cmd + '\n' if newline else cmd)
 
-    def dump_modify(self, *args, key='dump_modify'):
+    def dump_modify(self, *args):
         """
         Modify the trajectory dump.
         """
-        self.join(*args, key=key)
+        self.join('dump_modify', *args)
 
     def minimize(self, min_style='fire', geo=None):
         """
@@ -201,13 +209,12 @@ class RampUp(SinglePoint):
     NPT = 'NPT'
     NVE = 'NVE'
     ENSEMBLES = [NVE, NVT, NPT]
-
     CUSTOM_EXT = f"{SinglePoint.CUSTOM_EXT}.gz"
-
     FIX_ID = f"fix %s"
-    FIX_NVE = "fix %s all nve"
+    FIX_ALL = f"{FIX_ID} all"
+    FIX_NVE = f"{FIX_ALL} nve"
     BERENDSEN = 'berendsen'
-    TEMP_BERENDSEN = f"fix %s all temp/berendsen {{stemp}} {{temp}} {{tdamp}}"
+    TEMP_BERENDSEN = f"{FIX_ALL} temp/berendsen {{stemp}} {{temp}} {{tdamp}}"
     UNFIX = "unfix %s"
 
     def __init__(self, *args, **kwargs):
@@ -312,13 +319,12 @@ class RampUp(SinglePoint):
             spress = press
         cmds = pre if pre else []
         if style == self.BERENDSEN:
-            cmds.append(
-                f"fix %s all press/berendsen iso {spress} {press} {self.pdamp} modulus {modulus}"
-            )
-            cmds.append(
-                self.TEMP_BERENDSEN.format(stemp=stemp,
-                                           temp=temp,
-                                           tdamp=self.tdamp))
+            cmd = f"fix %s all press/berendsen iso {spress} {press} {self.pdamp} modulus {modulus}"
+            cmds.append(cmd)
+            cmd = self.TEMP_BERENDSEN.format(stemp=stemp,
+                                             temp=temp,
+                                             tdamp=self.tdamp)
+            cmds.append(cmd)
             cmds.append(self.FIX_NVE)
         # FIXME: support thermostat more than berendsen.
         unfixes = [self.UNFIX for x in cmds if x.startswith(self.FIX_ID)]
@@ -396,7 +402,7 @@ class Ave(RampUp):
         # Record the xyz span durning NPT
         spans = [f'{i}l' for i in xyz]
         for name, dim in zip(spans, xyz):
-            self.join(name, 'equal', f'"{dim}hi - {dim}lo"')
+            self.equal(name, f'{dim}hi - {dim}lo', quoted=True)
         num = int(self.relax_step / record_num)
         args = ' '.join(f'v_{i}' for i in spans)
         record = f"fix %s all ave/time 1 {num} {num} {args} file {xyz}"
@@ -411,19 +417,18 @@ class Ave(RampUp):
         aves = [f'ave_{i}' for i in xyz]
         for name, dim in zip(aves, xyz):
             func = f'get{dim.upper()}L'
-            self.join(name, 'python', func)
-            self.python(func, iargs=[1, xyz], rargs=[name], farg='sf')
+            self.python(name, func, 'sf', xyz)
         self.print(*aves, label='Averaged')
         # Calculate the ratio and change the box
         ratios = [f'ratio_{i}' for i in xyz]
         for ratio, ave, span in zip(ratios, aves, spans):
-            self.join(ratio, 'equal', f'"v_{ave} / v_{span}"')
+            self.equal(ratio, f'v_{ave} / v_{span}', quoted=True)
         scales = [f'{i} scale ${{{r}}}' for i, r in zip(xyz, ratios)]
-        self.join('all', *scales, 'remap', key='change_box')
+        self.join('change_box', 'all', *scales, 'remap')
         # Delete used variables
         self.delete(*spans, *aves, *ratios)
 
-    def python(self, func, iargs=None, rargs=None, farg=None, key='python'):
+    def python(self, name, func, fmt, *inputs):
         """
         Construct a python command.
 
@@ -432,15 +437,13 @@ class Ave(RampUp):
         :param rargs list: the output variables of the function.
         :param farg str: the type of the input and output variables.
         """
+        self.variable(name, 'python', func)
         args = [func]
-        if iargs:
-            args += ['input', *iargs]
-        if rargs:
-            args += ['return'] + [f'v_{x}' for x in rargs]
-        if farg:
-            args += ['format', farg]
-        args += ('here', f'"from nemd.lmpfunc import {func}"')
-        self.join(*args, key=key)
+        args += ['input', len(inputs), *inputs]
+        args += ['return', f'v_{name}']
+        args += ['format', fmt]
+        args += ['here', f'"from nemd.lmpfunc import {func}"']
+        self.join('python', *args)
 
     def print(self, *args, label=None):
         """
@@ -452,11 +455,11 @@ class Ave(RampUp):
         to_print = ' '.join(f'{i}=${{{i}}}' for i in args)
         if label:
             to_print = f'{label}: {to_print}'
-        self.join(f'"{to_print}"', key='print')
+        self.join('print', f'"{to_print}"')
 
     def delete(self, *args):
         for arg in args:
-            self.join(arg, 'delete')
+            self.variable(arg, 'delete')
 
 
 class Script(Ave):
@@ -487,7 +490,7 @@ class Script(Ave):
                  temp=self.options.temp)
         self.cycle()
         self.nvt(nstep=self.relax_step / 1E1, temp=self.options.temp)
-        self.join('press', 'equal', 'press')
+        self.equal('press', 'press')
         self.npt(nstep=self.relax_step / 1E1,
                  stemp=self.options.temp,
                  temp=self.options.temp,
@@ -501,8 +504,7 @@ class Script(Ave):
               record_num=100,
               defm_id='defm_id',
               defm_start='defm_start',
-              defm_break='defm_break',
-              press_vol='press_vol.data'):
+              defm_break='defm_break'):
         """
         Deform the box by cycles to get close to the target pressure.
         One cycle: sinusoidal wave, printing, deformation, and relaxation.
@@ -521,75 +523,58 @@ class Script(Ave):
         # Each cycle dumps one trajectory frame
         self.dump_modify(self.DUMP_ID, 'every', nstep * (num + 1))
         # Set variables used in the loop
-        self.join(defm_id, 'loop', 0, max_loop - 1, 'pad')
-        self.join(defm_start, key='label')
+        self.variable(defm_id, 'loop', 0, max_loop - 1, 'pad')
+        self.join('label', defm_start)
         self.print(defm_id)
         # Run in a subdirectory as some output files are of the same names
         dirname = f"defm_${{{defm_id}}}"
         self.shell('mkdir', dirname)
         self.shell('cd', dirname, newline=True)
-        factor = self.wiggle(nstep, record_num, num, press_vol)
+        factor = self.wiggle(nstep, record_num, num)
         cond = f"${{{defm_id}}} == {max_loop - 1} || ${{{factor}}} == 1"
         self.if_then(cond, f'jump SELF {defm_break}', newline=True)
         self.deform(factor, nstep)
         self.shell('cd', os.pardir)
-        self.join(defm_id, key='next')
-        self.join('SELF', defm_start, key='jump', newline=True)
-        self.join(defm_break, key='label')
+        self.join('next', defm_id)
+        self.join('jump', 'SELF', defm_start, newline=True)
+        self.join('label', defm_break)
         self.delete(defm_id)
         self.shell('cd', os.pardir)
         # Restore dump defaults
         self.dump_modify(self.DUMP_ID, 'every', self.DUMP_Q)
 
-    def wiggle(self, nstep, record_num, num, press_vol):
-        VOL = 'vol'
-        MODULUS = 'modulus'
-
-        PRESS_VOL_FILE = 'press_vol.data'
-
-        IMMED_MODULUS = 'immed_modulus'
-        SET_IMMED_MODULUS = f"""variable {IMMED_MODULUS} python getModulus
-        python getModulus input 2 {PRESS_VOL_FILE} {{record_num}} return v_{IMMED_MODULUS} format sif here "from nemd.lmpfunc import getModulus"
-        """
-        SET_MODULUS = f"variable {MODULUS} equal ${{{IMMED_MODULUS}}}"
-
-        IMMED_PRESS = 'immed_press'
-        SET_IMMED_PRESS = f"""variable {IMMED_PRESS} python getPress
-        python getPress input 1 {PRESS_VOL_FILE} return v_{IMMED_PRESS} format sf here "from nemd.lmpfunc import getPress"
-        """
-        PRESS = 'press'
-        SET_PRESS = f"variable {PRESS} equal ${{{IMMED_PRESS}}}"
-
-        FACTOR = 'factor'
-        SET_FACTOR = f"""variable {FACTOR} python getBdryFactor
-        python getBdryFactor input 2 {{press}} press_vol.data return v_{FACTOR} format fsf here "from nemd.lmpfunc import getBdryFactor"
-        """
-        self.append(SET_IMMED_PRESS)
-        self.append(SET_IMMED_MODULUS.format(record_num=record_num))
-        self.append(SET_FACTOR.format(press=self.options.press))
-        self.join(VOL, 'equal', VOL)
-        self.join('amp', 'equal', f"0.01*v_{VOL}^(1/3)")
+    def wiggle(self,
+               nstep,
+               record_num,
+               num,
+               imodulus=f'i{MODULUS}',
+               factor='factor',
+               file='press_vol',
+               vol='vol',
+               amp='amp'):
+        self.python(imodulus, 'getModulus', 'sif', file, record_num)
+        self.python(factor, 'getBdryFactor', 'fsf', self.options.press, file)
+        self.equal(vol, vol)
+        self.equal(amp, f"0.01*v_{vol}^(1/3)")
         period = nstep * self.options.timestep
-        args = [f"{i} wiggle ${{amp}} {period}" for i in 'xyz']
-        pre = [f"fix %s all 'deform' 100 {' '.join(args)}"]
-        period = int(nstep / record_num)
-        pre += [
-            f"fix %s all ave/time 1 {period} {period} c_thermo_press v_vol file {press_vol}"
-        ]
+        args = [f"{i} wiggle ${{{amp}}} {period}" for i in 'xyz']
+        deform = f"fix %s all deform 100 {' '.join(args)}"
+        per = int(nstep / record_num)
+        record = f"fix %s all ave/time 1 {per} {per} c_thermo_press v_{vol} file {file}"
         self.nvt(nstep=nstep * num,
                  stemp=self.options.temp,
                  temp=self.options.temp,
-                 pre=pre)
-        self.delete(VOL, 'amp')
-        self.print(IMMED_PRESS, IMMED_MODULUS, FACTOR)
+                 pre=[deform, record])
+        self.delete(vol, amp)
+        self.print(imodulus, factor)
         # Record press and modulus as immediate variable evaluation uses files
-        self.append(SET_MODULUS)
-        self.append(SET_PRESS)
-        self.delete(IMMED_PRESS, IMMED_MODULUS)
-        return FACTOR
+        self.equal(self.MODULUS, imodulus, bracked=True)
+        self.delete(imodulus)
+        return factor
 
     def deform(self, factor, nstep):
-        cmd = f"fix %s all deform 100 x scale ${{{factor}}} y scale ${{{factor}}} z scale ${{{factor}}} remap v"
+        args = [f"{i} scale ${{{factor}}}" for i in 'xyz']
+        cmd = f"fix %s all deform 100 {' '.join(args)} remap v"
         self.nvt(nstep=nstep / 2,
                  stemp=self.options.temp,
                  temp=self.options.temp,
@@ -600,10 +585,10 @@ class Script(Ave):
                  temp=self.options.temp)
 
     def if_then(self, cond, action, **kwargs):
-        self.join(f'"{cond}"', 'then', f'"{action}"', key='if', **kwargs)
+        self.join('if', f'"{cond}"', 'then', f'"{action}"', **kwargs)
 
     def shell(self, *args, **kwargs):
-        self.join(*args, key='shell', **kwargs)
+        self.join('shell', *args, **kwargs)
 
     def relaxation(self, modulus=MODULUS_VAR):
         """
