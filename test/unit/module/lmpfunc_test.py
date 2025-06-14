@@ -175,13 +175,13 @@ class TestFunc:
     @pytest.mark.parametrize('press,expected', [(-2937, 1),
                                                 (100, 0.9771745628227441),
                                                 (-5000, 1.0374337169706997)])
-    def testGetVolFactor(self, press, expected, tmp_dir):
-        factor = lmpfunc.getVolFactor(press, PRESS_DATA)
+    def testGetVolFact(self, press, expected, tmp_dir):
+        factor = lmpfunc.getVolFact(press, PRESS_DATA)
         np.testing.assert_almost_equal(factor, expected)
 
     @pytest.mark.parametrize('press,expected', [(-2937, 1),
                                                 (100, 0.9923328865483737),
                                                 (-5000, 1.0123253668541392)])
-    def testGetBdryFactor(self, press, expected, tmp_dir):
-        factor = lmpfunc.getBdryFactor(press, PRESS_DATA)
+    def testGetBdryFact(self, press, expected, tmp_dir):
+        factor = lmpfunc.getBdryFact(press, PRESS_DATA)
         np.testing.assert_almost_equal(factor, expected)

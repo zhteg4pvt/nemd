@@ -152,13 +152,13 @@ class Modulus(Press):
     STD_DEV = '_(Std_Dev)'
     SMOOTHED = '_(Smoothed)'
 
-    def __init__(self, filename, record_num):
+    def __init__(self, filename, rec_num):
         """
         :param filename str: the filename with path to load data from
-        :param record_num int: the recording number of each cycle.
+        :param rec_num int: the recording number of each cycle.
         """
         super().__init__(filename)
-        self.record_num = record_num
+        self.rec_num = rec_num
         self.ave = pd.DataFrame()
         self.modulus = None
 
@@ -176,16 +176,16 @@ class Modulus(Press):
         """
         for column in self.data.columns:
             col = self.data[column].values
-            mod = col.shape[0] % self.record_num
+            mod = col.shape[0] % self.rec_num
             if mod:
                 col = np.concatenate(([np.nan], col))
-            data = col.reshape(-1, self.record_num)
+            data = col.reshape(-1, self.rec_num)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 self.ave[column] = np.nanmean(data, axis=0)
                 self.ave[column + self.STD_DEV] = np.nanstd(data, axis=0)
             smoothed_lb = column + self.SMOOTHED
-            window = int(self.record_num / 10)
+            window = int(self.rec_num / 10)
             self.ave[smoothed_lb] = scipy.signal.savgol_filter(
                 self.ave[column], window, 3)
 
@@ -212,7 +212,7 @@ class Modulus(Press):
             for idx, (axis, column) in enumerate(zip(axes, self.data.columns)):
                 self.subplot(axis, column)
                 if not idx:
-                    num = round(self.data.shape[0] / self.record_num)
+                    num = round(self.data.shape[0] / self.rec_num)
                     axis.set_title(f"Sinusoidal Deformation ({num} cycles)")
             basename = os.path.basename(self.filename)
             name = symbols.PERIOD.join(basename.split(symbols.PERIOD)[:-1])
@@ -371,20 +371,20 @@ def getPress(filename):
     return press.ave
 
 
-def getModulus(filename, record_num):
+def getModulus(filename, rec_num):
     """
     Get the bulk modulus.
 
     :param filename str: the filename with path to load data from
-    :param record_num int: the recording number of each cycle.
+    :param rec_num int: the recording number of each cycle.
     :return float: the bulk modulus.
     """
-    modulus = Modulus(filename, record_num)
+    modulus = Modulus(filename, rec_num)
     modulus.run()
     return modulus.modulus
 
 
-def getVolFactor(press, filename):
+def getVolFact(press, filename):
     """
     Get the volume scale factor so that the pressure is expected to approach the
     target by scaling the volume.
@@ -398,7 +398,7 @@ def getVolFactor(press, filename):
     return scale.factor
 
 
-def getBdryFactor(press, filename):
+def getBdryFact(press, filename):
     """
     Get the boundary scale factor so that the pressure is expected to approach
     the target by scaling the boundary length.
@@ -407,4 +407,4 @@ def getBdryFactor(press, filename):
     :param filename str: the filename with path to load data from.
     :return float: the scale factor of the volume.
     """
-    return getVolFactor(press, filename)**(1 / 3)
+    return getVolFact(press, filename)**(1 / 3)

@@ -391,19 +391,19 @@ class Ave(RampUp):
                  stemp=self.options.temp,
                  temp=self.options.temp)
 
-    def average(self, modulus=10, xyz='xyz', record_num=10):
+    def average(self, modulus=10, xyz='xyz', rec_num=10):
         """
         Average the boundary based on NPT ensemble.
 
         :param modulus float: the modules in berendsen barostat.
         :param xyz str: the filename to record boundary.
-        :param record_num int: the number of records.
+        :param rec_num int: the number of records.
         """
         # Record the xyz span durning NPT
         spans = [f'{i}l' for i in xyz]
         for name, dim in zip(spans, xyz):
             self.equal(name, f'{dim}hi - {dim}lo', quoted=True)
-        num = int(self.relax_step / record_num)
+        num = int(self.relax_step / rec_num)
         args = ' '.join(f'v_{i}' for i in spans)
         record = f"fix %s all ave/time 1 {num} {num} {args} file {xyz}"
         self.npt(nstep=self.relax_step,
@@ -468,6 +468,22 @@ class Script(Ave):
     """
     MODULUS = 'modulus'
     MODULUS_VAR = f'${{{MODULUS}}}'
+    FACT = 'fact'
+
+    def __init__(self, *args, loop_num=1000, wnum=3, rec_num=100, **kwargs):
+        """
+        :param loop_num int: the maximum number of cycles.
+        :param wnum int: the number of sinusoidal waves in each cycle.
+        :param rec_num int: each sinusoidal wave records this number of data.
+        """
+        super().__init__(*args, **kwargs)
+        self.loop_num = loop_num
+        self.wnum = wnum
+        self.rec_num = rec_num
+        # Maximum Total Cycle Steps (cyc_nstep): self.relax_steps * 10
+        # The deformation and relaxation cost one additional self.wstep
+        self.wstep = int(self.relax_step * 10 / loop_num / (self.wnum + 1))
+        self.wstep = max([int(self.wstep / self.rec_num), 10]) * self.rec_num
 
     def rampUp(self, ensemble=None):
         """
@@ -499,88 +515,69 @@ class Script(Ave):
                  modulus=self.MODULUS_VAR)
 
     def cycle(self,
-              max_loop=1000,
-              num=3,
-              record_num=100,
               defm_id='defm_id',
               defm_start='defm_start',
-              defm_break='defm_break'):
+              defm_break='defm_break',
+              imodulus=f'i{MODULUS}'):
         """
         Deform the box by cycles to get close to the target pressure.
         One cycle: sinusoidal wave, printing, deformation, and relaxation.
 
-        :param max_loop int: the maximum number of big cycle loops.
-        :param num int: the number of sinusoidal waves in each cycle.
-        :param record_num int: each sinusoidal wave records this number of data.
-        :param defm_id str: deformation id loop from 0 to max_loop - 1
+        :param defm_id str: deformation id loop from 0 to loop_num - 1
         :param defm_start str: label to start the deformation loop
         :param defm_break str: terminated deformation goes to this label
         """
-        nstep = int(self.relax_step * 10 / max_loop / (num + 1))
-        # One sinusoidal cycle that yields at least 10 records
-        nstep = max([int(nstep / record_num), 10]) * record_num
-        # Maximum Total Cycle Steps (cyc_nstep): self.relax_steps * 10
         # Each cycle dumps one trajectory frame
-        self.dump_modify(self.DUMP_ID, 'every', nstep * (num + 1))
+        self.dump_modify(self.DUMP_ID, 'every', self.wstep * (self.wnum + 1))
         # Set variables used in the loop
-        self.variable(defm_id, 'loop', 0, max_loop - 1, 'pad')
+        self.variable(defm_id, 'loop', 0, self.loop_num - 1, 'pad')
         self.join('label', defm_start)
         self.print(defm_id)
         # Run in a subdirectory as some output files are of the same names
         dirname = f"defm_${{{defm_id}}}"
         self.shell('mkdir', dirname)
         self.shell('cd', dirname, newline=True)
-        factor = self.wiggle(nstep, record_num, num)
-        cond = f"${{{defm_id}}} == {max_loop - 1} || ${{{factor}}} == 1"
-        self.if_then(cond, f'jump SELF {defm_break}', newline=True)
-        self.deform(factor, nstep)
+        file = self.wiggle()
+        self.python(self.FACT, 'getBdryFact', 'fsf', self.options.press, file)
+        self.print(self.FACT)
+        self.if_then(f"${{{self.FACT}}} == 1", f'jump SELF {defm_break}')
+        self.deform()
         self.shell('cd', os.pardir)
         self.join('next', defm_id)
         self.join('jump', 'SELF', defm_start, newline=True)
         self.join('label', defm_break)
-        self.delete(defm_id)
+        self.python(imodulus, 'getModulus', 'sif', file, self.rec_num)
+        # Record modulus as immediate variable evaluation uses files in subdir.
+        self.equal(self.MODULUS, imodulus, bracked=True)
+        self.delete(imodulus, defm_id)
         self.shell('cd', os.pardir)
         # Restore dump defaults
         self.dump_modify(self.DUMP_ID, 'every', self.DUMP_Q)
 
-    def wiggle(self,
-               nstep,
-               record_num,
-               num,
-               imodulus=f'i{MODULUS}',
-               factor='factor',
-               file='press_vol',
-               vol='vol',
-               amp='amp'):
-        self.python(imodulus, 'getModulus', 'sif', file, record_num)
-        self.python(factor, 'getBdryFactor', 'fsf', self.options.press, file)
+    def wiggle(self, file='press_vol', vol='vol', amp='amp'):
         self.equal(vol, vol)
         self.equal(amp, f"0.01*v_{vol}^(1/3)")
-        period = nstep * self.options.timestep
+        period = self.wstep * self.options.timestep
         args = [f"{i} wiggle ${{{amp}}} {period}" for i in 'xyz']
-        deform = f"fix %s all deform 100 {' '.join(args)}"
-        per = int(nstep / record_num)
+        deform = f"fix %s all deform {self.rec_num} {' '.join(args)}"
+        per = int(self.wstep / self.rec_num)
         record = f"fix %s all ave/time 1 {per} {per} c_thermo_press v_{vol} file {file}"
-        self.nvt(nstep=nstep * num,
+        self.nvt(nstep=self.wstep * self.wnum,
                  stemp=self.options.temp,
                  temp=self.options.temp,
                  pre=[deform, record])
         self.delete(vol, amp)
-        self.print(imodulus, factor)
-        # Record press and modulus as immediate variable evaluation uses files
-        self.equal(self.MODULUS, imodulus, bracked=True)
-        self.delete(imodulus)
-        return factor
+        return file
 
-    def deform(self, factor, nstep):
-        args = [f"{i} scale ${{{factor}}}" for i in 'xyz']
+    def deform(self):
+        args = [f"{i} scale ${{{self.FACT}}}" for i in 'xyz']
         cmd = f"fix %s all deform 100 {' '.join(args)} remap v"
-        self.nvt(nstep=nstep / 2,
+        self.nvt(nstep=self.wstep / 2,
                  stemp=self.options.temp,
                  temp=self.options.temp,
                  pre=[cmd])
-        self.delete(factor)
-        self.nvt(nstep=nstep / 2,
+        self.delete(self.FACT)
+        self.nvt(nstep=self.wstep / 2,
                  stemp=self.options.temp,
                  temp=self.options.temp)
 
