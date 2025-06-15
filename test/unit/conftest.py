@@ -29,7 +29,7 @@ def lines(filename='filename'):
     Get the file handler of a temporary file and read the read lines on existing.
 
     :param filename str: temporary filename
-    :yield '_io.TextIOWrapper', list: the file handler, the written lines.
+    :return '_io.TextIOWrapper', list: the file handler, the written lines.
     """
     lines = []
     try:
