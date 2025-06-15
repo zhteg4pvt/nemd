@@ -148,7 +148,7 @@ class SinglePoint(list):
         """
         Create, yield, and append a block.
 
-        :param newline: new a newline when appending the block.
+        :param newline: add an empty line after the block.
         :return `cls`: block if self or a new block.
         """
         if self.isblock:
@@ -166,7 +166,7 @@ class SinglePoint(list):
         """
         Join the arguments to form a lammps command.
 
-        :param newline: add newline after the line.
+        :param newline: add a newline.
         """
         cmd = " ".join(map(str, args))
         self.append(cmd + '\n' if newline else cmd)
@@ -313,7 +313,7 @@ class RampUp(SinglePoint):
         """
         Append command for constant volume and temperature.
 
-        :param nstep int: run this steps for time integration.
+        :param nstep int: run this number of steps.
         :param stemp float: starting temperature.
         :param temp float: target temperature.
         :param style str: thermostat style.
@@ -353,7 +353,7 @@ class RampUp(SinglePoint):
         """
         Append command for constant pressure and temperature.
 
-        :param nstep int: run this steps for time integration.
+        :param nstep int: run this number of steps.
         :param spress float: starting pressure.
         :param press float: target pressure.
         :param style str: the barostat style.
@@ -372,7 +372,7 @@ class RampUp(SinglePoint):
 
     def relaxation(self, modulus=10):
         """
-        Longer relaxation at constant temperature.
+        Relaxation at constant temperature.
 
         :param modulus float: the modulus for the barostat.
         """
@@ -410,7 +410,7 @@ class RampUp(SinglePoint):
 
         NOTE: NVT works with single module while NVT yields nan xyz
 
-        :param nstep int: run this steps for time integration.
+        :param nstep int: run this number of steps.
         """
         with self.block() as blk:
             blk.fixAll('nve')
@@ -421,6 +421,7 @@ class Ave(RampUp):
     """
     Customized with PBC averaging for NVT relaxation.
     """
+    XYZ = 'xyz'
 
     def relaxation(self, modulus=10):
         """
@@ -435,22 +436,20 @@ class Ave(RampUp):
                  stemp=self.options.temp,
                  temp=self.options.temp)
 
-    def average(self, modulus=10, xyz='xyz', rec_num=10):
+    def average(self, modulus=10, rec_num=10):
         """
         Change the box to the average boundary of a NPT simulation.
 
         :param modulus float: the modules in berendsen barostat.
-        :param xyz str: the filename to record boundary.
         :param rec_num int: the number of records.
         """
         # Run NPT with boundary recorded
-        spans = [f'{i}l' for i in xyz]
-        for name, dim in zip(spans, xyz):
+        spans = [f'{i}l' for i in self.XYZ]
+        for name, dim in zip(spans, self.XYZ):
             self.equal(name, f'{dim}hi - {dim}lo', quoted=True)
         with self.block() as blk:
             blk.aveTime(*[f'v_{i}' for i in spans],
-                        'file',
-                        xyz,
+                        file=self.XYZ,
                         nstep=self.relax_step,
                         num=rec_num)
             blk.npt(nstep=self.relax_step,
@@ -460,33 +459,41 @@ class Ave(RampUp):
                     modulus=modulus)
         self.print(*spans, label='Final')
         # Calculate the aves span, ratio to remap, and change the box.
-        aves = [f'ave_{i}' for i in xyz]
-        for name, dim in zip(aves, xyz):
-            func = f'get{dim.upper()}L'
-            self.python(name, func, 'sf', xyz)
+        aves = [f'ave_{i}' for i in self.XYZ]
+        for name, dim in zip(aves, self.XYZ):
+            self.python(name, f'get{dim.upper()}L', 'sf', self.XYZ)
         self.print(*aves, label='Averaged')
-        ratios = [f'ratio_{i}' for i in xyz]
+        ratios = [f'ratio_{i}' for i in self.XYZ]
         for ratio, ave, span in zip(ratios, aves, spans):
             self.equal(ratio, f'v_{ave} / v_{span}', quoted=True)
-        scales = [f'{i} scale ${{{r}}}' for i, r in zip(xyz, ratios)]
+        scales = [f'{i} scale ${{{r}}}' for i, r in zip(self.XYZ, ratios)]
         self.join('change_box', 'all', *scales, 'remap')
         # Delete used variables
         self.delete(*spans, *aves, *ratios)
 
-    def aveTime(self, *args, nstep=None, num=None):
+    def aveTime(self, *args, file=None, nstep=None, num=None):
+        """
+        Fix ave/time command.
+
+        :param file str: save the data into this file.
+        :param nstep int: simulation step.
+        :param num int: average this number of steps.
+        """
         if nstep and num:
             per = int(nstep / num)
             args = (1, per, per) + args
+        if file:
+            args += ('file', file)
         self.fixAll('ave/time', *args)
 
     def python(self, name, func, fmt, *inputs):
         """
         Construct a python command.
 
+        :param name str: the variable name.
         :param func str: the function name.
-        :param iargs list: the input variables of the function.
-        :param rargs list: the output variables of the function.
-        :param farg str: the type of the input and output variables.
+        :param fmt str: the type of the input and output variables.
+        :param inputs tuple: the input variables of the function.
         """
         self.variable(name, 'python', func)
         args = [func]
@@ -509,6 +516,11 @@ class Ave(RampUp):
         self.join('print', f'"{to_print}"')
 
     def delete(self, *args):
+        """
+        Delete variables.
+
+        :param args tuple of str: the variables to delete.
+        """
         for arg in args:
             self.variable(arg, 'delete')
 
@@ -540,21 +552,22 @@ class Script(Ave):
         Ramp up temperature to the targe value.
 
         :param ensemble str: the ensemble to ramp up temperature.
-
-        NOTE: ensemble=None runs NVT at low temperature and ramp up with constant
-        volume, calculate the averaged pressure at high temperature, and changes
-        volume to reach the target pressure.
         """
         if ensemble == self.NPT:
             super().rampUp()
             return
+        # NVT at low temperature
         self.nvt(nstep=self.relax_step / 2E1,
                  stemp=self.options.stemp,
                  temp=self.options.temp)
+        # Ramp up with constant volume
         self.nvt(nstep=self.relax_step / 2E1,
                  stemp=self.options.temp,
                  temp=self.options.temp)
-        self.cycle()
+        # Change the volume to approach the target pressure (1 frame per cycle)
+        with self.tmp_dump(self.wstep * (self.wnum + 1)):
+            self.cycle()
+        # NVT and NPT relaxation to reach the exact target pressure
         self.nvt(nstep=self.relax_step / 1E1, temp=self.options.temp)
         self.equal('press', 'press')
         self.npt(nstep=self.relax_step / 1E1,
@@ -564,47 +577,78 @@ class Script(Ave):
                  press=self.options.press,
                  modulus=self.MODULUS_VAR)
 
+    @contextlib.contextmanager
+    def tmp_dump(self, every, dump_id=SinglePoint.DUMP_ID):
+        """
+        Temporarily change the trajectory dump.
+
+        :param every int: dumpy one frame every this interval of timesteps.
+        """
+        self.dump_modify(dump_id, 'every', every)
+        try:
+            yield
+        finally:
+            self.dump_modify(dump_id, 'every', self.DUMP_Q)
+
     def cycle(self,
               defm_id='defm_id',
               defm_start='defm_start',
               defm_break='defm_break',
               imodulus='imodulus'):
         """
-        Deform the box by cycles to get close to the target pressure.
-        One cycle: sinusoidal wave, printing, deformation, and relaxation.
+        Deform the box to get close to the target pressure by cycles, in which
+        the system wiggle, adjust, and relax.
 
         :param defm_id str: deformation id loop from 0 to loop_num - 1
         :param defm_start str: label to start the deformation loop
         :param defm_break str: terminated deformation goes to this label
         """
-        # Each cycle dumps one trajectory frame
-        self.dump_modify(self.DUMP_ID, 'every', self.wstep * (self.wnum + 1))
-        # Set variables used in the loop
         self.variable(defm_id, 'loop', 0, self.loop_num - 1, 'pad')
+        # Loop start
         self.join('label', defm_start)
         self.print(defm_id)
-        # Run in a subdirectory as some output files are of the same names
-        dirname = f"defm_${{{defm_id}}}"
+        with self.tmp_dir(f"defm_${{{defm_id}}}") as cdw:
+            # Wiggle for factor
+            file = self.wiggle()
+            self.python(self.FACT, 'getBdryFact', 'fsf', self.options.press,
+                        file)
+            self.print(self.FACT)
+            self.if_then(f"${{{self.FACT}}} == 1", f'jump SELF {defm_break}')
+            # Adjust and continue
+            self.adjust()
+            self.shell(*cdw)
+            self.join('next', defm_id)
+            self.join('jump', 'SELF', defm_start, newline=True)
+            # Break with the modulus evaluation as (files in subdir).
+            self.join('label', defm_break)
+            self.python(imodulus, 'getModulus', 'sif', file, self.rec_num)
+            self.equal(self.MODULUS, imodulus, bracked=True)
+            self.delete(imodulus, defm_id)
+
+    @contextlib.contextmanager
+    def tmp_dir(self, dirname, cdw=('cd', os.pardir)):
+        """
+        Temporarily change the trajectory dump.
+
+        :param dirname str: the temporary dirname to cd into.
+        :return tuple: the shell command to go back to the working directory.
+        """
         self.shell('mkdir', dirname)
         self.shell('cd', dirname, newline=True)
-        file = self.wiggleBox()
-        self.python(self.FACT, 'getBdryFact', 'fsf', self.options.press, file)
-        self.print(self.FACT)
-        self.if_then(f"${{{self.FACT}}} == 1", f'jump SELF {defm_break}')
-        self.deformBox()
-        self.shell('cd', os.pardir)
-        self.join('next', defm_id)
-        self.join('jump', 'SELF', defm_start, newline=True)
-        self.join('label', defm_break)
-        self.python(imodulus, 'getModulus', 'sif', file, self.rec_num)
-        # Record modulus as immediate variable evaluation uses files in subdir.
-        self.equal(self.MODULUS, imodulus, bracked=True)
-        self.delete(imodulus, defm_id)
-        self.shell('cd', os.pardir)
-        # Restore dump defaults
-        self.dump_modify(self.DUMP_ID, 'every', self.DUMP_Q)
+        try:
+            yield cdw
+        finally:
+            self.shell(*cdw)
 
-    def wiggleBox(self, file='press_vol', vol='vol', amp='amp'):
+    def wiggle(self, file='press_vol', vol='vol', amp='amp'):
+        """
+        Wiggle simulation.
+
+        :param file str: the filename to record pressure and volume.
+        :param vol str: the volume variable name.
+        :param amp str: the wiggle amplitude.
+        :return filename: the pressure and volume filename.
+        """
         self.equal(vol, vol)
         self.equal(amp, f"0.01*v_{vol}^(1/3)")
         with self.block() as blk:
@@ -612,8 +656,7 @@ class Script(Ave):
             blk.deform(self.rec_num, parm=parm)
             blk.aveTime('c_thermo_press',
                         f'v_{vol}',
-                        'file',
-                        file,
+                        file=file,
                         nstep=self.wstep,
                         num=self.rec_num)
             blk.nvt(nstep=self.wstep * self.wnum,
@@ -622,12 +665,21 @@ class Script(Ave):
         self.delete(vol, amp)
         return file
 
-    def deform(self, per, *args, dim='xyz', parm=None):
-        if parm:
-            args = tuple(parm % i for i in dim) + args
-        self.fixAll('deform', per, *args)
+    def deform(self, period, *args, parm=None):
+        """
+        Deform command.
 
-    def deformBox(self):
+        :param period int: perform box deformation every this many timesteps.
+        :param parm str: the parameter in one dimension.
+        """
+        if parm:
+            args = tuple(parm % i for i in self.XYZ) + args
+        self.fixAll('deform', period, *args)
+
+    def adjust(self):
+        """
+        Adjust the simulation box by deformation and NPT.
+        """
         with self.block() as blk:
             blk.deform(100, 'remap', 'v', parm=f"%s scale ${{{self.FACT}}}")
             blk.nvt(nstep=self.wstep / 2,
@@ -639,9 +691,18 @@ class Script(Ave):
                  temp=self.options.temp)
 
     def if_then(self, cond, action, **kwargs):
+        """
+        If command.
+
+        :param cond str: the condition to trigger the action.
+        :param action str: the ation to take.
+        """
         self.join('if', f'"{cond}"', 'then', f'"{action}"', **kwargs)
 
     def shell(self, *args, **kwargs):
+        """
+        Shell command.
+        """
         self.join('shell', *args, **kwargs)
 
     def relaxation(self, modulus=MODULUS_VAR):
