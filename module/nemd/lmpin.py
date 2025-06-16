@@ -262,6 +262,16 @@ class SinglePoint(list):
             if newline:
                 self.append('')
 
+    def __str__(self, fmt='\033[36m%s\033[0m'):
+        """
+        Get a human-readable string representation.
+
+        :param fmt str: format of the block.
+        :return str: the formatted printing.
+        """
+        flat = [x if isinstance(x, str) else fmt % '\n'.join(x) for x in self]
+        return '\n'.join(flat)
+
 
 class RampUp(SinglePoint):
     """
@@ -430,18 +440,19 @@ class Ave(RampUp):
     """
     XYZ = 'xyz'
 
-    def relaxation(self, modulus=10):
+    def relaxation(self, **kwargs):
         """
         Customized with cell averaging.
         """
         if self.options.prod_ens == self.NPT:
-            super().relaxation(modulus=modulus)
+            super().relaxation(**kwargs)
             return
         # NVE and NVT production runs use averaged cell
-        self.average(modulus=modulus)
+        self.average(**kwargs)
         self.nvt(nstep=self.relax_step / 1E2,
                  stemp=self.options.temp,
-                 temp=self.options.temp)
+                 temp=self.options.temp,
+                 **kwargs)
 
     def average(self, modulus=10, rec_num=10):
         """
@@ -491,9 +502,11 @@ class Ave(RampUp):
             args = (1, per, per) + args
         if file:
             args += ('file', file)
+        if not args:
+            return
         self.fix_all('ave/time', *args)
 
-    def python(self, name, func, fmt, *inputs):
+    def python(self, name, func, fmt, *inputs, imp='from nemd.lmpfunc import'):
         """
         Construct a python command.
 
@@ -501,14 +514,11 @@ class Ave(RampUp):
         :param func str: the function name.
         :param fmt str: the type of the input and output variables.
         :param inputs tuple: the input variables of the function.
+        :param imp str: the python command to import function.
         """
         self.variable(name, 'python', func)
-        args = [func]
-        args += ['input', len(inputs), *inputs]
-        args += ['return', f'v_{name}']
-        args += ['format', fmt]
-        args += ['here', f'"from nemd.lmpfunc import {func}"']
-        self.join('python', *args)
+        self.join('python', func, 'input', len(inputs), *inputs, 'return',
+                  f'v_{name}', 'format', fmt, 'here', f'"{imp} {func}"')
 
     def print(self, *args, label=None):
         """

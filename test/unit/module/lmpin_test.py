@@ -12,7 +12,7 @@ from nemd import parserutils
 class TestSinglePoint:
 
     @pytest.fixture
-    def single(self, smiles, emol, tmp_dir):
+    def single(self, smiles, emol):
         args = [smiles, '-JOBNAME', 'name']
         options = parserutils.MolBase().parse_args(args)
         return lmpin.SinglePoint(struct=types.SimpleNamespace(options=options))
@@ -133,6 +133,15 @@ class TestSinglePoint:
                 pass
         assert expected == single
 
+    @pytest.mark.parametrize(
+        'data,expected',
+        [([], ''), (['run 0'], 'run 0'), (['fix %s'], 'fix %s'),
+         ([['fix %s']], '\x1b[36mfix %s\x1b[0m'),
+         ([['fix %s', 'fix %s']], '\x1b[36mfix %s\nfix %s\x1b[0m')])
+    def testStr(self, single, data, expected):
+        single.extend(data)
+        assert expected == str(single)
+
 
 @pytest.mark.parametrize('cnum', [1])
 class TestRampUp:
@@ -140,7 +149,7 @@ class TestRampUp:
             '-temp', '3', '-press', '4')
 
     @pytest.fixture
-    def ramp_up(self, smiles, args, emol, tmp_dir):
+    def ramp_up(self, smiles, args, emol):
         args = (smiles, ) + args
         options = parserutils.MolBase().parse_args(args)
         kwargs = dict(options=options, atom_total=emol.GetNumAtoms())
@@ -248,3 +257,65 @@ class TestRampUp:
     def testNve(self, ramp_up, nstep, expected):
         ramp_up.nve(nstep=nstep)
         assert (expected == ramp_up[0]) if expected else (not ramp_up)
+
+
+@pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
+class TestAve:
+
+    @pytest.fixture
+    def ave(self, smiles, emol, tmp_dir):
+        options = parserutils.MolBase().parse_args([smiles])
+        kwargs = dict(options=options, atom_total=emol.GetNumAtoms())
+        return lmpin.Ave(struct=types.SimpleNamespace(**kwargs))
+
+    @pytest.mark.parametrize('prod_ens,expected',
+                             [('NPT', (9, 1, 1000000)),
+                              ('NVT', (41, 2, 1000000, 10000)),
+                              ('NVE', (41, 2, 1000000, 10000))])
+    def testRelaxation(self, ave, prod_ens, expected):
+        ave.options.prod_ens = prod_ens
+        ave.relaxation()
+        ave.finalize()
+        num = sum([x.endswith('all temp/berendsen 300 300 100') for x in ave])
+        nsteps = [int(x.split()[-1]) for x in ave if x.startswith('run')]
+        assert expected == (len(ave), num, *nsteps)
+
+    @pytest.mark.parametrize('expected', [
+        'change_box all x scale ${ratio_x} y scale ${ratio_y} z scale ${ratio_z} remap'
+    ])
+    def testAverage(self, ave, expected):
+        ave.average()
+        assert expected in ave
+
+    @pytest.mark.parametrize(
+        'args,file,nstep,num,expected',
+        [((), None, None, None, None),
+         (('v_xl', 'v_yl', 'v_zl'), 'xyz', 1000000, 10,
+          'fix %s all ave/time 1 100000 100000 v_xl v_yl v_zl file xyz')])
+    def testAveTime(self, ave, args, file, nstep, num, expected):
+        ave.ave_time(*args, file=file, nstep=nstep, num=num)
+        assert (expected == ave[0]) if expected else (not ave)
+
+    @pytest.mark.parametrize(
+        'name,func,fmt,inputs,expected', [('ave_x', 'getXL', 'sf', ('xyz', ), [
+            'variable ave_x python getXL',
+            'python getXL input 1 xyz return v_ave_x format sf here "from nemd.lmpfunc import getXL"'
+        ])])
+    def testPython(self, ave, name, func, fmt, inputs, expected):
+        ave.python(name, func, fmt, *inputs)
+        assert expected == ave
+
+    @pytest.mark.parametrize('args,label,expected',
+                             [(('xl', 'yl', 'zl'), 'Final',
+                               'print "Final: xl=${xl} yl=${yl} zl=${zl}"'),
+                              (('xl', ), None, 'print "xl=${xl}"')])
+    def testPrint(self, ave, args, label, expected):
+        ave.print(*args, label=label)
+        assert expected == ave[0]
+
+    @pytest.mark.parametrize(
+        'args,expected',
+        [(('xl', 'yl'), ['variable xl delete', 'variable yl delete'])])
+    def testDelete(self, ave, args, expected):
+        ave.delete(*args)
+        assert expected == ave

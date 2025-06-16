@@ -7,7 +7,6 @@ import argparse
 import functools
 import os
 import random
-import re
 
 from nemd import analyzer
 from nemd import builtinsutils
