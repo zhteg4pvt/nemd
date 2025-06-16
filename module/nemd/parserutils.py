@@ -393,6 +393,21 @@ class Valid:
         pass
 
 
+class MdValid(Valid):
+    """
+    Class to valid the damp parameters.
+    """
+
+    def run(self):
+        """
+        Main method to run the validation.
+        """
+        if self.options.tdamp is None:
+            self.options.tdamp = self.options.timestep * 100
+        if self.options.pdamp is None:
+            self.options.pdamp = self.options.timestep * 1000
+
+
 class MolValid(Valid):
     """
     Class to validate molecule related arguments after parse_args().
@@ -738,20 +753,18 @@ class Md(Driver):
                             default=300,
                             help=f'The equilibrium temperature target. A zero '
                             f'for single point energy.')
-        # Temperature damping parameter (x timestep to get the param)
+        # Temperature damping parameter in time unit
         parser.add_argument(cls.FLAG_TDAMP,
                             type=type_positive_float,
-                            default=100,
                             help=argparse.SUPPRESS)
         parser.add_argument(cls.FLAG_PRESS,
                             metavar='atm',
                             type=float,
                             default=1,
                             help="The equilibrium pressure target.")
-        # Pressure damping parameter (x timestep to get the param)
+        # Pressure damping parameter in time unit
         parser.add_argument(cls.FLAG_PDAMP,
                             type=type_positive_float,
-                            default=1000,
                             help=argparse.SUPPRESS)
         parser.add_argument(cls.FLAG_RELAX_TIME,
                             metavar='ns',
@@ -772,6 +785,7 @@ class Md(Driver):
         parser.add_argument(cls.FLAG_NO_MINIMIZE,
                             action='store_true',
                             help=argparse.SUPPRESS)
+        parser.valids.add(MdValid)
 
 
 class MolBldr(MolBase):

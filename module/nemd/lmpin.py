@@ -280,13 +280,9 @@ class RampUp(SinglePoint):
         :param atom_total int: the total number of atoms.
         """
         super().__init__(*args, **kwargs)
-        self.tdamp = self.options.timestep * self.options.tdamp
-        self.pdamp = self.options.timestep * self.options.pdamp
-        timestep = self.options.timestep / constants.NANO_TO_FEMTO
-        self.prod_step = int(self.options.prod_time / timestep)
-        self.relax_step = int(self.options.relax_time / timestep)
+        self.relax_step = self.options.relax_time * constants.NANO_TO_FEMTO / self.options.timestep
         if self.relax_step:
-            self.relax_step = int(round(self.relax_step, -3) or 1E3)
+            self.relax_step = round(self.relax_step, -3) or 1E3
 
     def simulation(self):
         """
@@ -332,7 +328,7 @@ class RampUp(SinglePoint):
             stemp = temp
         with self.block() as blk:
             if style == self.BERENDSEN:
-                blk.fix_all('temp/berendsen', stemp, temp, self.tdamp)
+                blk.fix_all('temp/berendsen', stemp, temp, self.options.tdamp)
                 blk.nve(nstep=nstep)
             # FIXME: support thermostat more than berendsen.
 
@@ -342,19 +338,22 @@ class RampUp(SinglePoint):
         """
         self.join('fix %s all', *args)
 
-    def rampUp(self):
+    def rampUp(self, spress=1):
         """
         Ramp up temperature to the targe value.
+
+        :param spress float: starting pressure.
         """
         self.npt(nstep=self.relax_step / 1E1,
                  stemp=self.options.stemp,
+                 spress=spress,
                  temp=self.options.temp,
                  press=self.options.press)
 
     def npt(self,
             nstep=20000,
-            spress=1.,
-            press=1.,
+            spress=None,
+            press=1,
             style=BERENDSEN,
             modulus=10,
             **kwargs):
@@ -374,7 +373,7 @@ class RampUp(SinglePoint):
         with self.block() as blk:
             if style == self.BERENDSEN:
                 blk.fix_all('press/berendsen', 'iso', spress, press,
-                            self.pdamp, self.MODULUS, modulus)
+                            self.options.pdamp, self.MODULUS, modulus)
                 blk.nvt(nstep=nstep, **kwargs)
         # FIXME: support thermostat more than berendsen.
 
@@ -398,16 +397,14 @@ class RampUp(SinglePoint):
         good energy conservation during the time integration. NVT and NPT help
         with properties non-sensitive to disturbance.
         """
+        nstep = self.options.prod_time * constants.NANO_TO_FEMTO / self.options.timestep
         match self.options.prod_ens:
             case self.NVE:
-                self.nve(nstep=self.prod_step)
+                self.nve(nstep=nstep)
             case self.NVT:
-                self.nvt(nstep=self.prod_step,
-                         stemp=self.options.temp,
-                         temp=self.options.temp)
+                self.nvt(nstep=nstep, temp=self.options.temp)
             case self.NPT:
-                self.npt(nstep=self.prod_step,
-                         stemp=self.options.temp,
+                self.npt(nstep=nstep,
                          temp=self.options.temp,
                          press=self.options.press,
                          modulus=modulus)
@@ -420,6 +417,8 @@ class RampUp(SinglePoint):
 
         :param nstep int: run this number of steps.
         """
+        if not nstep:
+            return
         with self.block() as blk:
             blk.fix_all('nve')
             blk.run_step(nstep=nstep)

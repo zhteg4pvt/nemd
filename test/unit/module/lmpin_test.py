@@ -132,3 +132,119 @@ class TestSinglePoint:
             with blk.block(newline=newline):
                 pass
         assert expected == single
+
+
+@pytest.mark.parametrize('cnum', [1])
+class TestRampUp:
+    ARGS = ('-relax_time', '0.01', '-prod_time', '0.02', '-stemp', '2',
+            '-temp', '3', '-press', '4')
+
+    @pytest.fixture
+    def ramp_up(self, smiles, args, emol, tmp_dir):
+        args = (smiles, ) + args
+        options = parserutils.MolBase().parse_args(args)
+        kwargs = dict(options=options, atom_total=emol.GetNumAtoms())
+        return lmpin.RampUp(struct=types.SimpleNamespace(**kwargs))
+
+    @pytest.mark.parametrize('smiles', ['CC'])
+    @pytest.mark.parametrize('args,expected',
+                             [(('-relax_time', '1'), 1000000.0),
+                              (('-relax_time', '0'), 0.0),
+                              (('-relax_time', '0.0001'), 1000.0)])
+    def testInit(self, ramp_up, expected):
+        assert expected == ramp_up.relax_step
+
+    @pytest.mark.parametrize('smiles,args,expected',
+                             [('CC', (), 9), ('CC', ('-temp', '0'), 1),
+                              ('C', (), 1)])
+    def testSimulations(self, ramp_up, expected):
+        ramp_up.simulation()
+        assert expected == len(ramp_up)
+
+    @pytest.mark.parametrize('smiles', ['CC'])
+    @pytest.mark.parametrize(
+        'args,expected',
+        [(('-stemp', '20'), 'velocity all create 20'),
+         (('-temp', '100', '-relax', '0'), 'velocity all create 100')])
+    def testVelocity(self, ramp_up, expected):
+        ramp_up.velocity()
+        assert ramp_up[0].startswith(expected)
+
+    @pytest.mark.parametrize(
+        'smiles,args,expected',
+        [('CC', ARGS, 'fix %s all temp/berendsen 2.0 2.0 100')])
+    def testStartLow(self, ramp_up, expected):
+        ramp_up.startLow()
+        assert expected == ramp_up[0][0]
+
+    @pytest.mark.parametrize('smiles,args,style', [('CC', (), 'berendsen')])
+    @pytest.mark.parametrize(
+        'nstep,stemp,temp,expected',
+        [(1E4, None, 300, 'fix %s all temp/berendsen 300 300 100'),
+         (10, 20, 50, 'fix %s all temp/berendsen 20 50 100'),
+         (0, 20, 50, None)])
+    def testNvt(self, ramp_up, nstep, stemp, temp, style, expected):
+        ramp_up.nvt(nstep=nstep, stemp=stemp, temp=temp, style=style)
+        assert (expected == ramp_up[0][0]) if expected else (not ramp_up)
+
+    @pytest.mark.parametrize('smiles,args', [('CC', ())])
+    def testFixAll(self, ramp_up):
+        ramp_up.fix_all('temp/berendsen', 10, 10, 100)
+        assert 'fix %s all temp/berendsen 10 10 100' == ramp_up[0]
+
+    @pytest.mark.parametrize('smiles,args,expected', [('CC', ARGS, [
+        'fix %s all press/berendsen iso 1 4.0 1000 modulus 10',
+        'fix %s all temp/berendsen 2.0 3.0 100'
+    ])])
+    def testRampUp(self, ramp_up, expected):
+        ramp_up.rampUp()
+        assert expected == ramp_up[0][:2]
+
+    @pytest.mark.parametrize('smiles,args,style', [('CC', (), 'berendsen')])
+    @pytest.mark.parametrize('nstep,spress,press,modulus,expected', [
+        (1E4, None, 1, 10,
+         'fix %s all press/berendsen iso 1 1 1000 modulus 10'),
+        (10, 0.1, 1, 2, 'fix %s all press/berendsen iso 0.1 1 1000 modulus 2'),
+        (0, 0.1, 1, 2, None)
+    ])
+    def testNpt(self, ramp_up, nstep, spress, press, style, modulus, expected):
+        ramp_up.npt(nstep=nstep,
+                    spress=spress,
+                    press=press,
+                    modulus=modulus,
+                    style=style)
+        assert (expected == ramp_up[0][0]) if expected else (not ramp_up)
+
+    @pytest.mark.parametrize('smiles,args,expected', [('CC', ARGS, [
+        'fix %s all press/berendsen iso 4.0 4.0 1000 modulus 10',
+        'fix %s all temp/berendsen 3.0 3.0 100'
+    ])])
+    def testRelaxation(self, ramp_up, expected):
+        ramp_up.relaxation()
+        assert expected == ramp_up[0][:2]
+
+    @pytest.mark.parametrize('smiles,args', [('CC', ARGS)])
+    @pytest.mark.parametrize(
+        'prod_ens,expected',
+        [('NVE', ['fix %s all nve', 'run 20000']),
+         ('NVT', [
+             'fix %s all temp/berendsen 3.0 3.0 100', 'fix %s all nve',
+             'run 20000'
+         ]),
+         ('NPT', [
+             'fix %s all press/berendsen iso 4.0 4.0 1000 modulus 10',
+             'fix %s all temp/berendsen 3.0 3.0 100', 'fix %s all nve',
+             'run 20000'
+         ])])
+    def testProduction(self, ramp_up, prod_ens, expected):
+        ramp_up.options.prod_ens = prod_ens
+        ramp_up.production()
+        assert expected == ramp_up[0]
+
+    @pytest.mark.parametrize('smiles,args', [('CC', ())])
+    @pytest.mark.parametrize('nstep,expected',
+                             [(1E4, ['fix %s all nve', 'run 10000']),
+                              (0, None)])
+    def testNve(self, ramp_up, nstep, expected):
+        ramp_up.nve(nstep=nstep)
+        assert (expected == ramp_up[0]) if expected else (not ramp_up)

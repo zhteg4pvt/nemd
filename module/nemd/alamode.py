@@ -45,6 +45,9 @@ class Script(stillinger.Script):
 
 
 class Struct(stillinger.Struct):
+    """
+    Customized with input script.
+    """
 
     @property
     @functools.cache

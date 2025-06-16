@@ -1,4 +1,5 @@
 import os.path
+import types
 
 import pytest
 
@@ -19,12 +20,17 @@ def crystal(mode):
 
 class TestScript:
 
-    def testDump(self, tmp_dir):
-        STRUCT.script.write()
-        with open(STRUCT.script.outfile, 'r') as fh:
-            lines = fh.read()
-        assert 'id xu yu zu fx fy fz' in lines
-        # assert "format float '%20.15f'\n" in lines
+    @pytest.fixture
+    def script(self):
+        return alamode.Script(struct=types.SimpleNamespace(options=OPTIONS))
+
+    def testDump(self, script):
+        script.dump(1, 'all', 'custom', 1000, 'dispersion.custom', 'id')
+        assert 'id xu yu zu fx fy fz' in script[0]
+
+    def testDumpModify(self, script):
+        script.dump_modify(1)
+        assert "format float '%20.15f'" in script[0]
 
 
 class TestLmp:

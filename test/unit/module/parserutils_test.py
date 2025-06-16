@@ -198,7 +198,7 @@ class TestAction:
 
 
 @pytestutils.Raises
-class TestValidator:
+class TestValid:
 
     @pytest.fixture
     def parser(self, valid, flags, kwargss):
@@ -234,6 +234,16 @@ class TestValidator:
     def testMol(self, parser, args, expected):
         options = parser.parse_args(args)
         assert expected == [*options.cru, *options.cru_num, *options.mol_num]
+
+    @pytest.mark.parametrize('flags', [(['-tdamp', '-pdamp', '-timestep'])])
+    @pytest.mark.parametrize('values,expected',
+                             [((None, None, '1'), (100, 1000)),
+                              ((None, None, '2'), (200, 2000)),
+                              (('10', '50', '1'), (10, 50))])
+    def testMd(self, args, expected):
+        parser = parserutils.Md()
+        options = parser.parse_args(args)
+        assert expected == (options.tdamp, options.pdamp)
 
     @pytest.mark.skipif(AR_DIR is None, reason="cannot locate test dir")
     @pytest.mark.parametrize('valid', [parserutils.LmpValid])
