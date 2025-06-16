@@ -1,3 +1,4 @@
+import os
 import types
 
 import pytest
@@ -16,9 +17,23 @@ class TestSinglePoint:
         options = parserutils.MolBase().parse_args(args)
         return lmpin.SinglePoint(struct=types.SimpleNamespace(options=options))
 
+    def testWrite(self, single, tmp_dir):
+        single.write()
+        os.path.isfile(single.outfile)
+
+    def testSetUp(self, single):
+        single.setUp()
+        assert 12 == len(single)
+
     def testSetup(self, single):
         single.setup()
         assert ['units metal', 'atom_style atomic'] == single
+
+    @pytest.mark.parametrize('args,expected',
+                             [(('units', 'real'), 'units real')])
+    def testJoin(self, single, args, expected):
+        single.join(*args)
+        assert expected == single[0]
 
     def testPair(self, single):
         single.pair()
@@ -28,26 +43,30 @@ class TestSinglePoint:
         single.data()
         assert 'read_data name.data' == single[0]
 
-    @pytest.mark.parametrize('xyz,force,expected', [
-        (True, False, 'dump 1 all custom 1000 name.custom id xu yu zu'),
-        (False, True, 'dump 1 all custom 1000 name.custom id fx fy fz'),
-        (False, False, None),
-        (True, True, 'dump 1 all custom 1000 name.custom id xu yu zu fx fy fz')
-    ])
-    def testTraj(self, single, xyz, force, expected):
-        single.traj(xyz=xyz, force=force)
+    def testTraj(self, single):
+        single.traj()
+        assert 2 == len(single)
+
+    @pytest.mark.parametrize('args', [(1, 'all', 'custom', 10, 'name')])
+    @pytest.mark.parametrize(
+        'xyz,force,expected',
+        [(True, False, 'dump 1 all custom 10 name xu yu zu'),
+         (False, True, 'dump 1 all custom 10 name fx fy fz'),
+         (True, True, 'dump 1 all custom 10 name xu yu zu fx fy fz')])
+    def testDump(self, single, args, xyz, force, expected):
+        single.dump(*args, xyz=xyz, force=force)
         assert (expected in single) if expected else (not single)
 
-    @pytest.mark.parametrize(
-        'sort,fmt,expected',
-        [(True, None, 'dump_modify 1 sort id'),
-         (True, "float '%20.15f'",
-          "dump_modify 1 sort id format float '%20.15f'"),
-         (False, "float '%20.15f'", "dump_modify 1 format float '%20.15f'"),
-         (False, None, None)])
-    def testTrajModify(self, single, sort, fmt, expected):
-        single.traj(sort=sort, fmt=fmt)
-        assert (expected in single) if expected else (1 == len(single))
+    @pytest.mark.parametrize('args,sort,fmt,expected',
+                             [((1, ), True, None, 'dump_modify 1 sort id'),
+                              ((1, ), True, "float '%20.15f'",
+                               "dump_modify 1 sort id format float '%20.15f'"),
+                              ((1, ), False, "float '%20.15f'",
+                               "dump_modify 1 format float '%20.15f'"),
+                              ((1, ), False, None, None)])
+    def testDumpModify(self, single, args, sort, fmt, expected):
+        single.dump_modify(*args, sort=sort, fmt=fmt)
+        assert (expected == single[0]) if expected else (not single)
 
     @pytest.mark.parametrize(
         'no_minimize,geo,val,expected',
@@ -76,50 +95,40 @@ class TestSinglePoint:
         single.simulation()
         assert 'run 0' == single[0]
 
+    @pytest.mark.parametrize('nstep,expected', [(0, 'run 0'), (1.0, 'run 1')])
+    def testRunStep(self, single, nstep, expected):
+        single.run_step(nstep=nstep)
+        assert expected == single[0]
 
-# class TestFixWriter:
-#
-#     @pytest.fixture
-#     def fix_writer(self):
-#         options = {x: y for x, y in self.getOptions()._get_kwargs()}
-#         struct_info = types.SimpleNamespace(btypes=[2],
-#                                             atypes=[1],
-#                                             testing=False)
-#         options = types.SimpleNamespace(**options, **struct_info.__dict__)
-#         return lmpin.FixWriter(io.StringIO(), options=options)
-#
-#     @staticmethod
-#     def getContents(obj):
-#         obj.write()
-#         return super(TestFixWriter, TestFixWriter).getContents(obj)
-#
-#     def testWriteFix(self, fix_writer):
-#         fix_writer.fixShake()
-#         assert 'b 2 a 1' in self.getContents(fix_writer)
-#
-#     def testVelocity(self, fix_writer):
-#         fix_writer.velocity()
-#         assert 'create' in self.getContents(fix_writer)
-#
-#     def testStartLow(self, fix_writer):
-#         fix_writer.startLow()
-#         assert 'temp/berendsen' in self.getContents(fix_writer)
-#
-#     def testRampUp(self, fix_writer):
-#         fix_writer.rampUp()
-#         assert 'loop' in self.getContents(fix_writer)
-#
-#     @pytest.mark.parametrize('prod_ens, args', [('NVT', True), ('NPT', False)])
-#     def testRelaxAndDefrom(self, fix_writer, prod_ens, args):
-#         fix_writer.options.prod_ens = prod_ens
-#         fix_writer.relaxAndDefrom()
-#         contain = 'change_box' in self.getContents(fix_writer)
-#         assert contain == args
-#
-#     @pytest.mark.parametrize('prod_ens, args',
-#                              [('NVE', 'nve'), ('NVT', 'temp'),
-#                               (None, 'press')])
-#     def testProduction(self, fix_writer, prod_ens, args):
-#         fix_writer.options.prod_ens = prod_ens
-#         fix_writer.production()
-#         assert args in self.getContents(fix_writer)
+    @pytest.mark.parametrize('data,expected', [([], 1), (['run 0'], 2),
+                                               (['fix %s'], 2),
+                                               ([['fix %s']], 3),
+                                               ([['fix %s', 'fix %s']], 5)])
+    def testFinalize(self, single, data, expected):
+        single.extend(data)
+        single.finalize()
+        assert expected == len(single)
+
+    @pytest.mark.parametrize(
+        'name,expr,bracked,quoted,expected',
+        [('xl', 'xhi - ylo', False, True, 'variable xl equal "xhi - ylo"'),
+         ('modulus', 'modulus', True, False,
+          'variable modulus equal ${modulus}')])
+    def testEqual(self, single, name, expr, bracked, quoted, expected):
+        single.equal(name, expr, bracked=bracked, quoted=quoted)
+        assert expected == single[0]
+
+    @pytest.mark.parametrize('args,expected', [
+        (('fact', 'python', 'getBdryFact'), 'variable fact python getBdryFact')
+    ])
+    def testVariable(self, single, args, expected):
+        single.variable(*args)
+        assert expected == single[0]
+
+    @pytest.mark.parametrize('newline,expected', [(False, [[]]),
+                                                  (True, [[], ''])])
+    def testBlock(self, single, newline, expected):
+        with single.block(newline=newline) as blk:
+            with blk.block(newline=newline):
+                pass
+        assert expected == single

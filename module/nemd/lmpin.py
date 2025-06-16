@@ -82,6 +82,15 @@ class SinglePoint(list):
         self.join(self.UNITS, self.V_UNITS)
         self.join('atom_style', self.V_ATOM_STYLE)
 
+    def join(self, *args, newline=False):
+        """
+        Join the arguments to form a lammps command.
+
+        :param newline: add a newline.
+        """
+        cmd = " ".join(map(str, args))
+        self.append(cmd + '\n' if newline else cmd)
+
     def pair(self):
         """
         Write pair style.
@@ -94,88 +103,45 @@ class SinglePoint(list):
         """
         self.join(self.READ_DATA, f"{self.options.JOBNAME}.data")
 
-    def traj(self, xyz=True, force=False, sort=True, fmt=None):
+    def traj(self):
+        """
+        Dump out trajectory.
+        """
+        self.dump(self.DUMP_ID, 'all', 'custom', self.DUMP_Q,
+                  f"{self.options.JOBNAME}{self.CUSTOM_EXT}", 'id')
+        self.dump_modify(self.DUMP_ID)
+
+    def dump(self, idx, *args, xyz=True, force=False):
         """
         Dump out trajectory.
 
+        :param idx int: the dump id.
         :param xyz bool: write xyz coordinates if Truef
         :param force bool: write force on each atom if True
+        """
+        if xyz:
+            args += ('xu', 'yu', 'zu')
+        if force:
+            args += ('fx', 'fy', 'fz')
+        if not args:
+            return
+        self.join('dump', idx, *args)
+
+    def dump_modify(self, idx, *args, sort=True, fmt=None):
+        """
+        Modify the trajectory dump.
+
+        :param idx int: the dump id.
         :param sort bool: sort by atom id if True
         :param fmt str: the float format
         """
-        args = []
-        if xyz:
-            args += ['xu', 'yu', 'zu']
-        if force:
-            args += ['fx', 'fy', 'fz']
-        if not args:
-            return
-        self.join('dump', self.DUMP_ID, 'all', 'custom', self.DUMP_Q,
-                  f"{self.options.JOBNAME}{self.CUSTOM_EXT}", 'id', *args)
-        # Dumpy modify
-        args = []
         if sort:
-            args += ['sort', 'id']
+            args += ('sort', 'id')
         if fmt:
-            args += ['format', fmt]
+            args += ('format', fmt)
         if not args:
             return
-        self.dump_modify(self.DUMP_ID, *args)
-
-    def equal(self, name, expr, bracked=False, quoted=False, **kwargs):
-        """
-        Define variable with equal style.
-
-        :param name str: the variable name.
-        :param expr str: the variable expression.
-        :param bracked bool: curly bracket the expression.
-        :param quoted bool: quote the expression.
-        """
-        if bracked:
-            expr = f'${{{expr}}}'
-        if quoted:
-            expr = f'"{expr}"'
-        self.variable(name, 'equal', expr, **kwargs)
-
-    def variable(self, *args, **kwargs):
-        """
-        Define variable.
-        """
-        self.join('variable', *args, **kwargs)
-
-    @contextlib.contextmanager
-    def block(self, newline=True):
-        """
-        Create, yield, and append a block.
-
-        :param newline: add an empty line after the block.
-        :return `cls`: block if self or a new block.
-        """
-        if self.isblock:
-            yield self
-            return
-        block = self.__class__(struct=self.struct, isblock=True)
-        try:
-            yield block
-        finally:
-            self.append(block)
-            if newline:
-                self.append('')
-
-    def join(self, *args, newline=False):
-        """
-        Join the arguments to form a lammps command.
-
-        :param newline: add a newline.
-        """
-        cmd = " ".join(map(str, args))
-        self.append(cmd + '\n' if newline else cmd)
-
-    def dump_modify(self, *args):
-        """
-        Modify the trajectory dump.
-        """
-        self.join('dump_modify', *args)
+        self.join('dump_modify', idx, *args)
 
     def minimize(self, min_style='fire', geo=None):
         """
@@ -226,9 +192,9 @@ class SinglePoint(list):
         """
         Single point energy calculation.
         """
-        self.runStep()
+        self.run_step()
 
-    def runStep(self, nstep=0):
+    def run_step(self, nstep=0):
         """
         Write run.
         """
@@ -238,6 +204,8 @@ class SinglePoint(list):
         """
         Finalize by balancing the fixes with unfixes, flattening the sublist,
         and terminating with the quit command.
+
+        :param block_id int: the starting fix id.
         """
         for idx, cmds in enumerate(self):
             if isinstance(cmds, str):
@@ -253,6 +221,46 @@ class SinglePoint(list):
             self[idx:idx + 1] = cmds
             block_id += 1
         self.join('quit 0')
+
+    def equal(self, name, expr, bracked=False, quoted=False, **kwargs):
+        """
+        Define variable with equal style.
+
+        :param name str: the variable name.
+        :param expr str: the variable expression.
+        :param bracked bool: curly bracket the expression.
+        :param quoted bool: quote the expression.
+        """
+        if bracked:
+            expr = f'${{{expr}}}'
+        if quoted:
+            expr = f'"{expr}"'
+        self.variable(name, 'equal', expr, **kwargs)
+
+    def variable(self, *args, **kwargs):
+        """
+        Define variable.
+        """
+        self.join('variable', *args, **kwargs)
+
+    @contextlib.contextmanager
+    def block(self, newline=True):
+        """
+        Create, yield, and append a block.
+
+        :param newline: add an empty line after the block.
+        :return `cls`: block if self or a new block.
+        """
+        if self.isblock:
+            yield self
+            return
+        block = self.__class__(struct=self.struct, isblock=True)
+        try:
+            yield block
+        finally:
+            self.append(block)
+            if newline:
+                self.append('')
 
 
 class RampUp(SinglePoint):
@@ -285,7 +293,7 @@ class RampUp(SinglePoint):
         Main method to run the writer.
         """
         if not self.options.temp or self.struct.atom_total == 1:
-            self.runStep()
+            self.run_step()
             return
         self.velocity()
         self.startLow()
@@ -324,11 +332,11 @@ class RampUp(SinglePoint):
             stemp = temp
         with self.block() as blk:
             if style == self.BERENDSEN:
-                blk.fixAll('temp/berendsen', stemp, temp, self.tdamp)
+                blk.fix_all('temp/berendsen', stemp, temp, self.tdamp)
                 blk.nve(nstep=nstep)
             # FIXME: support thermostat more than berendsen.
 
-    def fixAll(self, *args):
+    def fix_all(self, *args):
         """
         Fix all command.
         """
@@ -365,8 +373,8 @@ class RampUp(SinglePoint):
             spress = press
         with self.block() as blk:
             if style == self.BERENDSEN:
-                blk.fixAll('press/berendsen', 'iso', spress, press, self.pdamp,
-                           self.MODULUS, modulus)
+                blk.fix_all('press/berendsen', 'iso', spress, press,
+                            self.pdamp, self.MODULUS, modulus)
                 blk.nvt(nstep=nstep, **kwargs)
         # FIXME: support thermostat more than berendsen.
 
@@ -413,8 +421,8 @@ class RampUp(SinglePoint):
         :param nstep int: run this number of steps.
         """
         with self.block() as blk:
-            blk.fixAll('nve')
-            blk.runStep(nstep=nstep)
+            blk.fix_all('nve')
+            blk.run_step(nstep=nstep)
 
 
 class Ave(RampUp):
@@ -443,15 +451,15 @@ class Ave(RampUp):
         :param modulus float: the modules in berendsen barostat.
         :param rec_num int: the number of records.
         """
-        # Run NPT with boundary recorded
+        # Run NPT with boundary recorded.
         spans = [f'{i}l' for i in self.XYZ]
         for name, dim in zip(spans, self.XYZ):
             self.equal(name, f'{dim}hi - {dim}lo', quoted=True)
         with self.block() as blk:
-            blk.aveTime(*[f'v_{i}' for i in spans],
-                        file=self.XYZ,
-                        nstep=self.relax_step,
-                        num=rec_num)
+            blk.ave_time(*[f'v_{i}' for i in spans],
+                         file=self.XYZ,
+                         nstep=self.relax_step,
+                         num=rec_num)
             blk.npt(nstep=self.relax_step,
                     stemp=self.options.temp,
                     temp=self.options.temp,
@@ -468,10 +476,10 @@ class Ave(RampUp):
             self.equal(ratio, f'v_{ave} / v_{span}', quoted=True)
         scales = [f'{i} scale ${{{r}}}' for i, r in zip(self.XYZ, ratios)]
         self.join('change_box', 'all', *scales, 'remap')
-        # Delete used variables
+        # Delete used variables.
         self.delete(*spans, *aves, *ratios)
 
-    def aveTime(self, *args, file=None, nstep=None, num=None):
+    def ave_time(self, *args, file=None, nstep=None, num=None):
         """
         Fix ave/time command.
 
@@ -484,7 +492,7 @@ class Ave(RampUp):
             args = (1, per, per) + args
         if file:
             args += ('file', file)
-        self.fixAll('ave/time', *args)
+        self.fix_all('ave/time', *args)
 
     def python(self, name, func, fmt, *inputs):
         """
@@ -654,11 +662,11 @@ class Script(Ave):
         with self.block() as blk:
             parm = f"%s wiggle ${{{amp}}} {self.wstep * self.options.timestep}"
             blk.deform(self.rec_num, parm=parm)
-            blk.aveTime('c_thermo_press',
-                        f'v_{vol}',
-                        file=file,
-                        nstep=self.wstep,
-                        num=self.rec_num)
+            blk.ave_time('c_thermo_press',
+                         f'v_{vol}',
+                         file=file,
+                         nstep=self.wstep,
+                         num=self.rec_num)
             blk.nvt(nstep=self.wstep * self.wnum,
                     stemp=self.options.temp,
                     temp=self.options.temp)
@@ -674,7 +682,7 @@ class Script(Ave):
         """
         if parm:
             args = tuple(parm % i for i in self.XYZ) + args
-        self.fixAll('deform', period, *args)
+        self.fix_all('deform', period, *args)
 
     def adjust(self):
         """

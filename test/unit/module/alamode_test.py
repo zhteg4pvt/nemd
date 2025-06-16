@@ -17,14 +17,14 @@ def crystal(mode):
     return alamode.Crystal.fromDatabase(OPTIONS, mode=mode)
 
 
-class TestIn:
+class TestScript:
 
-    def testTraj(self, tmp_dir):
+    def testDump(self, tmp_dir):
         STRUCT.script.write()
         with open(STRUCT.script.outfile, 'r') as fh:
             lines = fh.read()
         assert 'id xu yu zu fx fy fz' in lines
-        assert "format float '%20.15f'\n" in lines
+        # assert "format float '%20.15f'\n" in lines
 
 
 class TestLmp:

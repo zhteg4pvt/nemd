@@ -31,11 +31,17 @@ class Script(stillinger.Script):
     """
     CUSTOM_EXT = lmpin.SinglePoint.CUSTOM_EXT
 
-    def traj(self, force=True, sort=False, fmt="float '%20.15f'", **kwargs):
+    def dump(self, *args, force=True, **kwargs):
         """
-        See parent for docs.
+        See parent.
         """
-        super().traj(force=force, sort=sort, fmt=fmt, **kwargs)
+        super().dump(*args, force=force, **kwargs)
+
+    def dump_modify(self, *args, sort=False, fmt="float '%20.15f'", **kwargs):
+        """
+        See parent.
+        """
+        super().dump_modify(*args, sort=sort, fmt=fmt, **kwargs)
 
 
 class Struct(stillinger.Struct):
