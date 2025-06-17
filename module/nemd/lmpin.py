@@ -109,7 +109,7 @@ class SinglePoint(list):
         """
         self.dump(self.DUMP_ID, 'all', 'custom', self.DUMP_Q,
                   f"{self.options.JOBNAME}{self.CUSTOM_EXT}", 'id')
-        self.dump_modify(self.DUMP_ID)
+        self.dump_modify(self.DUMP_ID, sort=True)
 
     def dump(self, idx, *args, xyz=True, force=False):
         """
@@ -127,7 +127,7 @@ class SinglePoint(list):
             return
         self.join('dump', idx, *args)
 
-    def dump_modify(self, idx, *args, sort=True, fmt=None):
+    def dump_modify(self, idx, *args, sort=False, fmt=None):
         """
         Modify the trajectory dump.
 
@@ -399,7 +399,7 @@ class RampUp(SinglePoint):
                  press=self.options.press,
                  modulus=modulus)
 
-    def production(self, modulus=10):
+    def production(self, **kwargs):
         """
         Production run.
 
@@ -417,7 +417,7 @@ class RampUp(SinglePoint):
                 self.npt(nstep=nstep,
                          temp=self.options.temp,
                          press=self.options.press,
-                         modulus=modulus)
+                         **kwargs)
 
     def nve(self, nstep=1E3):
         """
@@ -451,8 +451,7 @@ class Ave(RampUp):
         self.average(**kwargs)
         self.nvt(nstep=self.relax_step / 1E2,
                  stemp=self.options.temp,
-                 temp=self.options.temp,
-                 **kwargs)
+                 temp=self.options.temp)
 
     def average(self, modulus=10, rec_num=10):
         """
@@ -559,8 +558,8 @@ class Script(Ave):
         self.loop_num = loop_num
         self.wnum = wnum
         self.rec_num = rec_num
-        # Maximum Total Cycle Steps (cyc_nstep): self.relax_steps * 10
-        # The deformation and relaxation cost one additional self.wstep
+        # Maximum Total Cycle Steps: self.relax_steps * 10.
+        # Deformation and relaxation cost one more additional self.wstep
         self.wstep = int(self.relax_step * 10 / loop_num / (self.wnum + 1))
         self.wstep = max([int(self.wstep / self.rec_num), 10]) * self.rec_num
 
@@ -582,7 +581,8 @@ class Script(Ave):
                  stemp=self.options.temp,
                  temp=self.options.temp)
         # Change the volume to approach the target pressure (1 frame per cycle)
-        with self.tmp_dump(self.wstep * (self.wnum + 1)):
+        with self.tmp_dump(self.DUMP_ID, 'every',
+                           {self.wstep * (self.wnum + 1): self.DUMP_Q}):
             self.cycle()
         # NVT and NPT relaxation to reach the exact target pressure
         self.nvt(nstep=self.relax_step / 1E1, temp=self.options.temp)
@@ -595,17 +595,19 @@ class Script(Ave):
                  modulus=self.MODULUS_VAR)
 
     @contextlib.contextmanager
-    def tmp_dump(self, every, dump_id=SinglePoint.DUMP_ID):
+    def tmp_dump(self, dump_id, key, kwargs):
         """
         Temporarily change the trajectory dump.
 
-        :param every int: dumpy one frame every this interval of timesteps.
+        :param dump_id int: the dump id to modify.
+        :param key str: keyword.
+        :param kwargs dict: temporarily values and values to restore
         """
-        self.dump_modify(dump_id, 'every', every)
+        self.dump_modify(dump_id, key, *kwargs.keys())
         try:
             yield
         finally:
-            self.dump_modify(dump_id, 'every', self.DUMP_Q)
+            self.dump_modify(dump_id, key, *kwargs.values())
 
     def cycle(self,
               defm_id='defm_id',
@@ -648,7 +650,7 @@ class Script(Ave):
         Temporarily change the trajectory dump.
 
         :param dirname str: the temporary dirname to cd into.
-        :return tuple: the shell command to go back to the working directory.
+        :return cdw tuple: the shell command to go back to the working directory.
         """
         self.shell('mkdir', dirname)
         self.shell('cd', dirname, newline=True)

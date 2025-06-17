@@ -263,7 +263,7 @@ class TestRampUp:
 class TestAve:
 
     @pytest.fixture
-    def ave(self, smiles, emol, tmp_dir):
+    def ave(self, smiles, emol):
         options = parserutils.MolBase().parse_args([smiles])
         kwargs = dict(options=options, atom_total=emol.GetNumAtoms())
         return lmpin.Ave(struct=types.SimpleNamespace(**kwargs))
@@ -319,3 +319,97 @@ class TestAve:
     def testDelete(self, ave, args, expected):
         ave.delete(*args)
         assert expected == ave
+
+
+@pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
+class TestScript:
+
+    @pytest.fixture
+    def script(self, smiles, emol, args):
+        options = parserutils.MolBase().parse_args([smiles, *args])
+        kwargs = dict(options=options, atom_total=emol.GetNumAtoms())
+        return lmpin.Script(struct=types.SimpleNamespace(**kwargs))
+
+    @pytest.mark.parametrize('args,expected',
+                             [(('-relax_time', '1'), 2500),
+                              (('-relax_time', '0.01'), 1000),
+                              (('-relax_time', '0.5555'), 1300)])
+    def testInit(self, script, expected):
+        assert expected == script.wstep
+
+    @pytest.mark.parametrize('args', [()])
+    @pytest.mark.parametrize('ensemble,expected', [('NPT', 2), (None, 41)])
+    def testRampUp(self, script, ensemble, expected):
+        script.rampUp(ensemble=ensemble)
+        assert expected == len(script)
+
+    @pytest.mark.parametrize(
+        'args,dump_id,key,kwargs,expected', [((), 1, 'every', {
+            10000: 1000
+        }, ['dump_modify 1 every 10000', 'dump_modify 1 every 1000'])])
+    def testTmpDump(self, script, dump_id, key, kwargs, expected):
+        with script.tmp_dump(dump_id, key, kwargs):
+            pass
+        assert expected == script
+
+    @pytest.mark.parametrize('args,expected', [((), 30)])
+    def testCycle(self, script, expected):
+        script.cycle()
+        assert expected == len(script)
+
+    @pytest.mark.parametrize(
+        'args,dirname,expected',
+        [((), 'name', ['shell mkdir name', 'shell cd name\n', 'shell cd ..'])])
+    def testTmpDir(self, script, dirname, expected):
+        with script.tmp_dir(dirname):
+            pass
+        assert expected == script
+
+    @pytest.mark.parametrize('args,expected', [((), ('press_vol', 6))])
+    def testWiggle(self, script, expected):
+        file = script.wiggle()
+        assert expected == (file, len(script))
+
+    @pytest.mark.parametrize('args,dargs,parm,expected', [(
+        (), (100, 'remap', 'v'), "%s scale ${fact}",
+        'fix %s all deform 100 x scale ${fact} y scale ${fact} z scale ${fact} remap v'
+    )])
+    def testDeform(self, script, dargs, parm, expected):
+        script.deform(*dargs, parm=parm)
+        assert expected == script[0]
+
+    @pytest.mark.parametrize('args,expected', [((), 5)])
+    def testAdjust(self, script, expected):
+        script.adjust()
+        assert expected == len(script)
+
+    @pytest.mark.parametrize(
+        'args,cond,action,expected',
+        [((), '${fact} == 1', 'jump SELF defm_break',
+          'if "${fact} == 1" then "jump SELF defm_break"')])
+    def testIfThen(self, script, cond, action, expected):
+        script.if_then(cond, action)
+        assert expected == script[0]
+
+    @pytest.mark.parametrize('args,sargs,expected',
+                             [((), ('cd', '..'), 'shell cd ..')])
+    def testShell(self, script, args, sargs, expected):
+        script.shell(*sargs)
+        assert expected == script[0]
+
+    @pytest.mark.parametrize(
+        'args,expected',
+        [((), 'fix 0b all press/berendsen iso 1 1 1000 modulus ${modulus}')])
+    def testRelaxation(self, script, expected):
+        script.relaxation()
+        script.finalize()
+        assert expected in script
+
+    @pytest.mark.parametrize(
+        'args,expected',
+        [(('-prod_ens', 'NPT'),
+          'fix 0a all press/berendsen iso 1 1 1000 modulus ${modulus}')])
+    def testProduction(self, script, expected):
+        script.production()
+        script.finalize()
+        assert expected in script
