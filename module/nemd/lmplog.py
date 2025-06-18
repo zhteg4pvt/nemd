@@ -20,57 +20,36 @@ class Thermo(pd.DataFrame):
     """
     Backend thermodynamic data with time in ps, column renaming, start index
     """
-    FS = 'fs'
-    PS = 'ps'
-    N_STEP = 'n'
-    KELVIN = 'K'
-    ATMOSPHERES = 'atmospheres'
-    BARS = 'bars'
-    KCAL_MOL = 'kcal/mol'
-    EV = 'eV'
-    ANGSTROMS = 'Angstroms'
-    ANGSTROMS_CUBED = 'Angstroms^3'
-    TIME = 'time'
-    STEP = 'Step'
-    TEMP = 'Temp'
-    E_PAIR = 'E_pair'
-    E_MOL = 'E_mol'
-    TOTENG = 'TotEng'
-    PRESS = 'Press'
-    VOLUME = 'Volume'
-    TIME_UNITS = {REAL: FS, METAL: PS}
-    STEP_UNITS = {REAL: N_STEP, METAL: N_STEP}
-    TEMP_UNITS = {REAL: KELVIN, METAL: KELVIN}
-    ENG_UNITS = {REAL: KCAL_MOL, METAL: EV}
-    PRESS_UNITS = {REAL: ATMOSPHERES, METAL: BARS}
-    VOLUME_UNITS = {REAL: ANGSTROMS_CUBED, METAL: ANGSTROMS_CUBED}
-    THERMO_UNITS = {
-        TIME: TIME_UNITS,
-        STEP: STEP_UNITS,
-        TEMP: TEMP_UNITS,
-        E_PAIR: ENG_UNITS,
-        E_MOL: ENG_UNITS,
-        TOTENG: ENG_UNITS,
-        PRESS: PRESS_UNITS,
-        VOLUME: VOLUME_UNITS
-    }
+    _metadata = ['idx', 'unit', 'timestep']
 
-    # https://pandas.pydata.org/docs/development/extending.html
-    _internal_names = pd.DataFrame._internal_names + ['idx']
-    _internal_names_set = set(_internal_names)
-
-    def __init__(self, *args, unit=REAL, fac=1, options=None, **kwargs):
+    def __init__(self, *args, unit=REAL, timestep=1, options=None, **kwargs):
         """
-        :param unit str: the unit of the log file
-        :param fac float: the conversion factor from the step (n) to time (ps)
-        :param options `namedtuple`: command line options
+        :param unit str: the unit of the log file.
+        :param timestep float: the timestep.
+        :param options `namedtuple`: command line options.
         """
         super().__init__(*args, **kwargs)
+        self.unit = unit
+        self.timestep = timestep
+        self.options = options
         self.idx = options.last_pct.getSidx(self) if options else 0
-        name = f"{symbols.TIME_LB} ({self.idx})"
-        self.index = pd.Index(self[self.STEP] * fac, name=name)
-        cmap = {x: f"{x} ({self.THERMO_UNITS[x][unit]})" for x in self.columns}
-        self.rename(columns=cmap, inplace=True)
+        self.setUp()
+
+    def setUp(self,
+              key=('Step', 'Temp', 'energy', 'Press', 'Volume'),
+              grp=('energy', 'E_pair', 'E_mol', 'TotEng')):
+        timestep = self.timestep * lmpin.SinglePoint.time_unit(self.unit)
+        index = self.Step * timestep / scipy.constants.pico
+        self.index = pd.Index(index, name=f"{symbols.TIME_LB} ({self.idx})")
+        match self.unit:
+            case lmpin.Script.REAL:
+                units = ['n', 'K', 'kcal/mol', 'atm', '\u212B^3']
+            case lmpin.Script.METAL:
+                units = ['n', 'K', 'eV', 'bar', '\u212B^3']
+        units = dict(zip(key, units))
+        units.update({x: units[grp[0]] for x in grp[1:]})
+        columns = {x: f"{x} ({units[x]})" for x in self.columns}
+        self.rename(columns=columns, inplace=True)
 
     @property
     def range(self):
@@ -149,8 +128,7 @@ class Log(lmpin.Script):
         """
         Set the thermodynamic data.
         """
-        fac = self.timestep * self.time_unit(self.unit) / scipy.constants.pico
         self.thermo = Thermo(self.thermo,
-                             fac=fac,
+                             timestep=self.timestep,
                              unit=self.unit,
                              options=self.options)
