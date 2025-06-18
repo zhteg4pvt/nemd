@@ -17,15 +17,48 @@ from nemd import constants
 from nemd import symbols
 
 
-class SinglePoint(list):
+class Base(list):
+    """
+    Base class for in-script and log analyzer.
+    """
+    UNITS = 'units'
+    REAL = 'real'
+    METAL = 'metal'
+    TIMESTEP = 'timestep'
+
+    def __init__(self, unit=METAL, options=None):
+        """
+        :param unit str: the unit.
+        :param options `namedtuple`: command line options.
+        """
+        super().__init__()
+        self.unit = unit
+        self.options = options
+
+    def getTimestep(self, timestep=None, backend=False):
+        """
+        Return the timestep in ps.
+
+        :param timestep float: the timestep.
+        :param backend bool: the timestep is in ps if True.
+        :raise ValueError: when the unit is unknown.
+        """
+        if timestep is None:
+            timestep = getattr(self.options, 'timestep', None)
+        match self.unit:
+            case self.REAL:
+                timestep = scipy.constants.femto * (timestep or 1)
+            case self.METAL:
+                timestep = scipy.constants.pico * (timestep or 0.001)
+            case _:
+                raise ValueError(f"Unknown unit: {self.unit}")
+        return timestep / scipy.constants.pico if backend else timestep
+
+
+class SinglePoint(Base):
     """
     LAMMPS in-script writer for configuration and single point simulation.
     """
-    UNITS = 'units'
-    LJ = 'lj'
-    REAL = 'real'
-    METAL = 'metal'
-
     ATOMIC = 'atomic'
 
     PAIR_STYLE = 'pair_style'
@@ -34,23 +67,21 @@ class SinglePoint(list):
     READ_DATA = 'read_data'
     READ_DATA_RE = re.compile(rf'{READ_DATA}\s*([\w.]*)')
     PAIR_COEFF = 'pair_coeff'
-    TIMESTEP = 'timestep'
     CUSTOM_EXT = '.custom'
     DUMP_ID, DUMP_Q = 1, 1000
 
-    V_UNITS = METAL
     V_ATOM_STYLE = ATOMIC
     V_PAIR_STYLE = SW
 
-    def __init__(self, struct=None, isblock=False):
+    def __init__(self, struct=None, isblock=False, **kwargs):
         """
         :param options 'argparse.Namespace': command line options.
         :param isblock bool: whether self is already a block.
         """
-        super().__init__()
+        kwargs.setdefault('options', struct.options)
+        super().__init__(**kwargs)
         self.struct = struct
         self.isblock = isblock
-        self.options = self.struct.options
         self.outfile = f"{self.options.JOBNAME}.in"
 
     def write(self):
@@ -79,7 +110,7 @@ class SinglePoint(list):
         """
         Write the setup section including unit and atom styles.
         """
-        self.join(self.UNITS, self.V_UNITS)
+        self.join(self.UNITS, self.unit)
         self.join('atom_style', self.V_ATOM_STYLE)
 
     def join(self, *args, newline=False):
@@ -165,28 +196,9 @@ class SinglePoint(list):
         """
         if not self.options.temp:
             return
-        self.join(
-            self.TIMESTEP,
-            self.options.timestep * scipy.constants.femto / self.time_unit())
+        self.join(self.TIMESTEP, self.getTimestep())
         self.append('thermo_modify flush yes')
         self.append('thermo 1000')
-
-    @classmethod
-    def time_unit(cls, unit=None):
-        """
-        Return the time unit in the LAMMPS input file.
-
-        :param unit str: the unit of the input script.
-        :return float: the time unit in the LAMMPS input file.
-        :raise ValueError: when the unit is unknown.
-        """
-        match unit if unit else cls.V_UNITS:
-            case cls.REAL:
-                return scipy.constants.femto
-            case cls.METAL:
-                return scipy.constants.pico
-            case _:
-                raise ValueError(f"Unknown unit: {unit}")
 
     def simulation(self):
         """

@@ -614,6 +614,9 @@ class Script(lmpin.Script):
     V_UNITS = lmpin.Script.REAL
     DEFAULT_CUT = symbols.DEFAULT_CUT
 
+    def __init__(self, *args, unit=lmpin.Base.REAL, **kwargs):
+        super().__init__(*args, unit=unit, **kwargs)
+
     def setup(self):
         """
         Write the setup section including unit, topology styles, and specials.

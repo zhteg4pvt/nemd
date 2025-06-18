@@ -8,6 +8,23 @@ from nemd import np
 from nemd import parserutils
 
 
+class TestBase:
+
+    @pytest.fixture
+    def base(self, unit, options):
+        return lmpin.Base(unit=unit, options=options)
+
+    @pytest.mark.parametrize(
+        'unit,options,timestep,backend,expected',
+        [('real', None, None, False, 1e-12), ('real', None, 2, False, 2e-12),
+         ('real', types.SimpleNamespace(timestep=0.5), None, False, 5e-13),
+         ('metal', None, None, False, 1e-9),
+         ('metal', None, None, True, 0.001)])
+    def testGetTimestep(self, base, unit, timestep, backend, expected):
+        timestep = base.getTimestep(timestep=timestep, backend=backend)
+        np.testing.assert_almost_equal(timestep, expected)
+
+
 @pytest.mark.parametrize('smiles,cnum', [('C', 1)])
 class TestSinglePoint:
 
@@ -85,11 +102,6 @@ class TestSinglePoint:
         single.options.temp = temp
         single.timestep()
         assert expected == len(single)
-
-    @pytest.mark.parametrize('unit,expected', [('real', 1e-12),
-                                               ('metal', 1e-9)])
-    def testTimeUnit(self, single, unit, expected):
-        np.testing.assert_almost_equal(single.time_unit(unit), expected)
 
     def testSimulation(self, single):
         single.simulation()

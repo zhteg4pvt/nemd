@@ -12,6 +12,9 @@ from nemd import symbols
 
 
 class Script(lmpin.Script):
+    """
+    Customized for Stillinger.
+    """
 
     def data(self):
         """
@@ -24,9 +27,8 @@ class Script(lmpin.Script):
 
 class Struct(lmpatomic.Struct):
     """
-    The Stillinger structure.
+    Customized for Stillinger.
     """
-    V_UNITS = lmpin.Script.METAL
     V_ATOM_STYLE = lmpin.Script.ATOMIC
     V_PAIR_STYLE = lmpin.Script.SW
 

@@ -15,6 +15,6 @@ class TestThermo:
     def thermo(self, data):
         return lmplog.Thermo(data[1:], columns=data[0])
 
-    @pytest.mark.parametrize('data', [(MINIMIZE)])
-    def testSetup(self, thermo):
-        breakpoint()
+    # @pytest.mark.parametrize('data', [(MINIMIZE)])
+    # def testSetup(self, thermo):
+    #     breakpoint()
