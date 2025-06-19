@@ -16,7 +16,7 @@ class Log(lmpin.Base):
     Class to parse LAMMPS log file and extract data.
     """
 
-    def __init__(self, infile, delay=False, unit=lmpin.Base.REAL, **kwargs):
+    def __init__(self, infile, unit=lmpin.Base.REAL, delay=False, **kwargs):
         """
         :param infile str: LAMMPS log file name.
 
@@ -48,18 +48,19 @@ class Log(lmpin.Base):
                 if line.startswith('Loop time of'):
                     # Finishing up previous thermo block
                     self.setThermo()
-                elif self:
-                    # Inside thermo block: skip lines from fix rigid outputs
-                    if not line.startswith(to_skip):
-                        self.append(line)
+                elif self and not line.startswith(to_skip):
+                    # Reading a thermo block
+                    self.append(line)
                 elif line.startswith('Per MPI rank memory allocation'):
                     # Start a new block
                     self.append(fh.readline())
-                # Other information outside the thermo block
-                elif line.startswith(self.UNITS):
-                    self.unit = line.strip(self.UNITS).strip()
-                elif line.startswith(self.TIMESTEP):
-                    self.timestep = float(line.strip(self.TIMESTEP).strip())
+                else:
+                    # Other information outside the thermo block
+                    line = line.strip()
+                    if line.startswith((self.UNITS, 'Unit style')):
+                        self.unit = line.split()[-1]
+                    elif line.startswith((self.TIMESTEP, 'Time step')):
+                        self.timestep = float(line.split()[-1])
 
     def setThermo(self):
         """
@@ -74,7 +75,7 @@ class Log(lmpin.Base):
         Finalize.
         """
         if self:
-            # Finishing up the last running thermo block
+            # External interrupted thermo block doesn't have the ending marks
             self.setThermo()
         timestep = self.getTimestep(self.timestep, backend=True)
         self.thermo = Thermo(self.thermo,
@@ -85,7 +86,7 @@ class Log(lmpin.Base):
 
 class Thermo(pd.DataFrame):
     """
-    Backend thermodynamic data with time in ps, column renaming, start index
+    Backend thermodynamic data.
     """
     _metadata = ['idx', 'unit', 'timestep']
 
@@ -132,4 +133,4 @@ class Thermo(pd.DataFrame):
 
         :return list of floats: the start and end of the selected time range.
         """
-        return self.index[self.idx], self.index[-1]
+        return self.index[[self.idx, -1]].tolist()
