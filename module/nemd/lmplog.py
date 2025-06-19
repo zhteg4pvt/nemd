@@ -16,16 +16,16 @@ class Log(lmpin.Base):
     Class to parse LAMMPS log file and extract data.
     """
 
-    def __init__(self, filename, delay=False, unit=lmpin.Base.REAL, **kwargs):
+    def __init__(self, infile, delay=False, unit=lmpin.Base.REAL, **kwargs):
         """
-        :param filename str: LAMMPS log file name.
+        :param infile str: LAMMPS log file name.
 
         FIXME: read the unit and timestep from the log file.
         """
         super().__init__(unit=unit, **kwargs)
-        self.filename = filename
+        self.infile = infile
         self.thermo = None
-        self.timestep = self.getTimestep(backend=True)
+        self.timestep = None
         if delay:
             return
         self.setUp()
@@ -35,7 +35,7 @@ class Log(lmpin.Base):
         Set up by reading and parsing the log file.
         """
         self.read()
-        self.setThermo()
+        self.finalize()
 
     def read(self, to_skip=('SHAKE', 'Bond', 'Angle', 'WARNING')):
         """
@@ -43,38 +43,42 @@ class Log(lmpin.Base):
 
         :param to_skip tuple: block lines starting with these are to skip.
         """
-        with open(self.filename) as fh:
-            blk = []
+        with open(self.infile, 'r') as fh:
             while line := fh.readline():
                 if line.startswith('Loop time of'):
                     # Finishing up previous thermo block
-                    data = pd.read_csv(io.StringIO(''.join(blk)), sep=r'\s+')
-                    self.thermo = pd.concat((self.thermo, data))
-                    blk = []
-                elif blk:
+                    self.setThermo()
+                elif self:
                     # Inside thermo block: skip lines from fix rigid outputs
                     if not line.startswith(to_skip):
-                        blk.append(line)
+                        self.append(line)
                 elif line.startswith('Per MPI rank memory allocation'):
                     # Start a new block
-                    blk = [fh.readline()]
+                    self.append(fh.readline())
                 # Other information outside the thermo block
                 elif line.startswith(self.UNITS):
                     self.unit = line.strip(self.UNITS).strip()
                 elif line.startswith(self.TIMESTEP):
-                    timestep = float(line.strip(self.TIMESTEP).strip())
-                    self.timestep = self.getTimestep(timestep, backend=True)
-        if blk:
-            # Finishing up the last running thermo block
-            data = pd.read_csv(io.StringIO(''.join(blk)), sep=r'\s+')
-            self.thermo = pd.concat((self.thermo, data))
+                    self.timestep = float(line.strip(self.TIMESTEP).strip())
 
     def setThermo(self):
         """
-        Set the thermodynamic data.
+        Concatenate and clear the current thermo block.
         """
+        data = pd.read_csv(io.StringIO(''.join(self)), sep=r'\s+')
+        self.thermo = pd.concat((self.thermo, data))
+        self.clear()
+
+    def finalize(self):
+        """
+        Finalize.
+        """
+        if self:
+            # Finishing up the last running thermo block
+            self.setThermo()
+        timestep = self.getTimestep(self.timestep, backend=True)
         self.thermo = Thermo(self.thermo,
-                             timestep=self.timestep,
+                             timestep=timestep,
                              unit=self.unit,
                              options=self.options)
 
@@ -85,33 +89,41 @@ class Thermo(pd.DataFrame):
     """
     _metadata = ['idx', 'unit', 'timestep']
 
-    def __init__(self, *args, unit=None, timestep=1, options=None, **kwargs):
+    def __init__(self,
+                 *args,
+                 unit=Log.REAL,
+                 timestep=1,
+                 options=None,
+                 **kwargs):
         """
         :param unit str: the unit of the log file.
         :param timestep float: the timestep.
         :param options `namedtuple`: command line options.
         """
         super().__init__(*args, **kwargs)
-        self.unit = unit or Log.REAL
+        self.unit = unit
         self.timestep = timestep
         self.options = options
-        self.idx = options.last_pct.getSidx(self) if options else 0
+        self.idx = self.options.last_pct.getSidx(self) if self.options else 0
         self.setUp()
 
-    def setUp(self,
-              key=('Step', 'Temp', 'energy', 'Press', 'Volume'),
-              grp=('energy', 'E_pair', 'E_mol', 'TotEng')):
-        name = f"{symbols.TIME_LB} ({self.idx})"
-        self.index = pd.Index(self.Step * self.timestep, name=name)
+    def setUp(self):
+        """
+        Set up.
+        """
+        self.set_index('Step', inplace=True)
+        self.index *= self.timestep
+        self.index.name = f"{symbols.TIME_LB} ({self.idx})"
+        energy = ('E_pair', 'E_mol', 'TotEng')
+        names = ('Step', 'Temp', energy, 'Press', 'Volume')
         match self.unit:
             case Log.REAL:
                 units = ['n', 'K', 'kcal/mol', 'atm', '\u212B^3']
             case Log.METAL:
                 units = ['n', 'K', 'eV', 'bar', '\u212B^3']
-        units = dict(zip(key, units))
-        units.update({x: units[grp[0]] for x in grp[1:]})
-        columns = {x: f"{x} ({units[x]})" for x in self.columns}
-        self.rename(columns=columns, inplace=True)
+        units = dict(zip(names, units))
+        units.update({x: units[energy] for x in energy})
+        self.columns = [f"{x} ({units[x]})" for x in self.columns]
 
     @property
     def range(self):
