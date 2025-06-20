@@ -113,6 +113,11 @@ class TestCmd:
         manual.setScreen()
         assert expected == manual.args[0].endswith('/dev/null')
 
+    @pytest.mark.parametrize('dirname,expected', [('empty', 'exit 0')])
+    def testExit(self, cmd, expected):
+        cmd.exit()
+        assert expected == cmd.args[-1]
+
     @pytest.mark.parametrize('dirname,expected', [('0049_test', True),
                                                   ('0049_cmd', False),
                                                   ('0001_cmd', False),

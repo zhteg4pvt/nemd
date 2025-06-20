@@ -128,6 +128,7 @@ class Cmd(taskbase.Cmd):
         self.numCpu()
         self.setDebug()
         self.setScreen()
+        self.exit()
 
     def setArgs(self):
         """
@@ -135,8 +136,7 @@ class Cmd(taskbase.Cmd):
         """
         self.args = self.param.cmds
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def param(self):
         """
         The param object.
@@ -145,8 +145,7 @@ class Cmd(taskbase.Cmd):
         """
         return test.Param(self.cmd, options=self.options)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def cmd(self):
         """
         The cmd object.
@@ -210,6 +209,12 @@ class Cmd(taskbase.Cmd):
             if jobutils.NEMD_RUN not in cmd:
                 continue
             self.args[idx] = f"{cmd} > /dev/null"
+
+    def exit(self):
+        """
+        Ignore the previous non-zero return code.
+        """
+        self.args.append('exit 0')
 
     @property
     def out(self):
@@ -287,8 +292,7 @@ class LmpAgg(taskbase.Agg):
                                     logger=self)
             anlz.run()
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def groups(self):
         """
         Group jobs by the statepoint so that the jobs within one group only

@@ -38,16 +38,14 @@ class Crystal(crystals.Crystal):
             vecs = [x * y for x, y in zip(vecs, options.scale_factor)]
         return cls(crystal, vecs, crystal.source, options=options, **kwargs)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def supercell(self):
         """
         See parent.
         """
         return super().supercell(*self.options.dimension)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def mol(self):
         """
         Return the crystal as a molecule.

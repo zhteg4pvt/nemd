@@ -49,8 +49,7 @@ class TestHandler:
 
 class Logger(logutils.Logger):
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def data(self):
         with open(self.handlers[0].baseFilename) as fh:
             return fh.read()

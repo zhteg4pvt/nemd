@@ -51,7 +51,6 @@ class TestPackedConf:
     @pytest.fixture
     def conf(self, smol, random_seed):
         struct = structutils.PackedStruct.fromMols([smol])
-        struct.setBox()
         struct.setFrame()
         struct.dist.set([0, 1, 2])
         return next(itertools.islice(struct.conf, 1, 2))
@@ -89,7 +88,6 @@ class TestGrownConf:
     @pytest.fixture
     def conf(self, smol, random_seed):
         struct = structutils.GrownStruct.fromMols([smol])
-        struct.setBox()
         struct.setFrame()
         struct.dist.set([0, 1, 2])
         return next(itertools.islice(struct.conf, 1, 2))
@@ -226,7 +224,6 @@ class TestGriddedStruct:
     @pytest.mark.parametrize('expected',
                              [[20.88765862, 15.8452838, 11.16757977]])
     def testSetBox(self, struct, expected):
-        struct.setBox()
         np.testing.assert_almost_equal(struct.box.hi.values, expected)
 
     @pytest.mark.parametrize('expected',
@@ -237,20 +234,17 @@ class TestGriddedStruct:
     @pytest.mark.parametrize('expected',
                              [[3.74465398, 2.40594602, 0.45998894]])
     def testSetConformers(self, struct, expected):
-        struct.setBox()
         struct.setConformers()
         xyz = np.concatenate([x.GetPositions() for x in struct.conf])
         np.testing.assert_almost_equal(xyz.max(axis=0), expected)
 
     @pytest.mark.parametrize('expected', [0.02351117892377739])
     def testSetDensity(self, struct, expected):
-        struct.setBox()
         struct.setDensity()
         np.testing.assert_almost_equal(struct.density, expected)
 
     @pytest.mark.parametrize('expected', [[14.1884832, 10.3285875, 0.459989]])
     def testGetPositions(self, struct, expected):
-        struct.setBox()
         struct.setConformers()
         xyz = struct.GetPositions()
         np.testing.assert_almost_equal(xyz.max(axis=0), expected)
@@ -304,18 +298,15 @@ class TestPackedStruct:
         assert struct.run()
 
     def testSetBox(self, struct):
-        struct.setBox()
         np.testing.assert_almost_equal(struct.box.hi.max(), 9.859626871423261)
 
     def testSetFrame(self, struct):
-        struct.setBox()
         struct.setFrame()
         assert 20 == struct.dist.shape[0]
 
     @pytest.mark.parametrize('possible,expected', [(True, (True, [4])),
                                                    (False, (None, []))])
     def testSetFrame(self, struct, possible, expected):
-        struct.setBox()
         struct.setFrame()
         with mock.patch.object(struct, 'isPossible', return_value=possible):
             assert expected[0] == struct.setConformers()
@@ -326,7 +317,6 @@ class TestPackedStruct:
         if idx is not None:
             conf = next(itertools.islice(struct.conf, idx, idx + 1), None)
             conf.setConformer = mock.Mock(side_effect=structutils.ConfError)
-        struct.setBox()
         struct.setFrame()
         struct.attempt()
         assert expected == (struct.placed[0], len(struct.dist.gids.on))
@@ -343,7 +333,6 @@ class TestPackedStruct:
         assert expected == struct.conf_total
 
     def testReset(self, struct):
-        struct.setBox()
         struct.setFrame()
         oxyz = struct.GetPositions()
         struct.attempt()
@@ -370,7 +359,6 @@ class TestGrownStruct:
         if gidx is not None:
             conf = next(itertools.islice(struct.conf, gidx, gidx + 1), None)
             conf.grow = mock.Mock(side_effect=structutils.ConfError)
-        struct.setBox()
         struct.setFrame()
         struct.attempt()
         assert expected == struct.placed[0]

@@ -3,9 +3,11 @@ import types
 
 import pytest
 
+from nemd import lmpatomic
 from nemd import lmpin
 from nemd import np
 from nemd import parserutils
+from nemd import xtal
 
 
 class TestBase:
@@ -16,23 +18,29 @@ class TestBase:
 
     @pytest.mark.parametrize(
         'unit,options,timestep,backend,expected',
-        [('real', None, None, False, 1e-12), ('real', None, 2, False, 2e-12),
-         ('real', types.SimpleNamespace(timestep=0.5), None, False, 5e-13),
-         ('metal', None, None, False, 1e-9),
+        [('real', None, None, False, 1), ('real', None, 2, False, 2),
+         ('real', types.SimpleNamespace(timestep=0.5), None, False, 0.5),
+         ('metal', None, None, False, 0.001),
          ('metal', None, None, True, 0.001)])
     def testGetTimestep(self, base, unit, timestep, backend, expected):
         timestep = base.getTimestep(timestep=timestep, backend=backend)
         np.testing.assert_almost_equal(timestep, expected)
 
+    @pytest.mark.parametrize('options', [None])
+    @pytest.mark.parametrize('unit,expected', [('real', 1E-15),
+                                               ('metal', 1E-12)])
+    def testTimeUnit(self, base, expected):
+        assert expected == base.time_unit
 
-@pytest.mark.parametrize('smiles,cnum', [('C', 1)])
+
 class TestSinglePoint:
 
     @pytest.fixture
-    def single(self, smiles, emol):
-        args = [smiles, '-JOBNAME', 'name']
-        options = parserutils.MolBase().parse_args(args)
-        return lmpin.SinglePoint(struct=types.SimpleNamespace(options=options))
+    def single(self):
+        options = parserutils.XtalBldr().parse_args(['-JOBNAME', 'name'])
+        crystal = xtal.Crystal.fromDatabase(options)
+        struct = lmpatomic.Struct.fromMols([crystal.mol], options=options)
+        return lmpin.SinglePoint(struct=struct)
 
     def testWrite(self, single, tmp_dir):
         single.write()
@@ -40,7 +48,7 @@ class TestSinglePoint:
 
     def testSetUp(self, single):
         single.setUp()
-        assert 12 == len(single)
+        assert 13 == len(single)
 
     def testSetup(self, single):
         single.setup()

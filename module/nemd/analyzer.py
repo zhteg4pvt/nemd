@@ -265,7 +265,7 @@ class Job(Base):
         Parse the index name to get the label, unit, start index and end index.
 
         :param name: the column name
-        :param sidx int: the start indexf
+        :param sidx int: the start index
         :param eidx int: the end index
         return str, str, int, int: label, unit, start index, and end index.
         """

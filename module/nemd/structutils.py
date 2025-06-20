@@ -338,8 +338,7 @@ class GrownMol(PackedMol):
             for frag in conf.frag.next():
                 frag.ids += start
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def frag(self):
         """
         Return the first fragment connected to the initiator.
@@ -350,8 +349,7 @@ class GrownMol(PackedMol):
             #  the smallest rigid body. (side-groups contains rotatable bonds)
             return First(self.confs[0], dihes[0])
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def init(self):
         """
         Return the initiator atom aids.
@@ -384,11 +382,11 @@ class GriddedStruct(Struct):
         """
         Set conformers for all molecules.
         """
-        self.setBox()
         self.setConformers()
         self.setDensity()
 
-    def setBox(self):
+    @functools.cached_property
+    def box(self):
         """
         Set the box of each molecule and the over-all pbc box.
         """
@@ -397,11 +395,11 @@ class GriddedStruct(Struct):
         box_total = [x.GetNumConformers() / x.num.prod() for x in self.mols]
         box_total = sum(math.ceil(x) for x in box_total)
         edges = self.size * math.ceil(math.pow(box_total, 1. / 3))
-        self.box = pbc.Box.fromParams(*edges, tilted=False)
-        logger.debug(f'Box: {self.box.span.max():.2f} {symbols.ANGSTROM}.')
+        box = pbc.Box.fromParams(*edges, tilted=False)
+        logger.debug(f'Box: {box.span.max():.2f} {symbols.ANGSTROM}.')
+        return box
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def size(self):
         """
         Return the maximum size over all molecules.
@@ -520,19 +518,20 @@ class PackedStruct(Struct):
 
         :return bool: True if successfully set all conformers.
         """
-        self.setBox()
         self.setFrame()
         return self.setConformers()
 
-    def setBox(self):
+    @functools.cached_property
+    def box(self):
         """
         Set periodic boundary box.
         """
         vol = self.molecular_weight / self.density / scipy.constants.Avogadro
         edge = math.pow(vol, 1 / 3)  # centimeter
         edge *= scipy.constants.centi / scipy.constants.angstrom
-        self.box = Box.fromParams(edge, tilted=False)
+        box = Box.fromParams(edge, tilted=False)
         logger.debug(f'Cubic box of size {edge:.2f} angstrom is created.')
+        return box
 
     def setFrame(self):
         """
@@ -557,6 +556,7 @@ class PackedStruct(Struct):
             logger.debug(f'Only {self.placed[-1]} molecule placed. '
                          f'({len(self.placed)} trial)')
         self.placed = []
+        del self.box
 
     def attempt(self):
         """

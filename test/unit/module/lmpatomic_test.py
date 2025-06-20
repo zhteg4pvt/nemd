@@ -1,5 +1,4 @@
 import copy
-import os
 import types
 
 import numpy as np
@@ -124,24 +123,24 @@ class TestMol:
     def testIds(self, mol, expected):
         np.testing.assert_equal(mol.ids.values, expected)
 
-    @pytest.mark.parametrize('smiles,class_type', [('[Si]', str),
-                                                   ('C', types.NoneType)])
-    def testFf(self, mol, smiles, class_type):
-        options = parserutils.MolBase().parse_args([smiles])
-        struct = lmpatomic.Struct.fromMols([mol], options=options)
-        assert isinstance(struct.mols[0].ff, class_type)
-
 
 @pytest.mark.parametrize('smiles', ['[Si]'])
 class TestStruct:
 
     @pytest.fixture
     def struct(self, emol):
-        return lmpatomic.Struct.fromMols([emol])
+        options = parserutils.XtalBldr().parse_args(['-JOBNAME', 'name'])
+        return lmpatomic.Struct.fromMols([emol], options=options)
 
     @pytest.mark.parametrize('cnum,expected', [(1, [14])])
     def testSetTypeMap(self, struct, expected):
         np.testing.assert_equal(struct.atm_types.on, expected)
+
+    @pytest.mark.parametrize('cnum,expected', [(1, 14)])
+    def testWrite(self, struct, expected, tmp_dir):
+        struct.write()
+        with open(struct.datafile, 'r') as fh:
+            assert expected == len(fh.readlines())
 
     @pytest.mark.parametrize('cnum,expected', [(0, (0, 5)), (1, (1, 5)),
                                                (2, (2, 5))])
@@ -160,6 +159,14 @@ class TestStruct:
     @pytest.mark.parametrize('cnum,expected', [(0, 0), (1, 1), (2, 2)])
     def testGetPositions(self, struct, expected):
         assert expected == len(struct.GetPositions())
+
+    @pytest.mark.parametrize('cnum,expected', [(1, (1, 2))])
+    def testMass(self, struct, expected):
+        assert expected == struct.masses.shape
+
+    @pytest.mark.parametrize('cnum', [1])
+    def testBox(self, struct):
+        assert struct.box is not None
 
     @pytest.mark.parametrize('cnum,expected', [(0, str)])
     def testFf(self, struct, expected):

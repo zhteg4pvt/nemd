@@ -523,8 +523,7 @@ class Parser:
         """
         self.typer.type(mol)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def atoms(self):
         """
         Set atom types based on the 'Atom Type Definitions' block.
@@ -533,8 +532,7 @@ class Parser:
         """
         return Atom()
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def vdws(self):
         """
         Set vdw parameters based on 'Van der Waals Parameters' block.
@@ -543,8 +541,7 @@ class Parser:
         """
         return Vdw()
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def charges(self):
         """
         Set charges based on 'Atomic Partial Charge Parameters' block.
@@ -553,8 +550,7 @@ class Parser:
         """
         return Charge()
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def bonds(self):
         """
         Set bond parameters based on 'Bond Stretching Parameters' block.
@@ -563,8 +559,7 @@ class Parser:
         """
         return Bond(atoms=self.atoms)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def angles(self):
         """
         Set angle parameters based on 'Angle Bending Parameters' block.
@@ -573,8 +568,7 @@ class Parser:
         """
         return Angle(atoms=self.atoms)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def impropers(self):
         """
         Set improper parameters based on 'Improper Torsional Parameters' block.
@@ -583,8 +577,7 @@ class Parser:
         """
         return Improper(atoms=self.atoms)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def dihedrals(self):
         """
         Set dihedral parameters based on 'Torsional Parameters' block.
@@ -686,8 +679,7 @@ class Typer:
         atom = next(x for x in atoms if not x.HasProp(self.RES_NUM))
         raise KeyError(f'Typing missed {atom.GetSymbol()} {atom.GetIdx()}')
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def smiles(self):
         """
         Return the smiles-based typing table.

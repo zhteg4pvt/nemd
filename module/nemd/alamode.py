@@ -12,9 +12,9 @@ import pandas as pd
 
 from nemd import builtinsutils
 from nemd import constants
+from nemd import lmpatomic
 from nemd import lmpin
 from nemd import process
-from nemd import stillinger
 from nemd import symbols
 from nemd import table
 from nemd import xtal
@@ -25,7 +25,7 @@ OPTIMIZE = symbols.OPTIMIZE
 PHONONS = symbols.PHONONS
 
 
-class Script(stillinger.Script):
+class Script(lmpin.Script):
     """
     Customized to dump force.
     """
@@ -44,13 +44,12 @@ class Script(stillinger.Script):
         super().dump_modify(*args, sort=sort, fmt=fmt, **kwargs)
 
 
-class Struct(stillinger.Struct):
+class Struct(lmpatomic.Struct):
     """
     Customized with input script.
     """
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def script(self):
         """
         See parent.
@@ -81,7 +80,7 @@ def exe(obj, **kwargs):
     """
     if hasattr(obj, 'options'):
         kwargs.setdefault('jobname', obj.options.JOBNAME)
-    if isinstance(obj, stillinger.Struct):
+    if isinstance(obj, lmpatomic.Struct):
         Runner = Lmp
     elif isinstance(obj, Crystal):
         Runner = process.Alamode

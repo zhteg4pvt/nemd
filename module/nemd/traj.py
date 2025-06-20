@@ -87,6 +87,8 @@ class Traj(list):
                                 stderr=subprocess.PIPE,
                                 text=True)
         stdout, stderr = proc.communicate()
+        if not stdout:
+            return
         steps = np.loadtxt(io.StringIO(stdout), dtype=int)
         # From the 2nd to the last frame in case of a broken last one.
         self.start = steps[self.options.last_pct.getSidx(steps, buffer=1)]

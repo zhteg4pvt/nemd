@@ -1,5 +1,3 @@
-from unittest import mock
-
 import pytest
 from rdkit import Chem
 
@@ -152,6 +150,10 @@ class TestMol:
     @pytest.fixture
     def fmol(self, emol):
         return lmpfull.Mol(emol)
+
+    @pytest.mark.parametrize('smiles,cnum', [('C', 1)])
+    def testFf(self, fmol):
+        assert isinstance(fmol.ff, oplsua.Parser)
 
     @pytest.mark.parametrize('smiles,cnum,expected', [('O', 0, [77, 78, 78])])
     def testType(self, fmol, expected):

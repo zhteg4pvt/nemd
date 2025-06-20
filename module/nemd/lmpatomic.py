@@ -12,8 +12,8 @@ import methodtools
 import numpy as np
 import pandas as pd
 
+from nemd import lmpin
 from nemd import numpyutils
-from nemd import oplsua
 from nemd import pbc
 from nemd import structure
 from nemd import sw
@@ -187,8 +187,7 @@ class Mol(structure.Mol):
         for atom in self.GetAtoms():
             atom.SetIntProp(TYPE_ID, atom.GetAtomicNum())
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def ids(self):
         """
         The ids of the molecules.
@@ -196,17 +195,6 @@ class Mol(structure.Mol):
         :return `Id`: the atom ids.
         """
         return self.Id.fromAtoms(self.GetAtoms())
-
-    @property
-    @functools.cache
-    def ff(self, ff=oplsua.Parser.get()):
-        """
-        Force field parser for atoms, charges, and other parameters.
-
-        :param ff `oplsua.Parser`: the default force field parser.
-        :return `oplsua.Parser`: the force field parser.
-        """
-        return self.struct.ff if self.struct else ff
 
 
 class Struct(structure.Struct):
@@ -216,7 +204,8 @@ class Struct(structure.Struct):
     Id = Id
     Atom = Atom
     Mol = Mol
-    DESCR = 'LAMMPS Description # {style}'
+    Script = lmpin.Script
+    DESCR = 'LAMMPS Description # {style}\n'
 
     def __init__(self, *args, options=None, **kwargs):
         """
@@ -226,7 +215,6 @@ class Struct(structure.Struct):
         self.options = options
         # Atomic number of Og element
         self.atm_types = numpyutils.IntArray(shape=119)
-        self.box = pbc.Box()
         self.datafile = f"{self.options.JOBNAME}.data" if self.options else None
 
     def setUp(self, *arg, **kwargs):
@@ -242,6 +230,21 @@ class Struct(structure.Struct):
         Set the type map for atom.
         """
         self.atm_types[[x.GetAtomicNum() for x in mol.GetAtoms()]] = True
+
+    def write(self):
+        """
+        Write out a LAMMPS datafile.
+        """
+        with open(self.datafile, 'w') as self.hdl:
+            self.hdl.write(self.DESCR.format(style=self.script.V_ATOM_STYLE))
+            self.hdl.write("\n")
+            self.atoms.writeCount(self.hdl)
+            self.hdl.write("\n")
+            self.masses.writeCount(self.hdl)
+            self.hdl.write("\n")
+            self.box.write(self.hdl)
+            self.masses.write(self.hdl)
+            self.atoms.write(self.hdl)
 
     @property
     def atoms(self):
@@ -260,8 +263,7 @@ class Struct(structure.Struct):
         """
         return zip(self.ids.values, self.GetPositions())
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def ids(self):
         """
         The ids of the atoms.
@@ -289,8 +291,18 @@ class Struct(structure.Struct):
         """
         return Mass.fromAtoms(atoms.iloc[self.atm_types.on])
 
-    @property
-    @functools.cache
+    @functools.cached_property
+    def box(self):
+        """
+        Get the pbc box.
+
+        :return `pbc.Box`: the box.
+        """
+        if self.mols and self.mols[0].vecs:
+            return pbc.Box.fromParams(*self.mols[0].vecs)
+        return pbc.Box()
+
+    @functools.cached_property
     def ff(self):
         """
         Force field object.
@@ -298,6 +310,15 @@ class Struct(structure.Struct):
         :return str: the force field file or parser.
         """
         return sw.get_file(*self.masses.element.tolist())
+
+    @functools.cached_property
+    def script(self):
+        """
+        Get the LAMMPS in-script writer.
+
+        :return `Script`: the in-script.
+        """
+        return self.Script(struct=self)
 
 
 class Reader:
@@ -310,7 +331,6 @@ class Reader:
     Mass = Mass
     Atom = Atom
     NAMES = {x.NAME: x.LABEL for x in [Mass, Atom]}
-    DESCR_RE = Struct.DESCR.replace('{style}', '(.*)$')
     FLOAT_RE = r"[+-]?[\d\.]+"
 
     def __init__(self, data_file=None):
@@ -319,8 +339,7 @@ class Reader:
         """
         self.data_file = data_file
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def lines(self):
         """
         Return the lines.
@@ -341,8 +360,7 @@ class Reader:
         lines[pbc.Box.NAME] += [x for x in header if self.tilt_re.match(x)]
         return lines
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def name_re(self):
         """
         The regular expression of any names. (e.g. 'Masses', 'Atoms')
@@ -351,8 +369,7 @@ class Reader:
         """
         return re.compile(f"^{'|'.join([x for x in self.NAMES])}$")
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def count_re(self):
         """
         The regular expression of any counts. (e.g. 'atom types', 'atoms')
@@ -362,8 +379,7 @@ class Reader:
         labels = [x for x in self.NAMES.values()]
         return re.compile(rf"^([0-9]+)\s+({'|'.join(labels)})$")
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def box_re(self):
         """
         The regular expression of any box lines. (e.g. 'xlo xhi', 'ylo yhi')
@@ -374,8 +390,7 @@ class Reader:
         labels = '|'.join([f'{x}{symbols.SPACE}{y}' for x, y in zip(*values)])
         return re.compile(rf"^{self.FLOAT_RE}\s{self.FLOAT_RE}\s({labels}).*$")
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def tilt_re(self):
         """
         The regular expression of tge tilt line. (e.g. 'xy xz yz')
@@ -385,8 +400,7 @@ class Reader:
         rex = r'\s'.join([self.FLOAT_RE] * 3 + pbc.Box.TILT_LABEL)
         return re.compile(rf"^{rex}.*$")
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def box(self):
         """
         Parse the box section.
@@ -395,8 +409,7 @@ class Reader:
         """
         return self.fromLines(pbc.Box)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def masses(self):
         """
         Parse the mass section for masses and elements.
@@ -405,8 +418,7 @@ class Reader:
         """
         return self.fromLines(self.Mass)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def elements(self, name='element'):
         """
         The elements of all atoms.
@@ -417,8 +429,7 @@ class Reader:
         data = self.masses.element[self.atoms.type_id]
         return pd.DataFrame(data, index=self.atoms.index, columns=[name])
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def atoms(self):
         """
         The atom section (the atom block of the int data type).
@@ -459,14 +470,17 @@ class Reader:
         return True
 
     @classmethod
-    def getStyle(cls, pathname):
+    def getStyle(cls,
+                 pathname,
+                 rex=re.compile(Struct.DESCR.replace('{style}', '(.*)$'))):
         """
         Get the lammps data file style.
 
         :param pathname str: the lammps data file with path.
+        :param rex 're.Pattern': the pattern to search the atom block style.
         :return str: the style
         """
         with open(pathname, 'r') as fh:
-            match = re.match(cls.DESCR_RE, fh.readline())
-            if match:
-                return match.group(1)
+            match = rex.match(fh.readline())
+        if match:
+            return match.group(1)

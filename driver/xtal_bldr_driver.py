@@ -6,9 +6,9 @@ This driver builds a crystal.
 import sys
 
 from nemd import jobutils
+from nemd import lmpatomic
 from nemd import logutils
 from nemd import parserutils
-from nemd import stillinger
 from nemd import xtal
 
 
@@ -30,8 +30,8 @@ class Crystal(logutils.Base):
         Main method to run.
         """
         crystal = xtal.Crystal.fromDatabase(options=self.options)
-        self.struct = stillinger.Struct.fromMols([crystal.mol],
-                                                 options=self.options)
+        self.struct = lmpatomic.Struct.fromMols([crystal.mol],
+                                                options=self.options)
         self.struct.write()
         self.log(f'Data file written into {self.struct.datafile}')
         jobutils.Job.reg(self.struct.datafile)

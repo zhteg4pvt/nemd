@@ -344,6 +344,16 @@ class Mol(lmpatomic.Mol):
         self.setSubstruct()
         self.updateAll()
 
+    @functools.cached_property
+    def ff(self, ff=oplsua.Parser.get()):
+        """
+        Force field parser for atoms, charges, and other parameters.
+
+        :param ff `oplsua.Parser`: the default force field parser.
+        :return `oplsua.Parser`: the force field parser.
+        """
+        return self.struct.ff if self.struct else ff
+
     def type(self):
         """
         See parent.
@@ -410,8 +420,7 @@ class Mol(lmpatomic.Mol):
         for conf in self.GetConformers():
             conf.setPositions(xyz)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def charges(self):
         """
         The charges.
@@ -421,8 +430,7 @@ class Mol(lmpatomic.Mol):
         type_ids = [x.GetIntProp(TYPE_ID) for x in self.GetAtoms()]
         return self.ff.charges.loc[type_ids].values + self.nbr_charge
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def bonds(self):
         """
         The bonds.
@@ -432,8 +440,7 @@ class Mol(lmpatomic.Mol):
         atoms = [[x.GetBeginAtom(), x.GetEndAtom()] for x in self.GetBonds()]
         return Bond.fromAtoms(atoms, self.ff.bonds)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def angles(self):
         """
         The angles.
@@ -452,8 +459,7 @@ class Mol(lmpatomic.Mol):
             for atom1, atom3 in itertools.combinations(atom.GetNeighbors(), 2):
                 yield atom1, atom, atom3
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def dihedrals(self):
         """
         The dihedral angles.
@@ -477,8 +483,7 @@ class Mol(lmpatomic.Mol):
                         if fourth.GetIdx() != second.GetIdx():
                             yield first, second, third, fourth
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def impropers(self):
         """
         The improper angles.
@@ -564,8 +569,7 @@ class Mol(lmpatomic.Mol):
         """
         return self.ff.molecular_weight(self)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def nbr_charge(self):
         """
         Balance the charge when residues are not neutral.
@@ -638,6 +642,12 @@ class Script(lmpin.Script):
         if self.struct.hasCharge():
             self.append(f"kspace_style pppm 0.0001")
 
+    def coeff(self):
+        """
+        Pair coefficients are included in .data.
+        """
+        pass
+
     def minimize(self, *args, geo=None, **kwargs):
         """
         See parent.
@@ -662,6 +672,7 @@ class Struct(lmpatomic.Struct):
     Id = Id
     Atom = Atom
     Mol = Mol
+    Script = Script
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -688,8 +699,8 @@ class Struct(lmpatomic.Struct):
         Write out a LAMMPS datafile or return the content.
         """
         with open(self.datafile, 'w') as self.hdl:
-            self.hdl.write(
-                f"{self.DESCR.format(style=Script.V_ATOM_STYLE)}\n\n")
+            self.hdl.write(self.DESCR.format(style=self.script.V_ATOM_STYLE))
+            self.hdl.write("\n")
             # Topology counting
             self.atoms.writeCount(self.hdl)
             self.bonds.writeCount(self.hdl)
@@ -726,8 +737,7 @@ class Struct(lmpatomic.Struct):
         """
         return zip(self.ids.values, self.charges, self.GetPositions())
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def charges(self):
         """
         Atoms charges.
@@ -737,8 +747,7 @@ class Struct(lmpatomic.Struct):
         charges = [x.GetOwningMol().charges for x in self.conf]
         return np.concatenate(charges or [[]])
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def bonds(self):
         """
         Bonds.
@@ -748,8 +757,7 @@ class Struct(lmpatomic.Struct):
         bonds = [y.bonds for x in self.mols for y in x.confs]
         return Bond.concatenate(bonds, self.bnd_types)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def angles(self):
         """
         Angle.
@@ -759,8 +767,7 @@ class Struct(lmpatomic.Struct):
         angles = [y.angles for x in self.mols for y in x.confs]
         return Angle.concatenate(angles, self.ang_types)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def dihedrals(self):
         """
         Dihedral angles.
@@ -770,8 +777,7 @@ class Struct(lmpatomic.Struct):
         dihes = [y.dihedrals for x in self.mols for y in x.confs]
         return Dihedral.concatenate(dihes, self.dihe_types)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def impropers(self):
         """
         Improper angles.
@@ -897,24 +903,13 @@ class Struct(lmpatomic.Struct):
             yield f'Box span / 2 ({min_span / 2:.2f} {symbols.ANGSTROM}) < ' \
                   f'{Script.DEFAULT_CUT:.2f} {symbols.ANGSTROM} (cutoff)'
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def ff(self):
         """
         See parent.
         """
         ff = self.options.force_field if self.options else symbols.OPLSUA_TIP3P
         return oplsua.Parser.get(*ff[1:])
-
-    @property
-    @functools.cache
-    def script(self):
-        """
-        Get the LAMMPS in-script writer.
-
-        :return `Script`: the in-script.
-        """
-        return Script(struct=self)
 
 
 class Reader(lmpatomic.Reader):
@@ -929,8 +924,7 @@ class Reader(lmpatomic.Reader):
     ]
     NAMES = {x.NAME: x.LABEL for x in NAMES}
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def pair_coeffs(self):
         """
         Paser the pair coefficient section.
@@ -939,8 +933,7 @@ class Reader(lmpatomic.Reader):
         """
         return self.fromLines(PairCoeff)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def bond_coeffs(self):
         """
         Paser the bond coefficients.
@@ -949,8 +942,7 @@ class Reader(lmpatomic.Reader):
         """
         return self.fromLines(BondCoeff)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def angle_coeffs(self):
         """
         Paser the angle coefficients.
@@ -959,8 +951,7 @@ class Reader(lmpatomic.Reader):
         """
         return self.fromLines(AngleCoeff)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def dihedral_coeffs(self):
         """
         Paser the dihedral coefficients.
@@ -969,8 +960,7 @@ class Reader(lmpatomic.Reader):
         """
         return self.fromLines(DihedralCoeff)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def improper_coeffs(self):
         """
         Paser the improper coefficients.
@@ -979,8 +969,7 @@ class Reader(lmpatomic.Reader):
         """
         return self.fromLines(ImproperCoeff)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def bonds(self):
         """
         Parse the atom section for atom id and molecule id.
@@ -989,8 +978,7 @@ class Reader(lmpatomic.Reader):
         """
         return self.fromLines(Bond)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def angles(self):
         """
         Parse the angle section for angle id and constructing atoms.
@@ -999,8 +987,7 @@ class Reader(lmpatomic.Reader):
         """
         return self.fromLines(Angle)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def dihedrals(self):
         """
         Parse the dihedral section for dihedral id and constructing atoms.
@@ -1009,8 +996,7 @@ class Reader(lmpatomic.Reader):
         """
         return self.fromLines(Dihedral)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def impropers(self):
         """
         Parse the improper section for dihedral id and constructing atoms.
@@ -1019,8 +1005,7 @@ class Reader(lmpatomic.Reader):
         """
         return self.fromLines(Improper)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def mols(self):
         """
         The atom ids grouped by molecules.

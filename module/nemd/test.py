@@ -46,8 +46,7 @@ class Base(logutils.Base):
         msg = symbols.SEMICOLON.join(args or self.args)
         return f"{self.jobname}: {msg}" if msg else self.jobname
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def args(self):
         """
         Return the argument.
@@ -56,8 +55,7 @@ class Base(logutils.Base):
         """
         return [x for x in self.raw if not x.startswith(self.POUND)]
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def raw(self):
         """
         Return the raw lines.
@@ -131,8 +129,7 @@ class Param(Base):
         ]
         return cmds
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def args(self):
         """
         See the parent.
@@ -174,7 +171,7 @@ class Check(Base):
         self.log(self.getHeader())
         replacement = repl.format(dirname=self.dirname)
         tokens = [sub_re.sub(replacement, x) for x in self.args]
-        proc = process.Check(tokens, jobname=self.name)
+        proc = process.Check([' && '.join(tokens)], jobname=self.name)
         completed = proc.run()
         if not completed.returncode:
             return
@@ -210,8 +207,7 @@ class Tag(Base):
             return
         self.tags[self.SLOW] = slow
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def logs(self):
         """
         Set the log readers.
@@ -221,8 +217,7 @@ class Tag(Base):
             if x.logfile
         ]
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def tags(self):
         """
         The tags.
@@ -260,8 +255,7 @@ class Tag(Base):
         """
         return self.labeled and (self.fast is None or bool(self.fast))
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def fast(self):
         """
         Get the fast parameters.

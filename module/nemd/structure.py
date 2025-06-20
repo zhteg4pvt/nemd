@@ -311,8 +311,7 @@ class Mol(Chem.rdchem.Mol):
                     target = a_target
         return shortest_path[source][target]
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def graph(self):
         """
         Get the networkx graph on the molecule.
@@ -338,8 +337,7 @@ class Mol(Chem.rdchem.Mol):
         """
         return tuple(sorted(bond)) in self.rotatable
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def rotatable(
         self,
         mol=Chem.MolFromSmarts(

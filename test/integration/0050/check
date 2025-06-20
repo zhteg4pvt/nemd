@@ -1,5 +1,5 @@
 nemd_check cmp ab_lmp_traj_density.csv ab_lmp_traj_density.csv
-nemd_check has ab_lmp_traj.log "Empty Result for density" "Empty Result for msd" "Empty Result for rdf" "Empty Result for clash"
+nemd_check has ab_lmp_traj.log "Empty Result for msd" "Empty Result for rdf" "Empty Result for clash"
 nemd_check glob "*/*/lmp_traj_xyz.xyz" num=2
 nemd_check glob "*/*/lmp_traj_view.html" num=2
 

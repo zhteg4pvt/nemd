@@ -44,8 +44,7 @@ class Moiety(structure.Mol):
             raise MoietyError(f"{STAR} of {self.smiles} doesn't cap one atom.")
         return [x for x in self.stars if x.GetAtomMapNum() == role_id]
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def stars(self):
         """
         Get the atoms of the star symbol.
@@ -54,8 +53,7 @@ class Moiety(structure.Mol):
         """
         return [x for x in self.GetAtoms() if x.GetSymbol() == STAR]
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def role(self, roles=(REGULAR, TERMINATOR, MONOMER)):
         """
         Get the role.

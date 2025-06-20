@@ -37,22 +37,34 @@ class Base(list):
 
     def getTimestep(self, timestep=None, backend=False):
         """
-        Return the timestep in ps.
+        Return the timestep.
 
-        :param timestep float: the timestep.
+        :param timestep float: the timestep in self.unit.
         :param backend bool: the timestep is in ps if True.
         :raise ValueError: when the unit is unknown.
         """
+        if timestep:
+            timestep *= self.time_unit
         if timestep is None:
             timestep = getattr(self.options, 'timestep', None)
+            if timestep:
+                timestep *= scipy.constants.femto
+        if timestep is None:
+            match self.unit:
+                case self.REAL | self.METAL:
+                    timestep = scipy.constants.femto
+        return timestep / (scipy.constants.pico if backend else self.time_unit)
+
+    @property
+    def time_unit(self):
+        """
+        Get the front-end time unit.
+        """
         match self.unit:
             case self.REAL:
-                timestep = scipy.constants.femto * (timestep or 1)
+                return scipy.constants.femto
             case self.METAL:
-                timestep = scipy.constants.pico * (timestep or 0.001)
-            case _:
-                raise ValueError(f"Unknown unit: {self.unit}")
-        return timestep / scipy.constants.pico if backend else timestep
+                return scipy.constants.pico
 
 
 class SinglePoint(Base):
@@ -101,6 +113,7 @@ class SinglePoint(Base):
         self.setup()
         self.pair()
         self.data()
+        self.coeff()
         self.traj()
         self.minimize()
         self.timestep()
@@ -133,6 +146,13 @@ class SinglePoint(Base):
         Write data file related information.
         """
         self.join(self.READ_DATA, f"{self.options.JOBNAME}.data")
+
+    def coeff(self):
+        """
+        Write pair coefficient.
+        """
+        self.join(self.PAIR_COEFF, '*', '*', self.struct.ff,
+                  *self.struct.masses.element)
 
     def traj(self):
         """

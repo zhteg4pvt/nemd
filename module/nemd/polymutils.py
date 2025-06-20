@@ -234,8 +234,7 @@ class Moiety(cru.Moiety):
         editable = EditableMol(combined).addBonds(pairs.values())
         return Moiety(editable.GetMol())
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def tail(self):
         """
         Get the capping atom of the tail.
@@ -244,8 +243,7 @@ class Moiety(cru.Moiety):
         """
         return self.getCapping(self.TAIL_ID)
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def head(self):
         """
         Get the capping atom of the head.
@@ -644,8 +642,7 @@ class Mol(structure.Mol, logutils.Base):
             bond.vec = -vec
             yield bond
 
-    @property
-    @functools.cache
+    @functools.cached_property
     def res(self):
         """
         The residue.
