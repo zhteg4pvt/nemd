@@ -15,14 +15,14 @@ jtype: task aggregator
 prj_path: None
 clean: False
 screen: off
-JobStart: 11:03:13 06/09/2025
+JobStart: 21:27:07 06/20/2025
 ...........................
 1 / 1 completed jobs.
 2 / 2 succeed sub-jobs.
-Task Total Timing: 00:00:01
+Task Total Timing: 00:00:02
 | amorp_bld   |
 |:------------|
-| 00:01 ave   |
-| 00:01 cab   |
+| 00:02 ave   |
+| 00:02 cab   |
 Finished.
-11:03:16 06/09/2025
+21:27:13 06/20/2025

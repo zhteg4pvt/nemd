@@ -1,7 +1,11 @@
+# This software is licensed under the BSD 3-Clause License.
+# Authors: Teng Zhang (zhteg4@gmail.com)
+"""
+Pytest utilities.
+"""
 import contextlib
 import functools
 import inspect
-from inspect import isclass
 
 import pytest
 
@@ -18,7 +22,7 @@ class Raises:
         :param obj `class`, `method` or `func`: the object to decorate
         :return obj: the decorated object.
         """
-        if not isclass(obj):
+        if not inspect.isclass(obj):
             return cls.decorate(obj)
         for name, method in obj.__dict__.items():
             if name.startswith("test") and callable(method):

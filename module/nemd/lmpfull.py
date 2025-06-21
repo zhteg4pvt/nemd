@@ -40,8 +40,8 @@ class Mass(lmpatomic.Mass):
         See parent.
         """
         masses = super().fromAtoms(atoms)
-        masses.comment = masses.comment.str.cat(atoms.descr.values, sep=' ')
-        masses.comment = masses.comment.str.cat(map(str, atoms.index), sep=' ')
+        comment = masses.comment.str.cat(atoms.descr.values, sep=' ')
+        masses.comment = comment.str.cat(map(str, atoms.index), sep=' ')
         return masses
 
 

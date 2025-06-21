@@ -24,11 +24,11 @@ INTERAC: False
 PYTHON: 2
 CPU: 1
 DEBUG: None
-JobStart: 11:02:56 06/09/2025
+JobStart: 21:27:08 06/20/2025
 ...........................
-WARNING: Box span (4.87 Å) < 22.00 Å (cutoff x 2)
+WARNING: Box span / 2 (2.44 Å) < 11.00 Å (cutoff)
 Data file written into amorp_bldr.data
 In script written into amorp_bldr.in
 Finished.
 Peak memory usage: 183.6974 MB
-11:02:57 06/09/2025
+21:27:10 06/20/2025
