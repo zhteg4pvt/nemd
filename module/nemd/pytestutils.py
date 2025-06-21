@@ -42,8 +42,8 @@ class Raises:
             """
             Run function with the expected exception catched.
 
-            :param expected 'type' or any: The raised exception class (e.g. ValueError),
-                or the expected return instance
+            :param expected 'type' or any: The raised exception class
+                (e.g. ValueError), or the expected return instance
             :return any: the function return
             """
             with cls.ctxmgr(expected):

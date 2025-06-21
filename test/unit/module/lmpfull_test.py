@@ -489,3 +489,10 @@ class TestReader:
     def testAllClose(self, rdr, other, expected):
         pathname = envutils.test_data(*other)
         assert expected == rdr.allClose(lmpfull.Reader(pathname))
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['0022_test', 'amorp_bldr.data'], (6, 7)),
+                              (['0044', 'dispersion.data'], (216, 7))])
+    def testRead(self, args, expected):
+        rdr = lmpfull.Reader(envutils.test_data(*args))
+        assert expected == rdr.atoms.shape

@@ -1058,3 +1058,21 @@ class Reader(lmpatomic.Reader):
         if not self.impropers.allClose(other.impropers, **kwargs):
             return False
         return True
+
+    @classmethod
+    def read(cls, pathname):
+        """
+        Get the appropriate reader based on the style of the data file style.
+
+        :param pathname str: the pathname of the data file
+        :return `Reader`: the corresponding data file reader
+        :raise ValueError: unknown style
+        """
+        style = lmpatomic.Reader.getStyle(pathname)
+        match style:
+            case Script.FULL:
+                return cls(pathname)
+            case lmpin.Script.ATOMIC:
+                return lmpatomic.Reader(pathname)
+            case _:
+                raise ValueError(f'Unknown style: {style}')

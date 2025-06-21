@@ -86,9 +86,6 @@ def raises(expected):
         or the expected return instance
     :return 'ContextManager': context manager to assert the raise
     """
-    # FIXME: leaks exceptions when fixture catches error via contextmanager
-    # with pytest.raises(expected):
-    #     yield
     return pytestutils.Raises.ctxmgr(expected)
 
 

@@ -6,7 +6,7 @@ This driver analyzes the log file from previous molecular dynamics simulations.
 import sys
 
 from nemd import analyzer
-from nemd import lmpdata
+from nemd import lmpfull
 from nemd import lmplog
 from nemd import logutils
 from nemd import parserutils
@@ -43,7 +43,7 @@ class Log(logutils.Base):
         """
         if not self.options.data_file:
             return
-        self.rdr = lmpdata.read(self.options.data_file)
+        self.rdr = lmpfull.Reader.read(self.options.data_file)
 
     def setThermo(self):
         """
