@@ -12,15 +12,14 @@ from nemd import polymutils
 from nemd import structutils
 
 
-class Grid(logutils.Base):
+class Single(logutils.Base):
     """
-    A grid cell with a fixed number of molecules.
+    Build a structure with single molecule.
     """
 
     def __init__(self, options, **kwargs):
         """
         :param options 'argparse.Driver':  Parsed command-line options
-        :param ff 'OplsParser': the force field class.
         """
         super().__init__(**kwargs)
         self.options = options
@@ -38,7 +37,7 @@ class Grid(logutils.Base):
 
     def setMol(self):
         """
-        Build polymer from monomers if provided.
+        Build the molecule.
         """
         for cru, cru_num, mol_num in zip(self.options.cru,
                                          self.options.cru_num,
@@ -53,7 +52,7 @@ class Grid(logutils.Base):
 
     def setStruct(self):
         """
-        Build gridded cell.
+        Build the structure.
         """
         self.struct = structutils.GriddedStruct.fromMols([self.mol],
                                                          options=self.options)
@@ -63,18 +62,15 @@ class Grid(logutils.Base):
         """
         Log substructure information.
         """
-        if not self.options.substruct or self.options.substruct[1] is not None:
+        if not (self.options.substruct and self.options.substruct[1] is None):
             return
         val = self.struct.mols[0].GetConformer().measure()
-        if val is not None:
-            self.log(f"{self.options.substruct[0]} {val}")
-            return
-        self.log(
-            f'{self.options.substruct[0]} does not match any substructures')
+        self.log(f"{self.options.substruct[0]} "
+                 f"{'matches no substructure' if val is None else val}")
 
     def write(self):
         """
-        Write amorphous cell into data file.
+        Write the data file.
         """
         self.struct.write()
         self.log(f'Data file written into {self.struct.outfile}')
@@ -88,7 +84,7 @@ def main(argv):
     parser = parserutils.MolBldr(descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options) as logger:
-        cell = Grid(options, logger=logger)
+        cell = Single(options, logger=logger)
         cell.run()
 
 

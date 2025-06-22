@@ -12,9 +12,8 @@ from nemd import structutils
 class TestAmorphous:
 
     @pytest.fixture
-    def amorp(self, argv):
+    def amorp(self, argv, logger):
         options = parserutils.AmorpBldr().parse_args(argv + ['-seed', '1'])
-        logger = mock.MagicMock(hasHandlers=mock.MagicMock(return_value=False))
         return driver.Amorphous(options, logger=logger)
 
     @pytest.mark.parametrize(

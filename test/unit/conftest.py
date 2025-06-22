@@ -252,3 +252,13 @@ def called(expected):
         mocked.assert_called_with(expected)
     else:
         mocked.assert_not_called()
+
+
+@pytest.fixture
+def logger():
+    """
+    Return mocked logger object.
+
+    :return `mock.Mock`: the mocked logger.
+    """
+    return mock.MagicMock(hasHandlers=mock.MagicMock(return_value=False))

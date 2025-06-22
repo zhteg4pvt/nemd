@@ -1,47 +1,48 @@
 import os
-from unittest import mock
 
 import mol_bldr_driver as driver
 import pytest
 
+from nemd import parserutils
 
-class TestGrid:
+
+class TestSingle:
 
     @pytest.fixture
-    def grid(self, argv):
-        options = driver.validate_options(argv)
-        return driver.Grid(options, logger=mock.Mock())
+    def single(self, argv, logger):
+        options = parserutils.MolBldr().parse_args(argv)
+        return driver.Single(options, logger=logger)
 
     @pytest.mark.parametrize("argv,num", [(['[Ar]'], 1),
                                           (['*C*', '-cru_num', '4'], 4)])
-    def testSetMol(self, grid, num):
-        grid.setMol()
-        assert grid.mol.GetNumAtoms() == num
+    def testSetMol(self, single, num):
+        single.setMol()
+        assert single.mol.GetNumAtoms() == num
 
-    @pytest.mark.parametrize("argv,num", [(['[Ar]'], 1),
-                                          (['*C*', '-cru_num', '4'], 4)])
-    def testSetStruct(self, grid, num):
-        grid.setMol()
-        grid.setStruct()
-        assert grid.struct.atoms.shape[0] == num
+    @pytest.mark.parametrize("argv,expected", [(['[Ar]'], 1),
+                                               (['*C*', '-cru_num', '4'], 4)])
+    def testSetStruct(self, single, expected):
+        single.setMol()
+        single.setStruct()
+        assert expected == single.struct.atoms.shape[0]
 
-    @mock.patch('mol_bldr_driver.log')
+    @pytest.mark.parametrize('argv', [['*C*', '-cru_num', '4', '-seed', '1']])
     @pytest.mark.parametrize(
-        "argv,called",
-        [(['*C*', '-cru_num', '4', '-substruct', 'CCCC:45'], False),
-         (['*C*', '-cru_num', '4', '-substruct', 'CCCC'], True),
-         (['*C*', '-cru_num', '4', '-substruct', 'CCCCC'], True),
-         (['*C*', '-cru_num', '4'], False)])
-    def testLogSubstruct(self, log_mock, grid, called):
-        grid.setMol()
-        grid.setStruct()
-        grid.logSubstruct()
-        assert log_mock.called == called
+        "substruct,expected",
+        [(['CCCC', 45], False),
+         (['CCCC', None], 'CCCC dihedral (degree): -0.00'),
+         (['CCCCC', None], 'CCCCC matches no substructure'), (None, False)])
+    def testLogSubstruct(self, single, substruct, called):
+        single.options.substruct = substruct
+        single.setMol()
+        single.setStruct()
+        single.log = called
+        single.logSubstruct()
 
     @pytest.mark.parametrize("argv", [(['*C*', '-cru_num', '4'])])
-    def testWrite(self, grid, argv, tmp_dir):
-        grid.setMol()
-        grid.setStruct()
-        grid.write()
-        assert os.path.exists(grid.struct.inscript)
-        assert os.path.exists(grid.struct.outfile)
+    def testWrite(self, single, argv, tmp_dir):
+        single.setMol()
+        single.setStruct()
+        single.write()
+        assert os.path.exists(single.struct.script.outfile)
+        assert os.path.exists(single.struct.outfile)
