@@ -381,9 +381,12 @@ class GriddedStruct(Struct):
     def run(self):
         """
         Set conformers for all molecules.
+
+        :return bool: True if successfully set all conformers.
         """
         self.setConformers()
         self.setDensity()
+        return True
 
     @functools.cached_property
     def box(self):

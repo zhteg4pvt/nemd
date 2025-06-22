@@ -31,12 +31,11 @@ class Amorphous(logutils.Base):
 
     def run(self):
         """
-        Main method to build the cell.
+        Main method to build the amorphous structure.
         """
         self.setMols()
-        self.setGridded()
-        self.setPacked()
-        self.setGrowed()
+        self.setStruct()
+        self.build()
         self.write()
 
     def setMols(self):
@@ -54,50 +53,29 @@ class Amorphous(logutils.Base):
             moieties.run()
             self.mols.extend(moieties.mols)
 
-    def setGridded(self):
+    def setStruct(self):
         """
-        Build gridded cell.
+        Build the structure.
         """
-        if self.options.method != parserutils.AmorpBldr.GRID:
-            return
-
-        self.struct = structutils.GriddedStruct.fromMols(self.mols,
-                                                         options=self.options)
-        self.struct.run()
-
-    def setPacked(self):
-        """
-        Build packed cell.
-
-        :param mini_density float: the minium density for liquid and solid when
-            reducing it automatically.
-        """
-        if self.options.method != parserutils.AmorpBldr.PACK:
-            return
-        self.create(Struct=structutils.PackedStruct)
-
-    def setGrowed(self):
-        """
-        Build packed cell.
-        """
-        if self.options.method != parserutils.AmorpBldr.GROW:
-            return
-        self.create(Struct=structutils.GrownStruct)
-
-    def create(self,
-               Struct=structutils.PackedStruct,
-               mini_density=0.001,
-               num=5):
-        """
-        Create amorphous cell.
-
-        :param Struct 'Struct': the structure class.
-        :param mini_density float: the minium density for liquid and solid.
-        :param num int: the number of densities to try.
-        """
+        match self.options.method:
+            case parserutils.AmorpBldr.GRID:
+                Struct = structutils.GriddedStruct
+                # FIXME: GriddedStruct supports target density
+            case parserutils.AmorpBldr.PACK:
+                Struct = structutils.PackedStruct
+            case parserutils.AmorpBldr.GROW:
+                Struct = structutils.GrownStruct
         self.struct = Struct.fromMols(self.mols, options=self.options)
+
+    def build(self, mini=1E-10, num=5):
+        """
+        Build the amorphous conformers.
+
+        :param mini float: the minium density.
+        :param num int: the number of different densities to try.
+        """
         step = min([0.1, self.options.density / num])
-        while self.struct.density >= min([mini_density, step]):
+        while self.struct.density >= min([mini, step]):
             if self.struct.run():
                 return
             self.struct.density -= step
