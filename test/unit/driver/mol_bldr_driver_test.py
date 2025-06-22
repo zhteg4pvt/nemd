@@ -13,11 +13,11 @@ class TestSingle:
         options = parserutils.MolBldr().parse_args(argv)
         return driver.Single(options, logger=logger)
 
-    @pytest.mark.parametrize("argv,num", [(['[Ar]'], 1),
-                                          (['*C*', '-cru_num', '4'], 4)])
-    def testSetMol(self, single, num):
+    @pytest.mark.parametrize("argv,expected", [(['[Ar]'], 1),
+                                               (['*C*', '-cru_num', '4'], 4)])
+    def testSetMol(self, single, expected):
         single.setMol()
-        assert single.mol.GetNumAtoms() == num
+        assert expected == single.mol.GetNumAtoms()
 
     @pytest.mark.parametrize("argv,expected", [(['[Ar]'], 1),
                                                (['*C*', '-cru_num', '4'], 4)])
