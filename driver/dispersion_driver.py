@@ -136,19 +136,19 @@ class Dispersion(logutils.Base):
         mols = [self.crystal.mol]
         self.struct = alamode.Struct.fromMols(mols, options=self.options)
         self.struct.write()
-        self.log(f"LAMMPS data file written as {self.struct.datafile}")
+        self.log(f"LAMMPS data file written as {self.struct.outfile}")
         self.crystal.mode = alamode.SUGGEST
         kwargs = dict(jobname=self.options.JOBNAME)
         suggest = alamode.exe(self.crystal, **kwargs)
         self.log(f"Suggested displacements are written as {suggest[0]}")
-        files = [self.struct.datafile] + suggest
+        files = [self.struct.outfile] + suggest
         displace = alamode.exe('displace', files=files, **kwargs)
         self.log(f"Data files with displacements: {', '.join(displace)}")
         dats = []
         for dat in displace:
             dats += alamode.exe(self.struct, files=[dat], **kwargs)
         self.log(f"Trajectory files with forces: {' '.join(dats)}")
-        files = [self.struct.datafile] + dats
+        files = [self.struct.outfile] + dats
         extract = alamode.exe('extract', files=files, **kwargs)
         self.crystal.mode = alamode.OPTIMIZE
         optimize = alamode.exe(self.crystal, files=extract, **kwargs)

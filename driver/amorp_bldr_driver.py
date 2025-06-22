@@ -74,7 +74,7 @@ class Amorphous(logutils.Base):
         """
         if self.options.method != parserutils.AmorpBldr.PACK:
             return
-        self.create(ClassStruct=structutils.PackedStruct)
+        self.create(Struct=structutils.PackedStruct)
 
     def setGrowed(self):
         """
@@ -82,19 +82,20 @@ class Amorphous(logutils.Base):
         """
         if self.options.method != parserutils.AmorpBldr.GROW:
             return
-        self.create(ClassStruct=structutils.GrownStruct)
+        self.create(Struct=structutils.GrownStruct)
 
-    def create(self, ClassStruct=None, mini_density=0.001, num=5):
+    def create(self,
+               Struct=structutils.PackedStruct,
+               mini_density=0.001,
+               num=5):
         """
         Create amorphous cell.
 
-        :param ClassStruct 'Struct': the structure class.
+        :param Struct 'Struct': the structure class.
         :param mini_density float: the minium density for liquid and solid.
         :param num int: the number of densities to try.
         """
-        if ClassStruct is None:
-            ClassStruct = structutils.PackedStruct
-        self.struct = ClassStruct.fromMols(self.mols, options=self.options)
+        self.struct = Struct.fromMols(self.mols, options=self.options)
         step = min([0.1, self.options.density / num])
         while self.struct.density >= min([mini_density, step]):
             if self.struct.run():
@@ -111,8 +112,8 @@ class Amorphous(logutils.Base):
         self.struct.write()
         for warning in self.struct.getWarnings():
             self.warning(f'{warning}')
-        self.log(f'Data file written into {self.struct.datafile}')
-        jobutils.Job.reg(self.struct.datafile)
+        self.log(f'Data file written into {self.struct.outfile}')
+        jobutils.Job.reg(self.struct.outfile)
         self.struct.script.write()
         self.log(f'In script written into {self.struct.script.outfile}')
         jobutils.Job.reg(self.struct.script.outfile, file=True)

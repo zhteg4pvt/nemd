@@ -185,7 +185,7 @@ class Lmp(Submodule):
         """
         self.struct.script.write()
         if self.files:
-            osutils.symlink(self.files[0], self.struct.datafile)
+            osutils.symlink(self.files[0], self.struct.outfile)
         else:
             self.struct.write()
 

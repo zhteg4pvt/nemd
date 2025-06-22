@@ -77,8 +77,8 @@ class Grid(logutils.Base):
         Write amorphous cell into data file.
         """
         self.struct.write()
-        self.log(f'Data file written into {self.struct.datafile}')
-        jobutils.Job.reg(self.struct.datafile)
+        self.log(f'Data file written into {self.struct.outfile}')
+        jobutils.Job.reg(self.struct.outfile)
         self.struct.script.write()
         self.log(f'In script written into {self.struct.script.outfile}')
         jobutils.Job.reg(self.struct.script.outfile, file=True)

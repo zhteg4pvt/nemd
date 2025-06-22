@@ -44,4 +44,4 @@ class TestGrid:
         grid.setStruct()
         grid.write()
         assert os.path.exists(grid.struct.inscript)
-        assert os.path.exists(grid.struct.datafile)
+        assert os.path.exists(grid.struct.outfile)

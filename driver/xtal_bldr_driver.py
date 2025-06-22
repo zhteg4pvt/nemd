@@ -33,8 +33,8 @@ class Crystal(logutils.Base):
         self.struct = lmpatomic.Struct.fromMols([crystal.mol],
                                                 options=self.options)
         self.struct.write()
-        self.log(f'Data file written into {self.struct.datafile}')
-        jobutils.Job.reg(self.struct.datafile)
+        self.log(f'Data file written into {self.struct.outfile}')
+        jobutils.Job.reg(self.struct.outfile)
         self.struct.script.write()
         self.log(f'In script written into {self.struct.script.outfile}')
         jobutils.Job.reg(self.struct.script.outfile, file=True)

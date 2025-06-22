@@ -215,7 +215,7 @@ class Struct(structure.Struct):
         self.options = options
         # Atomic number of Og element
         self.atm_types = numpyutils.IntArray(shape=119)
-        self.datafile = f"{self.options.JOBNAME}.data" if self.options else None
+        self.outfile = f"{self.options.JOBNAME}.data" if self.options else None
 
     def setUp(self, *arg, **kwargs):
         """
@@ -235,7 +235,7 @@ class Struct(structure.Struct):
         """
         Write out a LAMMPS datafile.
         """
-        with open(self.datafile, 'w') as self.hdl:
+        with open(self.outfile, 'w') as self.hdl:
             self.hdl.write(self.DESCR.format(style=self.script.V_ATOM_STYLE))
             self.hdl.write("\n")
             self.atoms.writeCount(self.hdl)

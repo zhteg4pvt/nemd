@@ -698,7 +698,7 @@ class Struct(lmpatomic.Struct):
         """
         Write out a LAMMPS datafile or return the content.
         """
-        with open(self.datafile, 'w') as self.hdl:
+        with open(self.outfile, 'w') as self.hdl:
             self.hdl.write(self.DESCR.format(style=self.script.V_ATOM_STYLE))
             self.hdl.write("\n")
             # Topology counting

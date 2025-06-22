@@ -139,7 +139,7 @@ class TestStruct:
     @pytest.mark.parametrize('cnum,expected', [(1, 14)])
     def testWrite(self, struct, expected, tmp_dir):
         struct.write()
-        with open(struct.datafile, 'r') as fh:
+        with open(struct.outfile, 'r') as fh:
             assert expected == len(fh.readlines())
 
     @pytest.mark.parametrize('cnum,expected', [(0, (0, 5)), (1, (1, 5)),

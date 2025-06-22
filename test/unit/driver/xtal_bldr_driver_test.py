@@ -16,4 +16,4 @@ class TestCrystal:
     def testRun(self, crystal, tmp_dir):
         crystal.run()
         assert os.path.exists(crystal.struct.inscript)
-        assert os.path.exists(crystal.struct.datafile)
+        assert os.path.exists(crystal.struct.outfile)

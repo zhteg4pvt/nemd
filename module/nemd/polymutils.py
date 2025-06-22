@@ -531,6 +531,9 @@ class Repeated:
         for _ in range(self.repeat):
             yield self.val
 
+    def __len__(self):
+        return self.repeat
+
 
 class Residue(list):
     """
