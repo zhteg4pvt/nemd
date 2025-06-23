@@ -21,8 +21,11 @@ class Lammps(logutils.Base, process.Lmp):
     """
     KEY_RE = r"\b{key}\s+(\S*)\s+(\S*)\s+(\S*)"
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, options, **kwargs):
+        """
+        :param options 'argparse.Driver':  Parsed command-line options
+        """
+        super().__init__(options=options, **kwargs)
         process.Lmp.__init__(self,
                              infile=os.path.basename(self.options.inscript),
                              jobname=f"{self.options.JOBNAME}_lmp")
@@ -118,7 +121,7 @@ def main(argv):
     parser = parserutils.Lammps(descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options) as logger:
-        lmp = Lammps(options=options, logger=logger)
+        lmp = Lammps(options, logger=logger)
         lmp.run()
 
 

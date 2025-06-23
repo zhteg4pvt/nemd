@@ -278,8 +278,7 @@ class RecipSp(logutils.Base):
         """
         :param options 'argparse.Driver':  Parsed command-line options
         """
-        super().__init__(**kwargs)
-        self.options = options
+        super().__init__(options=options, **kwargs)
         self.origin = np.array([0., 0.])
         self.real = None
         self.recip = None

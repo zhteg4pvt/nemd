@@ -18,13 +18,11 @@ class Log(logutils.Base):
     Main class to analyze a lammps log.
     """
 
-    def __init__(self, options, logger=None):
+    def __init__(self, options, **kwargs):
         """
         :param options 'argparse.Driver': Parsed command-line options
-        :param logger 'logging.Logger': the logger to log messages
         """
-        super().__init__(logger=logger)
-        self.options = options
+        super().__init__(options=options, **kwargs)
         self.thermo = None
         self.rdr = None
 

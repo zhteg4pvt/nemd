@@ -25,14 +25,13 @@ class Base(logutils.Base):
 
     POUND = symbols.POUND
 
-    def __init__(self, dirname, options=None, **kwargs):
+    def __init__(self, dirname, **kwargs):
         """
         :param dirname str: the path containing the file
         :param options 'argparse.ArgumentParser': Parsed command-line options
         """
         super().__init__(**kwargs)
         self.dirname = dirname
-        self.options = options
         self.jobname = os.path.basename(self.dirname)
         self.infile = os.path.join(self.dirname, self.name)
 

@@ -101,13 +101,11 @@ class Dispersion(logutils.Base):
     The main class to calculate the phonon dispersion.
     """
 
-    def __init__(self, options, logger=None):
+    def __init__(self, options, **kwargs):
         """
         :param options 'argparse.Driver': Parsed command-line options
-        :param logger 'logging.Logger':  Logger for logging messages.
         """
-        super().__init__(logger=logger)
-        self.options = options
+        super().__init__(options=options, **kwargs)
         self.crystal = None
         self.struct = None
         self.outfile = None

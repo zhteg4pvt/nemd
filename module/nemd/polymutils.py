@@ -386,7 +386,7 @@ class Moieties(list, logutils.Base):
     Build s polymer from moieties.
     """
 
-    def __init__(self, cru, cru_num=1, mol_num=0, options=None, **kwargs):
+    def __init__(self, cru, cru_num=1, mol_num=0, **kwargs):
         """
         :param cru str: constitutional repeat unit
         :param cru_num int: the number monomer cru per chain
@@ -398,7 +398,6 @@ class Moieties(list, logutils.Base):
         self.cru = cru
         self.cru_num = cru_num
         self.mol_num = mol_num
-        self.options = options
         self.setUp()
 
     def setUp(self):

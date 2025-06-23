@@ -38,14 +38,12 @@ class Runner(logutils.Base):
     PREREQ = taskbase.Agg.PREREQ
     FLAG_SEED = jobutils.FLAG_SEED
 
-    def __init__(self, options, original, logger=None):
+    def __init__(self, options, original, **kwargs):
         """
         :param options 'argparse.Namespace': parsed commandline options
         :param original list: list of commandline arguments
-        :param logger 'logging.Logger': print to this logger if exists
         """
-        super().__init__(logger=logger)
-        self.options = options
+        super().__init__(options=options, **kwargs)
         self.original = original
         self.max_cpu = None
         self.proj = None

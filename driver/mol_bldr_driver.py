@@ -21,8 +21,7 @@ class Single(logutils.Base):
         """
         :param options 'argparse.Driver':  Parsed command-line options
         """
-        super().__init__(**kwargs)
-        self.options = options
+        super().__init__(options=options, **kwargs)
         self.mol = None
         self.struct = None
 

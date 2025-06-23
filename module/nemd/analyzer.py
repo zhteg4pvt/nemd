@@ -31,12 +31,8 @@ class Base(logutils.Base):
     ST_ERR = 'St Err'
     FLOAT_FMT = '%.4g'
 
-    def __init__(self, options=None, **kwargs):
-        """
-        :param options `argparse.Namespace`: the options from command line
-        """
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.options = options
         self.data = None
         self.fig = None
 
