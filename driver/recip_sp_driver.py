@@ -269,7 +269,6 @@ class RecipSp(logutils.Base):
     https://www.youtube.com/watch?v=cdN6OgwH8Bg
     https://en.wikipedia.org/wiki/Reciprocal_lattice
     """
-
     PNG_EXT = '.png'
     AX = ['a1', 'a2']
     XY = ['x', 'y']

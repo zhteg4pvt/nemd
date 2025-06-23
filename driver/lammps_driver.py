@@ -1,10 +1,11 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
-This driver runs lammps executable with the given input file.
+This driver runs lammps executable using the in script.
 """
 import functools
 import os
+import pathlib
 import re
 import sys
 
@@ -19,84 +20,85 @@ class Lammps(logutils.Base, process.Lmp):
     """
     Main class to run the lammps executable.
     """
-    KEY_RE = r"\b{key}\s+(\S*)\s+(\S*)\s+(\S*)"
 
     def __init__(self, options, **kwargs):
         """
-        :param options 'argparse.Driver':  Parsed command-line options
+        :param options 'argparse.Driver': Parsed command-line options
         """
         super().__init__(options=options, **kwargs)
-        process.Lmp.__init__(self,
-                             infile=os.path.basename(self.options.inscript),
-                             jobname=f"{self.options.JOBNAME}_lmp")
-        self.contents = None
-        self.path = os.path.dirname(self.options.inscript)
+        process.Lmp.__init__(self, jobname=f"{self.options.JOBNAME}_lmp")
+        self.inscript = pathlib.Path(self.options.inscript)
+        self.infile = self.inscript.name
         jobutils.Job.reg(self.logfile, file=True)
         if self.options.CPU is None:
             return
         self.env = {'OMP_NUM_THREADS': str(self.options.CPU[0]), **os.environ}
 
-    def setUp(self):
+    def setUp(self, data=re.compile(rf"{lmpin.Script.READ_DATA}\s+(\S+)")):
         """
-        Run lammps executable with the given input file and output file.
+        See parent.
+
+        :param `re.Pattern` data: the regular expression to search read_data.
         """
-        if not self.path:
+        if not self.inscript.parent:
             return
-        # The input script is not in the current directory
-        self.read()
         self.setPair()
-        self.addPath()
-        self.writeIn()
+        self.addPath(data)
+        self.write()
 
-    def read(self):
+    def setPair(
+        self,
+        style=re.compile(rf"{lmpin.Script.PAIR_STYLE}\s+(\w+)"),
+        coeff=re.compile(rf"{lmpin.Script.PAIR_COEFF}\s+\S+\s+\S+\s+(\S+)")):
         """
-        Read the contents of the input script.
-        """
-        with open(self.options.inscript, 'r') as fh:
-            self.contents = fh.read()
+        Add path to the filename in pair coefficients command.
 
-    def setPair(self,
-                style=re.compile(KEY_RE.format(key=lmpin.Script.PAIR_STYLE)),
-                coeff=re.compile(KEY_RE.format(key=lmpin.Script.PAIR_COEFF))):
+        :param `re.Pattern` style: the regular expression to search pair_style.
+        :param `re.Pattern` style: the regular expression to search pair_coeff.
         """
-        Set the pair coefficients with the input script path.
-        """
-        match = style.search(self.contents)
+        match = style.search(self.cont)
         if match and match.group(1) in ['sw']:
             # e.g. 'pair_style sw\n'
             # e.g. 'pair_coeff * * Si.sw Si\n'
-            self.addPath(coeff, grp_id=3)
+            self.addPath(coeff)
 
-    def addPath(self,
-                rex=re.compile(KEY_RE.format(key=lmpin.Script.READ_DATA)),
-                grp_id=1):
+    @functools.cached_property
+    def cont(self):
+        """
+        Read the cont of the input script.
+
+        return str: the input script cont.
+        """
+        with open(self.inscript, 'r') as fh:
+            return fh.read()
+
+    def addPath(self, rex):
         """
         Add path to the filename in the contents.
 
-        :param rex str: the regular expression to search for the filename
-        :param grp_id int: the group id of the filename in the match
+        :param `re.Pattern` rex: the regular expression to search filename.
         """
-        match = rex.search(self.contents)
-        if not match or os.path.isfile(match.group(grp_id)):
+        match = rex.search(self.cont)
+        if not match or os.path.isfile(match.group(1)):
             return
-        # File not found in the current directory
-        pathname = os.path.join(self.path, match.group(grp_id))
-        if not os.path.isfile(pathname):
+        pathname = self.inscript.parent / match.group(1)
+        if not pathname.is_file():
             return
-        # Missing file sits with the in script
-        sidx, eidx = match.span(grp_id)
-        self.contents = self.contents[:sidx] + pathname + self.contents[eidx:]
+        sid, eid = match.span(1)
+        self.cont = self.cont[:sid] + str(pathname) + self.cont[eid:]
 
-    def writeIn(self):
+    def write(self):
         """
-        Write the contents of the input script to a file.
+        Write the contents.
         """
-        with open(os.path.basename(self.options.inscript), 'w') as fh:
-            fh.writelines(self.contents)
+        with open(self.infile, 'w') as fh:
+            fh.write(self.cont)
 
     def run(self, rex=re.compile(f'ERROR: (.*)')):
         """
         See parent.
+
+        :param `re.Pattern` style: the regular expression to search error.
         """
         self.log('Running lammps simulations...')
         if not super().run().returncode:
