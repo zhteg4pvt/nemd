@@ -26,9 +26,9 @@ class Lammps(logutils.Base, process.Lmp):
         :param options 'argparse.Driver': Parsed command-line options
         """
         super().__init__(options=options, **kwargs)
-        process.Lmp.__init__(self, jobname=f"{self.options.JOBNAME}_lmp")
-        self.inscript = pathlib.Path(self.options.inscript)
-        self.infile = self.inscript.name
+        process.Lmp.__init__(self,
+                             infile=os.path.basename(self.options.inscript),
+                             jobname=f"{self.options.JOBNAME}_lmp")
         jobutils.Job.reg(self.logfile, file=True)
         if self.options.CPU is None:
             return
@@ -40,11 +40,22 @@ class Lammps(logutils.Base, process.Lmp):
 
         :param `re.Pattern` data: the regular expression to search read_data.
         """
-        if not self.inscript.parent:
+        if self.path.samefile(os.curdir):
             return
         self.setPair()
         self.addPath(data)
         self.write()
+
+    @functools.cached_property
+    def path(self):
+        """
+        Return the path of the infile:
+
+        :return 'pathlib.PosixPath': infile path.
+        """
+        parent = pathlib.Path(self.options.inscript).parent
+        return parent.relative_to(os.curdir) if parent.is_relative_to(os.curdir) \
+            else parent
 
     def setPair(
         self,
@@ -69,7 +80,7 @@ class Lammps(logutils.Base, process.Lmp):
 
         return str: the input script cont.
         """
-        with open(self.inscript, 'r') as fh:
+        with open(self.options.inscript, 'r') as fh:
             return fh.read()
 
     def addPath(self, rex):
@@ -81,7 +92,7 @@ class Lammps(logutils.Base, process.Lmp):
         match = rex.search(self.cont)
         if not match or os.path.isfile(match.group(1)):
             return
-        pathname = self.inscript.parent / match.group(1)
+        pathname = self.path / match.group(1)
         if not pathname.is_file():
             return
         sid, eid = match.span(1)
@@ -98,13 +109,15 @@ class Lammps(logutils.Base, process.Lmp):
         """
         See parent.
 
-        :param `re.Pattern` style: the regular expression to search error.
+        :param `re.Pattern` rex: the regular expression to search error.
         """
         self.log('Running lammps simulations...')
-        if not super().run().returncode:
-            return
-        with open(self.logfile, 'r') as fh:
-            self.error('\n'.join(x.group(1) for x in rex.finditer(fh.read())))
+        proc = super().run()
+        if proc.returncode:
+            with open(self.logfile, 'r') as fh:
+                cont = rex.finditer(fh.read())
+                self.error('\n'.join(x.group(1) for x in cont))
+        return proc
 
     @functools.cached_property
     def args(self):
