@@ -8,8 +8,6 @@ from nemd import osutils
 from nemd import parserutils
 from nemd import process
 
-DISPLACE_DAT = envutils.test_data('0044', 'displace', 'dispersion1.lammps')
-
 
 @pytest.mark.parametrize('ekey,evalue', [('JOBNAME', None)])
 class TestBase:
@@ -84,23 +82,10 @@ class TestSubmodule:
             assert all([os.path.exists(x) for x in submodule.files])
 
 
-@pytest.mark.parametrize('jobname,files', [('dispersion', [DISPLACE_DAT])])
 class TestLmp:
 
-    @pytest.fixture
-    def lmp(self, jobname, files, tmp_dir):
-        options = parserutils.XtalBldr().parse_args(['-JOBNAME', 'dispersion'])
-        mols = [alamode.Crystal.fromDatabase(options).mol]
-        struct = alamode.Struct.fromMols(mols, options=options)
-        return process.Lmp(struct, jobname=jobname, files=files)
-
-    def testSetUp(self, lmp, tmp_dir):
-        lmp.setUp()
-        assert os.path.isfile(lmp.struct.outfile)
-        assert os.path.isfile(lmp.struct.script.outfile)
-
-    def testArg(self, lmp):
-        assert 7 == len(lmp.args)
+    def testArg(self):
+        assert 6 == len(process.Lmp().args)
 
 
 class TestSubmodules:

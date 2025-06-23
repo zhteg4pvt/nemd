@@ -9,8 +9,7 @@ from nemd import parserutils
 
 OPTIONS = parserutils.XtalBldr().parse_args(
     ['-JOBNAME', 'dispersion', '-temp', '0'])
-STRUCT = alamode.Struct.fromMols([alamode.Crystal.fromDatabase(OPTIONS).mol],
-                                 options=OPTIONS)
+DISPLACE_DAT = envutils.test_data('0044', 'displace', 'dispersion1.lammps')
 
 
 @pytest.fixture
@@ -33,16 +32,31 @@ class TestScript:
         assert "format float '%20.15f'" in script[0]
 
 
+@pytest.mark.parametrize('jobname,files', [('dispersion', [DISPLACE_DAT])])
 class TestLmp:
 
-    @pytest.mark.parametrize('struct,expected', [(STRUCT, '.custom')])
-    def testExt(self, struct, expected):
-        assert expected == alamode.Lmp(struct).ext
+    @pytest.fixture
+    def lmp(self, jobname, files, tmp_dir):
+        options = parserutils.XtalBldr().parse_args(['-JOBNAME', 'dispersion'])
+        mols = [alamode.Crystal.fromDatabase(options).mol]
+        struct = alamode.Struct.fromMols(mols, options=options)
+        return alamode.Lmp(struct, jobname=jobname, files=files)
+
+    @pytest.mark.parametrize('expected', [('.custom')])
+    def testExt(self, lmp, expected):
+        assert expected == lmp.ext
+
+    def testSetUp(self, lmp, tmp_dir):
+        lmp.setUp()
+        assert os.path.isfile(lmp.struct.outfile)
+        assert os.path.isfile(lmp.struct.script.outfile)
 
 
 class TestFunc:
     DAT = envutils.test_data('0044', 'dispersion.data')
     PATT = envutils.test_data('0044', 'suggest', 'dispersion.pattern_HARMONIC')
+    STRUCT = alamode.Struct.fromMols(
+        [alamode.Crystal.fromDatabase(OPTIONS).mol], options=OPTIONS)
 
     @pytest.mark.parametrize(
         'obj,kwargs,expected',

@@ -7,6 +7,7 @@ https://github.com/ttadano/alamode
 """
 import functools
 import itertools
+import os
 
 import pandas as pd
 
@@ -14,6 +15,7 @@ from nemd import builtinsutils
 from nemd import constants
 from nemd import lmpatomic
 from nemd import lmpin
+from nemd import osutils
 from nemd import process
 from nemd import symbols
 from nemd import table
@@ -61,6 +63,27 @@ class Lmp(process.Lmp):
     """
     Customized with force dump as the output.
     """
+
+    def __init__(self, struct, **kwargs):
+        """
+        :param struct Struct: the structure to get in script and data file from.
+        """
+        super().__init__(infile=struct.script.outfile, **kwargs)
+        self.struct = struct
+        if not self._files:
+            return
+        basename = os.path.splitext(os.path.basename(self._files[0]))[0]
+        self.dirname = f"lammps{basename.removeprefix(self.jobname)}"
+
+    def setUp(self):
+        """
+        See parent.
+        """
+        self.struct.script.write()
+        if self.files:
+            osutils.symlink(self.files[0], self.struct.outfile)
+        else:
+            self.struct.write()
 
     @property
     def ext(self):

@@ -3,57 +3,47 @@
 """
 This driver runs lammps executable with the given input file.
 """
+import functools
 import os
 import re
-import subprocess
 import sys
 
 from nemd import jobutils
 from nemd import lmpin
 from nemd import logutils
 from nemd import parserutils
-from nemd import symbols
+from nemd import process
 
 
-class Lammps(logutils.Base):
+class Lammps(logutils.Base, process.Lmp):
     """
     Main class to run the lammps executable.
     """
-    FLAG_IN = '-in'
-    KEYWORD_RE = r"\b{key}\s+(\S*)\s+(\S*)\s+(\S*)"
-    READ_DATA_RE = KEYWORD_RE.format(key=lmpin.Script.READ_DATA)
-    PAIR_STYLE_RE = KEYWORD_RE.format(key=lmpin.Script.PAIR_STYLE)
-    PAIR_COEFF_RE = KEYWORD_RE.format(key=lmpin.Script.PAIR_COEFF)
-    ERROR_RE = re.compile(f'ERROR: (.*)')
+    KEY_RE = r"\b{key}\s+(\S*)\s+(\S*)\s+(\S*)"
 
-    def __init__(self, options, logger=None):
-        """
-        :param options 'argparse.Driver':  Parsed command-line options
-        :param logger 'logging.Logger':  Logger for logging messages.
-        """
-        super().__init__(logger=logger)
-        self.options = options
-        self.args = None
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        process.Lmp.__init__(self,
+                             infile=os.path.basename(self.options.inscript),
+                             jobname=f"{self.options.JOBNAME}_lmp")
         self.contents = None
-        self.env = None
         self.path = os.path.dirname(self.options.inscript)
-        self.outfile = f"{self.options.JOBNAME}_{symbols.LMP_LOG}"
-        jobutils.Job.reg(self.outfile, file=True)
+        jobutils.Job.reg(self.logfile, file=True)
+        if self.options.CPU is None:
+            return
+        self.env = {'OMP_NUM_THREADS': str(self.options.CPU[0]), **os.environ}
 
-    def run(self):
+    def setUp(self):
         """
         Run lammps executable with the given input file and output file.
         """
-        if self.path:
-            # The input script is not in the current directory
-            self.read()
-            self.setPair()
-            self.addPath()
-            self.writeIn()
-        self.setArgs()
-        self.setGpu()
-        self.setCpu()
-        self.execute()
+        if not self.path:
+            return
+        # The input script is not in the current directory
+        self.read()
+        self.setPair()
+        self.addPath()
+        self.writeIn()
 
     def read(self):
         """
@@ -62,25 +52,28 @@ class Lammps(logutils.Base):
         with open(self.options.inscript, 'r') as fh:
             self.contents = fh.read()
 
-    def setPair(self):
+    def setPair(self,
+                style=re.compile(KEY_RE.format(key=lmpin.Script.PAIR_STYLE)),
+                coeff=re.compile(KEY_RE.format(key=lmpin.Script.PAIR_COEFF))):
         """
         Set the pair coefficients with the input script path.
         """
-        match = re.search(self.PAIR_STYLE_RE, self.contents)
-        if not match or match.group(1) not in ['sw']:
-            return
-        # e.g. 'pair_style sw\n'
-        # e.g. 'pair_coeff * * Si.sw Si\n'
-        self.addPath(self.PAIR_COEFF_RE, grp_id=3)
+        match = style.search(self.contents)
+        if match and match.group(1) in ['sw']:
+            # e.g. 'pair_style sw\n'
+            # e.g. 'pair_coeff * * Si.sw Si\n'
+            self.addPath(coeff, grp_id=3)
 
-    def addPath(self, rex=READ_DATA_RE, grp_id=1):
+    def addPath(self,
+                rex=re.compile(KEY_RE.format(key=lmpin.Script.READ_DATA)),
+                grp_id=1):
         """
         Add path to the filename in the contents.
 
         :param rex str: the regular expression to search for the filename
         :param grp_id int: the group id of the filename in the match
         """
-        match = re.search(rex, self.contents)
+        match = rex.search(self.contents)
         if not match or os.path.isfile(match.group(grp_id)):
             return
         # File not found in the current directory
@@ -98,61 +91,34 @@ class Lammps(logutils.Base):
         with open(os.path.basename(self.options.inscript), 'w') as fh:
             fh.writelines(self.contents)
 
-    def setArgs(self):
+    def run(self, rex=re.compile(f'ERROR: (.*)')):
         """
-        Set the arguments for the lammps executable.
-        """
-        self.args = [jobutils.FLAG_IN, os.path.basename(self.options.inscript)]
-        self.args += ['-log', self.outfile]
-
-    def setGpu(self):
-        """
-        Set the GPU arguments.
-        """
-        lmp = subprocess.run(
-            f'{jobutils.NEMD_MODULE} {symbols.LMP} -h | grep GPU',
-            capture_output=True,
-            shell=True)
-        if not lmp.stdout:
-            return
-        self.args += ['-sf', 'gpu', '-pk', 'gpu', '1']
-
-    def setCpu(self):
-        """
-        Set the omp environment variables.
-        """
-        if self.options.CPU is None:
-            return
-        self.env = {'OMP_NUM_THREADS': str(self.options.CPU[0]), **os.environ}
-
-    def execute(self):
-        """
-        Run lammps executable with the given input file and output file.
+        See parent.
         """
         self.log('Running lammps simulations...')
-        process = subprocess.Popen([jobutils.NEMD_MODULE, symbols.LMP] +
-                                   self.args,
-                                   env=self.env,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE,
-                                   text=True)
-        stdout, stderr = process.communicate()
-        self.log(stdout)
-        if not process.returncode:
-            self.log(stderr)
+        if not super().run().returncode:
             return
-        if stderr:
-            self.error(stderr)
-        with open(self.outfile, 'r') as fh:
-            matches = self.ERROR_RE.finditer(fh.read())
-            self.error('\n'.join(x.group(1) for x in matches))
+        with open(self.logfile, 'r') as fh:
+            self.error('\n'.join(x.group(1) for x in rex.finditer(fh.read())))
+
+    @functools.cached_property
+    def args(self):
+        """
+        See parent.
+        """
+        args = super().args
+        proc = process.Process(self.RUN + ['-h', '|', 'grep', 'GPU'],
+                               jobname=f'{self.options.JOBNAME}_gpu')
+        if not proc.run().returncode:
+            args += ['-sf', 'gpu', '-pk', 'gpu', '1']
+        return args
 
 
 def main(argv):
     parser = parserutils.Lammps(descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options) as logger:
-        lmp = Lammps(options, logger=logger)
+        lmp = Lammps(options=options, logger=logger)
         lmp.run()
 
 

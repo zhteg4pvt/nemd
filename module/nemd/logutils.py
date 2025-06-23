@@ -370,11 +370,13 @@ class Base(builtinsutils.Object):
     A base class with a logger to print logging messages.
     """
 
-    def __init__(self, logger=None):
+    def __init__(self, logger=None, options=None):
         """
         :param logger 'logging.Logger': the logger to log messages
+        :param options 'argparse.ArgumentParser': Parsed command-line options.
         """
         self.logger = logger
+        self.options = options
 
     def debug(self, msg):
         """

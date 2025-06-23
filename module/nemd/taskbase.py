@@ -210,7 +210,7 @@ class Cmd(Job):
     """
     FILE = None
     ParserClass = None
-    PRE_RUN = jobutils.NEMD_RUN
+    RUN = jobutils.NEMD_RUN
     SEP = symbols.SPACE
     TMPL = None
     OUT = '_outfile'
@@ -307,7 +307,7 @@ class Cmd(Job):
         """
         jobutils.set_arg(self.args, jobutils.FLAG_JOBNAME, self.jobname)
 
-    def getCmd(self, prefix=PRE_RUN, write=True):
+    def getCmd(self, prefix=RUN, write=True):
         """
         Get command line str.
 

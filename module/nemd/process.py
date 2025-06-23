@@ -18,16 +18,18 @@ class Base(builtinsutils.Object):
     """
     Run subprocess.
     """
-    PRE_RUN = None
+    RUN = None
     SEP = ' '
 
-    def __init__(self, dirname=None, jobname=None):
+    def __init__(self, dirname=None, jobname=None, env=None):
         """
         :param dirname str: the subdirectory to run.
-        :param files list: input files.
+        :param jobname str: the jobname.
+        :param env dict: the environmental variables.
         """
         self.dirname = dirname or os.curdir
         self.jobname = jobname or envutils.get_jobname() or self.name
+        self.env = env
         self.logfile = f'{self.jobname}{symbols.LOG_EXT}'
 
     def run(self):
@@ -40,6 +42,7 @@ class Base(builtinsutils.Object):
             return subprocess.run(self.getCmd(),
                                   stdout=fh,
                                   stderr=fh,
+                                  env=self.env,
                                   shell=True)
 
     def getCmd(self, write_cmd=True):
@@ -49,7 +52,7 @@ class Base(builtinsutils.Object):
         :param write_cmd bool: whether to write the command to a file
         :return str: the command
         """
-        args = [self.PRE_RUN] + self.args if self.PRE_RUN else self.args
+        args = self.RUN + self.args if self.RUN else self.args
         cmd = self.SEP.join(args)
         if write_cmd:
             with open(f'{self.jobname}_cmd', 'w') as fh:
@@ -100,7 +103,7 @@ class Submodule(Base):
     """
     Customized with setup and outfiles.
     """
-    PRE_RUN = jobutils.NEMD_MODULE
+    RUN = [jobutils.NEMD_MODULE]
 
     def __init__(self, *args, files=None, **kwargs):
         """
@@ -167,27 +170,14 @@ class Lmp(Submodule):
     """
     Class to run lammps simulations.
     """
+    RUN = [jobutils.NEMD_MODULE, symbols.LMP]
 
-    def __init__(self, struct, **kwargs):
+    def __init__(self, *args, infile=None, **kwargs):
         """
-        :param struct Struct: the structure to get in script and data file from.
+        :param infile str: the in script.
         """
-        super().__init__(**kwargs)
-        self.struct = struct
-        if not self._files:
-            return
-        basename = os.path.splitext(os.path.basename(self._files[0]))[0]
-        self.dirname = f"lammps{basename.removeprefix(self.jobname)}"
-
-    def setUp(self):
-        """
-        See parent.
-        """
-        self.struct.script.write()
-        if self.files:
-            osutils.symlink(self.files[0], self.struct.outfile)
-        else:
-            self.struct.write()
+        super().__init__(*args, **kwargs)
+        self.infile = infile
 
     @property
     def args(self):
@@ -195,9 +185,8 @@ class Lmp(Submodule):
         See parent.
         """
         return [
-            symbols.LMP, jobutils.FLAG_IN, self.struct.script.outfile,
-            jobutils.FLAG_SCREEN, symbols.LMP_LOG, jobutils.FLAG_LOG,
-            symbols.LMP_LOG
+            jobutils.FLAG_IN, self.infile, jobutils.FLAG_SCREEN,
+            f"{self.jobname}.screen", jobutils.FLAG_LOG, self.logfile
         ]
 
 
@@ -227,7 +216,7 @@ class Tools(Submodules):
     """
     Class to run the scripts in the 'tools' directory.
     """
-    PRE_RUN = jobutils.NEMD_RUN
+    RUN = [jobutils.NEMD_RUN]
     DISPLACE = 'displace'
     EXTRACT = 'extract'
     EXTS = {DISPLACE: "*.lammps"}
