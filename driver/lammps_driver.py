@@ -40,18 +40,18 @@ class Lammps(logutils.Base, process.Lmp):
 
         :param `re.Pattern` data: the regular expression to search read_data.
         """
-        if self.path.samefile(os.curdir):
+        if self.parent.samefile(os.curdir):
             return
         self.setPair()
         self.addPath(data)
         self.write()
 
     @functools.cached_property
-    def path(self):
+    def parent(self):
         """
-        Return the path of the infile:
+        Return the in script parent (dirname).
 
-        :return 'pathlib.PosixPath': infile path.
+        :return 'pathlib.PosixPath': input script path.
         """
         parent = pathlib.Path(self.options.inscript).parent
         return parent.relative_to(os.curdir) if parent.is_relative_to(os.curdir) \
@@ -65,7 +65,7 @@ class Lammps(logutils.Base, process.Lmp):
         Add path to the filename in pair coefficients command.
 
         :param `re.Pattern` style: the regular expression to search pair_style.
-        :param `re.Pattern` style: the regular expression to search pair_coeff.
+        :param `re.Pattern` coeff: the regular expression to search pair_coeff.
         """
         match = style.search(self.cont)
         if match and match.group(1) in ['sw']:
@@ -92,7 +92,7 @@ class Lammps(logutils.Base, process.Lmp):
         match = rex.search(self.cont)
         if not match or os.path.isfile(match.group(1)):
             return
-        pathname = self.path / match.group(1)
+        pathname = self.parent / match.group(1)
         if not pathname.is_file():
             return
         sid, eid = match.span(1)
