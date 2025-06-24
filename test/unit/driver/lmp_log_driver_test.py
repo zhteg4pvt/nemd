@@ -1,49 +1,62 @@
 import os
+from unittest import mock
 
 import lmp_log_driver as driver
-import pandas as pd
 import pytest
 
 from nemd import envutils
-
-LOG = envutils.test_data('ar', 'gas', 'lammps.log')
-DATA_FILE = envutils.test_data('ar', 'gas', 'ar100.data')
+from nemd import jobutils
+from nemd import parserutils
 
 
 class TestLmpLog:
 
+    LOG = envutils.test_data('ar', 'lammps.log')
+    DATA = envutils.test_data('ar', 'ar100.data')
+    NO_VOL = envutils.test_data('0046_test', 'workspace',
+                                '67f59ab2eb89dab89c2f1b16e4fc1776',
+                                'lammps_lmp.log')
+
     @pytest.fixture
-    def log(self, argv):
-        options = driver.validate_options(argv)
-        return driver.LmpLog(options)
+    def lmplog(self, args, logger):
+        jobutils.set_arg(args, '-JOBNAME', 'anme')
+        options = parserutils.LmpLog().parse_args(args)
+        return driver.LmpLog(options, logger=logger)
 
-    @pytest.mark.parametrize("argv,num",
+    @pytest.mark.parametrize("args,expected",
                              [([LOG], None),
-                              ([LOG, '-data_file', DATA_FILE], 100)])
-    def testSetStruct(self, log, num):
-        log.setStruct()
-        val = log.rdf if num is None else log.rdf.atoms.shape[0]
-        assert num == val
+                              ([LOG, '-data_file', DATA], (100, 7))])
+    def testSetStruct(self, lmplog, expected):
+        lmplog.setStruct()
+        assert expected == (lmplog.rdr.atoms.shape if expected else lmplog.rdr)
 
-    @pytest.mark.parametrize("argv,num", [([LOG], None)])
-    def testSetThermo(self, log, num):
-        log.setThermo()
-        assert 264 == log.lmp_log.thermo.shape[0]
+    @pytest.mark.parametrize("args,expected", [([LOG], 264)])
+    def testSetThermo(self, lmplog, expected):
+        lmplog.setThermo()
+        assert expected == lmplog.thermo.shape[0]
 
-    @pytest.mark.parametrize("argv,num",
-                             [([LOG, '-task', 'temp', 'e_pair'], None)])
-    def testSetTasks(self, log, num):
-        log.setThermo()
-        log.setTasks()
-        assert 2 == len(log.tasks)
+    @mock.patch('nemd.logutils.Base.error', side_effect=ValueError)
+    @mock.patch('nemd.logutils.Base.warning')
+    @pytest.mark.parametrize("args,expected",
+                             [([LOG, '-task', 'temp', 'e_pair'], (2, False)),
+                              ([LOG, '-task', 'all', 'e_pair'], (6, False)),
+                              ([NO_VOL, '-task', 'e_pair', 'volume'],
+                               (1, True)),
+                              ([NO_VOL, '-task', 'volume'], ValueError)])
+    def testSetTasks(self, warn_mocked, mocked, lmplog, expected, raises):
+        lmplog.setThermo()
+        with raises:
+            lmplog.setTasks()
+            assert expected == (len(lmplog.task), warn_mocked.called)
 
     @pytest.mark.parametrize(
-        "argv,idx",
-        [([LOG, '-task', 'temp', 'e_pair'], '211'),
-         ([LOG, '-task', 'temp', 'e_pair', '-last_pct', '0.01'], '261')])
-    def testAnalyze(self, log, idx, tmp_dir):
-        log.setThermo()
-        log.setTasks()
-        log.analyze()
-        assert os.path.exists('lmp_log_temp.png')
-        assert idx in pd.read_csv('lmp_log_e_pair.csv').columns[0]
+        "args,expected",
+        [([LOG, '-task', 'temp'], ['temp']),
+         ([LOG, '-task', 'temp', 'e_pair'], ['temp', 'e_pair'])])
+    def testAnalyze(self, lmplog, expected, tmp_dir):
+        lmplog.setThermo()
+        lmplog.setTasks()
+        lmplog.analyze()
+        for basename in expected:
+            assert os.path.exists(f'{lmplog.options.JOBNAME}_{basename}.csv')
+            assert os.path.exists(f'{lmplog.options.JOBNAME}_{basename}.png')

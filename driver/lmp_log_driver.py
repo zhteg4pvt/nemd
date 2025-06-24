@@ -1,7 +1,7 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
-This driver analyzes the log file from previous molecular dynamics simulations.
+This driver analyzes the lammps log file.
 """
 import sys
 
@@ -13,7 +13,7 @@ from nemd import parserutils
 from nemd import symbols
 
 
-class Log(logutils.Base):
+class LmpLog(logutils.Base):
     """
     Main class to analyze a lammps log.
     """
@@ -25,6 +25,7 @@ class Log(logutils.Base):
         super().__init__(options=options, **kwargs)
         self.thermo = None
         self.rdr = None
+        self.task = None
 
     def run(self):
         """
@@ -47,36 +48,37 @@ class Log(logutils.Base):
         """
         Grep thermo output information.
         """
-        lmp_log = lmplog.Log(self.options.log, options=self.options)
-        self.thermo = lmp_log.thermo
+        self.thermo = lmplog.Log(self.options.log, options=self.options).thermo
         if self.thermo.empty:
             self.error(f"No thermo output found in {self.options.log}.")
         self.log(f"{self.thermo.shape[0]} steps of thermo data found.")
         self.log(f"Averages results from {self.thermo.range[0]:.3f} ps to "
                  f"{self.thermo.range[1]:.3f} ps")
 
-    def setTasks(self):
+    def setTasks(self, tasks=tuple(x.name for x in analyzer.THERMO)):
         """
-        Set the tasks to be performed.
+        Set the analyzer tasks.
+
+        :param tasks tuple: supported tasks.
         """
         parsed = [analyzer.Job.parse(x) for x in self.thermo.columns]
         avail = set([name.lower() for name, unit, _ in parsed])
-        if symbols.ALL in self.options.task:
-            self.options.task = avail.intersection(
-                [x.name for x in analyzer.THERMO])
+        self.task = avail.intersection(
+            tasks if symbols.ALL in self.options.task else self.options.task)
+        if not self.task:
+            self.error(f"No tasks found. Please select from {avail}.")
+        missed = set(self.options.task).difference(self.task)
+        missed.discard(symbols.ALL)
+        if not missed:
             return
-        tasks = set(self.options.task)
-        self.options.task = avail.intersection(tasks)
-        missed = symbols.COMMA_SEP.join(tasks.difference(self.options.task))
-        self.warning(f"{missed} tasks cannot be found out of "
-                     f"{symbols.COMMA_SEP.join(avail)}.")
+        self.warning(f"Tasks {missed} cannot be found out of {avail}.")
 
     def analyze(self):
         """
         Run analyzers.
         """
         for Anlz in analyzer.THERMO:
-            if Anlz.name not in self.options.task:
+            if Anlz.name not in self.task:
                 continue
             anl = Anlz(self.thermo,
                        options=self.options,
@@ -89,7 +91,7 @@ def main(argv):
     parser = parserutils.LmpLog(descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options, file=True) as logger:
-        log = Log(options, logger=logger)
+        log = LmpLog(options, logger=logger)
         log.run()
 
 
