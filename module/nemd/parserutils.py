@@ -277,7 +277,7 @@ class Action(argparse.Action):
         """
         Check the input values.
 
-        :return *args list: the modified values.
+        :return tuple: the modified values.
         """
         return args
 
@@ -290,6 +290,20 @@ class Action(argparse.Action):
         raise argparse.ArgumentTypeError(msg)
 
 
+class LmpLogAction(Action):
+    """
+    Action on a force field name optionally followed by a water model name.
+    """
+
+    def doTyping(self, *args):
+        """
+        Return the real tasks with 'all' replaced.
+
+        :return tuple: real task names.
+        """
+        return tuple(LmpLog.LAST_FRM) if symbols.ALL in args else args
+
+
 class ForceFieldAction(Action):
     """
     Action on a force field name optionally followed by a water model name.
@@ -300,7 +314,7 @@ class ForceFieldAction(Action):
         Check the force field and water model.
 
         :param name str: the force field name
-        :return list: force field name, additional arguments
+        :return tuple: force field name, additional arguments
         """
         match name:
             case symbols.SW:
@@ -327,7 +341,7 @@ class SliceAction(Action):
 
         :param args list of str: the arguments for the slice function.
             (1: END; 2: START, END; 3: START, END, STEP)
-        :return list of int: start, stop, and step
+        :return tuple of int: start, stop, and step
         """
         sliced = slice(*args)
         start = 0 if sliced.start is None else sliced.start
@@ -348,7 +362,7 @@ class StructAction(Action):
 
         :param smiles str: the smiles str to select a substructure.
         :param value str: the target value for the substructure to be set.
-        :return str, float: the smiles str, and the target value.
+        :return tuple of (str, float): the smiles str, and the target value.
         """
         type_smiles(smiles)
         if value is not None:
@@ -665,8 +679,8 @@ class Bldr(Driver):
                             help='set or measure the substructure geometry.')
         parser.add_argument(
             cls.FLAG_FORCE_FIELD,
-            action=ForceFieldAction,
             nargs='+',
+            action=ForceFieldAction,
             default=symbols.OPLSUA_TIP3P,
             help=f'The force field type: 1) {symbols.OPLSUA} '
             f'[{symbols.PIPE.join(symbols.WMODELS)}]; 2) {symbols.SW}')
@@ -924,13 +938,18 @@ class LmpLog(Lammps):
     TASK_HELP = 'Searches, combines and averages thermodynamic info.'
 
     @classmethod
-    def add(cls, parser, positional=False, task=analyzer.TotEng.name):
+    def add(cls,
+            parser,
+            positional=False,
+            task=analyzer.TotEng.name,
+            action=LmpLogAction):
         """
         Add job specific arguments to the parser.
 
-        :param parser argparse.ArgumentParser: the parse to add arguments
+        :param parser argparse.ArgumentParser: the parse to add arguments.
         :param positional `bool`: whether add positional arguments.
-        :param task str: the default task
+        :param task str: the default task.
+        :param action `Action`: task action.
         """
         if positional:
             parser.add_argument(cls.FLAG,
@@ -939,9 +958,10 @@ class LmpLog(Lammps):
                                 help=f'The {cls.FLAG} file to analyze.')
         parser.add_argument(jobutils.FLAG_TASK,
                             type=str.lower,
-                            default=[task],
-                            choices=cls.TASKS,
                             nargs='+',
+                            choices=cls.TASKS,
+                            action=action,
+                            default=[task],
                             help=cls.TASK_HELP)
         parser.add_argument(cls.FLAG_DATA_FILE,
                             type=type_file,
@@ -972,15 +992,15 @@ class LmpTraj(LmpLog):
     LAST_FRM = [x.name for x in [analyzer.MSD, analyzer.RDF]]
 
     @classmethod
-    def add(cls, parser, positional=False, task=analyzer.Density.name):
+    def add(cls,
+            parser,
+            positional=False,
+            task=analyzer.Density.name,
+            action=None):
         """
-        Add job specific arguments to the parser.
-
-        :param parser argparse.ArgumentParser: the parse to add arguments
-        :param positional `bool`: whether add positional arguments.
-        :param task str: the default task
+        See parent.
         """
-        super().add(parser, positional=positional, task=task)
+        super().add(parser, positional=positional, task=task, action=action)
         parser.add_argument('-sel', help=f'The element of the selected atoms.')
         if positional:
             parser.valids.add(TrajValid)

@@ -160,6 +160,12 @@ class TestAction:
     def testDoTyping(self, parser, args, expected):
         assert expected == parser.parse_args(args).dest
 
+    @pytest.mark.parametrize('action,dtype', [(parserutils.LmpLogAction, str)])
+    @pytest.mark.parametrize('args,expected', [(['temp'], ('temp',)),
+                                               (['all'], ('temp', 'e_pair', 'e_mol', 'toteng', 'press', 'volume'))])
+    def testLmpLog(self, parser, args, expected):
+        assert expected == parser.parse_args(args).dest
+
     @pytest.mark.parametrize('action,dtype',
                              [(parserutils.ForceFieldAction, str)])
     @pytest.mark.parametrize('args,expected',
@@ -461,7 +467,7 @@ class TestAdd:
          ([
              LOG_FILE, '-task', 'temp', 'e_mol', '-data_file', DATA_FILE,
              '-last_pct', '0.66', '-slice', '1', '8', '3'
-         ], True, [['temp', 'e_mol'], DATA_FILE, 0.66, (1, 8, 3)])])
+         ], True, [('temp', 'e_mol'), DATA_FILE, 0.66, (1, 8, 3)])])
     def testLog(self, args, expected, positional, parser):
         parserutils.LmpLog.add(parser, positional=positional)
         options = parser.parse_args(args)

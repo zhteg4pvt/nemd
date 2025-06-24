@@ -55,20 +55,16 @@ class LmpLog(logutils.Base):
         self.log(f"Averages results from {self.thermo.range[0]:.3f} ps to "
                  f"{self.thermo.range[1]:.3f} ps")
 
-    def setTasks(self, tasks=tuple(x.name for x in analyzer.THERMO)):
+    def setTasks(self):
         """
         Set the analyzer tasks.
-
-        :param tasks tuple: supported tasks.
         """
         parsed = [analyzer.Job.parse(x) for x in self.thermo.columns]
         avail = set([name.lower() for name, unit, _ in parsed])
-        self.task = avail.intersection(
-            tasks if symbols.ALL in self.options.task else self.options.task)
+        self.task = avail.intersection(self.options.task)
         if not self.task:
             self.error(f"No tasks found. Please select from {avail}.")
         missed = set(self.options.task).difference(self.task)
-        missed.discard(symbols.ALL)
         if not missed:
             return
         self.warning(f"Tasks {missed} cannot be found out of {avail}.")
