@@ -1,7 +1,7 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
-This driver analyzes the lammps log file.
+This driver analyzes a lammps log file.
 """
 import sys
 
@@ -10,7 +10,6 @@ from nemd import lmpfull
 from nemd import lmplog
 from nemd import logutils
 from nemd import parserutils
-from nemd import symbols
 
 
 class LmpLog(logutils.Base):

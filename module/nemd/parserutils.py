@@ -301,7 +301,7 @@ class LmpLogAction(Action):
 
         :return tuple: real task names.
         """
-        return tuple(LmpLog.LAST_FRM) if symbols.ALL in args else args
+        return tuple(LmpLog.TASKS[:-1]) if symbols.ALL in args else args
 
 
 class ForceFieldAction(Action):

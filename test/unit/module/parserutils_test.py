@@ -161,8 +161,10 @@ class TestAction:
         assert expected == parser.parse_args(args).dest
 
     @pytest.mark.parametrize('action,dtype', [(parserutils.LmpLogAction, str)])
-    @pytest.mark.parametrize('args,expected', [(['temp'], ('temp',)),
-                                               (['all'], ('temp', 'e_pair', 'e_mol', 'toteng', 'press', 'volume'))])
+    @pytest.mark.parametrize(
+        'args,expected',
+        [(['temp'], ('temp', )),
+         (['all'], ('temp', 'e_pair', 'e_mol', 'toteng', 'press', 'volume'))])
     def testLmpLog(self, parser, args, expected):
         assert expected == parser.parse_args(args).dest
 

@@ -1,81 +1,54 @@
 import os
-import types
-from unittest import mock
 
 import lmp_traj_driver as driver
 import pytest
 
 from nemd import envutils
-from nemd import task
-from nemd import traj
-
-AR_IN = envutils.test_data('ar', 'gas', 'ar100.in')
-AR_DATA = envutils.test_data('ar', 'gas', 'ar100.data')
-AR_CUSTOM = envutils.test_data('ar', 'gas', 'ar100.custom')
-AR_CUSTOM_GZ = envutils.test_data('ar', 'gas', 'ar100.custom.gz')
-
-
-class TestValidator:
-
-    @pytest.fixture
-    def validator(self, argv):
-        parser = task.TrajJob.get_parser()
-        options = parser.parse_args(argv)
-        return driver.Validator(options)
-
-    @pytest.mark.parametrize(
-        "argv,is_raise,raise_type",
-        [([AR_CUSTOM_GZ, '-data_file', AR_DATA], False, None),
-         ([AR_CUSTOM_GZ], True, ValueError),
-         ([AR_CUSTOM_GZ, '-task', 'xyz'], False, ValueError)])
-    def testTask(self, validator, check_raise):
-        with check_raise():
-            validator.task()
+from nemd import frame
+from nemd import parserutils
 
 
 class TestTraj:
 
+    AR_IN = envutils.test_data('ar', 'ar100.in')
+    AR_DATA = envutils.test_data('ar', 'ar100.data')
+    AR_TRJ = envutils.test_data('ar', 'ar100.custom')
+    ARGS = [AR_TRJ, '-data_file', AR_DATA, '-JOBNAME', 'name']
+
     @pytest.fixture
-    def obj(self, argv):
-        options = driver.validate_options(argv)
-        return driver.Traj(options)
+    def trj(self, args, logger):
+        options = parserutils.LmpTraj().parse_args(args)
+        return driver.Traj(options, logger=logger)
 
-    @pytest.mark.parametrize("argv", [([AR_CUSTOM_GZ, '-data_file', AR_DATA])])
-    def testSetStruct(self, obj):
-        obj.setStruct()
-        assert obj.rdf is not None
+    @pytest.mark.parametrize("args,expected",
+                             [([AR_TRJ, '-task', 'xyz'], None),
+                              (ARGS, (100, 7))])
+    def testSetStruct(self, trj, expected):
+        trj.setStruct()
+        assert expected == (trj.rdr.atoms.shape if expected else trj.rdr)
+
+    @pytest.mark.parametrize("args,expected", [([*ARGS, '-sel', 'O'], 0),
+                                               ([*ARGS, '-sel', 'Ar'], 100),
+                                               (ARGS, 100)])
+    def testSetAtoms(self, trj, expected):
+        trj.setStruct()
+        trj.setAtoms()
+        assert expected == len(trj.gids)
 
     @pytest.mark.parametrize(
-        "argv,num",
-        [([AR_CUSTOM_GZ, '-data_file', AR_DATA, '-sel', 'O'], 0),
-         ([AR_CUSTOM_GZ, '-data_file', AR_DATA, '-sel', 'Ar'], 100),
-         ([AR_CUSTOM_GZ, '-data_file', AR_DATA], 100)])
-    def testSetAtoms(self, obj, num):
-        obj.setStruct()
-        obj.setAtoms()
-        assert num == len(obj.gids)
+        "args,expected",
+        [([*ARGS, '-task', 'msd'], (236, 189, True)),
+         ([*ARGS, '-task', 'density'], (236, 189, False)),
+         ([*ARGS, '-task', 'rdf', '-slice', '10', '20', '2'], (5, 4, False))])
+    def testSetFrames(self, trj, expected):
+        trj.setFrames()
+        assert expected[:2] == (len(trj.trj), trj.trj.time.sidx)
+        assert expected[2] != isinstance(trj.trj[expected[1] - 2], frame.Frame)
 
-    @pytest.mark.parametrize(
-        "argv,idx,fake,num",
-        [([AR_CUSTOM_GZ, '-data_file', AR_DATA, '-task', 'msd'
-           ], 189, True, 236),
-         ([AR_CUSTOM_GZ, '-data_file', AR_DATA, '-task', 'density'
-           ], 189, False, 236),
-         ([
-             AR_CUSTOM_GZ, '-data_file', AR_DATA, '-task', 'rdf', '-slice',
-             '10:20:2'
-         ], 4, False, 5)])
-    def testSetFrames(self, obj, idx, fake, num):
-        obj.setFrames()
-        assert num == len(obj.frms)
-        assert idx == int(obj.time.name.split()[-1].strip('()'))
-        is_traj = isinstance(obj.frms[idx - 2], traj.Frame)
-        assert fake != is_traj
-
-    @pytest.mark.parametrize("argv", [([AR_CUSTOM_GZ, '-data_file', AR_DATA])])
-    def testAnalyze(self, obj, tmp_dir):
-        obj.setStruct()
-        obj.setAtoms()
-        obj.setFrames()
-        obj.analyze()
-        assert os.path.exists('lmp_traj_density.csv')
+    @pytest.mark.parametrize("args,expected", [(ARGS, 'name_density.csv')])
+    def testAnalyze(self, trj, expected, tmp_dir):
+        trj.setStruct()
+        trj.setAtoms()
+        trj.setFrames()
+        trj.analyze()
+        assert os.path.exists(expected)

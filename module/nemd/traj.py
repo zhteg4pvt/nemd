@@ -55,7 +55,6 @@ class Traj(list):
         self.options = options
         self.start = start
         self.time = None
-        self.open = gzip.open if file.endswith('.gz') else open
         if delay:
             return
         self.setUp()
@@ -98,9 +97,10 @@ class Traj(list):
         """
         Open and read the trajectory frames.
 
-        :return iterator of 'Frame': trajectory frames
+        :return generator of 'Frame': trajectory frames
         """
-        with self.open(self.file, 'rt') as fh:
+        func = gzip.open if self.file.endswith('.gz') else open
+        with func(self.file, 'rt') as fh:
             while True:
                 try:
                     yield frame.Frame.read(fh, start=self.start)

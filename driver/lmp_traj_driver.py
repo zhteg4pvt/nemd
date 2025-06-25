@@ -3,7 +3,7 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (2022010236@hust.edu.cn)
 """
-This driver analyzes the trajectory from previous molecular dynamics simulations.
+This driver analyzes a lammps trajectory.
 """
 import sys
 
@@ -17,26 +17,26 @@ from nemd import traj
 
 class Traj(logutils.Base):
     """
-    Analyze a dump custom file.
+    Analyze a trajectory file.
     """
-    DATA_EXT = '_%s.csv'
-    PNG_EXT = '_%s.png'
 
-    def __init__(self, options, **kwargs):
+    def __init__(self,
+                 options,
+                 task=tuple(x.name for x in analyzer.ALL_FRM),
+                 **kwargs):
         """
-        :param options 'argparse.Driver': Parsed command-line options
+        :param options 'argparse.Driver': Parsed command-line options.
+        :param tuple task: tasks that analyze every trajectory frame.
         """
         super().__init__(options=options, **kwargs)
         self.trj = None
         self.rdr = None
         self.gids = None
-        self.tasks = {x.name
-                      for x in analyzer.ALL_FRM}.intersection(options.task)
-        self.start = 0 if self.tasks else None
+        self.task = set(self.options.task).intersection(task)
 
     def run(self):
         """
-        Main method to run the tasks.
+        Main method to run.
         """
         self.setStruct()
         self.setAtoms()
@@ -45,51 +45,44 @@ class Traj(logutils.Base):
 
     def setStruct(self):
         """
-        Load data file and set clash parameters.
+        Read data file.
         """
         if not self.options.data_file:
             return
         self.rdr = lmpfull.Reader.read(self.options.data_file)
 
-    def setAtoms(self):
+    def setAtoms(self, selected=slice(None)):
         """
-        set the atom selection for analysis.
+        Set the atom selection.
+
+        :param selected 'slice': the selected elements.
         """
         if not self.rdr:
             return
-        if self.options.sel is None:
-            self.gids = self.rdr.elements.index.tolist()
-            self.log(f"{len(self.gids)} atoms selected.")
-            return
-        selected = self.rdr.elements.element.isin([self.options.sel])
+        if self.options.sel:
+            selected = self.rdr.elements.element.isin([self.options.sel])
         self.gids = self.rdr.elements.index[selected].tolist()
         self.log(f"{len(self.gids)} atoms selected.")
 
     def setFrames(self):
         """
-        Read and set trajectory frames.
+        Read and log trajectory frames.
         """
         self.trj = traj.Traj(self.options.trj,
                              options=self.options,
-                             start=self.start)
+                             start=0 if self.task else None)
         if len(self.trj) == 0:
             self.error(f'{self.options.trj} contains no frames.')
-        # Report the number of frames, (starting time), and ending time
         self.log(f"{len(self.trj)} trajectory frames found.")
-        if self.tasks:
-            self.log(
-                f"{', '.join(self.tasks)} analyze all frames and save per "
-                f"frame results {symbols.ELEMENT_OF} [{self.trj.time[0]:.3f}, "
-                f"{self.trj.time[-1]:.3f}] ps")
-        lf_tasks = [
-            x for x in self.options.task if x in parserutils.LmpTraj.LAST_FRM
-        ]
-        if lf_tasks:
-            label, unit, _ = analyzer.Job.parse(self.trj.time.name)
-            self.log(
-                f"{', '.join(lf_tasks)} average results from last "
-                f"{self.options.last_pct * 100}% frames {symbols.ELEMENT_OF} "
-                f"[{self.trj.time.start: .3f}, {self.trj.time[-1]: .3f}] ps")
+        if self.task:
+            self.log(f"{self.task} analyze all frames {symbols.ELEMENT_OF} "
+                     f"[{self.trj.time[0]:.3f}, {self.trj.time[-1]:.3f}] ps")
+        lst = set(self.options.task).intersection(parserutils.LmpTraj.LAST_FRM)
+        if not lst:
+            return
+        self.log(f"{lst} analyze frames of last {self.options.last_pct * 100}%"
+                 f" {symbols.ELEMENT_OF} [{self.trj.time.start: .3f}, "
+                 f"{self.trj.time[-1]: .3f}] ps")
 
     def analyze(self):
         """
@@ -110,8 +103,8 @@ def main(argv):
     parser = parserutils.LmpTraj(descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options, file=True) as logger:
-        cdump = Traj(options, logger=logger)
-        cdump.run()
+        trj = Traj(options, logger=logger)
+        trj.run()
 
 
 if __name__ == "__main__":
