@@ -11,6 +11,7 @@ from nemd import alamode
 from nemd import constants
 from nemd import jobutils
 from nemd import logutils
+from nemd import np
 from nemd import parserutils
 from nemd import pd
 from nemd import plotutils
@@ -18,80 +19,75 @@ from nemd import symbols
 
 
 class Plotter:
+    """
+    Plot phonon dispersion.
+    """
 
-    THZ = 'THz'
-    PNG_EXT = '.png'
-
-    def __init__(self, filename, options=None, unit=THZ):
+    def __init__(self, infile, options=None):
         """
-        :param filename str: the file containing the dispersion data
+        :param infile str: the file containing the dispersion data
         :param options 'argparse.Driver':  Parsed command-line options
-        :param unit str: the unit of the y data (either THz or cm^-1)
         """
-        self.filename = filename
+        self.infile = infile
         self.options = options
-        self.unit = unit
         self.data = None
-        self.ylim = None
-        self.xticks = None
-        self.xlabels = None
-        self.outfile = self.options.JOBNAME + self.PNG_EXT
+        self.unit = None
+        self.points = None
+        self.outfile = f"{self.options.JOBNAME}.png"
 
     def run(self):
         """
         Main method to run.
         """
-        self.readData()
-        self.setKpoints()
-        self.setFigure()
+        self.read()
+        self.plot()
 
-    def readData(self):
+    def read(self):
         """
-        Read the data from the file with unit conversion and range set.
+        Read the data (e.g., wave vector, frequency, unit, and k-points).
         """
-        data = pd.read_csv(self.filename, header=None, skiprows=3, sep=r'\s+')
-        self.data = data.set_index(0)
-        if self.unit == self.THZ:
+        self.data = pd.read_csv(self.infile,
+                                header=None,
+                                comment='#',
+                                sep=r'\s+',
+                                index_col=0)
+        self.data.index.name = 'Wave vector'
+        with open(self.infile, 'r') as fh:
+            lines = [fh.readline().strip('#').strip() for _ in range(3)]
+        syms, pnts, cols = [x.split() for x in lines]
+        self.unit = cols[-1].strip('[]')
+        for idx in reversed((pnts == np.roll(pnts, 1)).nonzero()[0]):
+            # Adjacent K points of the same value but different labels
+            pnts.pop(idx)
+            syms[idx - 1] += f"|{syms.pop(idx)}"
+        self.points = pd.Series([float(x) for x in pnts], index=syms)
+
+    def plot(self, unit='THz'):
+        """
+        Plot the frequency vs wave vector with k-point as the vertical lines.
+
+        :param unit str: the frequency unit.
+        """
+        if self.unit == 'cm^-1':
             self.data *= constants.CM_INV_THZ
-        self.ylim = [
-            min([0, self.data.min(axis=None)]),
-            self.data.max(axis=None) * 1.05
-        ]
-
-    def setKpoints(self):
-        """
-        Set the point values and labels.
-        """
-        with open(self.filename, 'r') as fh:
-            header = [fh.readline().strip() for _ in range(2)]
-        symbols, pnts = [x.strip('#').split() for x in header]
-        pnts = [float(x) for x in pnts]
-        # Adjacent K points may have the same value
-        same_ids = [i for i in range(1, len(pnts)) if pnts[i - 1] == pnts[i]]
-        idxs = [x for x in range(len(pnts)) if x not in same_ids]
-        self.xticks = [pnts[i] for i in idxs]
-        self.xlabels = [symbols[i] for i in idxs]
-        for idx in same_ids:
-            # Adjacent K points with the same value combine the labels
-            self.xlabels[idx - 1] = '|'.join([symbols[idx - 1], symbols[idx]])
-
-    def setFigure(self):
-        """
-        Plot the frequency vs wave vector with k-point vertical lines.
-        """
         with plotutils.pyplot(inav=self.options.INTERAC) as plt:
             fig = plt.figure(figsize=(10, 6))
             ax = fig.add_subplot(1, 1, 1)
             for col in self.data.columns:
                 ax.plot(self.data.index, self.data[col], '-b')
-            verticals = self.xticks[1:-1]
-            ax.vlines(verticals, *self.ylim, linestyles='--', color='k')
+            ymin = min([0, self.data.min(axis=None)])
+            ymax = self.data.max(axis=None) * 1.05
+            ax.vlines(self.points.values[1:-1],
+                      ymin,
+                      ymax,
+                      linestyles='--',
+                      color='k')
             ax.set_xlim([self.data.index.min(), self.data.index.max()])
-            ax.set_ylim(self.ylim)
-            ax.set_xticks(self.xticks)
-            ax.set_xticklabels(self.xlabels)
-            ax.set_xlabel('Wave vector')
-            ax.set_ylabel(f'Frequency ({self.unit})')
+            ax.set_ylim([ymin, ymax])
+            ax.set_xticks(self.points.values)
+            ax.set_xticklabels(self.points.index)
+            ax.set_xlabel(self.data.index.name)
+            ax.set_ylabel(f'Frequency ({unit})')
             fig.tight_layout()
             fig.savefig(self.outfile)
 
@@ -114,38 +110,38 @@ class Dispersion(logutils.Base):
         """
         Main method to run.
         """
-        self.buildCell()
+        self.build()
         self.write()
         self.plot()
 
-    def buildCell(self):
+    def build(self):
         """
-        Build the supercell based on the unit cell.
+        Build the crystal and structure.
         """
         self.crystal = alamode.Crystal.fromDatabase(self.options)
-        params = map("{:.4}".format, self.crystal.lattice_parameters)
-        self.log(
-            f"The lattice parameters of the supper cell is {' '.join(params)}")
+        params = [f'{x:.4f}' for x in self.crystal.lattice_parameters[:3]]
+        params += [f'{x:.1f}' for x in self.crystal.lattice_parameters[3:]]
+        self.log(f"Supercell lattice parameters: {' '.join(params)}")
+        self.struct = alamode.Struct.fromMols([self.crystal.mol],
+                                              options=self.options)
+        self.struct.write()
+        self.log(f"Data file written into {self.struct.outfile}")
 
     def write(self):
         """
         Write the phonon dispersion.
         """
-        mols = [self.crystal.mol]
-        self.struct = alamode.Struct.fromMols(mols, options=self.options)
-        self.struct.write()
-        self.log(f"LAMMPS data file written as {self.struct.outfile}")
         self.crystal.mode = alamode.SUGGEST
         kwargs = dict(jobname=self.options.JOBNAME)
         suggest = alamode.exe(self.crystal, **kwargs)
         self.log(f"Suggested displacements are written as {suggest[0]}")
         files = [self.struct.outfile] + suggest
         displace = alamode.exe('displace', files=files, **kwargs)
-        self.log(f"Data files with displacements: {', '.join(displace)}")
+        self.log(f"Data files with displacements: {displace}")
         dats = []
         for dat in displace:
             dats += alamode.exe(self.struct, files=[dat], **kwargs)
-        self.log(f"Trajectory files with forces: {' '.join(dats)}")
+        self.log(f"Trajectory files with forces: {dats}")
         files = [self.struct.outfile] + dats
         extract = alamode.exe('extract', files=files, **kwargs)
         self.crystal.mode = alamode.OPTIMIZE
@@ -167,9 +163,15 @@ class Dispersion(logutils.Base):
 
 
 class Parser(parserutils.XtalBldr):
+    """
+    Customized for single point energy.
+    """
 
     @classmethod
     def add(cls, parser, **kwargs):
+        """
+        See parent.
+        """
         super().add(parser, **kwargs)
         parser.suppress(no_minimize=True, temp=0)
         parser.set_defaults(force_field=[symbols.SW])

@@ -3,46 +3,61 @@ import os
 import dispersion_driver as driver
 import pytest
 
+from nemd import envutils
 from nemd import np
+
+ARGS = ['-name', 'Si', '-JOBNAME', 'dispersion']
+BANDS = envutils.test_data('0044', 'phonons', 'dispersion.bands')
+
+
+@pytest.mark.parametrize('args,infile', [(ARGS, BANDS)])
+class TestPlotter:
+
+    @pytest.fixture
+    def plot(self, args, infile):
+        options = driver.Parser().parse_args(args)
+        return driver.Plotter(infile, options=options)
+
+    @pytest.mark.parametrize('expected',
+                             [[(153, 6), 'G', 'X|R', 'G', 'L', 'cm^-1']])
+    def testRead(self, plot, expected):
+        plot.read()
+        assert expected == [plot.data.shape, *plot.points.index, plot.unit]
+
+    @pytest.mark.parametrize('expected',
+                             [[(153, 6), 'G', 'X|R', 'G', 'L', 'cm^-1']])
+    def testPlot(self, plot, expected, tmp_dir):
+        plot.read()
+        plot.plot()
+        assert os.path.exists(plot.outfile)
 
 
 class TestDispersion:
 
     @pytest.fixture
-    def disp(self, argv):
-        options = driver.validate_options(argv)
-        return driver.Dispersion(options)
+    def disp(self, args, logger, tmp_dir):
+        options = driver.Parser().parse_args(args)
+        return driver.Dispersion(options, logger=logger)
 
-    @pytest.mark.parametrize(
-        "argv,vol", [(['-name', 'Si'], 160.16),
-                     (['-name', 'Si', '-scale_factor', '1.1'], 213.18)])
-    def testBuildCell(self, disp, vol):
-        disp.buildCell()
-        np.testing.assert_almost_equal(vol, disp.crystal.volume, decimal=2)
+    @pytest.mark.parametrize("args,expected",
+                             [(ARGS, (160.16, 8)),
+                              ([*ARGS, '-scale_factor', '1.1'], (213.18, 8)),
+                              ([*ARGS, '-dim', '2', '1', '1'], (160.16, 16))])
+    def testBuild(self, disp, expected):
+        disp.build()
+        to_compare = [disp.crystal.volume, disp.struct.atom_total]
+        np.testing.assert_almost_equal(to_compare, expected, decimal=2)
 
-    @pytest.mark.parametrize(
-        "argv,num", [(['-name', 'Si'], 8),
-                     (['-name', 'Si', '-dimension', '2', '1', '1'], 16)])
-    def testWriteDataFile(self, disp, num, tmp_dir):
-        disp.buildCell()
-        disp.writeFile()
-        assert os.path.exists('dispersion.data')
-        assert num == disp.struct.atom_total
+    @pytest.mark.slow(3)
+    @pytest.mark.parametrize("args", [ARGS])
+    def testWrite(self, disp):
+        disp.build()
+        disp.write()
+        assert os.path.exists(disp.struct.outfile)
 
-    @pytest.mark.parametrize("argv",
-                             [(['-name', 'Si']),
-                              (['-name', 'Si', '-dimension', '2', '1', '1']),
-                              (['-name', 'Si', '-scale_factor', '1.1'])])
-    def testWriteDispersion(self, disp, tmp_dir):
-        disp.buildCell()
-        disp.writeFile()
-        disp.writeDispersion()
-        assert os.path.exists(disp.outfile)
-
-    @pytest.mark.parametrize("argv", [(['-name', 'Si'])])
-    def testPlotDispersion(self, disp, tmp_dir):
-        disp.buildCell()
-        disp.writeFile()
-        disp.writeDispersion()
-        disp.plotDispersion()
-        assert os.path.exists('dispersion.png')
+    @pytest.mark.parametrize("args,expected", [(ARGS, 'dispersion.png')])
+    def testPlot(self, disp, expected):
+        disp.build()
+        disp.write()
+        disp.plot()
+        assert os.path.exists(expected)
