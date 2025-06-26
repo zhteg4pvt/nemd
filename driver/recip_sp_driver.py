@@ -16,75 +16,52 @@ from nemd import parserutils
 from nemd import pd
 from nemd import plotutils
 
-FLAG_MILLER_INDICES = '-miller_indices'
 
-
-class Reciprocal:
+class Reciprocal(logutils.Base):
     """
     This class is used to plot the reciprocal space on axis.
     """
-
     TITLE = 'Reciprocal Space'
-    PLANE_PROPS = dict(color='0.8', linestyle='--', alpha=0.5)
-    GRID_PROPS = dict(marker='o', alpha=0.5)
-    EQUAL = 'equal'
-    QV_PROPS = dict(angles='xy',
-                    scale_units='xy',
-                    scale=1,
-                    units='dots',
-                    width=3)
-    AW_PROPS = dict(linestyle="-",
-                    arrowstyle="-|>",
-                    mutation_scale=10,
-                    color='r')
     VEC_TXT = r'$\vec {sym}^*$'
-    R_SYM = 'r'
 
-    def __init__(self, ax, vecs=None, miller=None):
+    def __init__(self, ax, vecs=None, miller=None, **kwargs):
         """
         :param ax 'matplotlib.axes._axes.Axes': axis to plot
         :param vecs 'pandas.DataFrame': a, b vectors
         :param miller: the Miller Indexes
         """
+        super().__init__(**kwargs)
         self.ax = ax
         self.vecs = vecs
         self.miller = miller
-        self.m_vecs = None
-        self.vec = None
+        self.m_vecs = self.vecs * self.miller
+        self.vec = pd.Series(self.m_vecs.sum(axis=1), name='r')
         self.xlim = None
         self.ylim = None
         self.grids = []
-        self.quivers = []
+        self.quivers = {}
         self.origin = np.array([0., 0.])
 
     def run(self):
         """
         Plot the grids and vectors.
         """
-        self.setMiller()
-        self.setVec()
+        self.logVec()
         self.setGridsAndLim()
         self.plotGrids()
         self.quiver(self.vecs.a1)
         self.quiver(self.vecs.a2)
-        self.annotate(self.m_vecs.a1)
-        self.annotate(self.m_vecs.a2)
+        self.arrow(self.m_vecs.a1)
+        self.arrow(self.m_vecs.a2)
         self.quiver(self.vec, color='g')
         self.legend()
 
-    def setMiller(self):
+    def logVec(self):
         """
-        Set the vectors for Miller Plane by converting real space Miller indexes
-        to the reciprocal ones.
+        Log the vector.
         """
-        self.m_vecs = self.vecs * self.miller
-
-    def setVec(self):
-        """
-        Plot the vector summation.
-        """
-        self.vec = self.m_vecs.a1 + self.m_vecs.a2
-        self.vec.rename(self.R_SYM, inplace=True)
+        self.log(f"The {self.TITLE.lower()} vector {self.vec.values} has a "
+                 f"norm of {np.linalg.norm(self.vec):.4g}")
 
     def setGridsAndLim(self, num=6):
         """
@@ -123,60 +100,75 @@ class Reciprocal:
         """
         Plot the selected grids.
         """
-        self.ax.scatter(*[x.tolist() for x in self.grids], **self.GRID_PROPS)
+        self.ax.scatter(*[x.tolist() for x in self.grids],
+                        marker='o',
+                        alpha=0.5)
         self.ax.set_xlim(self.xlim)
         self.ax.set_ylim(self.ylim)
-        self.ax.set_aspect(self.EQUAL)
+        self.ax.set_aspect('equal')
         self.ax.set_title(self.TITLE)
 
-    def quiver(self, vec, color='b'):
+    def quiver(self,
+               vec,
+               color='b',
+               angles='xy',
+               scale_units='xy',
+               scale=1,
+               units='dots',
+               width=3):
         """
-        Plot a quiver for the vector.
+        Plot a quiver for the vector. (see matplotlib.pyplot.quiver)
 
         :param vec 'pandas.core.series.Series': two points as a vector
-        :param color str: the color of the annotate
         """
         if not any(vec):
             return
-        qv = self.ax.quiver(*self.origin, *vec, **self.QV_PROPS, color=color)
+        qv = self.ax.quiver(*self.origin,
+                            *vec,
+                            color=color,
+                            angles=angles,
+                            scale_units=scale_units,
+                            scale=scale,
+                            units=units,
+                            width=width)
         text = self.VEC_TXT.format(sym=vec.name)
         self.ax.annotate(text, vec, color=color)
-        label = f"{text} ({vec.iloc[0]:.4g}, {vec.iloc[1]:.4g})"
-        self.quivers.append([qv, label])
+        self.quivers[qv] = f"{text} ({vec.iloc[0]:.4g}, {vec.iloc[1]:.4g})"
 
-    def annotate(self, vec):
+    def arrow(self, vec, arrowprops=None):
         """
-        Annotate arrow for the vector.
+        Annotate arrow for the vector. (see matplotlib.pyplot.annotate)
 
         :param vec list: list of two points
         """
+        if arrowprops is None:
+            arrowprops = dict(linestyle="-",
+                              arrowstyle="-|>",
+                              mutation_scale=10,
+                              color='r')
         if not any(vec):
             return
-        self.ax.annotate('', vec, xytext=self.origin, arrowprops=self.AW_PROPS)
+        self.ax.annotate('', vec, xytext=self.origin, arrowprops=arrowprops)
 
     def legend(self):
         """
         Set the legend.
         """
-        quivers = [x[0] for x in self.quivers]
-        labels = [x[1] for x in self.quivers]
-        self.ax.legend(quivers, labels, loc='upper right')
+        self.ax.legend(self.quivers.keys(),
+                       self.quivers.values(),
+                       loc='upper right')
 
 
 class Real(Reciprocal):
     """
     This class is used to plot the real space on axis.
     """
-
     TITLE = 'Real Space'
     VEC_TXT = r'$\vec {sym}$'
 
-    def setVec(self):
-        """
-        Plot the normal to a plane.
-        """
-        vec = self.getNormal(factor=1) - self.getNormal(factor=0)
-        self.vec = pd.Series(vec, name=self.R_SYM)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vec[:] = self.getNormal(factor=1)
 
     def getNormal(self, factor=1):
         """
@@ -227,7 +219,12 @@ class Real(Reciprocal):
         self.plotPlane(factor=0)
         self.plotPlane(factor=1)
 
-    def plotPlane(self, factor=1, num=1000):
+    def plotPlane(self,
+                  factor=1,
+                  num=1000,
+                  color='0.8',
+                  linestyle='--',
+                  alpha=0.5):
         """
         Plot the Miller plane moved by the index factor.
 
@@ -256,28 +253,42 @@ class Real(Reciprocal):
         x_vals, y_vals = pnts.T
         if np.isclose(*x_vals):
             # The plane is vertical
-            self.ax.vlines(x_vals.mean(), *y_vals, **self.PLANE_PROPS)
+            self.ax.vlines(x_vals.mean(),
+                           *y_vals,
+                           color=color,
+                           linestyle=linestyle,
+                           alpha=alpha)
             return
-        self.ax.plot(x_vals, y_vals, **self.PLANE_PROPS)
+        self.ax.plot(x_vals,
+                     y_vals,
+                     color=color,
+                     linestyle=linestyle,
+                     alpha=alpha)
+
+
+class DataFrame(pd.DataFrame):
+    """
+    Real or reciprocal vectors.
+    """
+
+    def __init__(self, *args, index=('x', 'y'), columns=('a1', 'a2'),
+                 **kwargs):
+        super().__init__(*args, index=index, columns=columns, **kwargs)
 
 
 class RecipSp(logutils.Base):
     """
     Class to set and plot the reciprocal space lattice vectors for 2D graphene.
 
-    References:
     https://www.youtube.com/watch?v=cdN6OgwH8Bg
     https://en.wikipedia.org/wiki/Reciprocal_lattice
     """
-    AX = ['a1', 'a2']
-    XY = ['x', 'y']
 
     def __init__(self, options, **kwargs):
         """
         :param options 'argparse.Driver':  Parsed command-line options
         """
         super().__init__(options=options, **kwargs)
-        self.origin = np.array([0., 0.])
         self.real = None
         self.recip = None
         self.outfile = f'{self.options.JOBNAME}.png'
@@ -287,7 +298,7 @@ class RecipSp(logutils.Base):
         Main method to run.
         """
         self.setReal()
-        self.setReciprocal()
+        self.setRecip()
         self.plot()
 
     def setReal(self):
@@ -300,9 +311,9 @@ class RecipSp(logutils.Base):
         # Primitive lattice vector of graphene
         data = np.array([[math.sqrt(3) / 2., 0.5], [math.sqrt(3) / 2., -0.5]])
         data *= math.sqrt(3)
-        self.real = pd.DataFrame(data.T, columns=self.AX, index=self.XY)
+        self.real = DataFrame(data.T)
 
-    def setReciprocal(self):
+    def setRecip(self):
         """
         Set the reciprocal lattice vectors based on the real ones.
 
@@ -312,7 +323,7 @@ class RecipSp(logutils.Base):
         ba_norm = ab_norm[:, ::-1]
         column_dot = np.multiply(self.real, ba_norm).sum(axis=0).tolist()
         recip = 2 * np.pi * ba_norm / column_dot
-        self.recip = pd.DataFrame(recip, columns=self.AX, index=self.XY)
+        self.recip = DataFrame(recip)
 
     def plot(self):
         """
@@ -321,31 +332,28 @@ class RecipSp(logutils.Base):
         with plotutils.pyplot(inav=self.options.INTERAC) as plt:
             fig = plt.figure(figsize=(15, 9))
             ax1 = fig.add_subplot(1, 2, 1)
+            miller = [1. / x if x else 0 for x in self.options.miller_indices]
+            real = Real(ax1, vecs=self.real, miller=miller, logger=self.logger)
+            real.run()
             ax2 = fig.add_subplot(1, 2, 2)
-            plane = [1. / x if x else 0 for x in self.options.miller_indices]
-            ltp = Real(ax1, vecs=self.real, miller=plane)
-            ltp.run()
-            ltp_vec = ', '.join(map('{:.4g}'.format, ltp.vec))
-            self.log(f"The vector in real space is ({ltp_vec}) with "
-                     f"{np.linalg.norm(ltp.vec):.4g} being the norm.")
-            rltp = Reciprocal(ax2,
-                              vecs=self.recip,
-                              miller=self.options.miller_indices)
-            rltp.run()
-            rltp_vec = ', '.join(map('{:.4g}'.format, rltp.vec))
-            self.log(f"The vector in reciprocal space is ({rltp_vec}) with "
-                     f"{np.linalg.norm(rltp.vec):.4g} being the norm.")
-            self.log(
-                f"The cross product is {np.cross(ltp.vec, rltp.vec): .4g}")
-            self.log(
-                f"The product is {np.dot(ltp.vec, rltp.vec) / np.pi: .4g} * pi"
-            )
-            idxs = ' '.join(map('{:.4g}'.format, self.options.miller_indices))
-            fig.suptitle(f'Miller indices ({idxs})')
+            recip = Reciprocal(ax2,
+                               vecs=self.recip,
+                               miller=self.options.miller_indices,
+                               logger=self.logger)
+            recip.run()
+            fig.suptitle(f'Miller indices {self.options.miller_indices}')
             fig.tight_layout()
             fig.savefig(self.outfile)
+            self.log(f'Figure saved as {self.outfile}')
             jobutils.Job.reg(self.outfile, file=True)
-            self.log(f'Figure saved as {self.outfile }')
+
+        if np.isclose(np.cross(real.vec, recip.vec), 0):
+            self.log(f"The real and reciprocal vectors are parallel to each "
+                     f"other with {np.dot(real.vec, recip.vec) / np.pi:.4g}π "
+                     f"being the dot product.")
+        else:
+            self.log(f"The cross product: {np.cross(real.vec, recip.vec)}")
+            self.log(f"The dot product: {np.dot(real.vec, recip.vec)}")
 
 
 class MillerAction(parserutils.Action):
@@ -366,13 +374,14 @@ class Parser(parserutils.Driver):
     """
     The argument parser.
     """
+    FLAG_MILLER_INDICES = '-miller_indices'
 
     def setUp(self):
         """
         The user-friendly command-line parser.
         """
-        self.add_argument(FLAG_MILLER_INDICES,
-                          metavar=FLAG_MILLER_INDICES[1:].upper(),
+        self.add_argument(self.FLAG_MILLER_INDICES,
+                          metavar=self.FLAG_MILLER_INDICES[1:].upper(),
                           type=parserutils.type_float,
                           nargs=2,
                           action=MillerAction,

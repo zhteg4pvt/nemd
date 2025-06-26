@@ -8,6 +8,39 @@ import recip_sp_driver as driver
 from nemd import np
 
 
+class TestReciprocal:
+
+    @pytest.fixture
+    def recip(self, args, logger):
+        options = driver.Parser().parse_args(args)
+        return driver.RecipSp(options, logger=logger)
+
+    @pytest.mark.parametrize('args,vecs',
+                             [(['-miller_indices', '0.5', '2'
+                                ], [[1.5, 0.8660254], [1.5, -0.8660254]])])
+    def testSetReal(self, recip, vecs):
+        recip.setReal()
+        np.testing.assert_almost_equal(np.array(vecs).T, recip.real)
+
+    @pytest.mark.parametrize(
+        'args,vecs',
+        [(['-miller_indices', '0.5', '2'], [[2.0943951, 3.62759873],
+                                            [2.0943951, -3.62759873]])])
+    def testSetRecip(self, recip, vecs):
+        recip.setReal()
+        recip.setRecip()
+        np.testing.assert_almost_equal(np.array(vecs).T, recip.recip)
+
+    @pytest.mark.parametrize('args', [(['-miller_indices', '0', '1']),
+                                      (['-miller_indices', '0', '2']),
+                                      (['-miller_indices', '2', '4'])])
+    def testPlot(self, recip, tmp_dir):
+        recip.setReal()
+        recip.setRecip()
+        recip.plot()
+        assert os.path.isfile(recip.outfile)
+
+
 class TestParser:
 
     @pytest.fixture
@@ -25,40 +58,6 @@ class TestParser:
             assert expected == parser.parse_args(args).miller_indices
 
 
-class TestReciprocal:
-
-    @pytest.fixture
-    def recip(self, args, logger):
-        options = driver.Parser().parse_args(args)
-        return driver.RecipSp(options, logger=logger)
-
-    @pytest.mark.parametrize(('args,vecs'),
-                             [(['-miller_indices', '0.5', '2'
-                                ], [[1.5, 0.8660254], [1.5, -0.8660254]])])
-    def testSetReal(self, recip, vecs):
-        recip.setReal()
-        np.testing.assert_almost_equal(np.array(vecs).T, recip.real)
-
-    @pytest.mark.parametrize(
-        ('args,vecs'),
-        [(['-miller_indices', '0.5', '2'], [[2.0943951, 3.62759873],
-                                            [2.0943951, -3.62759873]])])
-    def testSetReciprocal(self, recip, vecs):
-        recip.setReal()
-        recip.setReciprocal()
-        np.testing.assert_almost_equal(np.array(vecs).T, recip.recip)
-
-    @pytest.mark.parametrize(('args'), [(['-miller_indices', '0', '1']),
-                                        (['-miller_indices', '0', '2']),
-                                        (['-miller_indices', '2', '4'])])
-    def testPlot(self, recip, tmp_dir):
-        recip.setReal()
-        recip.setReciprocal()
-        recip.plot()
-        assert os.path.isfile(recip.outfile)
-
-
-#
 # class TestDriverParser:
 #
 #     @pytest.mark.parametrize("miller_indices,valid", [(['1', '2'], True),
