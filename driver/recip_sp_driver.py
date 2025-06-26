@@ -17,99 +17,98 @@ from nemd import pd
 from nemd import plotutils
 
 
-class Reciprocal(logutils.Base):
+class Recip(logutils.Base):
     """
     This class is used to plot the reciprocal space on axis.
     """
-    TITLE = 'Reciprocal Space'
-    VEC_TXT = r'$\vec {sym}^*$'
+    NAME = 'Reciprocal Space'
 
-    def __init__(self, ax, vecs=None, miller=None, **kwargs):
+    def __init__(self, lat, ax=None, **kwargs):
         """
+        :param lat 'pandas.DataFrame': lattice vectors
         :param ax 'matplotlib.axes._axes.Axes': axis to plot
-        :param vecs 'pandas.DataFrame': a, b vectors
-        :param miller: the Miller Indexes
         """
         super().__init__(**kwargs)
+        self.lat = pd.DataFrame(lat, index=('x', 'y'), columns=('a1', 'a2'))
         self.ax = ax
-        self.vecs = vecs
-        self.miller = miller
-        self.m_vecs = self.vecs * self.miller
-        self.vec = pd.Series(self.m_vecs.sum(axis=1), name='r')
-        self.xlim = None
-        self.ylim = None
-        self.grids = []
-        self.quivers = {}
+        self.scaled = self.lat * self.options.miller_indices
+        self.vec = pd.Series(self.scaled.sum(axis=1), name='r')
+        self.qvs = {}
         self.origin = np.array([0., 0.])
+        self.setUp()
 
-    def run(self):
+    def setUp(self):
+        """
+        Set up.
+        """
+        self.log(f"The {self.NAME.lower()} vector {self.vec.values} has a "
+                 f"norm of {np.linalg.norm(self.vec):.4g}")
+
+    def plot(self, ax):
         """
         Plot the grids and vectors.
         """
-        self.logVec()
-        self.setGridsAndLim()
-        self.plotGrids()
-        self.quiver(self.vecs.a1)
-        self.quiver(self.vecs.a2)
-        self.arrow(self.m_vecs.a1)
-        self.arrow(self.m_vecs.a2)
+        self.ax = ax
+        self.grid()
+        self.quiver(self.lat.a1)
+        self.quiver(self.lat.a2)
+        self.arrow(self.scaled.a1)
+        self.arrow(self.scaled.a2)
         self.quiver(self.vec, color='g')
         self.legend()
 
-    def logVec(self):
+    def grid(self):
         """
-        Log the vector.
+        Plot the selected grids.
         """
-        self.log(f"The {self.TITLE.lower()} vector {self.vec.values} has a "
-                 f"norm of {np.linalg.norm(self.vec):.4g}")
+        self.ax.scatter(self.grids[:, 0],
+                        self.grids[:, 1],
+                        marker='o',
+                        alpha=0.5)
+        self.ax.set_xlim(self.xlim)
+        self.ax.set_ylim(self.ylim)
+        self.ax.set_aspect('equal')
+        self.ax.set_title(self.NAME)
 
-    def setGridsAndLim(self, num=6):
+    @functools.cached_property
+    def grids(self, num=6):
         """
         Calculate the grids based on the lattice vectors, set rectangular limits
         based on the grids, and crop the grids by the rectangular.
 
         :param num int: the minimum number of duplicates along each lattice vec.
         """
-        recip = [1. / x for x in self.miller if x]
-        num = math.ceil(max(*recip, *self.miller, num))
-        coords = range(-num, num + 1)
-        idxs = np.meshgrid(coords, coords)
-        idx = np.stack(idxs, axis=-1)
-        xs = np.dot(idx, self.vecs.iloc[0])
-        ys = np.dot(idx, self.vecs.iloc[1])
-        # Four points of a parallelogram starting from bottom counter-clockwise
-        arg_idxs = [ys.argmin(), xs.argmax(), ys.argmax(), xs.argmin()]
-        shapes = [ys.shape, xs.shape, ys.shape, xs.shape]
-        idxs = [np.unravel_index(x, y) for x, y in zip(arg_idxs, shapes)]
-        parlgrm_pnts = [np.array([xs[x], ys[x]]) for x in idxs]
-        rotated = collections.deque(parlgrm_pnts)
-        rotated.rotate(1)
-        rect_pnts = np.stack((parlgrm_pnts, rotated)).mean(axis=0)
-        # Set the rectangular x, y limits
-        self.xlim = rect_pnts[:, 0].min(), rect_pnts[:, 0].max()
-        self.ylim = rect_pnts[:, 1].min(), rect_pnts[:, 1].max()
-        x_buf = (self.xlim[1] - self.xlim[0]) / (num * 2 + 1)
-        sel_x = (xs >= self.xlim[0] - x_buf) & (xs <= self.xlim[1] + x_buf)
-        y_buf = (self.ylim[1] - self.ylim[0]) / (num * 2 + 1)
-        sel_y = (ys >= self.ylim[0] - y_buf) & (ys <= self.ylim[1] + y_buf)
-        sel = np.logical_and(sel_x, sel_y)
-        self.grids.append(xs[sel] + self.origin[0])
-        self.grids.append(ys[sel] + self.origin[1])
+        recip = [1. / x for x in self.options.miller_indices if x]
+        num = math.ceil(max(*recip, *self.options.miller_indices, num))
+        xi = range(-num, num + 1)
+        meshed = np.stack(np.meshgrid(xi, xi), axis=-1)
+        xys = np.moveaxis(np.dot(meshed, self.lat.T), -1, 0)
+        # Four points of a parallelogram starting from left counter-clockwise
+        idxs = [np.unravel_index(x.argmin(), x.shape) for x in xys]
+        idxs += [np.unravel_index(x.argmax(), x.shape) for x in xys]
+        points = [xys[:, x, y] for x, y in idxs]
+        rotated = collections.deque([xys[:, x, y] for x, y in idxs])
+        rotated.rotate(-1)
+        points = np.stack((points, rotated)).mean(axis=0)
+        # Select points within the limits
+        lim = np.array([points.min(axis=0), points.max(axis=0)])
+        buff = (lim[1] - lim[0]) / (num * 2 + 1)
+        lim += np.array([-buff, buff])
+        sel = [(xys[i, :, :] > lim[0, i]) & (xys[i, :, :] < lim[1, i])
+               for i in range(xys.shape[0])]
+        return np.moveaxis(xys, 0, -1)[np.logical_and(*sel)] + self.origin
 
-    def plotGrids(self):
-        """
-        Plot the selected grids.
-        """
-        self.ax.scatter(*[x.tolist() for x in self.grids],
-                        marker='o',
-                        alpha=0.5)
-        self.ax.set_xlim(self.xlim)
-        self.ax.set_ylim(self.ylim)
-        self.ax.set_aspect('equal')
-        self.ax.set_title(self.TITLE)
+    @functools.cached_property
+    def xlim(self):
+        return [self.grids[:, 0].min(), self.grids[:, 0].max()]
+
+    @functools.cached_property
+    def ylim(self):
+        return [self.grids[:, 1].min(), self.grids[:, 1].max()]
 
     def quiver(self,
                vec,
+               fmt=r'$\vec {sym}^*$',
                color='b',
                angles='xy',
                scale_units='xy',
@@ -131,9 +130,9 @@ class Reciprocal(logutils.Base):
                             scale=scale,
                             units=units,
                             width=width)
-        text = self.VEC_TXT.format(sym=vec.name)
+        text = fmt.format(sym=vec.name)
         self.ax.annotate(text, vec, color=color)
-        self.quivers[qv] = f"{text} ({vec.iloc[0]:.4g}, {vec.iloc[1]:.4g})"
+        self.qvs[qv] = f"{text} ({vec.iloc[0]:.4g}, {vec.iloc[1]:.4g})"
 
     def arrow(self, vec, arrowprops=None):
         """
@@ -154,21 +153,23 @@ class Reciprocal(logutils.Base):
         """
         Set the legend.
         """
-        self.ax.legend(self.quivers.keys(),
-                       self.quivers.values(),
-                       loc='upper right')
+        self.ax.legend(self.qvs.keys(), self.qvs.values(), loc='upper right')
 
 
-class Real(Reciprocal):
+class Real(Recip):
     """
     This class is used to plot the real space on axis.
     """
-    TITLE = 'Real Space'
-    VEC_TXT = r'$\vec {sym}$'
+    NAME = 'Real Space'
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def setUp(self):
+        miller = [1. / x if x else 0 for x in self.options.miller_indices]
+        self.scaled = self.lat * miller
         self.vec[:] = self.getNormal(factor=1)
+        super().setUp()
+
+    def quiver(self, *args, fmt=r'$\vec {sym}$', **kwargs):
+        super().quiver(*args, fmt=fmt, **kwargs)
 
     def getNormal(self, factor=1):
         """
@@ -195,26 +196,26 @@ class Real(Reciprocal):
         :param factor int: the Miller index plane is moved by this factor.
         :return 'np.ndarray': two points (rows) on the Miller
         """
-        nonzero = self.m_vecs.any()
+        nonzero = self.scaled.any()
         if factor and nonzero.all():
-            return self.m_vecs.T.values * factor
+            return self.scaled.T.values * factor
 
         index = nonzero.to_list().index(True)
-        pnt = self.m_vecs.iloc[:, index] if factor else self.origin
+        pnt = self.scaled.iloc[:, index] if factor else self.origin
         if nonzero.all():
             # Vectors are available, and the subtraction defines the direction
-            vec = self.m_vecs.a2 - self.m_vecs.a1
+            vec = self.scaled.a2 - self.scaled.a1
         else:
             # If one vector, the other's lattice vector defines the direction
-            vec = self.vecs.iloc[:, nonzero.to_list().index(False)]
+            vec = self.scaled.iloc[:, nonzero.to_list().index(False)]
         pnts = np.array([pnt, pnt + vec])
         return pnts * factor if factor else pnts
 
-    def run(self):
+    def plot(self, *args):
         """
-        Main method to run.
+        See parent.
         """
-        super().run()
+        super().plot(*args)
         self.plotPlane(factor=-1)
         self.plotPlane(factor=0)
         self.plotPlane(factor=1)
@@ -266,22 +267,12 @@ class Real(Reciprocal):
                      alpha=alpha)
 
 
-class DataFrame(pd.DataFrame):
-    """
-    Real or reciprocal vectors.
-    """
-
-    def __init__(self, *args, index=('x', 'y'), columns=('a1', 'a2'),
-                 **kwargs):
-        super().__init__(*args, index=index, columns=columns, **kwargs)
-
-
 class RecipSp(logutils.Base):
     """
     Class to set and plot the reciprocal space lattice vectors for 2D graphene.
 
     https://www.youtube.com/watch?v=cdN6OgwH8Bg
-    https://en.wikipedia.org/wiki/Reciprocal_lattice
+    https://en.wikipedia.org/wiki/Recip_lattice
     """
 
     def __init__(self, options, **kwargs):
@@ -299,6 +290,7 @@ class RecipSp(logutils.Base):
         """
         self.setReal()
         self.setRecip()
+        self.product()
         self.plot()
 
     def setReal(self):
@@ -311,19 +303,31 @@ class RecipSp(logutils.Base):
         # Primitive lattice vector of graphene
         data = np.array([[math.sqrt(3) / 2., 0.5], [math.sqrt(3) / 2., -0.5]])
         data *= math.sqrt(3)
-        self.real = DataFrame(data.T)
+        self.real = Real(data.T, options=self.options, logger=self.logger)
 
     def setRecip(self):
         """
         Set the reciprocal lattice vectors based on the real ones.
 
-        https://en.wikipedia.org/wiki/Reciprocal_lattice (Two dimensions)
+        https://en.wikipedia.org/wiki/Recip_lattice (Two dimensions)
         """
-        ab_norm = np.dot([[0, -1], [1, 0]], self.real)
+        ab_norm = np.dot([[0, -1], [1, 0]], self.real.lat)
         ba_norm = ab_norm[:, ::-1]
-        column_dot = np.multiply(self.real, ba_norm).sum(axis=0).tolist()
+        column_dot = np.multiply(self.real.lat, ba_norm).sum(axis=0).tolist()
         recip = 2 * np.pi * ba_norm / column_dot
-        self.recip = DataFrame(recip)
+        self.recip = Recip(recip, options=self.options, logger=self.logger)
+
+    def product(self):
+        """
+        Log cross and doc product.
+        """
+        cross = np.cross(self.real.vec, self.recip.vec)
+        dot = np.dot(self.real.vec, self.recip.vec) / np.pi
+        if np.isclose(cross, 0):
+            self.log(f"The real and reciprocal vectors are parallel to each "
+                     f"other with {dot:.4g}π being the dot product.")
+        else:
+            self.log(f"The cross product: {cross}; The dot product: {dot}π")
 
     def plot(self):
         """
@@ -331,29 +335,13 @@ class RecipSp(logutils.Base):
         """
         with plotutils.pyplot(inav=self.options.INTERAC) as plt:
             fig = plt.figure(figsize=(15, 9))
-            ax1 = fig.add_subplot(1, 2, 1)
-            miller = [1. / x if x else 0 for x in self.options.miller_indices]
-            real = Real(ax1, vecs=self.real, miller=miller, logger=self.logger)
-            real.run()
-            ax2 = fig.add_subplot(1, 2, 2)
-            recip = Reciprocal(ax2,
-                               vecs=self.recip,
-                               miller=self.options.miller_indices,
-                               logger=self.logger)
-            recip.run()
+            self.real.plot(fig.add_subplot(1, 2, 1))
+            self.recip.plot(fig.add_subplot(1, 2, 2))
             fig.suptitle(f'Miller indices {self.options.miller_indices}')
             fig.tight_layout()
             fig.savefig(self.outfile)
             self.log(f'Figure saved as {self.outfile}')
             jobutils.Job.reg(self.outfile, file=True)
-
-        if np.isclose(np.cross(real.vec, recip.vec), 0):
-            self.log(f"The real and reciprocal vectors are parallel to each "
-                     f"other with {np.dot(real.vec, recip.vec) / np.pi:.4g}π "
-                     f"being the dot product.")
-        else:
-            self.log(f"The cross product: {np.cross(real.vec, recip.vec)}")
-            self.log(f"The dot product: {np.dot(real.vec, recip.vec)}")
 
 
 class MillerAction(parserutils.Action):
