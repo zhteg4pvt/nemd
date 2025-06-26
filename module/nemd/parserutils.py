@@ -662,7 +662,6 @@ class Bldr(Driver):
     """
     Parser with builder arguments.
     """
-    FLAG_FORCE_FIELD = '-force_field'
     FLAG_SUBSTRUCT = '-substruct'
 
     @classmethod
@@ -678,7 +677,7 @@ class Bldr(Driver):
                             action=StructAction,
                             help='set or measure the substructure geometry.')
         parser.add_argument(
-            cls.FLAG_FORCE_FIELD,
+            '-force_field',
             nargs='+',
             action=ForceFieldAction,
             default=symbols.OPLSUA_TIP3P,

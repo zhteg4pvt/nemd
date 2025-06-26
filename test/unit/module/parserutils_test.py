@@ -140,10 +140,6 @@ class TestLastPct:
         assert expected == last_ptc.getSidx(data, buffer=buffer)
 
 
-def error(x):
-    raise RAISED(x)
-
-
 @pytestutils.Raises
 class TestAction:
 
@@ -151,7 +147,7 @@ class TestAction:
     def parser(self, action, dtype):
         parser = argparse.ArgumentParser()
         parser.add_argument('dest', nargs='+', type=dtype, action=action)
-        parser.error = error
+        parser.error = mock.Mock(side_effect=RAISED)
         return parser
 
     @pytest.mark.parametrize('action,dtype,args,expected',
@@ -219,7 +215,7 @@ class TestValid:
         parser = parserutils.Driver(valids={valid})
         for flag, kwargs in zip(flags, kwargss):
             parser.add_argument(flag, **(kwargs if kwargs else {}))
-        parser.error = error
+        parser.error = mock.Mock(side_effect=RAISED)
         return parser
 
     @pytest.fixture

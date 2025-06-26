@@ -174,7 +174,6 @@ class Parser(parserutils.XtalBldr):
         """
         super().add(parser, **kwargs)
         parser.suppress(no_minimize=True, temp=0)
-        parser.set_defaults(force_field=[symbols.SW])
 
 
 def main(argv):

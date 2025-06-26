@@ -93,10 +93,10 @@ class Reciprocal:
 
         :param num int: the minimum number of duplicates along each lattice vec.
         """
-        mill = math.ceil(max(self.miller + [1. / x for x in self.miller if x]))
-        num = max(mill, num) + 1
-        # Uniform grids in a_vec and b_vec directions
-        idxs = np.meshgrid(range(-num, num + 1), range(-num, num + 1))
+        recip = [1. / x for x in self.miller if x]
+        num = math.ceil(max(*recip, *self.miller, num))
+        coords = range(-num, num + 1)
+        idxs = np.meshgrid(coords, coords)
         idx = np.stack(idxs, axis=-1)
         xs = np.dot(idx, self.vecs.iloc[0])
         ys = np.dot(idx, self.vecs.iloc[1])
@@ -269,7 +269,6 @@ class RecipSp(logutils.Base):
     https://www.youtube.com/watch?v=cdN6OgwH8Bg
     https://en.wikipedia.org/wiki/Reciprocal_lattice
     """
-    PNG_EXT = '.png'
     AX = ['a1', 'a2']
     XY = ['x', 'y']
 
@@ -281,6 +280,7 @@ class RecipSp(logutils.Base):
         self.origin = np.array([0., 0.])
         self.real = None
         self.recip = None
+        self.outfile = f'{self.options.JOBNAME}.png'
 
     def run(self):
         """
@@ -343,15 +343,28 @@ class RecipSp(logutils.Base):
             idxs = ' '.join(map('{:.4g}'.format, self.options.miller_indices))
             fig.suptitle(f'Miller indices ({idxs})')
             fig.tight_layout()
-            fname = self.options.JOBNAME + self.PNG_EXT
-            fig.savefig(fname)
-            jobutils.Job.reg(fname, file=True)
-            self.log(f'Figure saved as {fname}')
+            fig.savefig(self.outfile)
+            jobutils.Job.reg(self.outfile, file=True)
+            self.log(f'Figure saved as {self.outfile }')
+
+
+class MillerAction(parserutils.Action):
+    """
+    Action on miller indices.
+    """
+
+    def doTyping(self, *args):
+        """
+        See parent.
+        """
+        if not any(args):
+            self.error(f'Miller indices cannot be all zeros.')
+        return args
 
 
 class Parser(parserutils.Driver):
     """
-    The argument parser with additional validations.
+    The argument parser.
     """
 
     def setUp(self):
@@ -360,21 +373,11 @@ class Parser(parserutils.Driver):
         """
         self.add_argument(FLAG_MILLER_INDICES,
                           metavar=FLAG_MILLER_INDICES[1:].upper(),
-                          default=[0.5, 2],
                           type=parserutils.type_float,
-                          nargs='+',
+                          nargs=2,
+                          action=MillerAction,
+                          default=(0.5, 2),
                           help='Plot the planes of this Miller indices.')
-
-    def parse_args(self, *args, **kwargs):
-        """
-        See parent.
-        """
-        options = super().parse_args(*args, **kwargs)
-        if len(options.miller_indices) != 2:
-            self.error('Please provide two floats as the Miller indices.')
-        if not any(options.miller_indices):
-            self.error(f'Miller indices cannot be all zeros.')
-        return options
 
 
 if __name__ == "__main__":

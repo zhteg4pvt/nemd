@@ -61,3 +61,15 @@ class TestDispersion:
         disp.write()
         disp.plot()
         assert os.path.exists(expected)
+
+
+class TestParser:
+
+    @pytest.fixture
+    def parser(self):
+        return driver.Parser()
+
+    @pytest.mark.parametrize(
+        'expected', [dict(no_minimize=True, temp=0, force_field=['SW'])])
+    def testAdd(self, parser, expected):
+        assert expected == parser._defaults
