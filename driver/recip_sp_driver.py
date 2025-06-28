@@ -71,32 +71,40 @@ class Recip(logutils.Base):
         self.ax.set_title(self.NAME)
 
     @functools.cached_property
-    def grids(self, num=6):
+    def grids(self, num=2):
         """
         Calculate the grids based on the lattice vectors, set rectangular limits
         based on the grids, and crop the grids by the rectangular.
 
         :param num int: the minimum number of duplicates along each lattice vec.
+        :param np.ndarray: grid points.
         """
+        return self.crop(self.xys.reshape(-1, 2))
+
+    def crop(self, points):
+        return points[(np.abs(points) < self.buf).all(axis=1)]
+
+    @functools.cached_property
+    def buf(self):
+        return self.lim * 1.00001
+
+    @functools.cached_property
+    def lim(self):
+        line = self.xys[-1, :]
+        dist = np.linalg.norm(line, axis=1).min()
+        if dist > np.linalg.norm(self.xys[:, -1], axis=1).min():
+            line = self.xys[:, -1]
+        return np.abs(line[np.abs(line.prod(axis=1)).argmax()])
+
+    @functools.cached_property
+    def xys(self, num=6):
         recip = [1. / x for x in self.options.miller_indices if x]
         num = math.ceil(max(*recip, *self.options.miller_indices, num))
         xi = range(-num, num + 1)
-        meshed = np.stack(np.meshgrid(xi, xi), axis=-1)
-        xys = np.moveaxis(np.dot(meshed, self.lat.T), -1, 0)
-        # Four points of a parallelogram starting from left counter-clockwise
-        idxs = [np.unravel_index(x.argmin(), x.shape) for x in xys]
-        idxs += [np.unravel_index(x.argmax(), x.shape) for x in xys]
-        points = [xys[:, x, y] for x, y in idxs]
-        rotated = collections.deque([xys[:, x, y] for x, y in idxs])
-        rotated.rotate(-1)
-        points = np.stack((points, rotated)).mean(axis=0)
-        # Select points within the limits
-        lim = np.array([points.min(axis=0), points.max(axis=0)])
-        buff = (lim[1] - lim[0]) / (num * 2 + 1)
-        lim += np.array([-buff, buff])
-        sel = [(xys[i, :, :] > lim[0, i]) & (xys[i, :, :] < lim[1, i])
-               for i in range(xys.shape[0])]
-        return np.moveaxis(xys, 0, -1)[np.logical_and(*sel)] + self.origin
+        meshed = np.stack(np.meshgrid(xi, xi, indexing='ij'), axis=-1)
+        # The last dimension of meshed (coefficients) and dots with self.lat.T
+        # [[x1, y1], [x2, y2]] as https://xaktly.com/DotProduct.html
+        return np.dot(meshed, self.lat.T)
 
     @functools.cached_property
     def xlim(self):
@@ -178,8 +186,7 @@ class Real(Recip):
         :param factor int: by this factor the Miller plane is moved.
         :return 1x3 'numpy.ndarray': the intersection point
         """
-        pnt1, pnt2 = self.getPlane(factor=factor)
-        vec = pnt2 - pnt1  # vector along the plane
+        pnt1, vec = self.getPlane(factor=factor)
         normal = np.dot([[0, 1], [-1, 0]], vec)  # normal to the plane
         # Interaction is on the normal: factor * normal
         # Interaction is on the plane: fac2 * vec + pnt1
@@ -198,7 +205,8 @@ class Real(Recip):
         """
         nonzero = self.scaled.any()
         if factor and nonzero.all():
-            return self.scaled.T.values * factor
+            a_pnt, b_pnt = self.scaled.T.values * factor
+            return a_pnt, b_pnt - a_pnt
 
         index = nonzero.to_list().index(True)
         pnt = self.scaled.iloc[:, index] if factor else self.origin
@@ -208,8 +216,10 @@ class Real(Recip):
         else:
             # If one vector, the other's lattice vector defines the direction
             vec = self.scaled.iloc[:, nonzero.to_list().index(False)]
-        pnts = np.array([pnt, pnt + vec])
-        return pnts * factor if factor else pnts
+        if factor:
+            pnt *= factor
+            vec *= factor
+        return pnt, vec
 
     def plot(self, *args):
         """
@@ -220,37 +230,20 @@ class Real(Recip):
         self.plotPlane(factor=0)
         self.plotPlane(factor=1)
 
-    def plotPlane(self,
-                  factor=1,
-                  num=1000,
-                  color='0.8',
-                  linestyle='--',
-                  alpha=0.5):
+    def plotPlane(self, factor=1, color='0.8', linestyle='--', alpha=0.5):
         """
         Plot the Miller plane moved by the index factor.
 
         :param factor int: by this factor the Miller plane is moved.
-        :param num int: the span over this number is the buffer
         """
         # factor * (b_pnt - a_pnt) + a_pnt = lim
-        a_pnt, b_pnt = self.getPlane(factor=factor)
-        vec, pnts = b_pnt - a_pnt, []
-        if vec[0]:
-            factors = [(x - a_pnt[0]) / vec[0] for x in self.xlim]
-            pnts += [f * (b_pnt - a_pnt) + a_pnt for f in factors]
-        if vec[1]:
-            factors = [(y - a_pnt[1]) / vec[1] for y in self.ylim]
-            pnts += [f * (b_pnt - a_pnt) + a_pnt for f in factors]
-        pnts = np.array(pnts)
+        lim = [[-x, x] for x in self.lim]
+        a_pnt, vec = self.getPlane(factor=factor)
+        facs = np.array([(x - y) / z for x, y, z in zip(lim, a_pnt, vec) if z])
+        pnts = np.array([x * vec + a_pnt for x in facs.flatten()])
         if pnts.shape[0] == 4:
             # The intersection points are on x low, x high, y low, y high
-            buf = (self.xlim[1] - self.xlim[0]) / num
-            sel = pnts[:, 0] >= self.xlim[0] - buf
-            sel &= pnts[:, 0] <= self.xlim[1] + buf
-            buf = (self.ylim[1] - self.ylim[0]) / num
-            sel &= pnts[:, 1] >= self.ylim[0] - buf
-            sel &= pnts[:, 1] <= self.ylim[1] + buf
-            pnts = pnts[sel][:2, :]
+            pnts = self.crop(pnts)[:2, :]
         x_vals, y_vals = pnts.T
         if np.isclose(*x_vals):
             # The plane is vertical
