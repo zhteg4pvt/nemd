@@ -1,10 +1,8 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
-This driver calculates and visualizes hexagonal 2D lattice in the real and
-reciprocal spaces.
+Calculates and visualizes 2D lattice in the real and reciprocal spaces.
 """
-import collections
 import functools
 import math
 import sys
@@ -31,10 +29,10 @@ class Recip(logutils.Base):
         super().__init__(**kwargs)
         self.lat = pd.DataFrame(lat, index=('x', 'y'), columns=('a1', 'a2'))
         self.ax = ax
-        self.scaled = self.lat * self.options.miller_indices
-        self.vec = pd.Series(self.scaled.sum(axis=1), name='r')
         self.qvs = {}
         self.origin = np.array([0., 0.])
+        self.scaled = self.lat * self.options.miller_indices
+        self.vec = pd.Series(self.scaled.sum(axis=1), name='r')
         self.setUp()
 
     def setUp(self):
@@ -65,39 +63,51 @@ class Recip(logutils.Base):
                         self.grids[:, 1],
                         marker='o',
                         alpha=0.5)
-        self.ax.set_xlim(self.xlim)
-        self.ax.set_ylim(self.ylim)
+        self.ax.set_xlim([-self.lim[0], self.lim[0]])
+        self.ax.set_ylim([-self.lim[1], self.lim[1]])
         self.ax.set_aspect('equal')
         self.ax.set_title(self.NAME)
 
     @functools.cached_property
-    def grids(self, num=2):
+    def grids(self):
         """
-        Calculate the grids based on the lattice vectors, set rectangular limits
-        based on the grids, and crop the grids by the rectangular.
+        Crop the meshed points with a rectangular.
 
-        :param num int: the minimum number of duplicates along each lattice vec.
         :param np.ndarray: grid points.
         """
-        return self.crop(self.xys.reshape(-1, 2))
+        return self.crop(self.meshed.reshape(-1, 2))
 
     def crop(self, points):
-        return points[(np.abs(points) < self.buf).all(axis=1)]
+        """
+        Crop the points with a rectangular.
 
-    @functools.cached_property
-    def buf(self):
-        return self.lim * 1.00001
+        :param np.ndarray: cropped points.
+        """
+        abs = np.abs(points)
+        close_or_within = (abs < self.lim) | np.isclose(abs, self.lim)
+        return points[close_or_within.all(axis=1)]
 
     @functools.cached_property
     def lim(self):
-        line = self.xys[-1, :]
+        """
+        Return the rectangular vertice in quadrant I.
+
+        :param np.ndarray: the rectangular vertice.
+        """
+        line = self.meshed[-1, :]
         dist = np.linalg.norm(line, axis=1).min()
-        if dist > np.linalg.norm(self.xys[:, -1], axis=1).min():
-            line = self.xys[:, -1]
+        if dist > np.linalg.norm(self.meshed[:, -1], axis=1).min():
+            line = self.meshed[:, -1]
         return np.abs(line[np.abs(line.prod(axis=1)).argmax()])
 
     @functools.cached_property
-    def xys(self, num=6):
+    def meshed(self, num=6):
+        """
+        Scale the mesh lattice vectors.
+
+        :param num int: the minimum number of duplicates along each lattice vec.
+        :param np.ndarray: meshed points.
+        """
         recip = [1. / x for x in self.options.miller_indices if x]
         num = math.ceil(max(*recip, *self.options.miller_indices, num))
         xi = range(-num, num + 1)
@@ -105,14 +115,6 @@ class Recip(logutils.Base):
         # The last dimension of meshed (coefficients) and dots with self.lat.T
         # [[x1, y1], [x2, y2]] as https://xaktly.com/DotProduct.html
         return np.dot(meshed, self.lat.T)
-
-    @functools.cached_property
-    def xlim(self):
-        return [self.grids[:, 0].min(), self.grids[:, 0].max()]
-
-    @functools.cached_property
-    def ylim(self):
-        return [self.grids[:, 1].min(), self.grids[:, 1].max()]
 
     def quiver(self,
                vec,
@@ -177,6 +179,9 @@ class Real(Recip):
         super().setUp()
 
     def quiver(self, *args, fmt=r'$\vec {sym}$', **kwargs):
+        """
+        See parent.
+        """
         super().quiver(*args, fmt=fmt, **kwargs)
 
     def getNormal(self, factor=1):
@@ -197,8 +202,7 @@ class Real(Recip):
     @functools.cache
     def getPlane(self, factor=1):
         """
-        Get the intersection points between the Miller plane and the lines of
-        the x,y limits.
+        Return two points in the Miller plane.
 
         :param factor int: the Miller index plane is moved by this factor.
         :return 'np.ndarray': two points (rows) on the Miller
@@ -215,7 +219,7 @@ class Real(Recip):
             vec = self.scaled.a2 - self.scaled.a1
         else:
             # If one vector, the other's lattice vector defines the direction
-            vec = self.scaled.iloc[:, nonzero.to_list().index(False)]
+            vec = self.lat.iloc[:, nonzero.to_list().index(False)]
         if factor:
             pnt *= factor
             vec *= factor
@@ -237,7 +241,7 @@ class Real(Recip):
         :param factor int: by this factor the Miller plane is moved.
         """
         # factor * (b_pnt - a_pnt) + a_pnt = lim
-        lim = [[-x, x] for x in self.lim]
+        lim = [np.array([-x, x]) for x in self.lim]
         a_pnt, vec = self.getPlane(factor=factor)
         facs = np.array([(x - y) / z for x, y, z in zip(lim, a_pnt, vec) if z])
         pnts = np.array([x * vec + a_pnt for x in facs.flatten()])
