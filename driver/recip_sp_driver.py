@@ -44,7 +44,9 @@ class Recip(logutils.Base):
 
     def plot(self, ax):
         """
-        Plot the grids and vectors.
+        Plot.
+
+        :param 'matplotlib.axes._axes.Axes': the plot on this axis.
         """
         self.ax = ax
         self.grid()
@@ -57,21 +59,21 @@ class Recip(logutils.Base):
 
     def grid(self):
         """
-        Plot the selected grids.
+        Plot the grids.
         """
         self.ax.scatter(self.grids[:, 0],
                         self.grids[:, 1],
                         marker='o',
                         alpha=0.5)
-        self.ax.set_xlim([-self.lim[0], self.lim[0]])
-        self.ax.set_ylim([-self.lim[1], self.lim[1]])
+        self.ax.set_xlim(self.lim[0])
+        self.ax.set_ylim(self.lim[1])
         self.ax.set_aspect('equal')
         self.ax.set_title(self.NAME)
 
     @functools.cached_property
     def grids(self):
         """
-        Crop the meshed points with a rectangular.
+        Return the meshed points cropped by a rectangular.
 
         :param np.ndarray: grid points.
         """
@@ -84,21 +86,22 @@ class Recip(logutils.Base):
         :param np.ndarray: cropped points.
         """
         abs = np.abs(points)
-        close_or_within = (abs < self.lim) | np.isclose(abs, self.lim)
-        return points[close_or_within.all(axis=1)]
+        selected = (abs < self.lim[:, 1]) | np.isclose(abs, self.lim[:, 1])
+        return points[selected.all(axis=1)]
 
     @functools.cached_property
     def lim(self):
         """
-        Return the rectangular vertice in quadrant I.
+        Return the rectangular limit.
 
-        :param np.ndarray: the rectangular vertice.
+        :param np.ndarray: the rectangular vertices (left-bottom & right-upper).
         """
         line = self.meshed[-1, :]
         dist = np.linalg.norm(line, axis=1).min()
         if dist > np.linalg.norm(self.meshed[:, -1], axis=1).min():
             line = self.meshed[:, -1]
-        return np.abs(line[np.abs(line.prod(axis=1)).argmax()])
+        point = np.abs(line[np.abs(line.prod(axis=1)).argmax()])
+        return np.array([-point, point]).T
 
     @functools.cached_property
     def meshed(self, num=6):
@@ -207,23 +210,11 @@ class Real(Recip):
         :param factor int: the Miller index plane is moved by this factor.
         :return 'np.ndarray': two points (rows) on the Miller
         """
-        nonzero = self.scaled.any()
-        if factor and nonzero.all():
-            a_pnt, b_pnt = self.scaled.T.values * factor
-            return a_pnt, b_pnt - a_pnt
-
-        index = nonzero.to_list().index(True)
-        pnt = self.scaled.iloc[:, index] if factor else self.origin
-        if nonzero.all():
-            # Vectors are available, and the subtraction defines the direction
-            vec = self.scaled.a2 - self.scaled.a1
-        else:
-            # If one vector, the other's lattice vector defines the direction
-            vec = self.lat.iloc[:, nonzero.to_list().index(False)]
-        if factor:
-            pnt *= factor
-            vec *= factor
-        return pnt, vec
+        vecs = self.scaled.values.T
+        idx = (~vecs.any(axis=1)).nonzero()[0]
+        point = vecs[vecs.any(axis=1).nonzero()[0][0]] if idx.size else vecs[0]
+        vec = self.lat.values.T[idx[0]] if idx.size else (vecs[1] - vecs[0])
+        return factor * point, vec
 
     def plot(self, *args):
         """
@@ -241,9 +232,9 @@ class Real(Recip):
         :param factor int: by this factor the Miller plane is moved.
         """
         # factor * (b_pnt - a_pnt) + a_pnt = lim
-        lim = [np.array([-x, x]) for x in self.lim]
         a_pnt, vec = self.getPlane(factor=factor)
-        facs = np.array([(x - y) / z for x, y, z in zip(lim, a_pnt, vec) if z])
+        facs = np.array([(x - y) / z for x, y, z in zip(self.lim, a_pnt, vec)
+                         if z])
         pnts = np.array([x * vec + a_pnt for x in facs.flatten()])
         if pnts.shape[0] == 4:
             # The intersection points are on x low, x high, y low, y high
