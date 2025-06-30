@@ -6,6 +6,7 @@ import pytest
 import recip_sp_driver as driver
 
 from nemd import np
+from nemd import pd
 from nemd import plotutils
 
 
@@ -120,54 +121,39 @@ class TestRecip:
     def testCrop(self, recip, pnt, expected):
         assert expected == recip.crop(np.array([pnt])).any()
 
+    @pytest.mark.parametrize('args,expected',
+                             [([], [[-9., 9.], [-5.1961524, 5.1961524]])])
+    def testLim(self, recip, expected):
+        np.testing.assert_almost_equal(expected, recip.lim)
 
-#     @pytest.mark.parametrize(('miller', 'vec'),
-#                              [([0, 1], [0.866025, -0.866025]),
-#                               ([1, 0], [1.5, 1.5]),
-#                               ([2, 11], [12.526279, -6.526279])])
-#     def testSetMillerError(self, recip, vec):
-#         recip.setMiller()
-#         recip.setVec()
-#         np.testing.assert_almost_equal(vec, recip.vec, decimal=6)
-#
-#     @pytest.mark.parametrize(
-#         ('miller', 'lim', 'shape'),
-#         [([0, 1], [-10.5, 10.5, -10.5, 10.5], [173, 173]),
-#          ([1, 0], [-10.5, 10.5, -10.5, 10.5], [173, 173]),
-#          ([2, 11], [-18.0, 18.0, -18.0, 18.0], [469, 469])])
-#     def testSetGridsAndLim(self, recip, lim, shape):
-#         recip.setGridsAndLim()
-#         np.testing.assert_almost_equal(lim, recip.xlim + recip.ylim)
-#         np.testing.assert_almost_equal(shape, [len(x) for x in recip.grids])
-#
-#     @pytest.mark.parametrize(('miller', 'lim'),
-#                              [([0, 1], [-10.5, 10.5, -10.5, 10.5]),
-#                               ([1, 0], [-10.5, 10.5, -10.5, 10.5]),
-#                               ([2, 11], [-18.0, 18.0, -18.0, 18.0])])
-#     def testPlotGrids(self, recip, lim):
-#         recip.setGridsAndLim()
-#         recip.plotGrids()
-#         assert 1 == len(recip.ax.collections)
-#
-#     @pytest.mark.parametrize(('miller'), [([0, 1])])
-#     def testQuiver(self, recip):
-#         recip.quiver(recip.vecs.a1)
-#         assert 1 == len(recip.quivers)
-#
-#     @pytest.mark.parametrize(('miller'), [([0, 1])])
-#     def testAnnotate(self, recip):
-#         recip.setMiller()
-#         recip.annotate(recip.m_vecs.a2)
-#         with plotutils.pyplot() as plt:
-#             assert isinstance(recip.ax.get_children()[0], plt.Annotation)
-#
-#     @pytest.mark.parametrize(('miller'), [([0, 1])])
-#     def testSetLegend(self, recip):
-#         recip.quiver(recip.vecs.a1)
-#         recip.legend()
-#         assert recip.ax.get_legend()
-#
-#
+    @pytest.mark.parametrize('args,expected', [([], (13, 13, 2))])
+    def testMeshed(self, recip, expected):
+        assert expected == recip.meshed.shape
+
+    @pytest.mark.parametrize(
+        'args,vec,expected',
+        [([], pd.Series([1, 2], name='name'), [1, 2, '$\\vec name^*$'])])
+    def testQuiver(self, recip, vec, expected):
+        recip.quiver(vec)
+        annotation = list(recip.qvs.values())[0]
+        assert expected == [*annotation.xy, annotation.get_text()]
+
+    @pytest.mark.parametrize('args,vec,expected',
+                             [([], pd.Series([1, 2], name='name'), 1)])
+    def testArrow(self, recip, vec, expected):
+        recip.arrow(vec)
+        assert expected == len(recip.ax._children)
+
+    @pytest.mark.parametrize(
+        'args,vec,expected',
+        [([], pd.Series([1, 2], name='name'), ['$\\vec name^*$ (1, 2)'])])
+    def testLegend(self, recip, vec, expected):
+        recip.quiver(vec)
+        recip.legend()
+        legend = recip.ax.get_legend()
+        assert expected == [x.get_text() for x in legend.texts]
+
+
 # class TestReal:
 #
 #     @pytest.fixture
