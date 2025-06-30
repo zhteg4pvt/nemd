@@ -1,7 +1,7 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
-Calculates and visualizes 2D lattice in the real and reciprocal spaces.
+Calculate and visualize 2D lattice in the real and reciprocal spaces.
 """
 import functools
 import math
@@ -17,7 +17,7 @@ from nemd import plotutils
 
 class Recip(logutils.Base):
     """
-    This class is used to plot the reciprocal space on axis.
+    Calculate and plot the reciprocal space on axis.
     """
     NAME = 'Reciprocal Space'
 
@@ -30,14 +30,22 @@ class Recip(logutils.Base):
         self.lat = pd.DataFrame(lat, index=('x', 'y'), columns=('a1', 'a2'))
         self.ax = ax
         self.qvs = {}
+        self.scaled = None
         self.origin = np.array([0., 0.])
-        self.scaled = self.lat * self.options.miller_indices
-        self.vec = pd.Series(self.scaled.sum(axis=1), name='r')
+        self.vec = pd.Series([0.0, 0.0], name='r')
         self.setUp()
+        self.logNorm()
 
     def setUp(self):
         """
         Set up.
+        """
+        self.scaled = self.lat * self.options.miller_indices
+        self.vec[:] = self.scaled.sum(axis=1)
+
+    def logNorm(self):
+        """
+        Log the vector norm.
         """
         self.log(f"The {self.NAME.lower()} vector {self.vec.values} has a "
                  f"norm of {np.linalg.norm(self.vec):.4g}")
@@ -75,7 +83,7 @@ class Recip(logutils.Base):
         """
         Return the meshed points cropped by a rectangular.
 
-        :param np.ndarray: grid points.
+        :return np.ndarray: grid points.
         """
         return self.crop(self.meshed.reshape(-1, 2))
 
@@ -83,7 +91,8 @@ class Recip(logutils.Base):
         """
         Crop the points with a rectangular.
 
-        :param np.ndarray: cropped points.
+        :param points np.ndarray: the input points.
+        :return np.ndarray: the cropped points
         """
         abs = np.abs(points)
         selected = (abs < self.lim[:, 1]) | np.isclose(abs, self.lim[:, 1])
@@ -94,7 +103,7 @@ class Recip(logutils.Base):
         """
         Return the rectangular limit.
 
-        :param np.ndarray: the rectangular vertices (left-bottom & right-upper).
+        :return np.ndarray: left-bottom & right-upper rectangular vertices.
         """
         line = self.meshed[-1, :]
         dist = np.linalg.norm(line, axis=1).min()
@@ -106,10 +115,10 @@ class Recip(logutils.Base):
     @functools.cached_property
     def meshed(self, num=6):
         """
-        Scale the mesh lattice vectors.
+        Return the meshed scaled lattice vectors.
 
         :param num int: the minimum number of duplicates along each lattice vec.
-        :param np.ndarray: meshed points.
+        :return np.ndarray: meshed points.
         """
         recip = [1. / x for x in self.options.miller_indices if x]
         num = math.ceil(max(*recip, *self.options.miller_indices, num))
@@ -119,67 +128,66 @@ class Recip(logutils.Base):
         # [[x1, y1], [x2, y2]] as https://xaktly.com/DotProduct.html
         return np.dot(meshed, self.lat.T)
 
-    def quiver(self,
-               vec,
-               fmt=r'$\vec {sym}^*$',
-               color='b',
-               angles='xy',
-               scale_units='xy',
-               scale=1,
-               units='dots',
-               width=3):
+    def quiver(self, vec, fmt=r'$\vec {sym}^*$', color='b'):
         """
-        Plot a quiver for the vector. (see matplotlib.pyplot.quiver)
+        Plot a quiver for the vector.
 
-        :param vec 'pandas.core.series.Series': two points as a vector
+        :param vec 'pandas.core.series.Series': 2D vector.
+        :param fmt 'str': the label text format.
+        :param color 'r': the color of the quiver and annotation.
         """
         if not any(vec):
             return
         qv = self.ax.quiver(*self.origin,
                             *vec,
                             color=color,
-                            angles=angles,
-                            scale_units=scale_units,
-                            scale=scale,
-                            units=units,
-                            width=width)
-        text = fmt.format(sym=vec.name)
-        self.ax.annotate(text, vec, color=color)
-        self.qvs[qv] = f"{text} ({vec.iloc[0]:.4g}, {vec.iloc[1]:.4g})"
+                            angles='xy',
+                            scale_units='xy',
+                            scale=1,
+                            units='dots',
+                            width=3)
+        self.qvs[qv] = self.ax.annotate(fmt.format(sym=vec.name),
+                                        vec,
+                                        color=color)
 
-    def arrow(self, vec, arrowprops=None):
+    def arrow(self, vec):
         """
-        Annotate arrow for the vector. (see matplotlib.pyplot.annotate)
+        Annotate arrow for the vector.
 
         :param vec list: list of two points
         """
-        if arrowprops is None:
-            arrowprops = dict(linestyle="-",
-                              arrowstyle="-|>",
-                              mutation_scale=10,
-                              color='r')
         if not any(vec):
             return
-        self.ax.annotate('', vec, xytext=self.origin, arrowprops=arrowprops)
+        self.ax.annotate('',
+                         vec,
+                         xytext=self.origin,
+                         arrowprops=dict(linestyle="-",
+                                         arrowstyle="-|>",
+                                         mutation_scale=10,
+                                         color='r'))
 
     def legend(self):
         """
         Set the legend.
         """
-        self.ax.legend(self.qvs.keys(), self.qvs.values(), loc='upper right')
+        text_xys = [[x.get_text(), x.xy] for x in self.qvs.values()]
+        texts = [f"{x} ({y[0]:.4g}, {y[1]:.4g})" for x, y in text_xys]
+        self.ax.legend(self.qvs.keys(), texts, loc='upper right')
 
 
 class Real(Recip):
     """
-    This class is used to plot the real space on axis.
+    Customized for the real space.
     """
     NAME = 'Real Space'
 
     def setUp(self):
-        miller = [1. / x if x else 0 for x in self.options.miller_indices]
-        self.scaled = self.lat * miller
+        """
+        See parent.
+        """
+        factors = [1. / x if x else 0 for x in self.options.miller_indices]
+        self.scaled = factors * self.lat
         self.vec[:] = self.getNormal(factor=1)
-        super().setUp()
 
     def quiver(self, *args, fmt=r'$\vec {sym}$', **kwargs):
         """
@@ -189,26 +197,26 @@ class Real(Recip):
 
     def getNormal(self, factor=1):
         """
-        Get the intersection between the plane and its normal passing origin.
+        Get the plane normal. (intersection between the plane and plane normal
+        that passes the origin)
 
         :param factor int: by this factor the Miller plane is moved.
-        :return 1x3 'numpy.ndarray': the intersection point
+        :return 1x3 'numpy.ndarray': the intersection point.
         """
-        pnt1, vec = self.getPlane(factor=factor)
+        pnt, vec = self.getPlane(factor=factor)
         normal = np.dot([[0, 1], [-1, 0]], vec)  # normal to the plane
         # Interaction is on the normal: factor * normal
         # Interaction is on the plane: fac2 * vec + pnt1
         # Equation: normal * factor - vec * fac2 = pnt1
-        factor, _ = np.linalg.solve(np.transpose([normal, -vec]), pnt1)
-        return normal * factor
+        return normal * np.linalg.solve(np.transpose([normal, -vec]), pnt)[0]
 
     @functools.cache
     def getPlane(self, factor=1):
         """
-        Return two points in the Miller plane.
+        Return the Miller plane. (two points in the plane)
 
         :param factor int: the Miller index plane is moved by this factor.
-        :return 'np.ndarray': two points (rows) on the Miller
+        :return 'np.ndarray': two points (rows) on the Miller plane.
         """
         vecs = self.scaled.values.T
         idx = (~vecs.any(axis=1)).nonzero()[0]
@@ -221,43 +229,32 @@ class Real(Recip):
         See parent.
         """
         super().plot(*args)
-        self.plotPlane(factor=-1)
-        self.plotPlane(factor=0)
-        self.plotPlane(factor=1)
+        self.plotPlane(-1)
+        self.plotPlane(0)
+        self.plotPlane(1)
 
-    def plotPlane(self, factor=1, color='0.8', linestyle='--', alpha=0.5):
+    def plotPlane(self, factor):
         """
         Plot the Miller plane moved by the index factor.
 
         :param factor int: by this factor the Miller plane is moved.
         """
         # factor * (b_pnt - a_pnt) + a_pnt = lim
-        a_pnt, vec = self.getPlane(factor=factor)
-        facs = np.array([(x - y) / z for x, y, z in zip(self.lim, a_pnt, vec)
-                         if z])
-        pnts = np.array([x * vec + a_pnt for x in facs.flatten()])
-        if pnts.shape[0] == 4:
-            # The intersection points are on x low, x high, y low, y high
-            pnts = self.crop(pnts)[:2, :]
-        x_vals, y_vals = pnts.T
-        if np.isclose(*x_vals):
-            # The plane is vertical
-            self.ax.vlines(x_vals.mean(),
-                           *y_vals,
-                           color=color,
-                           linestyle=linestyle,
-                           alpha=alpha)
-            return
-        self.ax.plot(x_vals,
-                     y_vals,
-                     color=color,
-                     linestyle=linestyle,
-                     alpha=alpha)
+        pnt, vec = self.getPlane(factor=factor)
+        facs = [(x - y) / z for x, y, z in zip(self.lim, pnt, vec) if z]
+        # The intersection points are on x low, x high, y low, y high
+        pnts = [x * vec + pnt for x in np.array(facs).flatten()]
+        pnts = self.crop(np.array(pnts))[:2, :]
+        self.ax.plot(pnts[:, 0],
+                     pnts[:, 1],
+                     color='lightgray',
+                     linestyle='--',
+                     alpha=0.5)
 
 
 class RecipSp(logutils.Base):
     """
-    Class to set and plot the reciprocal space lattice vectors for 2D graphene.
+    Set and plot 2D lattice vectors.
 
     https://www.youtube.com/watch?v=cdN6OgwH8Bg
     https://en.wikipedia.org/wiki/Recip_lattice
@@ -271,6 +268,7 @@ class RecipSp(logutils.Base):
         self.real = None
         self.recip = None
         self.outfile = f'{self.options.JOBNAME}.png'
+        jobutils.Job.reg(self.outfile, file=True)
 
     def run(self):
         """
@@ -283,26 +281,25 @@ class RecipSp(logutils.Base):
 
     def setReal(self):
         """
-        Define real space lattice vector with respect to the origin.
+        Set real space lattice vector.
 
         Characteristic length of a hexagon is sqrt(3) x the edge length
         https://physics.stackexchange.com/questions/664945/integration-over-first-brillouin-zone
         """
         # Primitive lattice vector of graphene
-        data = np.array([[math.sqrt(3) / 2., 0.5], [math.sqrt(3) / 2., -0.5]])
-        data *= math.sqrt(3)
-        self.real = Real(data.T, options=self.options, logger=self.logger)
+        vecs = [[3 / 2., 0.5 * math.sqrt(3)], [3 / 2., -0.5 * math.sqrt(3)]]
+        vecs = np.transpose(vecs)
+        self.real = Real(vecs, options=self.options, logger=self.logger)
 
     def setRecip(self):
         """
-        Set the reciprocal lattice vectors based on the real ones.
+        Set the reciprocal lattice vectors.
 
         https://en.wikipedia.org/wiki/Recip_lattice (Two dimensions)
         """
-        ab_norm = np.dot([[0, -1], [1, 0]], self.real.lat)
-        ba_norm = ab_norm[:, ::-1]
-        column_dot = np.multiply(self.real.lat, ba_norm).sum(axis=0).tolist()
-        recip = 2 * np.pi * ba_norm / column_dot
+        normal = np.dot([[0, -1], [1, 0]], self.real.lat)[:, ::-1]
+        recip = 2 * np.pi * normal
+        recip /= np.multiply(self.real.lat, normal).sum(axis=0).values
         self.recip = Recip(recip, options=self.options, logger=self.logger)
 
     def product(self):
@@ -314,8 +311,8 @@ class RecipSp(logutils.Base):
         if np.isclose(cross, 0):
             self.log(f"The real and reciprocal vectors are parallel to each "
                      f"other with {dot:.4g}π being the dot product.")
-        else:
-            self.log(f"The cross product: {cross}; The dot product: {dot}π")
+            return
+        self.log(f"The cross product: {cross}; The dot product: {dot}π")
 
     def plot(self):
         """
@@ -329,7 +326,6 @@ class RecipSp(logutils.Base):
             fig.tight_layout()
             fig.savefig(self.outfile)
             self.log(f'Figure saved as {self.outfile}')
-            jobutils.Job.reg(self.outfile, file=True)
 
 
 class MillerAction(parserutils.Action):
@@ -362,7 +358,7 @@ class Parser(parserutils.Driver):
                           nargs=2,
                           action=MillerAction,
                           default=(0.5, 2),
-                          help='Plot the planes of this Miller indices.')
+                          help='The Miller indices.')
 
 
 if __name__ == "__main__":
