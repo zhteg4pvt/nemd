@@ -87,16 +87,16 @@ class Recip(logutils.Base):
         """
         return self.crop(self.meshed.reshape(-1, 2))
 
-    def crop(self, points):
+    def crop(self, pnts):
         """
         Crop the points with a rectangular.
 
-        :param points np.ndarray: the input points.
-        :return np.ndarray: the cropped points
+        :param pnts np.ndarray: the input points.
+        :return np.ndarray: the cropped points.
         """
-        abs = np.abs(points)
-        selected = (abs < self.lim[:, 1]) | np.isclose(abs, self.lim[:, 1])
-        return points[selected.all(axis=1)]
+        selected = (pnts > self.lim[:, 0]) | np.isclose(pnts, self.lim[:, 0])
+        selected |= (pnts < self.lim[:, 1]) | np.isclose(pnts, self.lim[:, 1])
+        return pnts[selected.all(axis=1)]
 
     @functools.cached_property
     def lim(self):
@@ -154,7 +154,7 @@ class Recip(logutils.Base):
         """
         Annotate arrow for the vector.
 
-        :param vec list: list of two points
+        :param vec 'pandas.core.series.Series': 2D vector.
         """
         if not any(vec):
             return
@@ -187,23 +187,16 @@ class Real(Recip):
         """
         factors = [1. / x if x else 0 for x in self.options.miller_indices]
         self.scaled = factors * self.lat
-        self.vec[:] = self.getNormal(factor=1)
+        self.vec[:] = self.getNormal()
 
-    def quiver(self, *args, fmt=r'$\vec {sym}$', **kwargs):
-        """
-        See parent.
-        """
-        super().quiver(*args, fmt=fmt, **kwargs)
-
-    def getNormal(self, factor=1):
+    def getNormal(self):
         """
         Get the plane normal. (intersection between the plane and plane normal
         that passes the origin)
 
-        :param factor int: by this factor the Miller plane is moved.
         :return 1x3 'numpy.ndarray': the intersection point.
         """
-        pnt, vec = self.getPlane(factor=factor)
+        pnt, vec = self.getPlane()
         normal = np.dot([[0, 1], [-1, 0]], vec)  # normal to the plane
         # Interaction is on the normal: factor * normal
         # Interaction is on the plane: fac2 * vec + pnt1
@@ -229,11 +222,17 @@ class Real(Recip):
         See parent.
         """
         super().plot(*args)
-        self.plotPlane(-1)
-        self.plotPlane(0)
-        self.plotPlane(1)
+        self.plane(-1)
+        self.plane(0)
+        self.plane(1)
 
-    def plotPlane(self, factor):
+    def quiver(self, *args, fmt=r'$\vec {sym}$', **kwargs):
+        """
+        See parent.
+        """
+        super().quiver(*args, fmt=fmt, **kwargs)
+
+    def plane(self, factor):
         """
         Plot the Miller plane moved by the index factor.
 

@@ -22,7 +22,7 @@ def pyplot(inav=False, name='the plot'):
     obackend = matplotlib.get_backend()
     backend = obackend if inav else 'Agg'
     matplotlib.use(backend)
-    import matplotlib.pyplot as plt
+    from matplotlib import pyplot as plt
     try:
         yield plt
     except Exception as err:

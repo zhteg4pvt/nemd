@@ -8,32 +8,39 @@ import recip_sp_driver as driver
 from nemd import np
 
 
-class TestReciprocal:
+class TestRecip:
 
     @pytest.fixture
-    def recip(self, args, logger):
+    def recip(self, args, logger, tmp_dir):
         options = driver.Parser().parse_args(args)
         return driver.RecipSp(options, logger=logger)
 
-    @pytest.mark.parametrize('args,vecs',
+    @pytest.mark.parametrize('args,expected',
                              [(['-miller_indices', '0.5', '2'
                                 ], [[1.5, 0.8660254], [1.5, -0.8660254]])])
-    def testSetReal(self, recip, vecs):
+    def testSetReal(self, recip, expected):
         recip.setReal()
-        np.testing.assert_almost_equal(np.array(vecs).T, recip.real)
+        np.testing.assert_almost_equal(expected, recip.real.lat.T)
 
     @pytest.mark.parametrize(
-        'args,vecs',
+        'args,expected',
         [(['-miller_indices', '0.5', '2'], [[2.0943951, 3.62759873],
                                             [2.0943951, -3.62759873]])])
-    def testSetRecip(self, recip, vecs):
+    def testSetRecip(self, recip, expected):
         recip.setReal()
         recip.setRecip()
-        np.testing.assert_almost_equal(np.array(vecs).T, recip.recip)
+        np.testing.assert_almost_equal(expected, recip.recip.lat.T)
 
-    @pytest.mark.parametrize('args', [(['-miller_indices', '0', '1']),
-                                      (['-miller_indices', '0', '2']),
-                                      (['-miller_indices', '2', '4'])])
+    @pytest.mark.parametrize('args', [(['-miller_indices', '2', '4'])])
+    def testProduct(self, recip, tmp_dir):
+        recip.setReal()
+        recip.setRecip()
+        recip.product()
+        recip.logger.log.assert_called_with('The real and reciprocal vectors '
+                                            'are parallel to each other with '
+                                            '2π being the dot product.')
+
+    @pytest.mark.parametrize('args', [(['-miller_indices', '2', '4'])])
     def testPlot(self, recip, tmp_dir):
         recip.setReal()
         recip.setRecip()
