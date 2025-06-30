@@ -10,7 +10,7 @@ from nemd import pd
 from nemd import plotutils
 
 
-@pytest.mark.parametrize('args', [(['-miller_indices', '2', '4'])])
+@pytest.mark.parametrize('args', [(['-miller', '2', '4'])])
 class TestRecipSp:
 
     @pytest.fixture
@@ -54,15 +54,15 @@ class TestParser:
         return parser
 
     @pytest.mark.parametrize(
-        'args,expected',
-        [(['-miller_indices', '1', '2'], (1, 2)),
-         (['-miller_indices', '0', '0'], argparse.ArgumentTypeError)])
+        'args,expected', [(['-miller', '1', '2'], (1, 2)),
+                          (['-miller', '0', '0'], argparse.ArgumentTypeError)])
     def testMillerAction(self, parser, args, expected, raises):
         with raises:
-            assert expected == parser.parse_args(args).miller_indices
+            assert expected == parser.parse_args(args).miller
 
 
-@pytest.mark.parametrize('lat', [[[1.5, 1.5], [0.8660254, -0.8660254]]])
+@pytest.mark.parametrize('lat',
+                         [[[2.0943951, 2.0943951], [3.62759873, -3.62759873]]])
 class TestRecip:
 
     @pytest.fixture
@@ -74,55 +74,54 @@ class TestRecip:
                                 options=options,
                                 logger=logger)
 
-    @pytest.mark.parametrize('args,expected',
-                             [(['-miller_indices', '1', '1'],
-                               [[1.5, 0.8660254], [1.5, -0.8660254], [3, 0]])])
+    @pytest.mark.parametrize(
+        'args,expected',
+        [(['-miller', '1', '1'], [[2.0943951, 3.62759873],
+                                  [2.0943951, -3.62759873], [4.1887902, 0]])])
     def testSetUp(self, recip, expected):
         to_compare = [recip.scaled.a1, recip.scaled.a2, recip.vec]
         np.testing.assert_almost_equal(expected, to_compare)
 
     @pytest.mark.parametrize(
         'args,expected',
-        [(['-miller_indices', '1', '1'
-           ], 'The reciprocal space vector [3. 0.] has a norm of 3')])
+        [(['-miller', '1', '1'
+           ], 'The norm of reciprocal vector [4.1887902 0.       ] is 4.189')])
     def testLogNorm(self, recip, expected):
         recip.logger.log.assert_called_with(expected)
 
-    @pytest.mark.parametrize('args,expected',
-                             [(['-miller_indices', '1', '1'], 9)])
+    @pytest.mark.parametrize('args,expected', [([], 9)])
     def testPlot(self, recip, expected):
         recip.plot(recip.ax)
         assert expected == len(recip.ax._children)
 
-    @pytest.mark.parametrize(
-        'args,expected',
-        [(['-miller_indices', '1', '1'
-           ], [1, (-9.0, 9.0), (-5.1961524, 5.1961524), 'Reciprocal Space'])])
+    @pytest.mark.parametrize('args,expected', [([], [
+        1, (-12.5663706, 12.5663706),
+        (-21.76559238, 21.76559238), 'Reciprocal Space'
+    ])])
     def testGrid(self, recip, expected):
         recip.grid()
-        assert expected == [
-            len(recip.ax.collections),
-            recip.ax.get_xlim(),
-            recip.ax.get_ylim(),
-            recip.ax.get_title()
-        ]
+        assert expected[0] == len(recip.ax.collections)
+        lim = [recip.ax.get_xlim(), recip.ax.get_ylim()]
+        np.testing.assert_almost_equal(lim, expected[1:-1])
+        assert expected[-1] == recip.ax.get_title()
 
-    @pytest.mark.parametrize('args,expected',
-                             [(['-miller_indices', '1', '1'], 85)])
+    @pytest.mark.parametrize('args,expected', [([], 85)])
     def testGrids(self, recip, expected):
         assert expected == recip.grids.shape[0]
 
-    @pytest.mark.parametrize('args', [['-miller_indices', '1', '1']])
-    @pytest.mark.parametrize('pnt,expected', [([-9, -5.1961524], True),
-                                              ([9, 5.1961524], True),
-                                              ([9, 5.1961525], True),
-                                              ([9, 15.2], False),
-                                              ([-9.001, 5.1961525], False)])
+    @pytest.mark.parametrize('args', [[]])
+    @pytest.mark.parametrize('pnt,expected',
+                             [([-12.5663706, -21.76559238], True),
+                              ([12.5663706, 21.76559238], True),
+                              ([12.5663706, 21.7655924], True),
+                              ([12.5663706, 21.8], False),
+                              ([-12.567, -21.76559238], False)])
     def testCrop(self, recip, pnt, expected):
         assert expected == recip.crop(np.array([pnt])).any()
 
-    @pytest.mark.parametrize('args,expected',
-                             [([], [[-9., 9.], [-5.1961524, 5.1961524]])])
+    @pytest.mark.parametrize(
+        'args,expected',
+        [([], [[-12.5663706, 12.5663706], [-21.76559238, 21.76559238]])])
     def testLim(self, recip, expected):
         np.testing.assert_almost_equal(expected, recip.lim)
 
@@ -154,26 +153,27 @@ class TestRecip:
         assert expected == [x.get_text() for x in legend.texts]
 
 
-# class TestReal:
-#
-#     @pytest.fixture
-#     def real(self, miller):
-#         with plotutils.pyplot() as plt:
-#             ax = plt.figure().add_subplot(111)
-#             vecs = np.array([[1.5, 0.8660254], [1.5, -0.8660254]]).T
-#             vecs = pd.DataFrame(vecs, index=['x', 'y'], columns=['a1', 'a2'])
-#             return driver.Real(ax, vecs=vecs, miller=miller)
-#
-#     @pytest.mark.parametrize(('miller', 'vec'),
-#                              [([0, 1], [0.75, -1.2990381]), ([1, 1], [1.5, 0]),
-#                               ([1, 2], [1.5, 0.8660254]),
-#                               ([0.5, 2], [0.5769231, 0.599556]),
-#                               ([-1, 1], [0, -0.8660254])])
-#     def testSetVec(self, real, vec):
-#         real.setMiller()
-#         real.setVec()
-#         np.testing.assert_almost_equal(vec, real.vec)
-#
+@pytest.mark.parametrize('lat', [[[1.5, 1.5], [0.8660254, -0.8660254]]])
+class TestReal:
+
+    @pytest.fixture
+    def real(self, lat, args, logger):
+        options = driver.Parser().parse_args(args)
+        with plotutils.pyplot() as plt:
+            return driver.Real(lat,
+                               ax=plt.figure().add_subplot(111),
+                               options=options,
+                               logger=logger)
+
+    @pytest.mark.parametrize(
+        'args,expected', [(['-miller', '0', '1'], [0.75, -1.2990381]),
+                          (['-miller', '1', '2'], [0.75, -0.4330127]),
+                          (['-miller', '0.5', '2'], [0.57692307, -0.59955605]),
+                          (['-miller', '1', '1'], [1.5, 0.])])
+    def testSetVec(self, real, expected):
+        np.testing.assert_almost_equal(real.vec, expected)
+
+
 #     @pytest.mark.parametrize(('miller', 'factor', 'vec'),
 #                              [([0, 1], 0, [0, 0]), ([1, 1], 1, [1.5, 0]),
 #                               ([1, 2], 2, [3, 1.73205081]),

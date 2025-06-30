@@ -19,7 +19,7 @@ class Recip(logutils.Base):
     """
     Calculate and plot the reciprocal space on axis.
     """
-    NAME = 'Reciprocal Space'
+    NAME = 'reciprocal'
 
     def __init__(self, lat, ax=None, **kwargs):
         """
@@ -40,15 +40,15 @@ class Recip(logutils.Base):
         """
         Set up.
         """
-        self.scaled = self.lat * self.options.miller_indices
+        self.scaled = self.lat * self.options.miller
         self.vec[:] = self.scaled.sum(axis=1)
 
     def logNorm(self):
         """
         Log the vector norm.
         """
-        self.log(f"The {self.NAME.lower()} vector {self.vec.values} has a "
-                 f"norm of {np.linalg.norm(self.vec):.4g}")
+        self.log(f"The norm of {self.NAME.lower()} vector {self.vec.values} is"
+                 f" {np.linalg.norm(self.vec):.4g}")
 
     def plot(self, ax):
         """
@@ -76,7 +76,7 @@ class Recip(logutils.Base):
         self.ax.set_xlim(self.lim[0])
         self.ax.set_ylim(self.lim[1])
         self.ax.set_aspect('equal')
-        self.ax.set_title(self.NAME)
+        self.ax.set_title(f"{self.NAME.capitalize()} Space")
 
     @functools.cached_property
     def grids(self):
@@ -113,15 +113,15 @@ class Recip(logutils.Base):
         return np.array([-point, point]).T
 
     @functools.cached_property
-    def meshed(self, num=6):
+    def meshed(self, num=5):
         """
         Return the meshed scaled lattice vectors.
 
         :param num int: the minimum number of duplicates along each lattice vec.
         :return np.ndarray: meshed points.
         """
-        recip = [1. / x for x in self.options.miller_indices if x]
-        num = math.ceil(max(*recip, *self.options.miller_indices, num))
+        recip = sum([np.reciprocal(x) for x in self.options.miller if x])
+        num = math.ceil(max(recip, sum(self.options.miller), num)) + 1
         xi = range(-num, num + 1)
         meshed = np.stack(np.meshgrid(xi, xi, indexing='ij'), axis=-1)
         # The last dimension of meshed (coefficients) and dots with self.lat.T
@@ -136,7 +136,7 @@ class Recip(logutils.Base):
         :param fmt 'str': the label text format.
         :param color 'r': the color of the quiver and annotation.
         """
-        if not any(vec):
+        if not any(vec) or np.isinf(vec).any():
             return
         qv = self.ax.quiver(*self.origin,
                             *vec,
@@ -156,7 +156,7 @@ class Recip(logutils.Base):
 
         :param vec 'pandas.core.series.Series': 2D vector.
         """
-        if not any(vec):
+        if not any(vec) or np.isinf(vec).any():
             return
         self.ax.annotate('',
                          vec,
@@ -179,14 +179,14 @@ class Real(Recip):
     """
     Customized for the real space.
     """
-    NAME = 'Real Space'
+    NAME = 'real'
 
     def setUp(self):
         """
         See parent.
         """
-        factors = [1. / x if x else 0 for x in self.options.miller_indices]
-        self.scaled = factors * self.lat
+        facs = [np.reciprocal(x) if x else np.inf for x in self.options.miller]
+        self.scaled = facs * self.lat
         self.vec[:] = self.getNormal()
 
     def getNormal(self):
@@ -212,10 +212,11 @@ class Real(Recip):
         :return 'np.ndarray': two points (rows) on the Miller plane.
         """
         vecs = self.scaled.values.T
-        idx = (~vecs.any(axis=1)).nonzero()[0]
-        point = vecs[vecs.any(axis=1).nonzero()[0][0]] if idx.size else vecs[0]
-        vec = self.lat.values.T[idx[0]] if idx.size else (vecs[1] - vecs[0])
-        return factor * point, vec
+        nonzero = np.nonzero(self.options.miller)[0]
+        point = factor * vecs[nonzero[0]]
+        if nonzero.size == 2:
+            return point, vecs[1] - vecs[0]
+        return point, self.lat.values.T[self.options.miller.index(0)]
 
     def plot(self, *args):
         """
@@ -321,7 +322,7 @@ class RecipSp(logutils.Base):
             fig = plt.figure(figsize=(15, 9))
             self.real.plot(fig.add_subplot(1, 2, 1))
             self.recip.plot(fig.add_subplot(1, 2, 2))
-            fig.suptitle(f'Miller indices {self.options.miller_indices}')
+            fig.suptitle(f'Miller indices {self.options.miller}')
             fig.tight_layout()
             fig.savefig(self.outfile)
             self.log(f'Figure saved as {self.outfile}')
@@ -345,19 +346,18 @@ class Parser(parserutils.Driver):
     """
     The argument parser.
     """
-    FLAG_MILLER_INDICES = '-miller_indices'
 
     def setUp(self):
         """
         The user-friendly command-line parser.
         """
-        self.add_argument(self.FLAG_MILLER_INDICES,
-                          metavar=self.FLAG_MILLER_INDICES[1:].upper(),
+        self.add_argument('-miller',
+                          metavar='FLOAT',
                           type=parserutils.type_float,
                           nargs=2,
                           action=MillerAction,
-                          default=(0.5, 2),
-                          help='The Miller indices.')
+                          default=(0.5, 2.),
+                          help='The Miller Indices.')
 
 
 if __name__ == "__main__":
