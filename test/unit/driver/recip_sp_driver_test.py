@@ -6,46 +6,42 @@ import pytest
 import recip_sp_driver as driver
 
 from nemd import np
+from nemd import plotutils
 
 
-class TestRecip:
+@pytest.mark.parametrize('args', [(['-miller_indices', '2', '4'])])
+class TestRecipSp:
 
     @pytest.fixture
-    def recip(self, args, logger, tmp_dir):
+    def recip_sp(self, args, logger, tmp_dir):
         options = driver.Parser().parse_args(args)
         return driver.RecipSp(options, logger=logger)
 
-    @pytest.mark.parametrize('args,expected',
-                             [(['-miller_indices', '0.5', '2'
-                                ], [[1.5, 0.8660254], [1.5, -0.8660254]])])
-    def testSetReal(self, recip, expected):
-        recip.setReal()
-        np.testing.assert_almost_equal(expected, recip.real.lat.T)
+    def testSetReal(self, recip_sp):
+        recip_sp.setReal()
+        np.testing.assert_almost_equal([[1.5, 0.8660254], [1.5, -0.8660254]],
+                                       recip_sp.real.lat.T)
 
-    @pytest.mark.parametrize(
-        'args,expected',
-        [(['-miller_indices', '0.5', '2'], [[2.0943951, 3.62759873],
-                                            [2.0943951, -3.62759873]])])
-    def testSetRecip(self, recip, expected):
-        recip.setReal()
-        recip.setRecip()
-        np.testing.assert_almost_equal(expected, recip.recip.lat.T)
+    def testSetRecip(self, recip_sp):
+        recip_sp.setReal()
+        recip_sp.setRecip()
+        np.testing.assert_almost_equal(
+            [[2.0943951, 3.62759873], [2.0943951, -3.62759873]],
+            recip_sp.recip.lat.T)
 
-    @pytest.mark.parametrize('args', [(['-miller_indices', '2', '4'])])
-    def testProduct(self, recip, tmp_dir):
-        recip.setReal()
-        recip.setRecip()
-        recip.product()
-        recip.logger.log.assert_called_with('The real and reciprocal vectors '
-                                            'are parallel to each other with '
-                                            '2π being the dot product.')
+    def testProduct(self, recip_sp):
+        recip_sp.setReal()
+        recip_sp.setRecip()
+        recip_sp.product()
+        recip_sp.logger.log.assert_called_with(
+            'The real and reciprocal vectors are parallel to each other with '
+            '2π being the dot product.')
 
-    @pytest.mark.parametrize('args', [(['-miller_indices', '2', '4'])])
-    def testPlot(self, recip, tmp_dir):
-        recip.setReal()
-        recip.setRecip()
-        recip.plot()
-        assert os.path.isfile(recip.outfile)
+    def testPlot(self, recip_sp):
+        recip_sp.setReal()
+        recip_sp.setRecip()
+        recip_sp.plot()
+        assert os.path.isfile(recip_sp.outfile)
 
 
 class TestParser:
@@ -65,38 +61,66 @@ class TestParser:
             assert expected == parser.parse_args(args).miller_indices
 
 
-# class TestDriverParser:
-#
-#     @pytest.mark.parametrize("miller_indices,valid", [(['1', '2'], True),
-#                                                       (['1'], False),
-#                                                       (['1', '1', '1'], False),
-#                                                       (['0', '0'], False)])
-#     def testParseArgs(self, miller_indices, valid):
-#         parser = driver.DriverParser()
-#         argv = [driver.FLAG_MILLER_INDICES] + miller_indices
-#         with mock.patch.object(parser, 'error'):
-#             parser.parse_args(argv)
-#             assert not valid == parser.error.called
-#
-#
-# class TestReciprocal:
-#
-#     @pytest.fixture
-#     def recip(self, miller):
-#         with plotutils.pyplot() as plt:
-#             ax = plt.figure().add_subplot(111)
-#             vecs = [[1.5, 0.8660254], [1.5, -0.8660254]]
-#             vecs = pd.DataFrame(vecs, index=['x', 'y'], columns=['a1', 'a2'])
-#             return driver.Reciprocal(ax, vecs=vecs, miller=miller)
-#
-#     @pytest.mark.parametrize(('miller', 'vecs'),
-#                              [([0, 1], [[0.0, 0.866025], [0.0, -0.866025]]),
-#                               ([1, 0], [[1.5, 0.0], [1.5, -0.0]]),
-#                               ([2, 11], [[3.0, 9.526279], [3.0, -9.526279]])])
-#     def testSetMiller(self, recip, vecs):
-#         recip.setMiller()
-#         np.testing.assert_almost_equal(vecs, recip.m_vecs, decimal=6)
-#
+@pytest.mark.parametrize('lat', [[[1.5, 1.5], [0.8660254, -0.8660254]]])
+class TestRecip:
+
+    @pytest.fixture
+    def recip(self, lat, args, logger):
+        options = driver.Parser().parse_args(args)
+        with plotutils.pyplot() as plt:
+            return driver.Recip(lat,
+                                ax=plt.figure().add_subplot(111),
+                                options=options,
+                                logger=logger)
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['-miller_indices', '1', '1'],
+                               [[1.5, 0.8660254], [1.5, -0.8660254], [3, 0]])])
+    def testSetUp(self, recip, expected):
+        to_compare = [recip.scaled.a1, recip.scaled.a2, recip.vec]
+        np.testing.assert_almost_equal(expected, to_compare)
+
+    @pytest.mark.parametrize(
+        'args,expected',
+        [(['-miller_indices', '1', '1'
+           ], 'The reciprocal space vector [3. 0.] has a norm of 3')])
+    def testLogNorm(self, recip, expected):
+        recip.logger.log.assert_called_with(expected)
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['-miller_indices', '1', '1'], 9)])
+    def testPlot(self, recip, expected):
+        recip.plot(recip.ax)
+        assert expected == len(recip.ax._children)
+
+    @pytest.mark.parametrize(
+        'args,expected',
+        [(['-miller_indices', '1', '1'
+           ], [1, (-9.0, 9.0), (-5.1961524, 5.1961524), 'Reciprocal Space'])])
+    def testGrid(self, recip, expected):
+        recip.grid()
+        assert expected == [
+            len(recip.ax.collections),
+            recip.ax.get_xlim(),
+            recip.ax.get_ylim(),
+            recip.ax.get_title()
+        ]
+
+    @pytest.mark.parametrize('args,expected',
+                             [(['-miller_indices', '1', '1'], 85)])
+    def testGrids(self, recip, expected):
+        assert expected == recip.grids.shape[0]
+
+    @pytest.mark.parametrize('args', [['-miller_indices', '1', '1']])
+    @pytest.mark.parametrize('pnt,expected', [([-9, -5.1961524], True),
+                                              ([9, 5.1961524], True),
+                                              ([9, 5.1961525], True),
+                                              ([9, 15.2], False),
+                                              ([-9.001, 5.1961525], False)])
+    def testCrop(self, recip, pnt, expected):
+        assert expected == recip.crop(np.array([pnt])).any()
+
+
 #     @pytest.mark.parametrize(('miller', 'vec'),
 #                              [([0, 1], [0.866025, -0.866025]),
 #                               ([1, 0], [1.5, 1.5]),

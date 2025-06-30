@@ -94,9 +94,9 @@ class Recip(logutils.Base):
         :param pnts np.ndarray: the input points.
         :return np.ndarray: the cropped points.
         """
-        selected = (pnts > self.lim[:, 0]) | np.isclose(pnts, self.lim[:, 0])
-        selected |= (pnts < self.lim[:, 1]) | np.isclose(pnts, self.lim[:, 1])
-        return pnts[selected.all(axis=1)]
+        larger = (pnts > self.lim[:, 0]) | np.isclose(pnts, self.lim[:, 0])
+        smaller = (pnts < self.lim[:, 1]) | np.isclose(pnts, self.lim[:, 1])
+        return pnts[(larger & smaller).all(axis=1)]
 
     @functools.cached_property
     def lim(self):
