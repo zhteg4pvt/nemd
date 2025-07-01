@@ -40,7 +40,7 @@ class Recip(logutils.Base):
         """
         Set up.
         """
-        self.scaled = self.lat * self.options.miller
+        self.scaled = self.options.miller * self.lat
         self.vec[:] = self.scaled.sum(axis=1)
 
     def logNorm(self):
@@ -187,21 +187,14 @@ class Real(Recip):
         """
         facs = [np.reciprocal(x) if x else np.inf for x in self.options.miller]
         self.scaled = facs * self.lat
-        self.vec[:] = self.getNormal()
-
-    def getNormal(self):
-        """
-        Get the plane normal. (intersection between the plane and plane normal
-        that passes the origin)
-
-        :return 1x3 'numpy.ndarray': the intersection point.
-        """
         pnt, vec = self.getPlane()
-        normal = np.dot([[0, 1], [-1, 0]], vec)  # normal to the plane
+        norm = np.dot([[0, 1], [-1, 0]], vec)  # normal to the plane
         # Interaction is on the normal: factor * normal
         # Interaction is on the plane: fac2 * vec + pnt1
         # Equation: normal * factor - vec * fac2 = pnt1
-        return normal * np.linalg.solve(np.transpose([normal, -vec]), pnt)[0]
+        # Normal: intersection between the plane and normal passing the origin
+        factor = np.linalg.solve(np.transpose([norm, -vec]), pnt)[0]
+        self.vec[:] = factor * norm
 
     @functools.cache
     def getPlane(self, factor=1):

@@ -170,35 +170,46 @@ class TestReal:
                           (['-miller', '1', '2'], [0.75, -0.4330127]),
                           (['-miller', '0.5', '2'], [0.57692307, -0.59955605]),
                           (['-miller', '1', '1'], [1.5, 0.])])
-    def testSetVec(self, real, expected):
+    def testSetUp(self, real, expected):
         np.testing.assert_almost_equal(real.vec, expected)
 
+    @pytest.mark.parametrize(
+        'args,expected',
+        [(['-miller', '0', '1'], [[1.5, -0.8660254], [1.5, 0.8660254]]),
+         (['-miller', '1', '0'], [[1.5, 0.8660254], [1.5, -0.8660254]]),
+         (['-miller', '1', '1'], [[1.5, 0.8660254], [0., -1.7320508]]),
+         (['-miller', '-1', '1'], [[-1.5, -0.8660254], [3., 0.]]),
+         (['-miller', '1', '2'], [[1.5, 0.8660254], [-0.75, -1.2990381]]),
+         (['-miller', '0.5', '2'], [[3., 1.7320508], [-2.25, -2.1650635]])])
+    def testGetPlane(self, real, expected):
+        point, vec = real.getPlane()
+        np.testing.assert_almost_equal([point, vec], expected)
+        point2, vec2 = real.getPlane(factor=2)
+        np.testing.assert_almost_equal(point2, point * 2)
+        np.testing.assert_almost_equal(vec2, vec)
 
-#     @pytest.mark.parametrize(('miller', 'factor', 'vec'),
-#                              [([0, 1], 0, [0, 0]), ([1, 1], 1, [1.5, 0]),
-#                               ([1, 2], 2, [3, 1.73205081]),
-#                               ([0.5, 2], 0.5, [0.28846154, 0.29977802])])
-#     def testGetNormal(self, real, factor, vec):
-#         real.setMiller()
-#         norm = real.getNormal(factor=factor)
-#         np.testing.assert_almost_equal(vec, norm)
-#
-#     @pytest.mark.parametrize(
-#         ('miller', 'factor', 'points'),
-#         [([0, 1], 0, [[0., 0.], [1.5, 0.8660254]]),
-#          ([1, 1], 1, [[1.5, 0.8660254], [1.5, -0.8660254]]),
-#          ([1, 2], 2, [[3., 1.7320508], [6., -3.4641016]]),
-#          ([0.5, 2], 0.5, [[0.375, 0.21650635], [1.5, -0.8660254]])])
-#     def testGetPlane(self, real, factor, points):
-#         real.setMiller()
-#         plane = real.getPlane(factor=factor)
-#         np.testing.assert_almost_equal(points, plane)
-#
-#     @pytest.mark.parametrize(('miller', 'factor'), [([0, 1], 0), ([1, 1], 1),
-#                                                     ([1, 2], 2),
-#                                                     ([0.5, 2], 0.5)])
-#     def testPlotPlane(self, real, factor):
-#         real.setMiller()
-#         real.setGridsAndLim()
-#         real.plotPlane(factor=factor)
-#         assert 1 == len(real.ax.lines) or 1 == len(real.ax.collections)
+    @pytest.mark.parametrize('args', [(['-miller', '0', '1']),
+                                      (['-miller', '1', '-1']),
+                                      (['-miller', '0.5', '2']),
+                                      (['-miller', '1', '1'])])
+    def testPlot(self, real):
+        real.plot(real.ax)
+        assert 3 == len(real.ax.lines)
+
+    @pytest.mark.parametrize(
+        'args,vec,expected',
+        [([], pd.Series([1, 2], name='name'), '$\\vec name$')])
+    def testQuiver(self, real, vec, expected):
+        real.quiver(vec)
+        assert expected == list(real.qvs.values())[0].get_text()
+
+    @pytest.mark.parametrize(
+        'args,idx,expected',
+        [(['-miller', '0', '1'], 0, [[-9., -5.1961524], [9., 5.1961524]]),
+         (['-miller', '1', '-1'], -1, [[-9., -0.8660254], [9., -0.8660254]]),
+         (['-miller', '0.5', '2'], 1, [[-4.2, -5.1961524], [6.6, 5.1961524]]),
+         (['-miller', '1', '1'], 2, [[3., -5.1961524], [3., 5.1961524]])])
+    def testPlane(self, real, idx, expected):
+        real.plane(idx)
+        data = np.array([y for x in real.ax.lines for y in zip(*x.get_data())])
+        np.testing.assert_almost_equal(data, expected)
