@@ -11,8 +11,6 @@ from nemd import np
 from nemd import parserutils
 from nemd import task
 
-FLAG_SCALED_RANGE = '-scaled_range'
-
 
 class Runner(jobcontrol.Runner):
 
@@ -47,10 +45,10 @@ class Parser(parserutils.Workflow):
     @classmethod
     def add(cls, parser, **kwargs):
         parser.add_argument(
-            FLAG_SCALED_RANGE,
-            default=(0.95, 1.05, 0.01),  # yapf: disable
-            nargs='+',
-            metavar=FLAG_SCALED_RANGE[1:].upper(),
+            '-scaled_range',
+            default=(0.95, 1.05, 0.01),
+            nargs=3,
+            metavar='FLOAT',
             type=parserutils.type_positive_float,
             help='The range of scale factors on the crystal lattice parameters.'
         )
