@@ -262,7 +262,7 @@ class TestScript:
 
     @pytest.mark.parametrize('smiles', ['CCCC'])
     @pytest.mark.parametrize('substruct,expected', [
-        (None, None), (['CCC', None], None),
+        (None, None), (['CCC'], None),
         (['CCC', 120], 'fix rest all restrain angle 1 2 3 -2000.0 -2000.0 120')
     ])
     def testMinimize(self, script, substruct, expected):

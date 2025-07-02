@@ -422,7 +422,7 @@ class Reader(logutils.Reader):
 
 class AnalyzerAgg(analyzer.Agg):
     """
-    An analyzer Agg customized for substructure.
+    Customized for substructures.
     """
 
     def set(self):

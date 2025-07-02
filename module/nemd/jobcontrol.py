@@ -168,8 +168,7 @@ class Runner(logutils.Base):
         #     print(mol.GetConformer().GetPositions())
         jobutils.pop_arg(self.args, self.FLAG_SEED)
         seed = getattr(self.options, self.FLAG_SEED[1:], 1)
-        seeds = (seed_incre + seed) % symbols.MAX_INT32
-        self.state = {self.FLAG_SEED: list(map(str, seeds))}
+        self.state[self.FLAG_SEED] = (seed_incre + seed) % symbols.MAX_INT32
 
     def openJobs(self):
         """
@@ -177,7 +176,7 @@ class Runner(logutils.Base):
         """
         for values in itertools.product(*self.state.values()):
             # e.g. arg = (['-seed', '0'], ['-scale_factor', '0.95'])
-            state = {x: y for x, y in zip(self.state.keys(), values)}
+            state = {x: str(y) for x, y in zip(self.state.keys(), values)}
             job = self.proj.open_job(state)
             job.init()
             self.jobs.append(job)

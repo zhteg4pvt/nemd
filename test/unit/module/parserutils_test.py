@@ -186,7 +186,7 @@ class TestAction:
 
     @pytest.mark.parametrize('action,dtype', [(parserutils.StructAction, str)])
     @pytest.mark.parametrize('args,expected', [(['CCC', '36'], ('CCC', 36)),
-                                               (['CC'], ('CC', None)),
+                                               (['CC'], ('CC', )),
                                                (['CCC', 'non_float'], RAISED),
                                                (['non_smiles'], RAISED)])
     def testStruct(self, parser, args, expected):
@@ -387,7 +387,7 @@ class TestAdd:
     def testBldr(self, parser):
         parserutils.Bldr.addBldr(parser)
         options = parser.parse_args(['-substruct', 'C', '-force_field', 'SW'])
-        assert ('C', None) == options.substruct
+        assert ('C', ) == options.substruct
         assert ('SW', ) == options.force_field
 
     def testMolBase(self, parser):

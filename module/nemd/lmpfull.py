@@ -376,7 +376,7 @@ class Mol(lmpatomic.Mol):
         """
         try:
             value = self.struct.options.substruct[1]
-        except (TypeError, AttributeError):
+        except (TypeError, AttributeError, IndexError):
             return
         self.GetConformer().setGeo(self.getSubstructMatch(), value)
 

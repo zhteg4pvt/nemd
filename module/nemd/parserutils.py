@@ -362,12 +362,10 @@ class StructAction(Action):
 
         :param smiles str: the smiles str to select a substructure.
         :param value str: the target value for the substructure to be set.
-        :return tuple of (str, float): the smiles str, and the target value.
+        :return tuple: the smiles str, (and the target value).
         """
         type_smiles(smiles)
-        if value is not None:
-            value = type_float(value)
-        return smiles, value
+        return (smiles, type_float(value)) if value is not None else (smiles, )
 
 
 class ThreeAction(Action):

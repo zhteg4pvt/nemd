@@ -1,7 +1,7 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
-This workflow runs crystal builder, lammps simulation, and log analyser.
+Runs crystal builder, lammps simulation, and log analyser.
 """
 import sys
 
@@ -13,10 +13,13 @@ from nemd import task
 
 
 class Runner(jobcontrol.Runner):
+    """
+    Customized for crystal builder, lammps runner, and log analyzer tasks.
+    """
 
     def setJobs(self):
         """
-        Set crystal builder, lammps runner, and log analyzer tasks.
+        See parent.
         """
         self.add(task.XtalBldr, jobname='crystal_builder')
         self.add(task.Lammps, jobname='lammps_runner')
@@ -24,28 +27,33 @@ class Runner(jobcontrol.Runner):
 
     def setState(self):
         """
-        Set the state keys and values.
+        Set the scale factor flag which compress or expand the supercell.
         """
         super().setState()
-        scaled_range = list(map(str, np.arange(*self.options.scaled_range)))
-        self.state[parserutils.XtalBldr.FLAG_SCALED_FACTOR] = scaled_range
+        self.state[parserutils.XtalBldr.FLAG_SCALED_FACTOR] = np.arange(
+            *self.options.scale_range)
 
     def setAggs(self):
         """
-        Set aggregators over all parameter sets.
+        Aggregate the log analysis jobs.
         """
         self.add(task.LmpAgg, jobname='lmp_log_agg')
         super().setAggs()
 
 
 class Parser(parserutils.Workflow):
-
+    """
+    Customized for scaled factors.
+    """
     WFLAGS = parserutils.Workflow.WFLAGS[1:]
 
     @classmethod
     def add(cls, parser, **kwargs):
+        """
+        See parent.
+        """
         parser.add_argument(
-            '-scaled_range',
+            '-scale_range',
             default=(0.95, 1.05, 0.01),
             nargs=3,
             metavar='FLOAT',

@@ -27,11 +27,11 @@ class TestSingle:
         assert expected == single.struct.atoms.shape[0]
 
     @pytest.mark.parametrize('argv', [['*C*', '-cru_num', '4', '-seed', '1']])
-    @pytest.mark.parametrize(
-        "substruct,expected",
-        [(['CCCC', 45], False),
-         (['CCCC', None], 'CCCC dihedral (degree): -0.00'),
-         (['CCCCC', None], 'CCCCC matches no substructure'), (None, False)])
+    @pytest.mark.parametrize("substruct,expected",
+                             [(['CCCC', 45], False),
+                              (['CCCC'], 'CCCC dihedral (degree): -0.00'),
+                              (['CCCCC'], 'CCCCC matches no substructure.'),
+                              (None, False)])
     def testLogSubstruct(self, single, substruct, called):
         single.options.substruct = substruct
         single.setMol()

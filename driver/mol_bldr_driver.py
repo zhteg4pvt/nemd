@@ -61,11 +61,11 @@ class Single(logutils.Base):
         """
         Log substructure information.
         """
-        if not (self.options.substruct and self.options.substruct[1] is None):
-            return
-        val = self.struct.mols[0].GetConformer().measure()
-        self.log(f"{self.options.substruct[0]} "
-                 f"{'matches no substructure' if val is None else val}")
+        if self.options.substruct and len(self.options.substruct) == 1:
+            measured = self.struct.mols[0].GetConformer().measure()
+            if measured is None:
+                measured = 'matches no substructure.'
+            self.log(f"{self.options.substruct[0]} {measured}")
 
     def write(self):
         """

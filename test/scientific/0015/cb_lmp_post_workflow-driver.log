@@ -1,5 +1,5 @@
 ..........Command Options..........
-scaled_range: 0.999, 1.001, 2e-05
+scale_range: 0.999, 1.001, 2e-05
 name: Si
 dimension: 3, 3, 3
 scale_factor: (1, 1, 1)

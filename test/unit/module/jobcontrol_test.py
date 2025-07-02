@@ -7,6 +7,7 @@ import pytest
 
 from nemd import jobcontrol
 from nemd import jobutils
+from nemd import np
 from nemd import parserutils
 from nemd import taskbase
 
@@ -101,12 +102,12 @@ class TestRunner:
         assert expected == os.path.isfile('myname_nx.png')
 
     @pytest.mark.parametrize('kwargs,expected',
-                             [({}, None), (dict(state_num=1), ['1']),
-                              (dict(state_num=3), ['1', '2', '3'])])
+                             [({}, None), (dict(state_num=1), [1]),
+                              (dict(state_num=3), [1, 2, 3])])
     def testSetState(self, kwargs, expected):
         runner = jobcontrol.Runner(types.SimpleNamespace(**kwargs), [])
         runner.setState()
-        assert expected == runner.state.get('-seed')
+        np.testing.assert_equal(runner.state.get('-seed'), expected)
 
     @pytest.mark.parametrize('original', [[]])
     @pytest.mark.parametrize(

@@ -1,7 +1,5 @@
-import cb_lmp_log_workflow as workflow
+import mb_lmp_log_workflow as workflow
 import pytest
-
-from nemd import np
 
 
 class TestRunner:
@@ -15,19 +13,20 @@ class TestRunner:
 
     @pytest.mark.parametrize(
         'original,expected',
-        [([], ['crystal_builder', 'lammps_runner', 'lmp_log', 2, 3])])
+        [(['CCC'], ['mol_bldr', 'lammps', 'lmp_log', 2, 3])])
     def testSetJobs(self, runner, check_flow):
         runner.setJobs()
 
     @pytest.mark.parametrize(
         'original,expected',
-        [(['-scale_range', '0.95', '1.05', '0.05'], [0.95, 1.0, 1.05])])
+        [(['CCC', '-struct_rg', 'CC'], ['CC']),
+         (['CCC', '-struct_rg', 'CC', '1', '2', '0.5'], ['CC 1.0', 'CC 1.5'])])
     def testSetState(self, runner, expected):
         runner.setState()
-        np.testing.assert_almost_equal(runner.state['-scale_factor'], expected)
+        assert expected == runner.state['-substruct']
 
     @pytest.mark.parametrize('original,expected',
-                             [([], ['lmp_log_agg', 'time_agg', 0, 2])])
+                             [(['CCC'], ['lmp_log_agg', 'time_agg', 0, 2])])
     def testSetAggs(self, runner, expected, check_flow):
         runner.setAggs()
 
@@ -40,9 +39,10 @@ class TestParser:
 
     @pytest.mark.parametrize(
         'args,expected',
-        [(['-scale_range', '0.9', '1.2', '0.1'], [0.9, 1.2, 0.1]),
-         (['-scale_range', '0.9', '1.2'], SystemExit)])
+        [(['CCC', '-struct_rg', 'CC', '1', '2', '0.5'], ('CC', 1.0, 2.0, 0.5)),
+         (['CCC', '-struct_rg', 'CC'], ('CC', )),
+         (['CCC', '-struct_rg', '0.9', '1.2'], SystemExit)])
     def testParseArgs(self, parser, args, expected, raises):
         with raises:
             options = parser.parse_args(args)
-            assert expected == options.scale_range
+            assert expected == options.struct_rg

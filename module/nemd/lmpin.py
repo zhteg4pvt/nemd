@@ -203,11 +203,14 @@ class SinglePoint(Base):
         """
         if self.options.no_minimize:
             return
-        if val := geo and self.options.substruct[1]:
-            self.append(f'fix rest all restrain {geo} -2000.0 -2000.0 {val}')
+        restrain = geo and (len(self.options.substruct) > 1)
+        if restrain:
+            self.append(
+                f'fix rest all restrain {geo} -2000.0 -2000.0 {self.options.substruct[1]}'
+            )
         self.join('min_style', min_style)
         self.append(f"minimize 1.0e-6 1.0e-8 1000000 10000000")
-        if val:
+        if restrain:
             self.append('unfix rest')
 
     def timestep(self):
