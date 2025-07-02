@@ -115,7 +115,7 @@ class TestAgg:
         assert True == agg.agg
 
     @pytest.mark.parametrize("dirname,jobname,status", [('empty', 'name', {})])
-    def testGetOpr(self, jobname, agg):
+    def testGetOpr(self, agg, jobname, flow_opr):
         opr = agg.getOpr(jobname=jobname)
         assert jobname == opr.opr.keywords['jobname']
         assert False == opr.opr._flow_aggregate._is_default_aggregator

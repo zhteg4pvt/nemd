@@ -92,21 +92,29 @@ def raises(expected):
 @pytest.fixture
 def flow_opr():
     """
-    Yield FlowProject with restorable _OPERATION_*.
+    Yield FlowProject with empty _OPERATION_*.
 
-    :return `flow.FlowProject`: the patched flow.FlowProject
+    :return `flow.FlowProject`: the patched flow.FlowProject.
     """
-    project = flow.FlowProject
-    functions = project._OPERATION_FUNCTIONS
-    preconditions = project._OPERATION_PRECONDITIONS
-    postconditions = project._OPERATION_POSTCONDITIONS
-    project._OPERATION_FUNCTIONS = []
-    project._OPERATION_PRECONDITIONS = collections.defaultdict(list)
-    project._OPERATION_POSTCONDITIONS = collections.defaultdict(list)
-    yield project
-    project._OPERATION_FUNCTIONS = functions
-    project._OPERATION_PRECONDITIONS = preconditions
-    project._OPERATION_POSTCONDITIONS = postconditions
+    flow.FlowProject._OPERATION_FUNCTIONS = []
+    flow.FlowProject._OPERATION_PRECONDITIONS = collections.defaultdict(list)
+    flow.FlowProject._OPERATION_POSTCONDITIONS = collections.defaultdict(list)
+    yield flow.FlowProject
+
+
+@pytest.fixture
+def check_flow(flow_opr, expected):
+    """
+    Check FlowProject _OPERATION_*.
+
+    :param expected list: the expected operation names, pre num, post num.
+    :return `flow.FlowProject`: the patched flow.FlowProject.
+    """
+    yield flow_opr
+    to_compare = [x[0] for x in flow_opr._OPERATION_FUNCTIONS]
+    to_compare.append(len(flow_opr._OPERATION_PRECONDITIONS))
+    to_compare.append(len(flow_opr._OPERATION_POSTCONDITIONS))
+    assert expected[-len(to_compare):] == to_compare
 
 
 @pytest.fixture

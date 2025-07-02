@@ -14,11 +14,11 @@ from nemd import taskbase
 class TestRunner:
 
     @pytest.fixture
-    def runner(self, original, flow_opr, tmp_dir):
+    def runner(self, original, logger, flow_opr, tmp_dir):
         options = parserutils.Workflow().parse_args(original)
         return jobcontrol.Runner(options=options,
                                  original=original,
-                                 logger=mock.Mock())
+                                 logger=logger)
 
     @pytest.fixture
     def ran(self, runner, Cmd, Job, pre):
@@ -71,18 +71,17 @@ class TestRunner:
         assert expected == runner.max_cpu
 
     @pytest.mark.parametrize('original', [[]])
-    @pytest.mark.parametrize('agg,pre,expected,num',
-                             [(False, None, ['job'], 1),
-                              (False, False, None, 0), (True, None, None, 0)])
-    def testAdd(self, agg, pre, runner, expected, num, flow_opr):
+    @pytest.mark.parametrize(
+        'agg,pre,expected',
+        [(False, None, [1, 0, ['job'], 'job', 'job2', 1, 2]),
+         (False, False, [1, 0, None, 'job', 'job2', 0, 2]),
+         (True, None, [1, 0, None, 'agg', 'job2', 0, 2])])
+    def testAdd(self, agg, pre, runner, expected, check_flow):
         job = taskbase.Agg if agg else taskbase.Job
         runner.add(job)
-        assert 1 == len(runner.oprs)
-        assert 0 == len(runner.prereq)
+        assert expected[:2] == [len(runner.oprs), len(runner.prereq)]
         runner.add(job, jobname='job2', pre=pre)
-        assert 2 == len(runner.oprs)
-        assert expected == runner.prereq.get('job2')
-        assert num == len(flow_opr._OPERATION_PRECONDITIONS)
+        assert expected[2] == runner.prereq.get('job2')
 
     @pytest.mark.parametrize('original', [[]])
     def testSetProj(self, original, runner):
@@ -166,22 +165,23 @@ class TestRunner:
         assert not file == ('cmd' in oprs)
         assert not status == ('job' in oprs)
 
-    @pytest.mark.parametrize('original', [[]])
-    def testSetAgg(self, runner, flow_opr):
+    @pytest.mark.parametrize('original,expected', [([], ['time_agg', 0, 1])])
+    def testSetAgg(self, runner, check_flow):
         runner.setAggs()
-        assert 'time_agg' == flow_opr._OPERATION_FUNCTIONS[0][0]
 
     @pytest.mark.parametrize('original,file,status,pre',
                              [(['-DEBUG'], True, True, None)])
-    def testSetAggProj(self, ran):
-        ran.setAggProj()
-        assert 1 == len(ran.jobs)
-        ran.jobs = []
-        ran.setAggProj()
-        assert 1 == len(ran.jobs)
-        shutil.rmtree(ran.proj.workspace)
-        with pytest.raises(SystemExit):
+    @pytest.mark.parametrize('clear,rmtree,expected',
+                             [(False, False, 1), (True, False, 1),
+                              (True, True, SystemExit), (False, True, 1)])
+    def testSetAggProj(self, ran, clear, rmtree, expected, raises):
+        if clear:
+            ran.jobs = []
+        if rmtree:
+            shutil.rmtree(ran.proj.workspace)
+        with raises:
             ran.setAggProj()
+            assert expected == len(ran.jobs)
 
     @pytest.mark.parametrize('original,file,status,pre',
                              [(['-clean', '-DEBUG'], True, True, None)])
