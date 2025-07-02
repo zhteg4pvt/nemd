@@ -3,15 +3,16 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (2022010236@hust.edu.cn)
 """
-This workflow runs integration and performance tests.
+Runs integration, performance, or scientific tests.
 
-The sub-folder name must be one integer, and contain one cmd file.
+Each one-integer sub-folder contain one cmd file.
 Each integration test contains a check file to verify the expected outputs.
 Each performance test may contain a param file to parameterize the command.
 
-Supported check commands are: cmp, exist, not_exist, in ...
-Supported tag commands are: slow, label
+Supported check commands: exist, glob, has, cmp, and collect
+Supported tag commands: slow, label
 """
+import functools
 import glob
 import os
 import sys
@@ -33,45 +34,12 @@ class Test(jobcontrol.Runner):
     The main class to run integration and performance tests.
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.dirnames = None
-
-    def run(self):
-        self.setDirs()
-        super().run()
-
-    def setDirs(self):
-        """
-        Set the dirs of the tests.
-        """
-        if self.options.id:
-            ids = [f"{x:0>4}" for x in self.options.id]
-            self.dirnames = [
-                os.path.join(self.options.dirname, x) for x in ids
-            ]
-            self.dirnames = [x for x in self.dirnames if os.path.isdir(x)]
-        else:
-            self.dirnames = glob.glob(
-                os.path.join(self.options.dirname, '[0-9]' * 4))
-
-        if not self.dirnames:
-            self.error(f'No valid tests found in {self.options.dirname}.')
-
-        self.dirnames = [
-            x for x in self.dirnames
-            if test.Tag(x, options=self.options).selected
-        ]
-
-        if not self.dirnames:
-            self.error('All tests are skipped according to the tag file.')
-
     def setJobs(self):
         """
         Set operators to run cmds, check results, and tag tests.
         """
-        cmd = self.add(
-            task.Cmd) if test.Cmd.name in self.options.task else False
+        cmd = self.add(task.Cmd) if test.Cmd.name in self.options.task \
+            else False
         if test.Check.name in self.options.task:
             self.add(task.Check, pre=cmd)
         if test.Tag.name in self.options.task:
@@ -81,90 +49,108 @@ class Test(jobcontrol.Runner):
         """
         Set state with test dirs.
         """
-        self.state = {FLAG_DIRNAME: self.dirnames}
+        self.state = {FLAG_DIRNAME: self.dirs}
+
+    @functools.cached_property
+    def dirs(self):
+        """
+        Return the test directories.
+
+        :return list: the selected test directories.
+        """
+        if self.options.id:
+            ids = [f"{x:0>4}" for x in self.options.id]
+            dirs = [os.path.join(self.options.dirname, x) for x in ids]
+            dirs = [x for x in dirs if os.path.isdir(x)]
+        else:
+            dirs = glob.glob(os.path.join(self.options.dirname, '[0-9]' * 4))
+
+        if not dirs:
+            self.error(f'No valid tests found in {self.options.dirname}.')
+        dirs = [x for x in dirs if test.Tag(x, options=self.options).selected]
+        if not dirs:
+            self.error('All tests are skipped according to the tag files.')
+
+        return dirs
 
     def logStatus(self):
         """
         Log the number of the succeed check jobs.
         """
         super().logStatus()
-        msgs = [x for x in self.status.values() if x is not True]
-        total = len(self.status)
-        self.log(f"{total - len(msgs)} / {total} succeed sub-jobs.")
+        self.log(f"{sum([x is True for x in self.status.values()])} / "
+                 f"{len(self.status)} succeed sub-jobs.")
 
-    def setAggs(self, aggregator=None):
+    def setAggs(self):
         """
         Set the aggregator operators.
-
-        :param aggregator 'flow.aggregates.aggregator': job collection criteria
         """
-        if aggregator is None and self.options.id:
 
-            def select(x, dirnames=self.dirnames):
-                return x.sp[FLAG_DIRNAME] in dirnames
+        def select(job, dirs=self.dirs):
+            """
+            Select the jobs.
 
-            aggregator = flow.aggregator(select=select)
-        self.add(task.TestAgg, aggregator=aggregator)
+            :param job 'signac.job.Job': one found signac job.
+            :param dirs list: the selected dirnames. (RuntimeError of cannot
+                pickle '_thread.RLock' object without explicitly passing)
+            """
+            return job.sp[FLAG_DIRNAME] in dirs
 
-    def setAggProj(self):
+        agg = flow.aggregator(select=select) if self.options.id else None
+        self.add(task.TestAgg, aggregator=agg)
+
+    def setAggProj(self, filter=None):
         """
-        Report the task timing after filtering.
+        Customized to filter dirnames. (see parent)
         """
-        flag_dirs = [{FLAG_DIRNAME: x} for x in self.dirnames]
-        super().setAggProj(filter={"$or": flag_dirs})
+        if self.options.id:
+            filter = {"$or": [{FLAG_DIRNAME: x} for x in self.dirs]}
+        super().setAggProj(filter=filter)
 
 
 class TestValid(parserutils.Valid):
     """
-    Class to validate the input options.
+    Customized for dirname.
     """
 
     def run(self):
         """
         Main method to run the validation.
 
-        :raises ValueError: if the input directory is None.
+        :raises ValueError: if the input directory cannot be located.
         """
         if self.options.dirname is None:
             self.options.dirname = envutils.get_src('test', self.options.name)
         if not self.options.dirname:
-            raise ValueError(
-                f'Please define the test dirname via {FLAG_DIRNAME}')
+            raise ValueError(f'Cannot locate the test dir ({FLAG_DIRNAME}).')
 
 
 class Parser(parserutils.Workflow):
     """
-    A customized parser that supports cross argument validation options.
+    Customized for tests.
     """
     WFLAGS = parserutils.Workflow.WFLAGS[1:]
-    FLAG_ID = 'id'
-    FLAG_TASK = jobutils.FLAG_TASK
-    FLAG_LABEL = '-label'
-    CMD = 'cmd'
-    CHECK = 'check'
-
     INTEGRATION = 'integration'
     SCIENTIFIC = 'scientific'
     PERFORMANCE = 'performance'
-    NAMES = [INTEGRATION, SCIENTIFIC, PERFORMANCE]
+    TESTS = [INTEGRATION, SCIENTIFIC, PERFORMANCE]
 
     def setUp(self):
         """
-        Add test related flags.
+        See parent.
         """
-        self.add_argument(self.FLAG_ID,
-                          metavar=self.FLAG_ID.upper(),
+        self.add_argument('id',
+                          metavar='INT',
                           type=parserutils.type_positive_int,
                           nargs='*',
                           help='Select the tests according to these ids.')
         self.add_argument(parserutils.FLAG_NAME,
                           default=self.INTEGRATION,
-                          choices=self.NAMES,
+                          choices=self.TESTS,
                           help=f'{self.INTEGRATION}: reproducible; '
                           f'{self.SCIENTIFIC}: physical meaningful; '
                           f'{self.PERFORMANCE}: resource efficient.')
         self.add_argument(FLAG_DIRNAME,
-                          metavar=FLAG_DIRNAME[1:].upper(),
                           type=parserutils.type_dir,
                           help='Search test(s) under this directory.')
         self.add_argument(
@@ -172,11 +158,10 @@ class Parser(parserutils.Workflow):
             type=parserutils.type_positive_float,
             metavar='SECOND',
             help='Skip (sub)tests marked with time longer than this criteria.')
-        self.add_argument(self.FLAG_LABEL,
+        self.add_argument('-label',
                           nargs='+',
-                          metavar='LABEL',
                           help='Select the tests marked with the given label.')
-        self.add_argument(self.FLAG_TASK,
+        self.add_argument(jobutils.FLAG_TASK,
                           nargs='+',
                           choices=[x.name for x in test.TASKS],
                           default=[test.Cmd.name, test.Check.name],

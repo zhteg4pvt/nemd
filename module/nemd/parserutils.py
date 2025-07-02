@@ -435,8 +435,7 @@ class MolValid(Valid):
         """
         Validate (or set) the number of repeat units.
 
-        :raise ValueError: if the number of cru_num is not equal to the number
-            of cru.
+        :raise ValueError: if cru_num number is different from the cru number.
         """
         if self.options.cru_num is None:
             self.options.cru_num = [1] * len(self.options.cru)
