@@ -492,15 +492,25 @@ class Improper(Bond):
 
         :return dict: the mapping from a hashed improper to type id.
         """
+        unique, index = np.unique(self.conn_atomic, axis=0, return_index=True)
+        return {tuple(x): y for x, y in zip(unique, index)}
+
+    @methodtools.lru_cache()
+    @property
+    def conn_atomic(self):
+        """
+        Return the connectivity and atomic number of the center atom, with the
+        atomic numbers of the connected atoms.
+
+        :return `np.ndarray`: connectivity and atomic numbers of improper atoms.
+        """
         # neighbors of CC(=O)C and CC(O)C have the same symbols
         # The third one is the center ('Improper Torsional Parameters' in prm)
         conns = self.atoms.connectivity[self.id3]
         atomic = self.atoms.atomic_number[self.id3]
         atomics = self.atoms.atomic_number[[self.id1, self.id2, self.id4]]
-        conn_atomic = np.array((conns, atomic, *atomics)).transpose()
-        unique, indexes = np.unique(conn_atomic, axis=0, return_index=True)
-        hashed = [tuple([*x[:2], *sorted(x[2:])]) for x in unique]
-        return {x: y for x, y in zip(hashed, indexes)}
+        atomics.sort(axis=0)
+        return np.array((conns, atomic, *atomics)).transpose()
 
 
 class Parser:

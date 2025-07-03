@@ -205,6 +205,11 @@ class TestImproper:
 
     def testRow(self, improper):
         assert 11 == len(improper.row)
+        for conn_atomic, index in improper.row.items():
+            ids = (improper.conn_atomic == conn_atomic).all(axis=1)
+            assert list(ids).index(True) == index
+            parms = improper.loc[ids].drop(columns=improper.ID_COLS)
+            assert 1 == np.unique(parms, axis=0).shape[0]
 
 
 class TestParser:
