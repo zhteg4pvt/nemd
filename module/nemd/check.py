@@ -205,6 +205,12 @@ class Collect(Exist):
         columns = [self.COLUMNS[x] for x in self.args]
         self.data = pd.DataFrame(data, index=index, columns=columns)
         self.data.dropna(inplace=True, axis=1)
+        try:
+            self.data.index = self.data.index.astype(float)
+        except ValueError:
+            pass
+        else:
+            self.data.sort_index(axis=0, inplace=True)
         if self.TIME_MIN in self.data.columns:
             time = [x.total_seconds() / 60. for x in self.data[self.TIME_MIN]]
             self.data[self.TIME_MIN] = time

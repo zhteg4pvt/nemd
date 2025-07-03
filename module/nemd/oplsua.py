@@ -495,7 +495,6 @@ class Improper(Bond):
         unique, index = np.unique(self.conn_atomic, axis=0, return_index=True)
         return {tuple(x): y for x, y in zip(unique, index)}
 
-    @methodtools.lru_cache()
     @property
     def conn_atomic(self):
         """

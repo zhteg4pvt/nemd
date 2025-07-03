@@ -205,6 +205,9 @@ class TestImproper:
 
     def testRow(self, improper):
         assert 11 == len(improper.row)
+
+    def testConnAtomic(self, improper):
+        assert (76, 5) == improper.conn_atomic.shape
         for conn_atomic, index in improper.row.items():
             ids = (improper.conn_atomic == conn_atomic).all(axis=1)
             assert list(ids).index(True) == index
