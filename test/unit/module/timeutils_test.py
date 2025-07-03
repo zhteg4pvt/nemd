@@ -16,7 +16,7 @@ class TestFunc:
 
     @pytest.mark.parametrize('delta,expected',
                              [(datetime.timedelta(1, 2, 3), '00:00:02'),
-                              (None, None)])
+                              (None, 'nan')])
     def testDelta2Str(self, delta, expected):
         assert expected == timeutils.delta2str(delta)
 

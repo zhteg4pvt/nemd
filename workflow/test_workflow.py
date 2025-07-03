@@ -3,7 +3,7 @@
 # This software is licensed under the BSD 3-Clause License.
 # Authors: Teng Zhang (2022010236@hust.edu.cn)
 """
-Runs integration, performance, or scientific tests.
+Run integration, scientific, or performance tests.
 
 Each one-integer sub-folder contain one cmd file.
 Each integration test contains a check file to verify the expected outputs.
@@ -29,21 +29,23 @@ from nemd import test
 FLAG_DIRNAME = jobutils.FLAG_DIRNAME
 
 
-class Test(jobcontrol.Runner):
+class Runner(jobcontrol.Runner):
     """
     The main class to run integration and performance tests.
     """
 
-    def setJobs(self):
+    def setJobs(self, pre=False):
         """
         Set operators to run cmds, check results, and tag tests.
+
+        :param pre bool: the pre task.
         """
-        cmd = self.add(task.Cmd) if test.Cmd.name in self.options.task \
-            else False
+        if test.Cmd.name in self.options.task:
+            pre = self.add(task.Cmd)
         if test.Check.name in self.options.task:
-            self.add(task.Check, pre=cmd)
+            self.add(task.Check, pre=pre)
         if test.Tag.name in self.options.task:
-            self.add(task.Tag, pre=cmd)
+            self.add(task.Tag, pre=pre)
 
     def setState(self):
         """
@@ -117,12 +119,13 @@ class TestValid(parserutils.Valid):
         """
         Main method to run the validation.
 
-        :raises ValueError: if the input directory cannot be located.
+        :raises FileNotFoundError: if the input directory cannot be located.
         """
         if self.options.dirname is None:
             self.options.dirname = envutils.get_src('test', self.options.name)
         if not self.options.dirname:
-            raise ValueError(f'Cannot locate the test dir ({FLAG_DIRNAME}).')
+            raise FileNotFoundError(
+                f'Cannot locate the test dir ({FLAG_DIRNAME}).')
 
 
 class Parser(parserutils.Workflow):
@@ -174,7 +177,7 @@ def main(argv):
     parser = Parser(descr=__doc__)
     options = parser.parse_args(argv)
     with logutils.Script(options, file=True) as logger:
-        obj = Test(options, argv, logger=logger)
+        obj = Runner(options, argv, logger=logger)
         obj.run()
 
 

@@ -43,7 +43,7 @@ def delta2str(delta, fmt=HMS_FMT):
     try:
         return (HMS_ZERO + delta).strftime(fmt)
     except TypeError:
-        pass
+        return 'nan'
 
 
 def str2delta(value, fmt=HMS_FMT):

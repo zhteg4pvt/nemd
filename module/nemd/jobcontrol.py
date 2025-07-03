@@ -187,7 +187,6 @@ class Runner(logutils.Base):
         """
         Set cpu numbers for the project.
         """
-
         if self.options.CPU:
             # Evenly distribute among subjobs if only total cpu specified
             num = self.options.CPU[1] if len(self.options.CPU) > 1 else \
