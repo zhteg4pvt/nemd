@@ -18,12 +18,6 @@ class TestConformer:
     def testGetOwningMol(self, conf, mol):
         assert mol == conf.GetOwningMol()
 
-    @pytest.mark.parametrize('smiles', ['O', None])
-    @pytest.mark.parametrize('xyz', [np.zeros((3, 3))])
-    def testSetPositions(self, conf, xyz):
-        conf.setPositions(xyz)
-        np.testing.assert_equal(xyz, conf.GetPositions())
-
     @pytest.mark.parametrize('smiles,cnum,seed', [('CCCC', 1, 123)])
     @pytest.mark.parametrize('aids,expected',
                              [([0], [-1.8139675, -0.2029386, -0.2367584]),
@@ -55,12 +49,26 @@ class TestMol:
     def testGetConformers(self, emol, expected):
         assert expected == len(emol.GetConformers())
 
-    @pytest.mark.parametrize('smiles,cnum,expected1,expected2',
-                             [('O', 1, [[0, 2]], [[0, 2], [1, 5]])])
-    def testAppend(self, emol, expected1, expected2):
-        assert expected1 == [[x.gid, x.gids.max()] for x in emol.confs]
+    @pytest.mark.parametrize('smiles,cnum,expected',
+                             [('O', 1, [[0, 2], [1, 5]])])
+    def testAppend(self, emol, expected):
         emol.append(emol.confs[0])
-        assert expected2 == [[x.gid, x.gids.max()] for x in emol.confs]
+        assert expected == [[x.gid, x.gids.max()] for x in emol.confs]
+
+    @pytest.mark.parametrize('smiles,cnum,expected',
+                             [('O', 1, (1,3, 2,6))])
+    def testExtend(self, smiles, emol, expected):
+        mol = structure.Mol.MolFromSmiles(smiles)
+        mol.extend(emol)
+        assert expected[:2] == mol.getNext()
+        mol.extend(emol)
+        assert expected[2:] == mol.getNext()
+
+    @pytest.mark.parametrize('smiles,cnum,expected',
+                             [('O', 1, (1,3)),
+                              ('O', 2, (2,6))])
+    def testGetStart(self, emol, expected):
+        assert expected == emol.getNext()
 
     @pytest.mark.parametrize('smiles,cnum,expected1,expected2',
                              [('O', 1, [[0, 2]], [[1, 5]])])

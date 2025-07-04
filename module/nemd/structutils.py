@@ -135,7 +135,7 @@ class PackedConf(Conf):
         """
         Reset.
         """
-        self.setPositions(self.oxyz)
+        self.SetPositions(self.oxyz)
 
 
 class GrownConf(PackedConf):

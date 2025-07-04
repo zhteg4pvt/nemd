@@ -101,6 +101,11 @@ class Id(Base):
     TYPE_COL = [TYPE_ID]
     COLUMNS = [ATOM1, TYPE_ID]
     SLICE = 0
+    _metadata = ['cached']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cached = None
 
     @classmethod
     def fromAtoms(cls, atoms):
@@ -119,7 +124,9 @@ class Id(Base):
         :param gids 'np.ndarray': map the atom ids to global ids.
         :return 'np.ndarray': the numpy array
         """
-        array = self.values.copy()
+        if self.cached is None:
+            self.cached = self.values
+        array = self.cached.copy()
         array[:, self.SLICE] = gids[array[:, self.SLICE]]
         return array
 
@@ -273,8 +280,7 @@ class Struct(structure.Struct):
 
         :return `Id`: information such as global ids and type ids.
         """
-        ids = [x.ids for x in self.conf]
-        return self.Id.concatenate(ids, self.atm_types) if ids else self.Id()
+        return self.Id.concatenate([x.ids for x in self.conf], self.atm_types)
 
     def GetPositions(self):
         """
@@ -282,7 +288,7 @@ class Struct(structure.Struct):
 
         :return 'np.ndarray': the coordinates.
         """
-        return np.concatenate([x.GetPositions() for x in self.conf] or [[]])
+        return np.concatenate([x.GetPositions() for x in self.conf])
 
     @property
     def masses(self, atoms=table.TABLE.reset_index()):

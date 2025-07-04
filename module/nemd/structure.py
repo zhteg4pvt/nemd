@@ -47,15 +47,6 @@ class Conf(Chem.rdchem.Conformer):
         """
         return self.mol
 
-    def setPositions(self, xyz):
-        """
-        Reset the positions of the atoms to the original xyz coordinates.
-
-        :param xyz `np.ndarray`: the xyz coordinates.
-        """
-        for idx in range(len(xyz)):
-            self.SetAtomPosition(idx, xyz[idx])
-
     def measure(self, aids):
         """
         Measure the position, bond length, angle degree, or dihedral angle.
@@ -102,6 +93,10 @@ class Mol(Chem.rdchem.Mol):
         self.vecs = vecs
         self.delay = delay
         self.confs = []
+        # FIXME: every aid maps to a gid, but some gids may not map back (e.g.
+        #  the virtual in tip4p water https://docs.lammps.org/Howto_tip4p.html)
+        #  coarse-grained may have multiple aids mapping to one single gid
+        #  united atom may have hydrogen aid mapping to None
         self.aids = np.arange(self.GetNumAtoms(), dtype=np.uint32)
         if self.delay:
             return
@@ -119,14 +114,13 @@ class Mol(Chem.rdchem.Mol):
             self.polym = getattr(mol, 'polym', False)
         if self.vecs is None:
             self.vecs = getattr(mol, 'vecs', False)
-        for conf in mol.GetConformers():
-            self.append(conf)
+        self.extend(mol)
 
     def GetConformers(self):
         """
         Get the conformers of the molecule.
 
-        :return `Conformer`: the selected conformer.
+        :return list of `Conformer`: the conformers.
         """
         return self.confs
 
@@ -136,15 +130,32 @@ class Mol(Chem.rdchem.Mol):
 
         :param conf `Chem.rdchem.Conformers`: the conformer to append.
         """
+        gid, start = self.getNext()
+        self.confs.append(self.Conf(conf, mol=self, gid=gid, start=start))
+
+    def extend(self, mol):
+        """
+        Extend all conformers.
+
+        :param mol `Chem.rdchem.Mol`: the original molecule.
+        """
+        gid, start = self.getNext()
+        size = self.aids.size
+        self.confs.extend(
+            self.Conf(x, mol=self, gid=gid + i, start=start + i * size)
+            for i, x in enumerate(mol.GetConformers()))
+
+    def getNext(self, start=(-1, -1)):
+        """
+        get the gid and the start of the gids.
+
+        :param gids tuple: the default previous gid and max previous gids.
+        :return tuple of int, int: the next gid and the start of gids.
+        """
         pre = next(reversed(self.confs), None)
-        gid = pre.gid + 1 if pre else 0
-        start = pre.gids.max() + 1 if pre else 0
-        # FIXME: every aid maps to a gid, but some gids may not map back (e.g.
-        #  the virtual in tip4p water https://docs.lammps.org/Howto_tip4p.html)
-        #  coarse-grained may have multiple aids mapping to one single gid
-        #  united atom may have hydrogen aid mapping to None
-        conf = self.Conf(conf, mol=self, gid=gid, start=start)
-        self.confs.append(conf)
+        if pre:
+            start = (pre.gid, pre.gids[-1])
+        return tuple(x + 1 for x in start)
 
     def shift(self, pre):
         """

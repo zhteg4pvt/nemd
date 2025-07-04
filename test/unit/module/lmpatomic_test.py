@@ -151,7 +151,7 @@ class TestStruct:
     def testIds(self, struct, expected):
         assert expected == struct.ids.shape
 
-    @pytest.mark.parametrize('cnum,expected', [(0, 0), (1, 1), (2, 2)])
+    @pytest.mark.parametrize('cnum,expected', [(1, 1), (2, 2)])
     def testGetPositions(self, struct, expected):
         assert expected == len(struct.GetPositions())
 

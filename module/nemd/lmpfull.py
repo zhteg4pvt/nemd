@@ -418,7 +418,7 @@ class Mol(lmpatomic.Mol):
             return
         xyz = self.GetConformer().GetPositions()
         for conf in self.GetConformers():
-            conf.setPositions(xyz)
+            conf.SetPositions(xyz)
 
     @functools.cached_property
     def charges(self):
@@ -755,9 +755,8 @@ class Struct(lmpatomic.Struct):
 
         :return 'np.ndarray': bond types and bonded atom ids.
         """
-        bonds = [
-            y.bonds for x in self.mols if not x.bonds.empty for y in x.confs
-        ]
+        mols = (x for x in self.mols if not x.bonds.empty)
+        bonds = [y.bonds for x in mols for y in x.confs]
         return Bond.concatenate(bonds, self.bnd_types)
 
     @functools.cached_property
@@ -767,9 +766,8 @@ class Struct(lmpatomic.Struct):
 
         :return 'np.ndarray': angle types and connected atom ids.
         """
-        angles = [
-            y.angles for x in self.mols if not x.angles.empty for y in x.confs
-        ]
+        mols = (x for x in self.mols if not x.angles.empty)
+        angles = [y.angles for x in mols for y in x.confs]
         return Angle.concatenate(angles, self.ang_types)
 
     @functools.cached_property
@@ -779,10 +777,8 @@ class Struct(lmpatomic.Struct):
 
         :return 'np.ndarray': dihedral types and connected atom ids.
         """
-        dihedrals = [
-            y.dihedrals for x in self.mols if not x.dihedrals.empty
-            for y in x.confs
-        ]
+        mols = (x for x in self.mols if not x.dihedrals.empty)
+        dihedrals = [y.dihedrals for x in mols for y in x.confs]
         return Dihedral.concatenate(dihedrals, self.dihe_types)
 
     @functools.cached_property
@@ -792,10 +788,8 @@ class Struct(lmpatomic.Struct):
 
         :return 'np.ndarray': improper types and connected atom ids.
         """
-        impropers = [
-            y.impropers for x in self.mols if not x.impropers.empty
-            for y in x.confs
-        ]
+        mols = (x for x in self.mols if not x.impropers.empty)
+        impropers = [y.impropers for x in mols for y in x.confs]
         return Improper.concatenate(impropers, self.impr_types)
 
     @property

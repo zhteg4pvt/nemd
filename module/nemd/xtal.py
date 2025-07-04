@@ -66,6 +66,6 @@ class Crystal(crystals.Crystal):
         mol = structure.Mol(mol, vecs=vecs)
         # Add conformer
         conf = structure.Conf(mol.GetNumAtoms())
-        conf.setPositions([x.coords_cartesian for x in atoms])
+        conf.SetPositions(np.array([x.coords_cartesian for x in atoms]))
         mol.AddConformer(conf)
         return mol
