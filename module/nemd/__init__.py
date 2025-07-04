@@ -16,7 +16,8 @@ def is_debug():
 
     :return bool: whether the debug modo is on.
     """
-    return bool(os.environ.get('DEBUG'))
+    if os.environ.get('DEBUG'):
+        return True
 
 
 if not is_debug():

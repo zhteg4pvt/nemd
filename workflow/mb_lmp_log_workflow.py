@@ -3,6 +3,7 @@
 """
 Runs molecule builder, lammps simulation, and log analyzer.
 """
+import functools
 import sys
 
 from nemd import jobcontrol
@@ -35,16 +36,18 @@ class Runner(jobcontrol.Runner):
         self.add(task.Lammps)
         self.add(task.LmpLog)
 
-    def setState(self):
+    @functools.cached_property
+    def state(self):
         """
-        Set the substruct flag which measures or sets certain geometry.
+        See parent.
         """
-        super().setState()
         if not self.options.struct_rg:
-            return
+            return {}
         smiles, vals = self.options.struct_rg[0], self.options.struct_rg[1:]
-        self.state[FLAG_SUBSTRUCT] = \
+        return {
+            FLAG_SUBSTRUCT:
             [f"{smiles} {x}" for x in np.arange(*vals)] if vals else [smiles]
+        }
 
     def setAggs(self):
         """

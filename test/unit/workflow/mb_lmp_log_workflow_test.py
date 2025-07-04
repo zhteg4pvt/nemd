@@ -21,8 +21,7 @@ class TestRunner:
         'original,expected',
         [(['CCC', '-struct_rg', 'CC'], ['CC']),
          (['CCC', '-struct_rg', 'CC', '1', '2', '0.5'], ['CC 1.0', 'CC 1.5'])])
-    def testSetState(self, runner, expected):
-        runner.setState()
+    def testState(self, runner, expected):
         assert expected == runner.state['-substruct']
 
     @pytest.mark.parametrize('original,expected',

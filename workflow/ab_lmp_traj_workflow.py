@@ -32,6 +32,9 @@ class Runner(jobcontrol.Runner):
 
 
 class Parser(parserutils.Workflow):
+    """
+    Customized for amorphous builder and trajectory analysis.
+    """
 
     @classmethod
     def add(cls, parser, **kwargs):

@@ -1,0 +1,2 @@
+python -m nemd.check cmp 0001/amorp_bldr.data amorp_bldr.data atol=1e-3 atol=3e-3
+python -m nemd.check cmp 0001/amorp_bldr.in amorp_bldr.in

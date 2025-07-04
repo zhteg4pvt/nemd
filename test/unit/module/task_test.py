@@ -137,7 +137,8 @@ class TestCmd:
                                                   ('0001_cmd', 154)])
     def testGetCmd(self, cmd, expected):
         cmd.setArgs()
-        assert expected == len(cmd.getCmd())
+        with osutils.chdir(cmd.jobs[0].path):
+            assert expected == len(cmd.getCmd())
 
 
 class TestCheck:

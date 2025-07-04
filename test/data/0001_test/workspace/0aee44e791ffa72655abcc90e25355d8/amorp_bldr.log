@@ -1,0 +1,34 @@
+..........Options..........
+cru: CC(C)O
+cru_num: 1
+mol_num: 1
+buffer: None
+density: 0.5
+method: grid
+substruct: None
+force_field: ('OPLSUA', 'TIP3P')
+timestep: 1
+stemp: 10
+temp: 300
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 1
+prod_time: 1
+prod_ens: NVE
+seed: 4321
+no_minimize: False
+NAME: amorp_bldr
+JOBNAME: amorp_bldr
+INTERAC: False
+PYTHON: 2
+CPU: 1
+DEBUG: None
+JobStart: 09:26:19 07/06/2025
+...........................
+WARNING: Box span / 2 (2.44 Å) < 11.00 Å (cutoff)
+Data file written into amorp_bldr.data
+In script written into amorp_bldr.in
+Finished.
+Peak memory usage: 183.6974 MB
+09:26:20 07/06/2025

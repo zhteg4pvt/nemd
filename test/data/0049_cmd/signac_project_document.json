@@ -1,1 +1,1 @@
-{"prereq": {"check": ["cmd"]}, "args": ["49", "-CPU", "1"], "_status": {}}
+{"prereq": {"check": ["cmd"]}, "args": ["49", "-clean", "-copy", "-CPU", "1"], "_status": {}}

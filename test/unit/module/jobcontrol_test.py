@@ -106,7 +106,6 @@ class TestRunner:
                               (dict(state_num=3), [1, 2, 3])])
     def testSetState(self, kwargs, expected):
         runner = jobcontrol.Runner(types.SimpleNamespace(**kwargs), [])
-        runner.setState()
         np.testing.assert_equal(runner.state.get('-seed'), expected)
 
     @pytest.mark.parametrize('original', [[]])
@@ -172,17 +171,27 @@ class TestRunner:
 
     @pytest.mark.parametrize('original,file,status,pre',
                              [(['-DEBUG'], True, True, None)])
-    @pytest.mark.parametrize('clear,rmtree,expected',
-                             [(False, False, 1), (True, False, 1),
-                              (True, True, SystemExit), (False, True, 1)])
-    def testSetAggProj(self, ran, clear, rmtree, expected, raises):
+    def testSetAggProj(self, ran):
+        ran.setAggProj()
+        assert ran.proj
+
+    @pytest.mark.parametrize('original', [(['-DEBUG'])])
+    def testSetAggProjClean(self, runner):
+        with pytest.raises(SystemExit):
+            runner.setAggProj()
+
+    @pytest.mark.parametrize('original,file,status,pre',
+                             [(['-DEBUG'], True, True, None)])
+    @pytest.mark.parametrize('clear,expected', [
+        (False, 1),
+        (True, 1),
+    ])
+    def testFindJobs(self, ran, clear, expected, raises):
         if clear:
             ran.jobs = []
-        if rmtree:
-            shutil.rmtree(ran.proj.workspace)
-        with raises:
-            ran.setAggProj()
-            assert expected == len(ran.jobs)
+        ran.setAggProj()
+        ran.findJobs()
+        assert expected == len(ran.jobs)
 
     @pytest.mark.parametrize('original,file,status,pre',
                              [(['-clean', '-DEBUG'], True, True, None)])

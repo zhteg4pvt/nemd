@@ -13,8 +13,9 @@ Supported check commands: exist, glob, has, cmp, and collect
 Supported tag commands: slow, label
 """
 import functools
-import glob
 import os
+import pathlib
+import shutil
 import sys
 
 from nemd import envutils
@@ -47,33 +48,31 @@ class Runner(jobcontrol.Runner):
         if test.Tag.name in self.options.task:
             self.add(task.Tag, pre=pre)
 
-    def setState(self):
+    def openJobs(self):
         """
-        Set state with test dirs.
+        See parent.
         """
-        self.state = {FLAG_DIRNAME: self.dirs}
+        for name in self.names:
+            dirname = self.options.dirname / name
+            state = {FLAG_DIRNAME: name if self.options.copy else str(dirname)}
+            job = self.proj.open_job(state).init()
+            self.jobs.append(job)
+            if self.options.copy:
+                shutil.copytree(dirname, os.path.join(job.path, name))
 
     @functools.cached_property
-    def dirs(self):
+    def names(self):
         """
-        Return the test directories.
+        Return the selected test names.
 
-        :return list: the selected test directories.
+        :return list: the selected test names.
         """
-        if self.options.id:
-            ids = [f"{x:0>4}" for x in self.options.id]
-            dirs = [os.path.join(self.options.dirname, x) for x in ids]
-            dirs = [x for x in dirs if os.path.isdir(x)]
-        else:
-            dirs = glob.glob(os.path.join(self.options.dirname, '[0-9]' * 4))
-
+        dirs = [self.options.dirname / x for x in self.options.id]
         if not dirs:
-            self.error(f'No valid tests found in {self.options.dirname}.')
-        dirs = [x for x in dirs if test.Tag(x, options=self.options).selected]
-        if not dirs:
-            self.error('All tests are skipped according to the tag files.')
-
-        return dirs
+            dirs = self.options.dirname.glob('[0-9]' * 4)
+        return [
+            x.name for x in dirs if test.Tag(x, options=self.options).selected
+        ]
 
     def logStatus(self):
         """
@@ -88,26 +87,26 @@ class Runner(jobcontrol.Runner):
         Set the aggregator operators.
         """
 
-        def select(job, dirs=self.dirs):
+        def select(job, names=self.names):
             """
             Select the jobs.
 
             :param job 'signac.job.Job': one found signac job.
-            :param dirs list: the selected dirnames. (RuntimeError of cannot
+            :param names list: the selected dirnames. (RuntimeError of cannot
                 pickle '_thread.RLock' object without explicitly passing)
             """
-            return job.sp[FLAG_DIRNAME] in dirs
+            return any(job.sp[FLAG_DIRNAME].endswith(x) for x in names)
 
         agg = flow.aggregator(select=select) if self.options.id else None
         self.add(task.TestAgg, aggregator=agg)
 
-    def setAggProj(self, filter=None):
+    def findJobs(self, filter=None):
         """
-        Customized to filter dirnames. (see parent)
+        See parent.
         """
-        if self.options.id:
-            filter = {"$or": [{FLAG_DIRNAME: x} for x in self.dirs]}
-        super().setAggProj(filter=filter)
+        if self.options.name:
+            filter = {FLAG_DIRNAME: {"$regex": f".*({'|'.join(self.names)})$"}}
+        super().findJobs(filter=filter)
 
 
 class TestValid(parserutils.Valid):
@@ -117,15 +116,38 @@ class TestValid(parserutils.Valid):
 
     def run(self):
         """
-        Main method to run the validation.
+        See parent.
+        """
+        self.dirname()
+        self.id()
+
+    def dirname(self):
+        """
+        Validate dirname.
 
         :raises FileNotFoundError: if the input directory cannot be located.
         """
         if self.options.dirname is None:
-            self.options.dirname = envutils.get_src('test', self.options.name)
-        if not self.options.dirname:
-            raise FileNotFoundError(
-                f'Cannot locate the test dir ({FLAG_DIRNAME}).')
+            dirname = envutils.get_src('test', self.options.name)
+            if dirname:
+                self.options.dirname = pathlib.Path(dirname)
+        if self.options.dirname and self.options.dirname.is_dir():
+            return
+        raise FileNotFoundError(f'Cannot locate the tests ({FLAG_DIRNAME}).')
+
+    def id(self):
+        """
+        Validate test ids.
+
+        :raises FileNotFoundError: no tests found.
+        """
+        if not self.options.id:
+            return
+        dirs = [self.options.dirname / f"{x:0>4}" for x in self.options.id]
+        dirs = [x for x in dirs if x.is_dir()]
+        if not dirs:
+            raise FileNotFoundError(f'No tests found: {self.options.dirname}.')
+        self.options.id = [x.name for x in dirs]
 
 
 class Parser(parserutils.Workflow):
@@ -170,6 +192,9 @@ class Parser(parserutils.Workflow):
                           default=[test.Cmd.name, test.Check.name],
                           help='cmd: run the commands in cmd file; '
                           'check: check the results; tag: update the tag file')
+        self.add_argument('-copy',
+                          action='store_true',
+                          help='Copy test data into the working directory.')
         self.valids.add(TestValid)
 
 

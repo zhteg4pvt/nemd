@@ -139,16 +139,20 @@ class Job(builtinsutils.Dict, builtinsutils.Object):
 
         :return: the job json file
         """
-        return self.getFile(self._file)
+        return self.fn(self._file)
 
-    def getFile(self, filename):
+    def fn(self, filename):
         """
         Get the pathname of a filename.
 
         :param filename str: the filename
         :return: the pathname
         """
-        return os.path.join(self.dirname, filename) if filename else filename
+        if filename is None:
+            return
+        if os.path.isabs(filename):
+            return filename
+        return os.path.join(self.dirname, filename)
 
     @property
     def outfile(self):
@@ -157,7 +161,7 @@ class Job(builtinsutils.Dict, builtinsutils.Object):
 
         :return: the outfile
         """
-        return self.getFile(self._outfile)
+        return self.fn(self._outfile)
 
     @property
     def logfile(self):
@@ -166,7 +170,7 @@ class Job(builtinsutils.Dict, builtinsutils.Object):
 
         :return: the logfile
         """
-        return self.getFile(self._logfile)
+        return self.fn(self._logfile)
 
     def write(self):
         """

@@ -6,12 +6,14 @@ parser utilities.
 import argparse
 import functools
 import os
+import pathlib
 import random
 
 from nemd import analyzer
 from nemd import builtinsutils
 from nemd import cru
 from nemd import envutils
+from nemd import is_debug
 from nemd import jobutils
 from nemd import lmpin
 from nemd import np
@@ -40,11 +42,12 @@ def type_dir(arg):
     Check directory existence.
 
     :param arg str: the input argument.
-    :return str: the existing directory path.
+    :return 'PosixPath': the existing directory path.
     :raise ArgumentTypeError: if the directory doesn't exist.
     """
-    if os.path.isdir(arg):
-        return arg
+    namepath = pathlib.Path(arg)
+    if namepath.is_dir():
+        return namepath
     raise argparse.ArgumentTypeError(f'{arg} is not an existing directory')
 
 
@@ -586,6 +589,7 @@ class Driver(argparse.ArgumentParser, builtinsutils.Object):
         if self.FLAG_DEBUG in self.JFLAGS:
             self.addBool(
                 self.FLAG_DEBUG,
+                default=is_debug(),
                 help='True allows additional printing and output files; '
                 'False disables the mode.')
 
@@ -1048,10 +1052,9 @@ class Workflow(Driver):
                 default=[symbols.TASK, symbols.AGGREGATOR],
                 help=f'{symbols.TASK}: run tasks and register files; '
                 f'{symbols.AGGREGATOR}: collect results.')
-            self.add_argument(
-                '-prj_path',
-                type=type_dir,
-                help='The aggregator jobs collect jobs from this directory.')
+            self.add_argument('-prj_path',
+                              type=type_dir,
+                              help='Collect jobs from this directory.')
         if self.FLAG_CLEAN in self.WFLAGS:
             self.add_argument(self.FLAG_CLEAN,
                               action='store_true',

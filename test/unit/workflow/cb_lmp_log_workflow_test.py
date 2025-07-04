@@ -22,8 +22,7 @@ class TestRunner:
     @pytest.mark.parametrize(
         'original,expected',
         [(['-scale_range', '0.95', '1.05', '0.05'], [0.95, 1.0, 1.05])])
-    def testSetState(self, runner, expected):
-        runner.setState()
+    def testState(self, runner, expected):
         np.testing.assert_almost_equal(runner.state['-scale_factor'], expected)
 
     @pytest.mark.parametrize('original,expected',

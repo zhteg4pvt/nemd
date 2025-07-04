@@ -11,6 +11,7 @@ This class handles jobs and aggregators:
     7) execute the operators
     8) log the status and message.
 """
+import functools
 import itertools
 import math
 import os
@@ -49,7 +50,6 @@ class Runner(logutils.Base):
         self.proj = None
         self.cpu = None
         self.prereq = {}
-        self.state = {}
         self.oprs = []
         self.jobs = []
         self.status = {}
@@ -71,7 +71,6 @@ class Runner(logutils.Base):
             self.setJobs()
             self.setProj()
             self.plotJobs()
-            self.setState()
             self.openJobs()
             self.setCpu()
             self.clean()
@@ -80,6 +79,7 @@ class Runner(logutils.Base):
         if symbols.AGGREGATOR in self.options.jtype:
             self.setAggs()
             self.setAggProj()
+            self.findJobs()
             self.clean(agg=True)
             self.runProj(agg=True)
 
@@ -153,23 +153,6 @@ class Runner(logutils.Base):
             nx.draw_networkx(graph, pos, ax=ax, labels=labels)
             fig.savefig(f"{self.options.JOBNAME}_nx.png")
 
-    def setState(self):
-        """
-        Set the parameter flags and values.
-        """
-        try:
-            seed_incre = np.arange(self.options.state_num)
-        except AttributeError:
-            return
-        # seed from 1 as EmbedMolecule assigns the same coordinates for 0 and 1
-        # mol = AllChem.MolFromSmiles("CCCC")
-        # for randomSeed in [0, 1]:
-        #     AllChem.EmbedMolecule(mol, randomSeed=randomSeed)
-        #     print(mol.GetConformer().GetPositions())
-        jobutils.pop_arg(self.args, self.FLAG_SEED)
-        seed = getattr(self.options, self.FLAG_SEED[1:], 1)
-        self.state[self.FLAG_SEED] = (seed_incre + seed) % symbols.MAX_INT32
-
     def openJobs(self):
         """
         Open one job for each parameter set.
@@ -177,11 +160,25 @@ class Runner(logutils.Base):
         for values in itertools.product(*self.state.values()):
             # e.g. arg = (['-seed', '0'], ['-scale_factor', '0.95'])
             state = {x: str(y) for x, y in zip(self.state.keys(), values)}
-            job = self.proj.open_job(state)
-            job.init()
-            self.jobs.append(job)
-        if not self.jobs:
-            self.error('No jobs to run.')
+            self.jobs.append(self.proj.open_job(state).init())
+
+    @functools.cached_property
+    def state(self):
+        """
+        Set the parameter flags and values.
+        """
+        try:
+            seed_incre = np.arange(self.options.state_num)
+        except AttributeError:
+            return {}
+        # seed from 1 as EmbedMolecule assigns the same coordinates for 0 and 1
+        # mol = AllChem.MolFromSmiles("CCCC")
+        # for randomSeed in [0, 1]:
+        #     AllChem.EmbedMolecule(mol, randomSeed=randomSeed)
+        #     print(mol.GetConformer().GetPositions())
+        jobutils.pop_arg(self.args, self.FLAG_SEED)
+        seed = getattr(self.options, self.FLAG_SEED[1:], 1)
+        return {self.FLAG_SEED: (seed_incre + seed) % symbols.MAX_INT32}
 
     def setCpu(self):
         """
@@ -219,6 +216,8 @@ class Runner(logutils.Base):
 
         :param agg bool: run aggregators instead of jobs.
         """
+        if not self.jobs:
+            self.error(f"No jobs to {'aggregate' if agg else 'run'}.")
         cpu = self.max_cpu if agg else self.cpu[0]
         prog = self.options.screen in [jobutils.PARALLEL, jobutils.JOB]
         jobs = None if agg else self.jobs
@@ -263,15 +262,18 @@ class Runner(logutils.Base):
     def setAggProj(self, filter=None):
         """
         Initiate the aggregation project.
-
-        :param filter dict: the parameter filter.
         """
         prj_path = self.proj.path if self.proj else self.options.prj_path
         try:
             self.proj = flow.project.FlowProject.get_project(prj_path)
         except LookupError as err:
             self.error(str(err))
+
+    def findJobs(self, filter=None):
+        """
+        Find the jobs to aggregate.
+
+        :param filter dict: the parameter filter.
+        """
         if not self.jobs:
             self.jobs = self.proj.find_jobs(filter=filter)
-        if not self.jobs:
-            self.error(f"No jobs to aggregate.")

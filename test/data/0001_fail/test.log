@@ -1,29 +1,30 @@
 ..........Options..........
-id: 1
+id: 0001
 name: integration
-dirname: /Users/zhteg4/git/nemd/test/integration
+dirname: /home/zhteg4/git/nemd/test/integration
 slow: None
 label: None
 task: cmd check
+copy: True
 NAME: test
 JOBNAME: test
 INTERAC: False
 PYTHON: 2
 CPU: None
-DEBUG: False
+DEBUG: None
 jtype: task aggregator
 prj_path: None
 clean: False
-screen: serial
-JobStart: 13:53:59 04/28/2025
+screen: off
+JobStart: 09:53:29 07/06/2025
 ...........................
-check in /Users/zhteg4/test/workspace/cab913cd09a661ad4e2585885ebed4a9/: /Users/zhteg4/git/nemd/test/integration/0001/amorp_bldr.data is different from amorp_bldr.data.
+check in /home/zhteg4/git/nemd/test/data/0001_fail/workspace/0aee44e791ffa72655abcc90e25355d8/: 0001/amorp_bldr.data is different from amorp_bldr.data.
 1 / 1 completed jobs.
 1 / 2 succeed sub-jobs.
-Task Total Timing: 00:00:02
+Task Total Timing: 00:00:01
 | amorp_bld   |
 |:------------|
-| 00:02 ave   |
-| 00:02 cab   |
+| 00:01 ave   |
+| 00:01 0ae   |
 Finished.
-13:54:05 04/28/2025
+09:53:31 07/06/2025

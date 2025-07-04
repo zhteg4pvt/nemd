@@ -69,11 +69,14 @@ def env(ekey, evalue):
 
     :param ekey str: The environmental keyword.
     :param evalue str: the environmental value.
-    :return environ dict: the environment.
     """
-    environ = {} if evalue is None else {ekey: evalue}
+    environ = os.environ.copy()
+    if evalue is None:
+        environ.pop(ekey, None)
+    else:
+        environ[ekey] = evalue
     with mock.patch.dict('os.environ', environ, clear=True):
-        yield environ
+        yield
 
 
 @pytest.fixture

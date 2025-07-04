@@ -70,11 +70,12 @@ class TestJob:
         assert expected == os.path.isfile(job.file)
 
     @pytest.mark.parametrize('jobname', ['jobname'])
-    @pytest.mark.parametrize('dirname,filename,expected',
-                             [(NEMD_SRC, 'myfile', 'myfile'),
-                              (None, 'filename', 'filename')])
-    def testGetFile(self, job, filename, expected):
-        dirname, filename = os.path.split(job.getFile(filename))
+    @pytest.mark.parametrize(
+        'dirname,filename,expected',
+        [(NEMD_SRC, 'myfile', 'myfile'), (None, 'filename', 'filename'),
+         (None, os.path.join(os.getcwd(), 'name'), 'name')])
+    def testFn(self, job, filename, expected):
+        dirname, filename = os.path.split(job.fn(filename))
         assert expected == filename
         assert os.path.isdir(dirname)
 
@@ -91,7 +92,7 @@ class TestJob:
 
     @pytest.mark.parametrize('dirname', [
         os.path.join('0049_test', 'workspace',
-                     '58cfa7519a72301a30d16f7310437c03')
+                     '3ec5394f589c9363bd15af35d45a7c44')
     ])
     @pytest.mark.parametrize(
         'jobname,expected',

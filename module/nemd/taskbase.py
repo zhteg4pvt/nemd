@@ -7,6 +7,7 @@ Under jobcontrol:
  3) Cmd generates the cmd for execution
 """
 import functools
+import os
 import re
 import types
 

@@ -3,6 +3,7 @@
 """
 Runs crystal builder, lammps simulation, and log analyser.
 """
+import functools
 import sys
 
 from nemd import jobcontrol
@@ -25,13 +26,15 @@ class Runner(jobcontrol.Runner):
         self.add(task.Lammps, jobname='lammps_runner')
         self.add(task.LmpLog)
 
-    def setState(self):
+    @functools.cached_property
+    def state(self):
         """
-        Set the scale factor flag which compress or expand the supercell.
+        See parent.
         """
-        super().setState()
-        self.state[parserutils.XtalBldr.FLAG_SCALED_FACTOR] = np.arange(
-            *self.options.scale_range)
+        return {
+            parserutils.XtalBldr.FLAG_SCALED_FACTOR:
+            np.arange(*self.options.scale_range)
+        }
 
     def setAggs(self):
         """

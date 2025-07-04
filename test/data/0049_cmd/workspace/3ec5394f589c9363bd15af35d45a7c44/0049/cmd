@@ -1,0 +1,2 @@
+# Performance: [Ar] Amorphous Builder
+MEM_INTVL=1 nemd_run amorp_bldr_driver.py [Ar] -method grid -mol_num $param -seed 1

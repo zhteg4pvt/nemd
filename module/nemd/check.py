@@ -204,7 +204,8 @@ class Collect(Exist):
         index = pd.Index(params, name=name.replace('_', ' '))
         columns = [self.COLUMNS[x] for x in self.args]
         self.data = pd.DataFrame(data, index=index, columns=columns)
-        self.data.dropna(inplace=True, axis=1)
+        self.data.dropna(inplace=True, axis=1, how='all')
+        self.data.dropna(inplace=True, axis=0)
         try:
             self.data.index = self.data.index.astype(float)
         except ValueError:

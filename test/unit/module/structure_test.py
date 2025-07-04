@@ -55,8 +55,7 @@ class TestMol:
         emol.append(emol.confs[0])
         assert expected == [[x.gid, x.gids.max()] for x in emol.confs]
 
-    @pytest.mark.parametrize('smiles,cnum,expected',
-                             [('O', 1, (1,3, 2,6))])
+    @pytest.mark.parametrize('smiles,cnum,expected', [('O', 1, (1, 3, 2, 6))])
     def testExtend(self, smiles, emol, expected):
         mol = structure.Mol.MolFromSmiles(smiles)
         mol.extend(emol)
@@ -64,9 +63,8 @@ class TestMol:
         mol.extend(emol)
         assert expected[2:] == mol.getNext()
 
-    @pytest.mark.parametrize('smiles,cnum,expected',
-                             [('O', 1, (1,3)),
-                              ('O', 2, (2,6))])
+    @pytest.mark.parametrize('smiles,cnum,expected', [('O', 1, (1, 3)),
+                                                      ('O', 2, (2, 6))])
     def testGetStart(self, emol, expected):
         assert expected == emol.getNext()
 

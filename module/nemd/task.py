@@ -18,13 +18,14 @@ from nemd import analyzer
 from nemd import jobutils
 from nemd import lmpin
 from nemd import logutils
-from nemd import osutils
 from nemd import parserutils
 from nemd import rdkitutils
 from nemd import symbols
 from nemd import taskbase
 from nemd import test
 from nemd import timeutils
+
+FLAG_DIRNAME = jobutils.FLAG_DIRNAME
 
 
 class MolBldr(taskbase.Cmd):
@@ -152,7 +153,7 @@ class Cmd(taskbase.Cmd):
 
         :return `test.Cmd`: the cmd object.
         """
-        return test.Cmd(self.jobs[0].statepoint[jobutils.FLAG_DIRNAME])
+        return test.Cmd(self.job.fn(self.jobs[0].statepoint[FLAG_DIRNAME]))
 
     def addQuot(self):
         """
@@ -223,7 +224,8 @@ class Cmd(taskbase.Cmd):
 
         :return bool: True when all output files are set.
         """
-        return len(self.getJobs()) >= max(1, len(self.param.args))
+        return len([x for x in self.getJobs()
+                    if x.logfile]) >= max(1, len(self.param.args))
 
     def clean(self):
         """
@@ -258,10 +260,9 @@ class Check(taskbase.Job):
         """
         Main method to execute.
         """
-        with osutils.chdir(self.job.dirname):
-            dirname = self.jobs[0].statepoint[jobutils.FLAG_DIRNAME]
-            obj = self.TestClass(dirname, options=self.options)
-            self.out = obj.run() or True
+        dirname = self.jobs[0].statepoint[FLAG_DIRNAME]
+        obj = self.TestClass(dirname, options=self.options)
+        self.out = obj.run() or True
 
 
 class Tag(Check):
@@ -385,18 +386,18 @@ class TestAgg(TimeAgg):
         """
         if not any([self.options.id, self.options.label, self.options.slow]):
             return
-        jobs = {x.statepoint[jobutils.FLAG_DIRNAME]: x for x in self.jobs}
+        jobs = {x.statepoint[FLAG_DIRNAME]: x for x in self.jobs}
         if self.options.id:
             jobs = {
                 x: y
                 for x, y in jobs.items()
-                if int(os.path.basename(x)) in self.options.id
+                if os.path.basename(x) in self.options.id
             }
         if self.options.label or self.options.slow:
             jobs = {
                 x: y
                 for x, y in jobs.items()
-                if test.Tag(x, options=self.options).selected
+                if test.Tag(y.fn(x), options=self.options).selected
             }
         self.jobs = list(jobs.values())
 

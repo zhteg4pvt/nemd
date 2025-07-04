@@ -111,7 +111,7 @@ class TestCmp:
 
 class TestCollect:
     TEST0049 = os.path.join('0049_test', 'workspace',
-                            '58cfa7519a72301a30d16f7310437c03')
+                            '3ec5394f589c9363bd15af35d45a7c44')
 
     @pytest.fixture
     def collect(self, args, copied):

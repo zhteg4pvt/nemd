@@ -6,6 +6,7 @@ import pytest
 import test_workflow
 
 from nemd import envutils
+from nemd import np
 from nemd import test
 
 
@@ -112,9 +113,9 @@ class TestCheck:
 class TestTag:
 
     TEST0001 = os.path.join('0001_test', 'workspace',
-                            'cab913cd09a661ad4e2585885ebed4a9')
+                            '0aee44e791ffa72655abcc90e25355d8')
     TEST0049 = os.path.join('0049_test', 'workspace',
-                            '58cfa7519a72301a30d16f7310437c03')
+                            '3ec5394f589c9363bd15af35d45a7c44')
 
     @pytest.fixture
     def tag(self, dirname, args):
@@ -128,11 +129,11 @@ class TestTag:
 
     @pytest.mark.parametrize(
         'dirname,expected',
-        [('empty', None), (TEST0001, ['bldr', '00:00:02']),
-         (TEST0049, ['50000', '00:00:03', '100', '00:00:01'])])
+        [('empty', None), (TEST0001, ['bldr', '00:00:01']),
+         (TEST0049, ['100', '00:00:01', '50000', '00:00:02'])])
     def testSetSlow(self, ntag, expected):
         ntag.setSlow()
-        assert expected == ntag.tags.get('slow')
+        np.testing.assert_equal(ntag.tags.get('slow'), expected)
 
     @pytest.mark.parametrize('dirname,expected', [('empty', 0), (TEST0001, 1),
                                                   (TEST0049, 2)])

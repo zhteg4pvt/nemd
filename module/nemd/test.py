@@ -6,6 +6,7 @@ checking, and labels.
 """
 import functools
 import os
+import pathlib
 import re
 
 from nemd import check
@@ -31,9 +32,8 @@ class Base(logutils.Base):
         :param options 'argparse.ArgumentParser': Parsed command-line options
         """
         super().__init__(**kwargs)
-        self.dirname = dirname
-        self.jobname = os.path.basename(self.dirname)
-        self.infile = os.path.join(self.dirname, self.name)
+        self.dirname = pathlib.Path(dirname)
+        self.infile = self.dirname / self.name
 
     def getHeader(self, args=None):
         """
@@ -43,7 +43,7 @@ class Base(logutils.Base):
         :return str: the header
         """
         msg = symbols.SEMICOLON.join(args or self.args)
-        return f"{self.jobname}: {msg}" if msg else self.jobname
+        return f"{self.dirname.name}: {msg}" if msg else self.dirname.name
 
     @functools.cached_property
     def args(self):
@@ -198,13 +198,13 @@ class Tag(Base):
         """
         Set the slow tag with the total job time from the driver log files.
         """
-        jobnames = [x.options.JOBNAME for x in self.logs]
-        parms = [x.split('_')[-1] for x in jobnames]
-        times = [timeutils.delta2str(x.task_time) for x in self.logs]
-        slow = [y for x in zip(parms, times) for y in x]
-        if not slow:
+        if not self.logs:
             return
-        self.tags[self.SLOW] = slow
+        jobnames = [x.options.JOBNAME for x in self.logs]
+        param = [x.split('_')[-1] for x in jobnames]
+        task_time = [timeutils.delta2str(x.task_time) for x in self.logs]
+        data = pd.DataFrame(dict(param=param, task_time=task_time))
+        self.tags[self.SLOW] = data.sort_values(by='param').values.flatten()
 
     @functools.cached_property
     def logs(self):

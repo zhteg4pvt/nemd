@@ -162,7 +162,7 @@ class TestScript:
                     reason="cannot locate test dir")
 class TestReader:
     AMORP_LOG = envutils.test_data('0001_test', 'workspace',
-                                   'cab913cd09a661ad4e2585885ebed4a9',
+                                   '0aee44e791ffa72655abcc90e25355d8',
                                    'amorp_bldr.log')
     MB_LMP_LOG = envutils.test_data('0046_test', 'mb_lmp_log.log')
 
@@ -193,16 +193,16 @@ class TestReader:
         assert onum == len(raw.cropOptions())
         assert num == len(raw.lines)
 
-    @pytest.mark.parametrize('data,task_time', [(AMORP_LOG, '0:00:02'),
+    @pytest.mark.parametrize('data,task_time', [(AMORP_LOG, '0:00:01'),
                                                 (MB_LMP_LOG, '0:00:07')])
     def testTaskTime(self, task_time, reader):
         assert task_time == str(reader.task_time)
 
     @pytest.mark.parametrize('data', [AMORP_LOG])
     @pytest.mark.parametrize('dtype,expected',
-                             [('start', '2025-06-20 21:27:08'),
-                              ('end', '2025-06-20 21:27:10'),
-                              ('delta', '0:00:02')])
+                             [('start', '2025-07-06 09:26:19'),
+                              ('end', '2025-07-06 09:26:20'),
+                              ('delta', '0:00:01')])
     def testTime(self, dtype, expected, reader):
         assert expected == str(reader.time(dtype=dtype))
 

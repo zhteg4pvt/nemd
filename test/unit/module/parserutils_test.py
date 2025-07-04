@@ -504,7 +504,8 @@ class TestWorkflow:
     def testAddWorkflow(self, args, expected):
         parser = parserutils.Workflow()
         options = parser.parse_args(args)
+        prj_path = options.prj_path._str if options.prj_path else None
         assert expected == [
-            options.state_num, options.jtype, options.prj_path, options.clean,
+            options.state_num, options.jtype, prj_path, options.clean,
             options.screen
         ]
