@@ -731,11 +731,12 @@ class Struct(lmpatomic.Struct):
             self.dihedrals.write(self.hdl)
             self.impropers.write(self.hdl)
 
-    def getAtomic(self):
+    @property
+    def atoms(self):
         """
         See parent.
         """
-        return zip(self.ids.values, self.charges, self.GetPositions())
+        return self.Atom.fromData(self.ids, self.charges, self.GetPositions())
 
     @functools.cached_property
     def charges(self):
@@ -754,7 +755,9 @@ class Struct(lmpatomic.Struct):
 
         :return 'np.ndarray': bond types and bonded atom ids.
         """
-        bonds = [y.bonds for x in self.mols for y in x.confs]
+        bonds = [
+            y.bonds for x in self.mols if not x.bonds.empty for y in x.confs
+        ]
         return Bond.concatenate(bonds, self.bnd_types)
 
     @functools.cached_property
@@ -764,7 +767,9 @@ class Struct(lmpatomic.Struct):
 
         :return 'np.ndarray': angle types and connected atom ids.
         """
-        angles = [y.angles for x in self.mols for y in x.confs]
+        angles = [
+            y.angles for x in self.mols if not x.angles.empty for y in x.confs
+        ]
         return Angle.concatenate(angles, self.ang_types)
 
     @functools.cached_property
@@ -774,8 +779,11 @@ class Struct(lmpatomic.Struct):
 
         :return 'np.ndarray': dihedral types and connected atom ids.
         """
-        dihes = [y.dihedrals for x in self.mols for y in x.confs]
-        return Dihedral.concatenate(dihes, self.dihe_types)
+        dihedrals = [
+            y.dihedrals for x in self.mols if not x.dihedrals.empty
+            for y in x.confs
+        ]
+        return Dihedral.concatenate(dihedrals, self.dihe_types)
 
     @functools.cached_property
     def impropers(self):
@@ -784,8 +792,11 @@ class Struct(lmpatomic.Struct):
 
         :return 'np.ndarray': improper types and connected atom ids.
         """
-        imprps = [y.impropers for x in self.mols for y in x.confs]
-        return Improper.concatenate(imprps, self.impr_types)
+        impropers = [
+            y.impropers for x in self.mols if not x.impropers.empty
+            for y in x.confs
+        ]
+        return Improper.concatenate(impropers, self.impr_types)
 
     @property
     def masses(self):

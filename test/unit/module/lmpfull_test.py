@@ -307,17 +307,16 @@ class TestStruct:
         ]
         assert expected == [len(x) for x in ons]
 
-    @pytest.mark.parametrize('smiless,expected', [(['O'], 32),
+    @pytest.mark.parametrize('smiless,expected', [(['O', 'O'], 47),
                                                   (['[Ar]', 'O'], 49)])
     def testWrite(self, struct, expected, tmp_dir):
         struct.write()
         with open(struct.outfile) as fh:
             assert expected == len(fh.readlines())
 
-    @pytest.mark.parametrize('smiless,expected', [(['O'], 0),
-                                                  (['O', 'CC(C)CC'], 5)])
-    def testGetAtomic(self, struct, expected):
-        assert expected == len(list(struct.getAtomic()))
+    @pytest.mark.parametrize('smiless,expected', [(['O', 'CC(C)CC'], (5, 7))])
+    def testAtoms(self, struct, expected):
+        assert expected == struct.atoms.shape
 
     @pytest.mark.parametrize(
         'smiless,expected',

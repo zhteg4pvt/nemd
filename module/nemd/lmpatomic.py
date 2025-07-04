@@ -149,9 +149,20 @@ class Atom(Id):
 
     def write(self, *args, index_column=ATOM1, **kwargs):
         """
-        See the parent class.
+        See parent.
         """
         super().write(*args, index_column=index_column, **kwargs)
+
+    @classmethod
+    def fromData(cls, ids, *args):
+        """
+        Construct atom from ids and non-integer data types.
+
+        :param ids 'Id': the ids (integer data types).
+        """
+        atoms = cls(np.concatenate((ids.values, *args), axis=1))
+        atoms[ids.COLUMNS] = atoms[ids.COLUMNS].astype(np.uint32)
+        return atoms
 
 
 class Conf(structure.Conf):
@@ -253,15 +264,7 @@ class Struct(structure.Struct):
 
         :return `Atom`: atoms.
         """
-        return self.Atom([[z for y in x for z in y] for x in self.getAtomic()])
-
-    def getAtomic(self):
-        """
-        Get the atomic information.
-
-        :return `tuple: the atomic information.
-        """
-        return zip(self.ids.values, self.GetPositions())
+        return self.Atom.fromData(self.ids, self.GetPositions())
 
     @functools.cached_property
     def ids(self):

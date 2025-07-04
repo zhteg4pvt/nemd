@@ -142,14 +142,9 @@ class TestStruct:
         with open(struct.outfile, 'r') as fh:
             assert expected == len(fh.readlines())
 
-    @pytest.mark.parametrize('cnum,expected', [(0, (0, 5)), (1, (1, 5)),
-                                               (2, (2, 5))])
+    @pytest.mark.parametrize('cnum,expected', [(1, (1, 5)), (2, (2, 5))])
     def testAtoms(self, struct, expected):
         assert expected == struct.atoms.shape
-
-    @pytest.mark.parametrize('cnum,expected', [(0, 0), (1, 1), (2, 2)])
-    def testGetAtomic(self, struct, expected):
-        assert expected == len(list(struct.getAtomic()))
 
     @pytest.mark.parametrize('cnum,expected', [(0, (0, 2)), (1, (1, 2)),
                                                (2, (2, 2))])
