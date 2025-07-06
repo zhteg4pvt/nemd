@@ -198,23 +198,19 @@ class Tag(Base):
         """
         Set the slow tag with the total job time from the driver log files.
         """
-        if not self.logs:
+        if self.collected.empty:
             return
-        jobnames = [x.options.JOBNAME for x in self.logs]
-        param = [x.split('_')[-1] for x in jobnames]
-        task_time = [timeutils.delta2str(x.task_time) for x in self.logs]
-        data = pd.DataFrame(dict(param=param, task_time=task_time))
-        self.tags[self.SLOW] = data.sort_values(by='param').values.flatten()
+        task_time = self.collected.task_time.map(timeutils.delta2str)
+        self.tags[self.SLOW] = task_time.reset_index().values.flatten()
 
     @functools.cached_property
-    def logs(self):
+    def collected(self):
         """
-        Set the log readers.
+        Return the collected log data.
+
+        :return 'pd.DataFrame': the collected data.
         """
-        return [
-            logutils.Reader(x.logfile) for x in jobutils.Job.search()
-            if x.logfile
-        ]
+        return logutils.Reader.collect('task_time', 'NAME')
 
     @functools.cached_property
     def tags(self):
@@ -230,7 +226,7 @@ class Tag(Base):
         Set the label of the job.
         """
         labels = self.tags.get(self.LABEL, [])
-        labels += [x.options.NAME for x in self.logs]
+        labels += [x for x in self.collected.NAME]
         if not labels:
             return
         self.tags[self.LABEL] = list(set(labels))
@@ -239,7 +235,8 @@ class Tag(Base):
         """
         Write the tag file.
         """
-        lines = [symbols.SPACE.join([x] + y) for x, y in self.tags.items()]
+        lines = [[x, *y] for x, y in self.tags.items()]
+        lines = [symbols.SPACE.join(x) for x in lines]
         self.log(self.getHeader(lines))
         with open(self.infile, 'w') as fh:
             for line in lines:

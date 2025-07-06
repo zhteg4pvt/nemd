@@ -165,6 +165,8 @@ class TestReader:
                                    '0aee44e791ffa72655abcc90e25355d8',
                                    'amorp_bldr.log')
     MB_LMP_LOG = envutils.test_data('0046_test', 'mb_lmp_log.log')
+    TEST0049 = os.path.join('0049_test', 'workspace',
+                            '3ec5394f589c9363bd15af35d45a7c44')
 
     @pytest.fixture
     def raw(self, data):
@@ -210,6 +212,16 @@ class TestReader:
                                           (MB_LMP_LOG, None)])
     def testMemory(self, mem, reader):
         assert mem == reader.memory
+
+    @pytest.mark.parametrize('dirname,columns,expected',
+                             [('0049', ['task_time'], (0, 1)),
+                              (TEST0049, ['task_time'], (2, 1)),
+                              (TEST0049, ['task_time', 'memory'], (2, 1)),
+                              ('0049_ubuntu', ['task_time', 'memory'], (2, 2)),
+                              ('0049_ubuntu', ['memory'], (2, 1))])
+    def testCollect(self, columns, expected, copied):
+        assert expected == logutils.Reader.collect(*columns).shape
+
 
 
 class TestBase:

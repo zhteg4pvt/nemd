@@ -189,32 +189,18 @@ class Collect(Exist):
         self.set()
         self.plot()
 
-    def set(self):
+    def set(self, func=lambda x: x.total_seconds() / 60):
         """
         Set the time and memory data from the log files.
+
+        :param func 'func': map the task time from seconds to minutes.
         """
-        files = {x.jobname: x.logfile for x in jobutils.Job.search()}
-        files = {x: y for x, y in files.items() if y and os.path.exists(y)}
-        if not files:
-            return
-        rdrs = [logutils.Reader(x) for x in files.values()]
-        data = [[getattr(x, y) for y in self.args] for x in rdrs]
-        name = rdrs[0].options.NAME
-        params = [x.removeprefix(name)[1:] for x in files.keys()]
-        index = pd.Index(params, name=name.replace('_', ' '))
-        columns = [self.COLUMNS[x] for x in self.args]
-        self.data = pd.DataFrame(data, index=index, columns=columns)
-        self.data.dropna(inplace=True, axis=1, how='all')
-        self.data.dropna(inplace=True, axis=0)
-        try:
-            self.data.index = self.data.index.astype(float)
-        except ValueError:
-            pass
-        else:
-            self.data.sort_index(axis=0, inplace=True)
+        self.data = logutils.Reader.collect(*self.args)
+        self.data.rename(columns=self.COLUMNS, inplace=True)
         if self.TIME_MIN in self.data.columns:
-            time = [x.total_seconds() / 60. for x in self.data[self.TIME_MIN]]
-            self.data[self.TIME_MIN] = time
+            self.data[self.TIME_MIN] = self.data[self.TIME_MIN].map(func)
+        if self.data.empty:
+            return
         self.data.to_csv(self.outfile)
         jobutils.Job.reg(self.outfile)
 
@@ -222,7 +208,7 @@ class Collect(Exist):
         """
         Plot the data. Time and memory are plotted together if possible.
         """
-        if self.data is None:
+        if self.data.empty:
             return
         twinx_lbs = [self.TWINX.get(x) for x in self.args]
         for col in self.data.columns.difference(twinx_lbs):

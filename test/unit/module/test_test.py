@@ -129,7 +129,7 @@ class TestTag:
 
     @pytest.mark.parametrize(
         'dirname,expected',
-        [('empty', None), (TEST0001, ['bldr', '00:00:01']),
+        [('empty', None), (TEST0001, ['amorp_bldr', '00:00:01']),
          (TEST0049, ['100', '00:00:01', '50000', '00:00:02'])])
     def testSetSlow(self, ntag, expected):
         ntag.setSlow()
@@ -137,9 +137,8 @@ class TestTag:
 
     @pytest.mark.parametrize('dirname,expected', [('empty', 0), (TEST0001, 1),
                                                   (TEST0049, 2)])
-    def testLogs(self, ntag, expected):
-        ntag.setSlow()
-        assert expected == len(ntag.logs)
+    def testCollected(self, ntag, expected):
+        assert expected == len(ntag.collected)
 
     @pytest.mark.parametrize('args', [[]])
     @pytest.mark.parametrize('dirname,expected', [('empty', 0), ('0001', 2),

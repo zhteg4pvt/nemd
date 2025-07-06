@@ -120,15 +120,12 @@ class TestCollect:
         return collect
 
     @pytest.mark.parametrize('dirname,args,expected',
-                             [('0049', ['task_time'], None),
-                              (TEST0049, ['task_time'], (2, 1)),
-                              (TEST0049, ['task_time', 'memory'], (2, 1)),
-                              ('0049_ubuntu', ['task_time', 'memory'], (2, 2)),
-                              ('0049_ubuntu', ['memory'], (2, 1))])
+                             [('0049', ['task_time'], (0, 1)),
+                              ('0049_ubuntu', ['task_time', 'memory'], (2, 2))])
     def testSet(self, collect, expected):
         collect.set()
-        assert expected == (collect.data.shape if expected else collect.data)
-        assert bool(expected) == os.path.isfile('collect.csv')
+        assert expected == collect.data.shape
+        assert bool(expected[0]) == os.path.isfile('collect.csv')
 
     @pytest.mark.parametrize('dirname,args,expected',
                              [('0049', ['task_time'], 0),

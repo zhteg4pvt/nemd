@@ -5,7 +5,6 @@ Creates loggers for modules and scripts, log messages and options, parse log
 files, and redirect stdout and stderr.
 """
 import contextlib
-import functools
 import io
 import logging
 import os
@@ -20,6 +19,7 @@ from nemd import builtinsutils
 from nemd import envutils
 from nemd import is_debug
 from nemd import jobutils
+from nemd import pd
 from nemd import psutils
 from nemd import symbols
 from nemd import timeutils
@@ -363,6 +363,36 @@ class Reader:
             if not match:
                 continue
             return float(match.group(1))
+
+    @classmethod
+    def collect(cls, *columns, key=lambda x: x.astype(float)):
+        """
+        Collect data from the log files.
+
+        :param columns tuple: reader property and options attribute names.
+        :param key func: the function to sort index.
+        :return 'pd.DataFrame': the collected data.
+        """
+        rdrs = [cls(x.logfile) for x in jobutils.Job.search() if x.logfile]
+        if not rdrs:
+            return pd.DataFrame(columns=columns)
+        name = next(iter(rdrs)).options.NAME
+        rex = re.compile(rf"{name}_(.*)")
+        jobnames = [x.options.JOBNAME for x in rdrs]
+        matches = [rex.match(x) for x in jobnames]
+        params = [x.group(1) for x in matches] if all(matches) else jobnames
+        index = pd.Index(params, name=name.replace('_', ' '))
+        data = [[
+            getattr(x if hasattr(x, y) else x.options, y) for y in columns
+        ] for x in rdrs]
+        data = pd.DataFrame(data, index=index, columns=columns)
+        data.dropna(inplace=True, axis=1, how='all')
+        data.dropna(inplace=True, axis=0)
+        try:
+            data.sort_index(axis=0, key=key, inplace=True)
+        except ValueError:
+            data.sort_index(axis=0)
+        return data
 
 
 class Base(builtinsutils.Object):
