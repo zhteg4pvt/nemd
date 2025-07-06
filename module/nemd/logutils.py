@@ -344,7 +344,7 @@ class Reader:
             return stime
         try:
             dtime = timeutils.dtime(self.lines[-1][-self.TIME_LEN:])
-        except ValueError:
+        except (ValueError, IndexError):
             return
         if dtype == self.END:
             return dtime
