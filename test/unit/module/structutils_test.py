@@ -261,13 +261,16 @@ class TestBox:
         assert (box.hi.max() >= points.max()).all()
 
 
+@pytest.mark.parametrize('smiles,cnum,seed', [(('CCCCCC'), 2, 0)])
 class TestPackFrame:
 
     @pytest.mark.parametrize(
         'file,expected',
-        [(envutils.test_data('hexane_liquid', 'dump.custom'), 8000)])
-    def testGetPoint(self, frm, expected):
-        pnts = structutils.PackFrame(frm).getPoints()
+        [(envutils.test_data('hexane_liquid', 'dump.custom'), 1000)])
+    def testGetPoint(self, frm, mols, expected):
+        options = parserutils.AmorpBldr().parse_args(['CCCCCC'])
+        struct = structutils.PackedStruct.fromMols(mols, options=options)
+        pnts = structutils.PackFrame(frm, struct=struct).getPoints()
         assert expected == pnts.shape[0] == np.unique(pnts, axis=0).shape[0]
         assert (frm.box.lo.min() <= pnts.min()).all()
         assert (frm.box.hi.max() >= pnts.max()).all()

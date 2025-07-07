@@ -17,6 +17,7 @@ import itertools
 import logging
 import math
 
+import methodtools
 import numpy as np
 import rdkit
 import scipy
@@ -461,20 +462,31 @@ class PackFrame(dist.Frame):
     Customized for packing.
     """
 
-    def getPoints(self):
+    def getPoints(self, size=1000):
         """
         Get randomized points.
 
+        :param size int: the number of points.
         :return `np.ndarray`: each row is a point.
         """
         if self.cell is None:
-            return self.box.getPoints()
+            return self.box.getPoints(size=size)
         nodes = ~self.cell.cell.any(axis=3)
         nodes = np.array(nodes.nonzero()).transpose()
-        np.random.shuffle(nodes)
+        nodes = self.rng.choice(nodes, size=size, replace=False)
         randomized = nodes + np.random.normal(0, 0.5, nodes.shape)
         wrapped = randomized % self.cell.dims
         return wrapped * self.cell.grids + self.box.lo.values
+
+    @methodtools.lru_cache()
+    @property
+    def rng(self):
+        """
+        Return a seeded Generator.
+
+        :return 'numpy.random.Generator': seeded random Generator.
+        """
+        return np.random.default_rng(seed=self.struct.options.seed)
 
 
 class GrownFrame(PackFrame):

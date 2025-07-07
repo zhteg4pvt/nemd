@@ -1,0 +1,2 @@
+# Amorphous builder on large number of CCCC via pack method
+nemd_run amorp_bldr_driver.py CCCC -method pack -mol_num $param -seed 1
