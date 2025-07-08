@@ -42,7 +42,7 @@ def delta2str(delta, fmt=HMS_FMT):
     """
     try:
         return (HMS_ZERO + delta).strftime(fmt)
-    except TypeError:
+    except (TypeError, ValueError):
         return 'nan'
 
 

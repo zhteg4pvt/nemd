@@ -89,7 +89,8 @@ class CellOrig:
         self.grids = self.span / self.dims
         shape = (self.dims[0], self.dims[1], self.dims[2], self.frm.shape[0])
         self.cell = np.zeros(shape, dtype=np.bool_)
-        self.nbrs = self.getNbrs(*self.cell.shape[:3])
+        self.nbrs = self.getNbrs(*shape[:3])
+        self.empty = np.ones(shape[:3], dtype=np.bool_)
 
     def set(self, gids, state=True):
         """
@@ -100,6 +101,8 @@ class CellOrig:
         """
         ixs, iys, izs = self.getCid(gids).transpose()
         self.cell[ixs, iys, izs, gids] = state
+        self.empty[ixs, iys, izs] = \
+            not (state or self.cell[ixs, iys, izs].any())
 
     def getCid(self, gids):
         """
@@ -153,7 +156,8 @@ class CellOrig:
                               ('cut', numba.float64), ('dims', numba.int64[:]),
                               ('grids', numba.float64[:]),
                               ('nbrs', numba.int64[:, :, :, :, :]),
-                              ('cell', numba.boolean[:, :, :, :])])
+                              ('cell', numba.boolean[:, :, :, :]),
+                              ('empty', numba.boolean[:, :, :])])
 class CellNumba(CellOrig):
     """
     See the parent. (accelerated by numba)
@@ -166,6 +170,8 @@ class CellNumba(CellOrig):
         for gid in gids:
             cid = self.getCid(gid)
             self.cell[cid[0], cid[1], cid[2], gid] = state
+            self.empty[cid[0], cid[1], cid[2]] = \
+                not (state or self.cell[cid[0], cid[1], cid[2]].any())
 
     def get(self, gid, less=False):
         """

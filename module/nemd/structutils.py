@@ -54,7 +54,8 @@ class Conf(lmpfull.Conf):
         centroid = Chem.rdMolTransforms.ComputeCentroid(self,
                                                         weights=weights,
                                                         ignoreHs=ignoreHs)
-        return np.array(centroid)
+        # Directly access x, y, and, z is 140x faster than np.array(centroid)
+        return np.array([centroid.x, centroid.y, centroid.z])
 
     def rotate(self, rotation, mtrx=np.identity(4)):
         """
@@ -462,27 +463,32 @@ class PackFrame(dist.Frame):
     Customized for packing.
     """
 
-    def getPoints(self, size=1000):
+    def getPoints(self, size=1000, psize=100):
         """
         Get randomized points.
 
-        :param size int: the number of points.
+        :param size int: the number of points from box.
+        :param psize int: the number of points from distance cell.
         :return `np.ndarray`: each row is a point.
         """
-        if self.cell is None:
+        if self.cell is None or (self.cell.dims.prod()
+                                 < self.struct.conf_total):
             return self.box.getPoints(size=size)
-        nodes = ~self.cell.cell.any(axis=3)
-        nodes = np.array(nodes.nonzero()).transpose()
-        nodes = self.rng.choice(nodes, size=size, replace=False)
-        randomized = nodes + np.random.normal(0, 0.5, nodes.shape)
-        wrapped = randomized % self.cell.dims
-        return wrapped * self.cell.grids + self.box.lo.values
+        # Empty nodes favor the centers.
+        nodes = np.array(self.cell.empty.nonzero()).transpose()
+        nodes = self.rng.choice(nodes,
+                                size=min([psize, len(nodes)]),
+                                replace=False)
+        normal = np.random.normal(0, 0.5, nodes.shape)
+        wrapped = (nodes + normal) % self.cell.dims
+        points = wrapped * self.cell.grids + self.box.lo.values
+        return np.concatenate((points, self.box.getPoints(size=size)))
 
     @methodtools.lru_cache()
     @property
     def rng(self):
         """
-        Return a seeded Generator.
+        A seeded Generator.
 
         :return 'numpy.random.Generator': seeded random Generator.
         """

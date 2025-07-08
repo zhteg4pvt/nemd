@@ -223,7 +223,6 @@ class TestReader:
         assert expected == logutils.Reader.collect(*columns).shape
 
 
-
 class TestBase:
 
     @pytest.fixture
