@@ -91,6 +91,7 @@ class CellOrig:
         self.cell = np.zeros(shape, dtype=np.bool_)
         self.nbrs = self.getNbrs(*shape[:3])
         self.empty = np.ones(shape[:3], dtype=np.bool_)
+        self.uniq = np.zeros(shape[:3], dtype=np.bool_)
 
     def set(self, gids, state=True):
         """
@@ -117,17 +118,36 @@ class CellOrig:
     def get(self, gid, less=False):
         """
         Get the neighbor atom ids from the neighbor cells (including the current
-        cell itself)
+        cell itself).
 
-        :param gid list of int: the global atom ids
+        :param gid int: the global atom ids
         :param gt bool: only include the global atom ids greater than the gid
-        :return list of ints: the neighbor atom ids around the coordinates
+        :return list of int: the neighbor atom ids around the coordinates
         """
         cids = map(tuple, self.nbrs[tuple(self.getCid(gid))])
         gids = [self.cell[x].nonzero()[0] for x in cids if not self.empty[x]]
         if less:
             gids = [x[x < gid] for x in gids]
         return [y for x in gids for y in x]
+
+    def gidsGet(self, gids):
+        """
+        Get the neighbor atom ids from the neighbor cells (including the current
+        cell itself).
+
+        :param gids list of int: the global atom ids
+        :return list of ints: the neighbor atom ids around the coordinates
+        """
+        cids = tuple(self.getCid(gids).transpose())
+        self.uniq[cids] = True
+        cids = self.uniq.nonzero()
+        self.uniq[cids] = False
+        for nbr in self.nbrs[cids]:
+            self.uniq[tuple(nbr.transpose())] = True
+        nbrs = self.uniq.nonzero()
+        self.uniq[nbrs] = False
+        nbrs = np.array(nbrs)[:, ~self.empty[nbrs]]
+        return self.cell[tuple(np.array(nbrs))].nonzero()[1]
 
     @classmethod
     @functools.cache
@@ -157,7 +177,8 @@ class CellOrig:
                               ('grids', numba.float64[:]),
                               ('nbrs', numba.int64[:, :, :, :, :]),
                               ('cell', numba.boolean[:, :, :, :]),
-                              ('empty', numba.boolean[:, :, :])])
+                              ('empty', numba.boolean[:, :, :]),
+                              ('uniq', numba.boolean[:, :, :])])
 class CellNumba(CellOrig):
     """
     See the parent. (accelerated by numba)
@@ -180,9 +201,37 @@ class CellNumba(CellOrig):
         cid = self.getCid(gid)
         cids = self.nbrs[cid[0], cid[1], cid[2], :]
         # The atom ids from all neighbor cells
-        gids = [self.cell[x[0], x[1], x[2], :].nonzero()[0] for x in cids if not self.empty[x[0], x[1], x[2]]]
+        gids = [
+            self.cell[x[0], x[1], x[2], :].nonzero()[0] for x in cids
+            if not self.empty[x[0], x[1], x[2]]
+        ]
         if less:
             gids = [x[x < gid] for x in gids]
+        return [y for x in gids for y in x]
+
+    def gidsGet(self, gids):
+        """
+        Get the neighbor atom ids from the neighbor cells (including the current
+        cell itself).
+
+        :param gids list of int: the global atom ids
+        :return list of ints: the neighbor atom ids around the coordinates
+        """
+        cids = [self.getCid(x) for x in gids]
+        for cid in cids:
+            self.uniq[cid[0], cid[1], cid[2]] = True
+        cids = np.stack(self.uniq.nonzero()).transpose()
+        for cid in cids:
+            self.uniq[cid[0], cid[1], cid[2]] = False
+        for cid in cids:
+            for nbr in self.nbrs[cid[0], cid[1], cid[2]]:
+                if self.empty[nbr[0], nbr[1], nbr[2]]:
+                    continue
+                self.uniq[nbr[0], nbr[1], nbr[2]] = True
+        nbrs =  np.stack(self.uniq.nonzero()).transpose()
+        for nbr in nbrs:
+            self.uniq[nbr[0], nbr[1], nbr[2]] = False
+        gids = [self.cell[x[0], x[1], x[2]].nonzero()[0] for x in nbrs]
         return [y for x in gids for y in x]
 
     @staticmethod
@@ -314,6 +363,22 @@ class Frame(frame.Base):
         clshs = (self.getClash(x, grp=y, less=less) for x, y in zip(grp, grps))
         return [y for x in clshs for y in x]
 
+    def hasClash(self, gids, grp=None):
+        """
+        Whether the selected atoms have clashes with the existing atoms.
+
+        :param gids list: global atom ids for atom selection.
+        :return bool: whether the selected atoms have clashes.
+        """
+        if self.cell is not None:
+            grp = self.cell.gidsGet(gids)
+        dists = (self.getClash(x, grp=grp, less=False) for x in gids)
+        try:
+            next(itertools.chain.from_iterable(dists))
+        except StopIteration:
+            return False
+        return True
+
     def getClash(self, gid, grp=None, less=True):
         """
         Get the clashes between xyz and atoms in the frame.
@@ -329,20 +394,6 @@ class Frame(frame.Base):
         dists = self.box.norms(self[gids, :] - self[gid, :])
         thresholds = self.radii.get(gid, gids)
         return dists[np.nonzero(dists < thresholds)]
-
-    def hasClash(self, gids):
-        """
-        Whether the selected atoms have clashes with the existing atoms.
-
-        :param gids list: global atom ids for atom selection.
-        :return bool: whether the selected atoms have clashes.
-        """
-        dists = (self.getClash(x, less=False) for x in gids)
-        try:
-            next(itertools.chain.from_iterable(dists))
-        except StopIteration:
-            return False
-        return True
 
     @methodtools.lru_cache()
     @property

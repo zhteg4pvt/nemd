@@ -149,7 +149,7 @@ class Param(Base):
             match = rex.search(self.first)
             if match:
                 label = match.group(1)
-        return label.lower().replace(' ', '_') if label else self.name
+        return label.replace(' ', '_') if label else self.name
 
 
 class Check(Base):
