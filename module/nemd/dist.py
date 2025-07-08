@@ -123,8 +123,8 @@ class CellOrig:
         :param gt bool: only include the global atom ids greater than the gid
         :return list of ints: the neighbor atom ids around the coordinates
         """
-        cids = self.nbrs[tuple(self.getCid(gid))]
-        gids = [self.cell[tuple(x)].nonzero()[0] for x in cids]
+        cids = map(tuple, self.nbrs[tuple(self.getCid(gid))])
+        gids = [self.cell[x].nonzero()[0] for x in cids if not self.empty[x]]
         if less:
             gids = [x[x < gid] for x in gids]
         return [y for x in gids for y in x]
@@ -180,7 +180,7 @@ class CellNumba(CellOrig):
         cid = self.getCid(gid)
         cids = self.nbrs[cid[0], cid[1], cid[2], :]
         # The atom ids from all neighbor cells
-        gids = [self.cell[x[0], x[1], x[2], :].nonzero()[0] for x in cids]
+        gids = [self.cell[x[0], x[1], x[2], :].nonzero()[0] for x in cids if not self.empty[x[0], x[1], x[2]]]
         if less:
             gids = [x[x < gid] for x in gids]
         return [y for x in gids for y in x]
