@@ -389,9 +389,13 @@ class Reader:
         data.dropna(inplace=True, axis=1, how='all')
         data.dropna(inplace=True, axis=0)
         try:
-            data.sort_index(axis=0, key=key, inplace=True)
+            data.index = data.index.astype(int)
         except ValueError:
-            data.sort_index(axis=0)
+            try:
+                data.index = data.index.astype(int)
+            except ValueError:
+                pass
+        data.sort_index(axis=0, key=key, inplace=True)
         return data
 
 
