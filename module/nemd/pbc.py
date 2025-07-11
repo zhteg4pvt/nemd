@@ -353,6 +353,15 @@ class BoxNumba(Base):
         """
         return np.array(numbautils.norms(vecs, self.span))
 
+    def getPoints(self, size=1000):
+        """
+        Get randomized points.
+
+        :param size int: the number of points.
+        :return `np.ndarray`: each row is a point.
+        """
+        return np.random.rand(size, 3) * self.span + self.lo.values
+
 
 class BoxOrig(BoxNumba):
     """

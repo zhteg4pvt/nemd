@@ -2,6 +2,7 @@ import copy
 import os
 
 import numpy as np
+import numba as nb
 import pytest
 
 from nemd import dist
@@ -65,8 +66,10 @@ class TestCellOrig:
     def testSet(self, cell, gids):
         cell.set(gids)
         assert set(gids) == set(cell.cell.nonzero()[-1])
+        assert cell.cell[(~cell.empty).nonzero()].any(axis=1).all()
         cell.set(gids, state=False)
         assert 0 == cell.cell.nonzero()[-1].size
+        assert cell.empty.all()
 
     @pytest.mark.parametrize('file,cut,gids,expected',
                              [(HEX_FRM, 10, [0, 6], [[3, 2, 2], [2, 0, 2]])])
@@ -80,6 +83,13 @@ class TestCellOrig:
     def testGet(self, cell, gids, gid, less, expected):
         cell.set(gids)
         assert expected == cell.get(gid, less=less)
+
+    @pytest.mark.parametrize('file,cut', [(HEX_FRM, 10)])
+    @pytest.mark.parametrize('to_set,gids,expected', [([1,2,7], [0], [1, 2]),
+                                                      ([1,2,7], [0,6], [7, 1, 2])])
+    def testGidsGet(self, cell, to_set, gids, expected):
+        cell.set(to_set)
+        np.testing.assert_equal(cell.gidsGet(gids), expected)
 
     @pytest.mark.parametrize('dims,expected',
                              [((2, 2, 2), (2, 2, 2, 27, 3)),
@@ -111,8 +121,10 @@ class TestCellNumba:
     def testSet(self, cell, gids):
         cell.set(gids)
         assert set(gids) == set(cell.cell.nonzero()[-1])
+        cell.cell[(~cell.empty).nonzero()].any(axis=1).all()
         cell.set(gids, False)
         assert 0 == cell.cell.nonzero()[-1].size
+        assert cell.empty.all()
 
     @pytest.mark.parametrize(
         'file,cut,gids,expected',
@@ -128,6 +140,13 @@ class TestCellNumba:
     def testGet(self, cell, gids, gid, less, expected):
         cell.set(gids)
         assert expected == cell.get(gid, less)
+
+    @pytest.mark.parametrize('file,cut', [(HEX_FRM, 10)])
+    @pytest.mark.parametrize('to_set,gids,expected', [([1,2,7], [0], [1, 2]),
+                                                      ([1,2,7], [0,6], [7, 1, 2])])
+    def testGidsGet(self, cell, to_set, gids, expected):
+        cell.set(nb.typed.List(to_set))
+        np.testing.assert_equal(cell.gidsGet(nb.typed.List(gids)), expected)
 
     @pytest.mark.parametrize('dims,expected',
                              [((2, 2, 2), (2, 2, 2, 27, 3)),
@@ -215,7 +234,7 @@ class TestFrame:
                               (True, [0, 1], [203], False),
                               (False, [0, 1], [203], True)])
     def testHasClash(self, fr, grp, expected):
-        assert expected == fr.hasClash(grp)
+        assert expected == fr.hasClash(nb.typed.List(grp))
 
     @pytest.mark.parametrize('file,cut,gids,srch',
                              [(HEX_FRM, None, None, None)])

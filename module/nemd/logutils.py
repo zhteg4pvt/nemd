@@ -365,12 +365,11 @@ class Reader:
             return float(match.group(1))
 
     @classmethod
-    def collect(cls, *columns, key=lambda x: x.astype(float)):
+    def collect(cls, *columns):
         """
         Collect data from the log files.
 
         :param columns tuple: reader property and options attribute names.
-        :param key func: the function to sort index.
         :return 'pd.DataFrame': the collected data.
         """
         rdrs = [cls(x.logfile) for x in jobutils.Job.search() if x.logfile]
@@ -395,7 +394,7 @@ class Reader:
                 data.index = data.index.astype(int)
             except ValueError:
                 pass
-        data.sort_index(axis=0, key=key, inplace=True)
+        data.sort_index(axis=0, inplace=True)
         return data
 
 

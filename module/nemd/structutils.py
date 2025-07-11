@@ -443,21 +443,6 @@ class GriddedStruct(Struct):
         return np.concatenate(xyzs, dtype=np.float32)
 
 
-class Box(pbc.Box):
-    """
-    Customized box class for packed structures.
-    """
-
-    def getPoints(self, size=1000):
-        """
-        Get randomized points.
-
-        :param size int: the number of points.
-        :return `np.ndarray`: each row is a point.
-        """
-        return np.random.rand(size, 3) * self.span + self.lo.values
-
-
 class PackFrame(dist.Frame):
     """
     Customized for packing.
@@ -550,7 +535,7 @@ class PackedStruct(Struct):
         vol = self.molecular_weight / self.density / scipy.constants.Avogadro
         edge = math.pow(vol, 1 / 3)  # centimeter
         edge *= scipy.constants.centi / scipy.constants.angstrom
-        box = Box.fromParams(edge, tilted=False)
+        box = pbc.Box.fromParams(edge, tilted=False)
         logger.debug(f'Cubic box of size {edge:.2f} angstrom is created.')
         return box
 

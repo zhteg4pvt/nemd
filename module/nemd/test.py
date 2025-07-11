@@ -236,7 +236,7 @@ class Tag(Base):
         Write the tag file.
         """
         lines = [[x, *y] for x, y in self.tags.items()]
-        lines = [symbols.SPACE.join(x) for x in lines]
+        lines = [symbols.SPACE.join(map(str, x)) for x in lines]
         self.log(self.getHeader(lines))
         with open(self.infile, 'w') as fh:
             for line in lines:

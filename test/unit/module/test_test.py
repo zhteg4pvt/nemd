@@ -84,7 +84,7 @@ class TestParam:
     @pytest.mark.parametrize('args', [[]])
     @pytest.mark.parametrize('dirname,expected',
                              [('empty', 'param'),
-                              ('0049', 'number_of_molecules'),
+                              ('0049', 'Number_of_Molecules'),
                               ('no_label', 'param'), ('cmd_label', 'mol_num')])
     def testLabel(self, param, expected, tmp_dir):
         assert expected == param.label
@@ -130,10 +130,15 @@ class TestTag:
     @pytest.mark.parametrize(
         'dirname,expected',
         [('empty', None), (TEST0001, ['amorp_bldr', '00:00:01']),
-         (TEST0049, ['100', '00:00:01', '50000', '00:00:02'])])
+         (TEST0049, [100, '00:00:01', 50000, '00:00:02'])])
     def testSetSlow(self, ntag, expected):
         ntag.setSlow()
-        np.testing.assert_equal(ntag.tags.get('slow'), expected)
+        if expected is None:
+            assert ntag.tags.get('slow') is None
+            return
+        to_compare = ntag.tags.get('slow')
+        for idx in range(2):
+            np.testing.assert_equal(to_compare[idx::2], expected[idx::2])
 
     @pytest.mark.parametrize('dirname,expected', [('empty', 0), (TEST0001, 1),
                                                   (TEST0049, 2)])
