@@ -228,7 +228,7 @@ class CellNumba(CellOrig):
                 if self.empty[nbr[0], nbr[1], nbr[2]]:
                     continue
                 self.uniq[nbr[0], nbr[1], nbr[2]] = True
-        nbrs =  np.stack(self.uniq.nonzero()).transpose()
+        nbrs = np.stack(self.uniq.nonzero()).transpose()
         for nbr in nbrs:
             self.uniq[nbr[0], nbr[1], nbr[2]] = False
         gids = [self.cell[x[0], x[1], x[2]].nonzero()[0] for x in nbrs]

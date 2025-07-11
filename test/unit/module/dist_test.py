@@ -1,8 +1,8 @@
 import copy
 import os
 
-import numpy as np
 import numba as nb
+import numpy as np
 import pytest
 
 from nemd import dist
@@ -85,8 +85,9 @@ class TestCellOrig:
         assert expected == cell.get(gid, less=less)
 
     @pytest.mark.parametrize('file,cut', [(HEX_FRM, 10)])
-    @pytest.mark.parametrize('to_set,gids,expected', [([1,2,7], [0], [1, 2]),
-                                                      ([1,2,7], [0,6], [7, 1, 2])])
+    @pytest.mark.parametrize('to_set,gids,expected',
+                             [([1, 2, 7], [0], [1, 2]),
+                              ([1, 2, 7], [0, 6], [7, 1, 2])])
     def testGidsGet(self, cell, to_set, gids, expected):
         cell.set(to_set)
         np.testing.assert_equal(cell.gidsGet(gids), expected)
@@ -142,8 +143,9 @@ class TestCellNumba:
         assert expected == cell.get(gid, less)
 
     @pytest.mark.parametrize('file,cut', [(HEX_FRM, 10)])
-    @pytest.mark.parametrize('to_set,gids,expected', [([1,2,7], [0], [1, 2]),
-                                                      ([1,2,7], [0,6], [7, 1, 2])])
+    @pytest.mark.parametrize('to_set,gids,expected',
+                             [([1, 2, 7], [0], [1, 2]),
+                              ([1, 2, 7], [0, 6], [7, 1, 2])])
     def testGidsGet(self, cell, to_set, gids, expected):
         cell.set(nb.typed.List(to_set))
         np.testing.assert_equal(cell.gidsGet(nb.typed.List(gids)), expected)

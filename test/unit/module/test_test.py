@@ -128,9 +128,9 @@ class TestTag:
         return test.Tag(os.curdir)
 
     @pytest.mark.parametrize(
-        'dirname,expected',
-        [('empty', None), (TEST0001, ['amorp_bldr', '00:00:01']),
-         (TEST0049, [100, '00:00:01', 50000, '00:00:02'])])
+        'dirname,expected', [('empty', None),
+                             (TEST0001, ['amorp_bldr', '00:00:01']),
+                             (TEST0049, [100, '00:00:01', 50000, '00:00:02'])])
     def testSetSlow(self, ntag, expected):
         ntag.setSlow()
         if expected is None:

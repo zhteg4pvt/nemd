@@ -197,11 +197,13 @@ class GrownConf(PackedConf):
         self.frag.reset()
         self.mol.struct.dist.set(self.init, state=False)
         self.setConformer()
-        dists = self.mol.struct.dist.getDists(self.init)
-        if len(dists):
-            logger.debug(f"Initiator {self.gid} relocated {dists.min():.2f} "
-                         f"away. ({self.mol.struct.dist.getDists().min():.2f} "
-                         "to initiators)")
+        if self.mol.struct.conf_total > 1 and self.mol.struct.options.DEBUG:
+            logger.debug(
+                f"Initiator {self.gid} is relocated "
+                f"{self.mol.struct.dist.getDists(self.init).min():.2f} "
+                f"{symbols.ANGSTROM} away from other atoms, and is "
+                f"{self.mol.struct.dist.getDists().min():.2f} "
+                f"{symbols.ANGSTROM} away from other initiators.")
 
     def setConformer(self, **kwargs):
         """
@@ -634,7 +636,7 @@ class GrownStruct(PackedStruct):
             self.placed[-1] -= len([x for x in confs if x.frag is not None])
             return
         logger.debug(f'{self.conf_total} initiators have been placed.')
-        if self.conf_total != 1:
+        if self.conf_total != 1 and self.options.DEBUG:
             logger.debug(f'Closest contact: {self.dist.getDists().min():.2f}')
         confs = collections.deque([x for x in self.conf if x.frag])
         while confs:
