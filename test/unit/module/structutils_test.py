@@ -86,8 +86,10 @@ class TestPackedConf:
 class TestGrownConf:
 
     @pytest.fixture
-    def conf(self, smol, random_seed):
-        struct = structutils.GrownStruct.fromMols([smol])
+    def conf(self, smiles, smol, random_seed):
+        parser = parserutils.AmorpBldr()
+        options = parser.parse_args([smiles, '-density', '0.5'])
+        struct = structutils.GrownStruct.fromMols([smol], options=options)
         struct.setFrame()
         struct.dist.set([0, 1, 2])
         return next(itertools.islice(struct.conf, 1, 2))
@@ -250,25 +252,14 @@ class TestGriddedStruct:
         np.testing.assert_almost_equal(xyz.max(axis=0), expected)
 
 
-class TestBox:
-
-    @pytest.mark.parametrize('seed,al,size', [(0, 10, 1000), (0, 20, 100)])
-    def testGetPoint(self, al, size, random_seed):
-        box = structutils.Box.fromParams(al)
-        points = box.getPoints(size=size)
-        assert size == points.shape[0] == np.unique(points, axis=0).shape[0]
-        assert (box.lo.min() <= points.min()).all()
-        assert (box.hi.max() >= points.max()).all()
-
-
 @pytest.mark.parametrize('smiles,cnum,seed', [(('CCCCCC'), 2, 0)])
 class TestPackFrame:
 
     @pytest.mark.parametrize(
         'file,expected',
         [(envutils.test_data('hexane_liquid', 'dump.custom'), 1100)])
-    def testGetPoints(self, frm, mols, expected):
-        options = parserutils.AmorpBldr().parse_args(['CCCCCC'])
+    def testGetPoints(self, frm, smiles, mols, expected):
+        options = parserutils.AmorpBldr().parse_args(smiles)
         struct = structutils.PackedStruct.fromMols(mols, options=options)
         pnts = structutils.PackFrame(frm, struct=struct).getPoints()
         assert expected == pnts.shape[0] == np.unique(pnts, axis=0).shape[0]
@@ -280,8 +271,9 @@ class TestPackFrame:
 class TestGrownFrame:
 
     @pytest.fixture
-    def dist(self, mols, random_seed):
-        struct = structutils.GrownStruct.fromMols(mols)
+    def dist(self, smiles, mols, random_seed):
+        options = parserutils.AmorpBldr().parse_args(smiles)
+        struct = structutils.GrownStruct.fromMols(mols, options=options)
         struct.run()
         return struct.dist
 
@@ -294,8 +286,9 @@ class TestGrownFrame:
 class TestPackedStruct:
 
     @pytest.fixture
-    def struct(self, mols, random_seed):
-        return structutils.PackedStruct.fromMols(mols)
+    def struct(self, smiles, mols, random_seed):
+        options = parserutils.AmorpBldr().parse_args(smiles)
+        return structutils.PackedStruct.fromMols(mols, options=options)
 
     def testRun(self, struct):
         assert struct.run()
@@ -349,8 +342,9 @@ class TestPackedStruct:
 class TestGrownStruct:
 
     @pytest.fixture
-    def struct(self, mols, random_seed):
-        return structutils.GrownStruct.fromMols(mols)
+    def struct(self, smiles, mols, random_seed):
+        options = parserutils.AmorpBldr().parse_args(smiles)
+        return structutils.GrownStruct.fromMols(mols, options=options)
 
     @pytest.mark.parametrize('pidx,gidx,expected', [(None, None, 4),
                                                     (3, None, 1),

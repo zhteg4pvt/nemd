@@ -115,6 +115,7 @@ class SinglePoint(Base):
         self.data()
         self.coeff()
         self.traj()
+        self.thermo()
         self.minimize()
         self.timestep()
         self.simulation()
@@ -161,6 +162,13 @@ class SinglePoint(Base):
         self.dump(self.DUMP_ID, 'all', 'custom', self.DUMP_Q,
                   f"{self.options.JOBNAME}{self.CUSTOM_EXT}", 'id')
         self.dump_modify(self.DUMP_ID, sort=True)
+
+    def thermo(self):
+        """
+        Set thermo.
+        """
+        self.append('thermo 1000')
+        self.append('thermo_modify flush yes')
 
     def dump(self, idx, *args, xyz=True, force=False):
         """
@@ -220,8 +228,6 @@ class SinglePoint(Base):
         if not self.options.temp:
             return
         self.join(self.TIMESTEP, self.getTimestep())
-        self.append('thermo_modify flush yes')
-        self.append('thermo 1000')
 
     def simulation(self):
         """

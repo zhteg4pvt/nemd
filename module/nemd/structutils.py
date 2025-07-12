@@ -201,7 +201,7 @@ class GrownConf(PackedConf):
             logger.debug(
                 f"Initiator {self.gid} is relocated "
                 f"{self.mol.struct.dist.getDists(self.init).min():.2f} "
-                f"{symbols.ANGSTROM} away from other atoms, and is "
+                f"{symbols.ANGSTROM} away from other atoms and "
                 f"{self.mol.struct.dist.getDists().min():.2f} "
                 f"{symbols.ANGSTROM} away from other initiators.")
 

@@ -145,6 +145,14 @@ class TestBoxNumba:
         vecs = np.array([vec])
         np.testing.assert_almost_equal(box.norms(vecs), expected)
 
+    @pytest.mark.parametrize('tilted', [False])
+    @pytest.mark.parametrize('params,size', [([10], 1000), ([20], 100)])
+    def testGetPoint(self, box, size):
+        points = box.getPoints(size=size)
+        assert size == points.shape[0] == np.unique(points, axis=0).shape[0]
+        assert (box.lo.min() <= points.min()).all()
+        assert (box.hi.max() >= points.max()).all()
+
 
 class TestBoxOrig:
 

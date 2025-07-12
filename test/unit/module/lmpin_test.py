@@ -68,6 +68,10 @@ class TestSinglePoint:
         single.data()
         assert 'read_data name.data' == single[0]
 
+    def testThermo(self, single):
+        single.thermo()
+        assert 2 == len(single)
+
     def testTraj(self, single):
         single.traj()
         assert 2 == len(single)
@@ -105,7 +109,7 @@ class TestSinglePoint:
         single.minimize(geo=geo)
         assert (expected in single) if expected else (2 == len(single))
 
-    @pytest.mark.parametrize('temp,expected', [(300, 3), (0, 0)])
+    @pytest.mark.parametrize('temp,expected', [(300, 1), (0, 0)])
     def testTimestep(self, single, expected, temp):
         single.options.temp = temp
         single.timestep()
