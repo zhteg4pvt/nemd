@@ -308,6 +308,7 @@ class Reader:
                 case Logger.OPTIONS_END:
                     end = idx
                     break
+
         else:
             return []
         option_lines = self.lines[start + 1:end]
@@ -382,7 +383,7 @@ class Reader:
         params = [x.group(1) for x in matches] if all(matches) else jobnames
         index = pd.Index(params, name=name.replace('_', ' '))
         data = [[
-            getattr(x if hasattr(x, y) else x.options, y) for y in columns
+            getattr(x if hasattr(x, y) else x.options, y, None) for y in columns
         ] for x in rdrs]
         data = pd.DataFrame(data, index=index, columns=columns)
         data.dropna(inplace=True, axis=1, how='all')

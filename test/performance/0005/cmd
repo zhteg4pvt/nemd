@@ -1,0 +1,2 @@
+# Amorphous builder on large number of [CC]50 via grow method
+nemd_run amorp_bldr_driver.py *CC* -method grow -cru_num 50 -mol_num $param -seed 1
