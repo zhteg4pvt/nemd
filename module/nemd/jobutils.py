@@ -114,8 +114,8 @@ class Job(builtinsutils.Dict, builtinsutils.Object):
     """
     File-centered job applications.
     """
-
     JOB_DOC = f'.{{jobname}}_document{symbols.JSON_EXT}'
+    JOB_PATT = JOB_DOC.format(jobname='*')
 
     def __init__(self, jobname=None, dirname=None):
         """
@@ -189,19 +189,18 @@ class Job(builtinsutils.Dict, builtinsutils.Object):
             pass
 
     @classmethod
-    def search(cls, dirname=None, patt=JOB_DOC.format(jobname='*')):
+    def search(cls, dirname=None):
         """
         Search the directory and return the found jobs.
 
-        :param dirname 'str': the job driname
-        :param patt str: the pattern to search job json files
+        :param dirname 'str': the job dirname
         :return 'Job' list: the jobs in the directory
         """
-        patt = os.path.join(dirname if dirname else os.getcwd(), patt)
+        patt = os.path.join(dirname if dirname else os.getcwd(), cls.JOB_PATT)
         return [Job.fromFile(x) for x in glob.glob(patt)]
 
     @staticmethod
-    def fromFile(pathname, rex=re.compile(JOB_DOC.format(jobname=r'(.*)'))):
+    def fromFile(pathname, rex=re.compile(JOB_PATT)):
         """
         Get the job based on the job json file.
 
