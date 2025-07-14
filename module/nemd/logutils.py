@@ -377,13 +377,14 @@ class Reader:
         if not rdrs:
             return pd.DataFrame(columns=columns)
         name = next(iter(rdrs)).options.NAME
-        rex = re.compile(rf"{name}_(.*)")
+        rex = re.compile(rf"{re.escape(name)}_(.*)")
         jobnames = [x.options.JOBNAME for x in rdrs]
         matches = [rex.match(x) for x in jobnames]
         params = [x.group(1) for x in matches] if all(matches) else jobnames
         index = pd.Index(params, name=name.replace('_', ' '))
         data = [[
-            getattr(x if hasattr(x, y) else x.options, y, None) for y in columns
+            getattr(x if hasattr(x, y) else x.options, y, None)
+            for y in columns
         ] for x in rdrs]
         data = pd.DataFrame(data, index=index, columns=columns)
         data.dropna(inplace=True, axis=1, how='all')

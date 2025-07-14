@@ -144,10 +144,10 @@ class TestValid(parserutils.Valid):
         if not self.options.id:
             return
         dirs = [self.options.dirname / f"{x:0>4}" for x in self.options.id]
-        dirs = [x for x in dirs if x.is_dir()]
-        if not dirs:
-            raise FileNotFoundError(f'No tests found: {self.options.dirname}.')
-        self.options.id = [x.name for x in dirs]
+        found = [x for x in dirs if x.is_dir()]
+        if not found:
+            raise FileNotFoundError(f"{', '.join(map(str, dirs))} not found.")
+        self.options.id = [x.name for x in found]
 
 
 class Parser(parserutils.Workflow):

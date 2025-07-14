@@ -201,7 +201,7 @@ class Job(builtinsutils.Dict, builtinsutils.Object):
         return [Job.fromFile(x) for x in glob.glob(patt)]
 
     @staticmethod
-    def fromFile(pathname, rex=re.compile(JOB_DOC.format(jobname=r'(\w*)'))):
+    def fromFile(pathname, rex=re.compile(JOB_DOC.format(jobname=r'(.*)'))):
         """
         Get the job based on the job json file.
 
