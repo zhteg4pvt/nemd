@@ -27,11 +27,14 @@ OPTIMIZE = symbols.OPTIMIZE
 PHONONS = symbols.PHONONS
 
 
-class Script(lmpin.Script):
+class SinglePoint(lmpin.SinglePoint):
     """
     Customized to dump force.
     """
-    CUSTOM_EXT = lmpin.SinglePoint.CUSTOM_EXT
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dump_file = f"{self.options.JOBNAME}{self.CUSTOM_EXT}"
 
     def dump(self, *args, force=True, **kwargs):
         """
@@ -56,7 +59,7 @@ class Struct(lmpatomic.Struct):
         """
         See parent.
         """
-        return Script(struct=self)
+        return SinglePoint(struct=self)
 
 
 class Lmp(process.Lmp):
@@ -90,7 +93,7 @@ class Lmp(process.Lmp):
         """
         See parent.
         """
-        return Script.CUSTOM_EXT
+        return lmpin.SinglePoint.CUSTOM_EXT
 
 
 def exe(obj, **kwargs):

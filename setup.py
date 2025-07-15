@@ -182,7 +182,7 @@ class Distribution(Installer):
         'chemparse', 'mendeleev', 'rdkit', 'signac', 'signac-flow',
         'matplotlib', 'plotly', 'crystals', 'numba', 'wurlitzer',
         'methodtools', 'fastparquet', 'lazy_import', 'tabulate', 'psutil',
-        'yapf', 'isort', 'snakeviz', 'tuna', 'pytest', 'pytest-xdist'
+        'mdtraj', 'yapf', 'isort', 'snakeviz', 'tuna', 'pytest', 'pytest-xdist'
     ]
     CLASSIFIERS = [
         'Development Status :: 5 - Production/Stable',

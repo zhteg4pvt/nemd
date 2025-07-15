@@ -12,11 +12,13 @@ import io
 import itertools
 import subprocess
 
+import mdtraj
 import numpy as np
 import pandas as pd
 
 from nemd import constants
 from nemd import frame
+from nemd import pbc
 from nemd import symbols
 
 
@@ -97,8 +99,19 @@ class Traj(list):
         """
         Open and read the trajectory frames.
 
+        https://docs.lammps.org/Howto_triclinic.html
+        https://manual.gromacs.org/current/reference-manual/algorithms/periodic-boundary-conditions.html
+        https://mdtraj.org/1.9.4/api/generated/mdtraj.formats.XTCTrajectoryFile.html
+
         :return generator of 'Frame': trajectory frames
         """
+        if self.file.endswith('.xtc'):
+            with mdtraj.formats.XTCTrajectoryFile(self.file) as fh:
+                for xyz, _, step, box in zip(*fh.read()):
+                    # FIXME: triclinic support
+                    box = pbc.Box.fromParams(*np.diag(box))
+                    yield frame.Frame(xyz, box=box, step=step.astype(np.int64))
+            return
         func = gzip.open if self.file.endswith('.gz') else open
         with func(self.file, 'rt') as fh:
             while True:

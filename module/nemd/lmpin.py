@@ -80,6 +80,7 @@ class SinglePoint(Base):
     READ_DATA_RE = re.compile(rf'{READ_DATA}\s*([\w.]*)')
     PAIR_COEFF = 'pair_coeff'
     CUSTOM_EXT = '.custom'
+    XTC_EXT = '.xtc'
     DUMP_ID, DUMP_Q = 1, 1000
 
     V_ATOM_STYLE = ATOMIC
@@ -95,6 +96,9 @@ class SinglePoint(Base):
         self.struct = struct
         self.isblock = isblock
         self.outfile = f"{self.options.JOBNAME}.in"
+        # Segmentation fault: 11 (11) when 1 atom dumps xtc trajectory
+        ext = self.CUSTOM_EXT if self.struct.atom_total == 1 else self.XTC_EXT
+        self.dump_file = f"{self.options.JOBNAME}{ext}"
 
     def write(self):
         """
@@ -159,8 +163,17 @@ class SinglePoint(Base):
         """
         Dump out trajectory.
         """
-        self.dump(self.DUMP_ID, 'all', 'custom', self.DUMP_Q,
-                  f"{self.options.JOBNAME}{self.CUSTOM_EXT}", 'id')
+        if self.dump_file.endswith(self.XTC_EXT):
+            self.dump(self.DUMP_ID,
+                      'all',
+                      'xtc',
+                      self.DUMP_Q,
+                      self.dump_file,
+                      xyz=False)
+            self.dump_modify(self.DUMP_ID, 'unwrap', 'yes')
+            return
+        self.dump(self.DUMP_ID, 'all', 'custom', self.DUMP_Q, self.dump_file,
+                  'id')
         self.dump_modify(self.DUMP_ID, sort=True)
 
     def thermo(self):
@@ -323,7 +336,6 @@ class RampUp(SinglePoint):
     NVE = 'NVE'
     MODULUS = 'modulus'
     ENSEMBLES = [NVE, NVT, NPT]
-    CUSTOM_EXT = f"{SinglePoint.CUSTOM_EXT}.gz"
     BERENDSEN = 'berendsen'
 
     def __init__(self, *args, **kwargs):
@@ -485,7 +497,7 @@ class Ave(RampUp):
         """
         Customized with cell averaging.
         """
-        if self.options.prod_ens == self.NPT:
+        if self.options.prod_ens == self.NPT or not self.options.relax_time:
             super().relaxation(**kwargs)
             return
         # NVE and NVT production runs use averaged cell
@@ -610,7 +622,7 @@ class Script(Ave):
 
         :param ensemble str: the ensemble to ramp up temperature.
         """
-        if ensemble == self.NPT:
+        if ensemble == self.NPT or not self.options.relax_time:
             super().rampUp()
             return
         # NVT at low temperature
@@ -644,6 +656,10 @@ class Script(Ave):
         :param key str: keyword.
         :param kwargs dict: temporarily values and values to restore
         """
+        if self.dump_file.endswith(self.XTC_EXT):
+            # ERROR: Cannot change dump_modify every for dump xtc (src/EXTRA-DUMP/dump_xtc.cpp:144)
+            yield
+            return
         self.dump_modify(dump_id, key, *kwargs.keys())
         try:
             yield

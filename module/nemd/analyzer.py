@@ -13,6 +13,7 @@ import scipy
 
 from nemd import constants
 from nemd import dist
+from nemd import frame
 from nemd import jobutils
 from nemd import logutils
 from nemd import molview
@@ -356,7 +357,8 @@ class Density(Job):
             return
         self.sidx = self.trj.time.sidx
         if self.gids is None:
-            self.gids = list(range(self.trj[0].shape[0]))
+            frm = next(x for x in self.trj if isinstance(x, frame.Frame))
+            self.gids = list(range(frm.shape[0]))
 
     def set(self):
         """

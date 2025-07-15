@@ -100,7 +100,8 @@ class LmpTraj(LmpLog):
     FILE = 'lmp_traj_driver.py'
     ParserClass = parserutils.LmpTraj
 
-    def addfiles(self, rex=re.compile(r"dump 1 all custom (\d*) ([\w.]*)")):
+    def addfiles(self,
+                 rex=re.compile(r"dump 1 all (?:custom|xtc) (\d*) ([\w.]*)")):
         """
         Set arguments to analyze the custom dump file.
 

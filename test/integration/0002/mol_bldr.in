@@ -8,8 +8,8 @@ special_bonds lj/coul 0 0 0.5
 pair_style lj/cut 11.0
 pair_modify mix geometric
 read_data mol_bldr.data
-dump 1 all custom 1000 mol_bldr.custom.gz id xu yu zu
-dump_modify 1 sort id
+dump 1 all xtc 1000 mol_bldr.xtc
+dump_modify 1 unwrap yes
 thermo 1000
 thermo_modify flush yes
 fix rest all restrain dihedral 1 2 3 4 -2000.0 -2000.0 120.0

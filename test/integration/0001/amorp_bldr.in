@@ -8,8 +8,8 @@ special_bonds lj/coul 0 0 0.5
 pair_style lj/cut 11.0
 pair_modify mix geometric
 read_data amorp_bldr.data
-dump 1 all custom 1000 amorp_bldr.custom.gz id xu yu zu
-dump_modify 1 sort id
+dump 1 all xtc 1000 amorp_bldr.xtc
+dump_modify 1 unwrap yes
 thermo 1000
 thermo_modify flush yes
 min_style fire
@@ -35,7 +35,6 @@ run 50000
 unfix 2a
 unfix 2b
 
-dump_modify 1 every 10000
 variable defm_id loop 0 999 pad
 label defm_start
 print "defm_id=${defm_id}"
@@ -86,7 +85,6 @@ variable modulus equal ${imodulus}
 variable imodulus delete
 variable defm_id delete
 shell cd ..
-dump_modify 1 every 1000
 fix 6a all temp/berendsen 300 300 100
 fix 6b all nve
 run 100000

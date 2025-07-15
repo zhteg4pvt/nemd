@@ -85,6 +85,7 @@ class Frame(Base):
         else:
             ndata = np.full([atom_num, 3], np.nan)
             ndata[data[:, 0].astype(int) - 1, :] = data[:, 1:]
+        # FIXME: triclinic support
         return cls(ndata, box=pbc.Box.fromLines(header[5:8]), step=step)
 
     def getCopy(self, **kwargs):
