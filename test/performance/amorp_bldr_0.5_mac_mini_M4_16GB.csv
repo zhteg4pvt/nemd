@@ -1,0 +1,6 @@
+,Method,Molecule Number,Smiles,Time (min),Memory (GB)
+1,Gridded,100000000,Ar,23.89,11.69
+2,Gridded,10000000,CCCC,2.87,10.4
+3,Pakced,400000,CCCC,288.25,11.03
+4,Grown,400000,CCCC,413.23,10.0
+5,Grown,10000,[CC]50,284.23,8.88
