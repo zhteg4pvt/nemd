@@ -288,7 +288,8 @@ class Struct(structure.Struct):
 
         :return 'np.ndarray': the coordinates.
         """
-        return np.concatenate([x.GetPositions() for x in self.conf])
+        return np.concatenate([x.GetPositions() for x in self.conf],
+                              dtype=np.float32)
 
     @property
     def masses(self, atoms=table.TABLE.reset_index()):

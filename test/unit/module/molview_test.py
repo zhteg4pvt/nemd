@@ -48,10 +48,11 @@ class TestFrame:
         assert expected == len(list(frm.getBonds()))
 
     @pytest.mark.parametrize(
-        'rdr,expected', [(None, [[-7.670475, 6.367965], [-3.896735, 10.141705],
-                                 [-6.89382, 7.14462]])])
+        'rdr,expected',
+        [(None, [[-7.670475, 6.3679647], [-3.896735, 10.141705],
+                 [-6.89382, 7.14462]])])
     def testGetRanges(self, frm, expected):
-        np.testing.assert_almost_equal(frm.getRanges(), expected)
+        np.testing.assert_almost_equal(frm.getRanges(), expected, decimal=6)
 
     @pytest.mark.parametrize('rdr,expected', [(None, [0, 834, 1000])])
     def testIter(self, frm, expected):

@@ -89,7 +89,7 @@ class TestFrame:
     @pytest.mark.parametrize('expected', [-40.274934])
     def testCenter(self, frm, expected):
         frm.center()
-        np.testing.assert_almost_equal(frm.min(), expected)
+        np.testing.assert_almost_equal(frm.min(), expected, decimal=6)
 
     @pytest.mark.parametrize('file', [TWO_FRMS])
     @pytest.mark.parametrize('dreader,visible,points,expected',

@@ -151,7 +151,8 @@ class TestJob:
     @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
     @pytest.mark.parametrize(
         'dirname,expected',
-        [(TEST0045, 'Density: 0.001799 ± 2.255e-05 g/cm^3 ∈ [10.0000, 23.0000] ps')])
+        [(TEST0045,
+          'Density: 0.001799 ± 2.255e-05 g/cm^3 ∈ [10.0000, 23.0000] ps')])
     def testFit(self, density, expected):
         density.read()
         density.fit()
@@ -353,7 +354,9 @@ class TestMSD:
          (HEX_TRJ, None, None, 0.1, 0.2, np.nan, None)])
     def testSet(self, msd, spct, epct, expected, name):
         msd.set(spct=spct, epct=epct)
-        np.testing.assert_almost_equal(msd.data.max().max(), expected)
+        np.testing.assert_almost_equal(msd.data.max().max(),
+                                       expected,
+                                       decimal=6)
         assert name == msd.data.index.name
 
     @pytest.mark.parametrize('trj,rdr,gids,spct,epct,expected,msg', [

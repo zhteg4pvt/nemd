@@ -171,7 +171,7 @@ class CellOrig:
         return nbrs
 
 
-@numba.experimental.jitclass([('frm', numba.float64[:, :]),
+@numba.experimental.jitclass([('frm', numba.float32[:, :]),
                               ('span', numba.float64[:]),
                               ('cut', numba.float64), ('dims', numba.int64[:]),
                               ('grids', numba.float64[:]),

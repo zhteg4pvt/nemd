@@ -194,7 +194,7 @@ class TestFrame:
          (True, [1], None, True, [1.52434905])])
     def testGetDists(self, fr, grp, grps, less, expected):
         dists = fr.getDists(grp, grps=grps, less=less)
-        np.testing.assert_almost_equal(dists, expected)
+        np.testing.assert_almost_equal(dists, expected, decimal=6)
 
     @pytest.mark.parametrize('file,gids,cut,struct',
                              [(HEX_FRM, [0, 1, 11], None, None)])
@@ -216,7 +216,7 @@ class TestFrame:
          (False, [5, 203], None, False, [6.2680227, 5.1520511, 8.8596222])])
     def testGetClashes(self, fr, grp, grps, less, expected):
         clashes = fr.getClashes(grp, grps=grps, less=less)
-        np.testing.assert_almost_equal(clashes, expected)
+        np.testing.assert_almost_equal(clashes, expected, decimal=6)
 
     @pytest.mark.parametrize('file,gids,gid,cut,struct',
                              [(HEX_FRM, [0, 1, 5, 203], 0, 5.2, MODIFIED)])
@@ -227,7 +227,7 @@ class TestFrame:
                               (False, None, False, [6.2680227, 8.8596222])])
     def testGetClash(self, fr, gid, grp, less, expected):
         clash = fr.getClash(gid, grp=grp, less=less)
-        np.testing.assert_almost_equal(clash, expected)
+        np.testing.assert_almost_equal(clash, expected, decimal=6)
 
     @pytest.mark.parametrize('file,cut,struct', [(HEX_FRM, 5.2, MODIFIED)])
     @pytest.mark.parametrize('srch,gids,grp,expected',

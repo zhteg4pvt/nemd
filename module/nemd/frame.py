@@ -19,12 +19,13 @@ class Base(np.ndarray):
     Coordinates and box container.
     """
 
-    def __new__(cls, frm, **kwargs):
+    def __new__(cls, frm, dtype=np.float32, **kwargs):
         """
         :param data 'np.ndarray': the xyz coordinates.
-        :return (sub-)class of the base: the base object of coordinates and box
+        :param dtype type: the data type.
+        :return (sub-)class of the base: the base object of coordinates and box.
         """
-        return np.asarray(frm).view(cls)
+        return np.asarray(frm, dtype=dtype).view(cls)
 
     def __init__(self, frm, box=None, **kwargs):
         """
@@ -50,7 +51,7 @@ class Frame(Base):
 
     def __init__(self, frm, step=None, **kwargs):
         """
-        :param data nx3 'numpy.ndarray' or 'DataFrame': xyz data
+        :param frm nx3 'numpy.ndarray' or 'DataFrame': xyz data
         :param step int: the number of simulation step that this frame is at
         """
         super().__init__(frm, **kwargs)
