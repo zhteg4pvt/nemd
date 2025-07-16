@@ -20,7 +20,7 @@ TEST0045 = envutils.test_data('0045_test')
 TEST0046 = envutils.test_data('0046_test')
 AR_DIR = os.path.join(TEST0045, 'workspace',
                       '6fd1b87409fbb60c6612569e187f59fc')
-AR_TRJ = os.path.join(AR_DIR, 'amorp_bldr.custom.gz')
+AR_TRJ = os.path.join(AR_DIR, 'amorp_bldr.xtc')
 AR_DAT = os.path.join(AR_DIR, 'amorp_bldr.data')
 AR_RDR = lmpfull.Reader(AR_DAT)
 AR_LOG = os.path.join(AR_DIR, 'lammps_lmp.log')
@@ -128,9 +128,9 @@ class TestJob:
         assert expected == job.outfile
 
     @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
-    @pytest.mark.parametrize('dirname,expected', [(TEST0027, None),
-                                                  (TEST0037, (3, 1, 1, None)),
-                                                  (TEST0045, (7, 2, 3, None))])
+    @pytest.mark.parametrize('dirname,expected',
+                             [(TEST0027, None), (TEST0037, (3, 1, 1, None)),
+                              (TEST0045, (23, 2, 9, None))])
     def testRead(self, density, expected):
         density.read()
         assert expected == (None if density.data is None else
@@ -151,7 +151,7 @@ class TestJob:
     @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
     @pytest.mark.parametrize(
         'dirname,expected',
-        [(TEST0045, 'Density: 0.00164 ± 0 g/cm^3 ∈ [2.0000, 5.0000] ps')])
+        [(TEST0045, 'Density: 0.001799 ± 2.255e-05 g/cm^3 ∈ [10.0000, 23.0000] ps')])
     def testFit(self, density, expected):
         density.read()
         density.fit()
@@ -183,8 +183,8 @@ class TestJob:
 class TestDensity:
 
     @pytest.mark.parametrize('trj,gids,expected', [(None, None, (0, None)),
-                                                   (AR_TRJ, None, (1, 10)),
-                                                   (AR_TRJ, [0, 1], (1, 2))])
+                                                   (AR_TRJ, None, (5, 10)),
+                                                   (AR_TRJ, [0, 1], (5, 2))])
     def testInit(self, trj, gids, expected):
         options = trj and parserutils.LmpTraj().parse_args(
             [trj, '-last_pct', '0.8', '-task', 'xyz'])
@@ -193,7 +193,7 @@ class TestDensity:
         job = analyzer.Density(trj=trj, gids=gids)
         assert expected == (job.sidx, job.gids and len(job.gids))
 
-    @pytest.mark.parametrize('trj,rdr,expected', [(AR_TRJ, AR_RDR, 0.00164)])
+    @pytest.mark.parametrize('trj,rdr,expected', [(AR_TRJ, AR_RDR, 0.0018261)])
     def testSet(self, trj, rdr, expected):
         job = analyzer.Density(trj=traj.Traj(trj), rdr=rdr)
         job.set()
@@ -318,8 +318,8 @@ class TestRDF:
                                'RDF peak 4.191e+04 ± nan found at 1.52 Å',
                                (41913.204277, np.nan)),
                               (HEX_TRJ, None, None, TEST0045,
-                               'RDF peak 237.1 ± 237.1 found at 4.12 Å',
-                               (237.05, 237.05))])
+                               'RDF peak 92.65 ± 92.65 found at 3.46 Å',
+                               (92.65, 92.65))])
     def testFit(self, rdf, msg, expected):
         rdf.read()
         rdf.set()
@@ -390,11 +390,11 @@ class TestTotEng:
         lmp_log = lmplog.Log(logfile, options=options)
         return analyzer.TotEng(thermo=lmp_log.thermo)
 
-    @pytest.mark.parametrize('logfile,expected', [(None, 0), (AR_LOG, 7)])
+    @pytest.mark.parametrize('logfile,expected', [(None, 0), (AR_LOG, 55)])
     def testInit(self, tot_eng, expected):
         assert expected == tot_eng.sidx
 
-    @pytest.mark.parametrize('logfile,expected', [(AR_LOG, 8.0481871)])
+    @pytest.mark.parametrize('logfile,expected', [(AR_LOG, 8.338777)])
     def testSet(self, tot_eng, expected):
         tot_eng.set()
         np.testing.assert_almost_equal(tot_eng.data.max().max(), expected)
@@ -423,7 +423,7 @@ class TestAgg:
         'args,dirname,tsk,expected',
         [(['-NAME', 'lmp_log'], TEST0046, 'toteng', [[10.624343, 0],
                                                      [10.522627, 0]]),
-         (['-NAME', 'lmp_traj'], TEST0045, 'rdf', [[237.05, 237.05]])])
+         (['-NAME', 'lmp_traj'], TEST0045, 'rdf', [[92.65, 92.65]])])
     def testSet(self, agg, expected):
         agg.read()
         agg.set()

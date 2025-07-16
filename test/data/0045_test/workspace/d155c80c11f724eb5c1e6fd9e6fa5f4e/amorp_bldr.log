@@ -18,18 +18,16 @@ prod_time: 0.005
 prod_ens: NVT
 seed: 123
 no_minimize: False
-rigid_bond: None
-rigid_angle: None
 NAME: amorp_bldr
 JOBNAME: amorp_bldr
 INTERAC: False
 PYTHON: 2
 CPU: 1
 DEBUG: False
-JobStart: 11:04:31 04/27/2025
+JobStart: 22:41:59 07/15/2025
 ...........................
-[11:04:31] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
+[22:42:01] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
 Data file written into amorp_bldr.data
 In script written into amorp_bldr.in
 Finished.
-11:04:39 04/27/2025
+22:42:10 07/15/2025

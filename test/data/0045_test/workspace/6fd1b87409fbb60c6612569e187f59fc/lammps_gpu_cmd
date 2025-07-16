@@ -1,0 +1,1 @@
+nemd_module lmp -h | grep GPU

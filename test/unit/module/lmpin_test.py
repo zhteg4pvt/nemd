@@ -72,9 +72,18 @@ class TestSinglePoint:
         single.thermo()
         assert 2 == len(single)
 
-    def testTraj(self, single):
+    @pytest.mark.parametrize(
+        'dump_file,expected',
+        [('name.xtc',
+          ['dump 1 all xtc 1000 name.xtc', 'dump_modify 1 unwrap yes']),
+         ('name.custom', [
+             'dump 1 all custom 1000 name.custom id xu yu zu',
+             'dump_modify 1 sort id'
+         ])])
+    def testTraj(self, single, dump_file, expected):
+        single.dump_file = dump_file
         single.traj()
-        assert 2 == len(single)
+        assert expected == single
 
     @pytest.mark.parametrize('args', [(1, 'all', 'custom', 10, 'name')])
     @pytest.mark.parametrize(
@@ -292,12 +301,16 @@ class TestAve:
         kwargs = dict(options=options, atom_total=emol.GetNumAtoms())
         return lmpin.Ave(struct=types.SimpleNamespace(**kwargs))
 
-    @pytest.mark.parametrize('prod_ens,expected',
-                             [('NPT', (9, 1, 1000000)),
-                              ('NVT', (41, 2, 1000000, 10000)),
-                              ('NVE', (41, 2, 1000000, 10000))])
-    def testRelaxation(self, ave, prod_ens, expected):
-        ave.options.prod_ens = prod_ens
+    @pytest.mark.parametrize(
+        'args,expected',
+        [(('CC', '-prod_ens', 'NPT'), (9, 1, 1000000)),
+         (('CC', '-prod_ens', 'NVT'), (41, 2, 1000000, 10000)),
+         (('CC', '-prod_ens', 'NVT', '-relax_time', '0'), (1, 0)),
+         (('CC', '-prod_ens', 'NVE'), (41, 2, 1000000, 10000))])
+    def testRelaxation(self, args, emol, expected):
+        options = parserutils.MolBase().parse_args(args)
+        kwargs = dict(options=options, atom_total=emol.GetNumAtoms())
+        ave = lmpin.Ave(struct=types.SimpleNamespace(**kwargs))
         ave.relaxation()
         ave.finalize()
         num = sum([x.endswith('all temp/berendsen 300 300 100') for x in ave])
@@ -345,7 +358,6 @@ class TestAve:
         assert expected == ave
 
 
-@pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
 class TestScript:
 
     @pytest.fixture
@@ -354,6 +366,7 @@ class TestScript:
         kwargs = dict(options=options, atom_total=emol.GetNumAtoms())
         return lmpin.Script(struct=types.SimpleNamespace(**kwargs))
 
+    @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize('args,expected',
                              [(('-relax_time', '1'), 2500),
                               (('-relax_time', '0.01'), 1000),
@@ -361,26 +374,33 @@ class TestScript:
     def testInit(self, script, expected):
         assert expected == script.wstep
 
-    @pytest.mark.parametrize('args', [()])
-    @pytest.mark.parametrize('ensemble,expected', [('NPT', 2), (None, 41)])
-    def testRampUp(self, script, ensemble, expected):
-        script.rampUp(ensemble=ensemble)
+    @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
+    @pytest.mark.parametrize('args,expected',
+                             [(('-prod_ens', 'NPT'), 2),
+                              (('-prod_ens', 'NVE'), 39),
+                              (('-prod_ens', 'NVE', '-relax_time', '0'), 0)])
+    def testRampUp(self, script, expected):
+        script.rampUp()
         assert expected == len(script)
 
+    @pytest.mark.parametrize('args,cnum,dump_id,key,kwargs',
+                             [((), 1, 1, 'every', {10000: 1000})])  # yapf:disable
     @pytest.mark.parametrize(
-        'args,dump_id,key,kwargs,expected', [((), 1, 'every', {
-            10000: 1000
-        }, ['dump_modify 1 every 10000', 'dump_modify 1 every 1000'])])
+        'smiles,expected',
+        [('C', ['dump_modify 1 every 10000', 'dump_modify 1 every 1000']),
+         ('CC', [])])
     def testTmpDump(self, script, dump_id, key, kwargs, expected):
         with script.tmp_dump(dump_id, key, kwargs):
             pass
         assert expected == script
 
+    @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize('args,expected', [((), 30)])
     def testCycle(self, script, expected):
         script.cycle()
         assert expected == len(script)
 
+    @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize(
         'args,dirname,expected',
         [((), 'name', ['shell mkdir name', 'shell cd name\n', 'shell cd ..'])])
@@ -389,11 +409,13 @@ class TestScript:
             pass
         assert expected == script
 
+    @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize('args,expected', [((), ('press_vol', 6))])
     def testWiggle(self, script, expected):
         file = script.wiggle()
         assert expected == (file, len(script))
 
+    @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize('args,dargs,parm,expected', [(
         (), (100, 'remap', 'v'), "%s scale ${fact}",
         'fix %s all deform 100 x scale ${fact} y scale ${fact} z scale ${fact} remap v'
@@ -402,11 +424,13 @@ class TestScript:
         script.deform(*dargs, parm=parm)
         assert expected == script[0]
 
+    @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize('args,expected', [((), 5)])
     def testAdjust(self, script, expected):
         script.adjust()
         assert expected == len(script)
 
+    @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize(
         'args,cond,action,expected',
         [((), '${fact} == 1', 'jump SELF defm_break',
@@ -415,12 +439,14 @@ class TestScript:
         script.if_then(cond, action)
         assert expected == script[0]
 
+    @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize('args,sargs,expected',
                              [((), ('cd', '..'), 'shell cd ..')])
     def testShell(self, script, args, sargs, expected):
         script.shell(*sargs)
         assert expected == script[0]
 
+    @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize(
         'args,expected',
         [((), 'fix 0b all press/berendsen iso 1 1 1000 modulus ${modulus}')])
@@ -429,6 +455,7 @@ class TestScript:
         script.finalize()
         assert expected in script
 
+    @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize(
         'args,expected',
         [(('-prod_ens', 'NPT'),

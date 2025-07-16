@@ -35,7 +35,7 @@ class TestLmpTraj:
         return task.LmpTraj(*jobs, status={}, logger=mock.Mock())
 
     @pytest.mark.parametrize('dirname,expected',
-                             [('0045_test', 'amorp_bldr.custom.gz')])
+                             [('0045_test', 'amorp_bldr.xtc')])
     def testAddfiles(self, lmp_traj, expected):
         lmp_traj.addfiles()
         assert expected == lmp_traj.args[0]

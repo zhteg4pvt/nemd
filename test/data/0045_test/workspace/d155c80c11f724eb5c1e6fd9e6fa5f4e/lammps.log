@@ -1,5 +1,5 @@
 ..........Options..........
-inscript: /Users/zhteg4/test/workspace/d6e31b293894821f0b227e79d393ff72/workspace/d155c80c11f724eb5c1e6fd9e6fa5f4e/amorp_bldr.in
+inscript: /Users/zhteg4/test/workspace/be0f19b22e8d2fd4949a767ea3a0df34/workspace/d155c80c11f724eb5c1e6fd9e6fa5f4e/amorp_bldr.in
 data_file: amorp_bldr.data
 NAME: lammps
 JOBNAME: lammps
@@ -7,128 +7,8 @@ INTERAC: False
 PYTHON: 2
 CPU: 1
 DEBUG: False
-JobStart: 11:04:50 04/27/2025
+JobStart: 22:42:22 07/15/2025
 ...........................
 Running lammps simulations...
-LAMMPS (19 Nov 2024)
-  using 1 OpenMP thread(s) per MPI task
-Reading data file ...
-  orthogonal box = (0 0 0) to (73.9549 73.9549 73.9549)
-  1 by 1 by 1 MPI processor grid
-  reading atoms ...
-  10 atoms
-Finding 1-2 1-3 1-4 neighbors ...
-  special bond factors lj:    0        0        0.5     
-  special bond factors coul:  0        0        0.5     
-     0 = max # of 1-2 neighbors
-     0 = max # of 1-3 neighbors
-     0 = max # of 1-4 neighbors
-     1 = max # of special neighbors
-  special bonds CPU = 0.000 seconds
-  read_data CPU = 0.002 seconds
-Generated 0 of 0 mixed pair_coeff terms from geometric mixing rule
-Neighbor list info ...
-  update: every = 1 steps, delay = 0 steps, check = yes
-  max neighbors/atom: 2000, page size: 100000
-  master list distance cutoff = 13
-  ghost atom cutoff = 13
-  binsize = 6.5, bins = 12 12 12
-  1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair lj/cut, perpetual
-      attributes: half, newton on
-      pair build: half/bin/newton
-      stencil: half/bin/3d
-      bin: standard
-Setting up fire style minimization ...
-  Unit style    : real
-  Current step  : 0
-  Parameters for fire:
-    dmax  delaystep dtgrow dtshrink alpha0 alphashrink tmax tmin   integrator   halfstepback   abcfire  
-     0.1     20      1.1     0.5     0.25     0.99      10  0.02 eulerimplicit      yes          no     
-Per MPI rank memory allocation (min/avg/max) = 6.017 | 6.017 | 6.017 Mbytes
-   Step          Temp          E_pair         E_mol          TotEng         Press     
-         0   0             -0.056174429    0             -0.056174429   -0.017955047  
-       999   0.0015629359  -0.46799991     0             -0.46795798     0.00010176157
-Loop time of 0.00105675 on 1 procs for 999 steps with 10 atoms
-
-99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
-
-Minimization stats:
-  Stopping criterion = energy tolerance
-  Energy initial, next-to-last, final = 
-    -0.0561744293136561 -0.467999622258383 -0.467999912618289
-  Force two-norm initial, final = 0.07518201 0.00063612971
-  Force max component initial, final = 0.052720841 0.00038116011
-  Final line search alpha, max atom move = 0 0
-  Iterations, force evaluations = 999 1002
-
-MPI task timing breakdown:
-Section |  min time  |  avg time  |  max time  |%varavg| %total
----------------------------------------------------------------
-Pair    | 0.00013973 | 0.00013973 | 0.00013973 |   0.0 | 13.22
-Bond    | 9.7299e-05 | 9.7299e-05 | 9.7299e-05 |   0.0 |  9.21
-Neigh   | 7.17e-06   | 7.17e-06   | 7.17e-06   |   0.0 |  0.68
-Comm    | 0.00024112 | 0.00024112 | 0.00024112 |   0.0 | 22.82
-Output  | 0          | 0          | 0          |   0.0 |  0.00
-Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 0.0005714  |            |       | 54.07
-
-Nlocal:             10 ave          10 max          10 min
-Histogram: 1 0 0 0 0 0 0 0 0 0
-Nghost:             20 ave          20 max          20 min
-Histogram: 1 0 0 0 0 0 0 0 0 0
-Neighs:              2 ave           2 max           2 min
-Histogram: 1 0 0 0 0 0 0 0 0 0
-
-Total # of neighbors = 2
-Ave neighs/atom = 0.2
-Ave special neighs/atom = 0
-Neighbor list builds = 2
-Dangerous builds = 0
-Generated 0 of 0 mixed pair_coeff terms from geometric mixing rule
-Setting up Verlet run ...
-  Unit style    : real
-  Current step  : 999
-  Time step     : 1
-Per MPI rank memory allocation (min/avg/max) = 7.267 | 7.267 | 7.267 Mbytes
-   Step          Temp          E_pair         E_mol          TotEng         Press     
-       999   300           -0.46799991     0              7.5801872      0.9096543    
-      1000   299.9999      -0.46799727     0              7.5801872      0.90972164   
-      2000   299.90964     -0.3563233      0              7.6894397      0.84736761   
-      3000   299.65862     -0.28794162     0              7.7510871      0.84135869   
-      4000   300.57723     -0.41405439     0              7.6496183      0.94124152   
-      5000   299.48498     -0.36066971     0              7.6737009      0.83060177   
-      5999   299.64267     -0.31082352     0              7.7277773      0.84830611   
-Loop time of 0.00532613 on 1 procs for 5000 steps with 10 atoms
-
-Performance: 81109.594 ns/day, 0.000 hours/ns, 938768.452 timesteps/s, 9.388 Matom-step/s
-98.1% CPU use with 1 MPI tasks x 1 OpenMP threads
-
-MPI task timing breakdown:
-Section |  min time  |  avg time  |  max time  |%varavg| %total
----------------------------------------------------------------
-Pair    | 0.00066508 | 0.00066508 | 0.00066508 |   0.0 | 12.49
-Bond    | 0.00034838 | 0.00034838 | 0.00034838 |   0.0 |  6.54
-Neigh   | 0.00014277 | 0.00014277 | 0.00014277 |   0.0 |  2.68
-Comm    | 0.0011164  | 0.0011164  | 0.0011164  |   0.0 | 20.96
-Output  | 0.00016615 | 0.00016615 | 0.00016615 |   0.0 |  3.12
-Modify  | 0.0016173  | 0.0016173  | 0.0016173  |   0.0 | 30.37
-Other   |            | 0.00127    |            |       | 23.85
-
-Nlocal:             10 ave          10 max          10 min
-Histogram: 1 0 0 0 0 0 0 0 0 0
-Nghost:             10 ave          10 max          10 min
-Histogram: 1 0 0 0 0 0 0 0 0 0
-Neighs:              3 ave           3 max           3 min
-Histogram: 1 0 0 0 0 0 0 0 0 0
-
-Total # of neighbors = 3
-Ave neighs/atom = 0.3
-Ave special neighs/atom = 0
-Neighbor list builds = 34
-Dangerous builds = 0
-
-[Tengs-MacBook-Pro.local:08597] shmem: mmap: an error occurred while determining whether or not /var/folders/bk/wg487n5j7573mcb1vjqqz1j00000gn/T//ompi.Tengs-MacBook-Pro.501/jf.0/181141504/sm_segment.Tengs-MacBook-Pro.501.acc0000.0 could be created.
-
 Finished.
-11:04:50 04/27/2025
+22:42:25 07/15/2025

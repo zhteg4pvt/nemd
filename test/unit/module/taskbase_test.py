@@ -201,7 +201,7 @@ class TestCmd:
 
     @pytest.mark.parametrize('dirname', ['0045_test'])
     @pytest.mark.parametrize('name,file,parser,tmpl,expected', [
-        ('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, None, 19),
+        ('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, None, 17),
         ('Lammps', 'lammps_driver.py', parserutils.Lammps, [None], 5)
     ])
     def testRmUnknown(self, cmd, expected):
@@ -238,7 +238,7 @@ class TestCmd:
 
     @pytest.mark.parametrize('dirname', ['0045_test'])
     @pytest.mark.parametrize('name,file,parser,tmpl,expected', [
-        ('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, None, 23),
+        ('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, None, 21),
         ('Lammps', 'lammps_driver.py', parserutils.Lammps, [None], 9)
     ])
     def testGetCmd(self, cmd, expected):

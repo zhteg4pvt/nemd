@@ -17,19 +17,20 @@ def crystal(mode):
     return alamode.Crystal.fromDatabase(OPTIONS, mode=mode)
 
 
-class TestScript:
+class TestSinglePoint:
 
     @pytest.fixture
-    def script(self):
-        return alamode.Script(struct=types.SimpleNamespace(options=OPTIONS))
+    def single(self):
+        struct = types.SimpleNamespace(options=OPTIONS, atom_total=2)
+        return alamode.SinglePoint(struct=struct)
 
-    def testDump(self, script):
-        script.dump(1, 'all', 'custom', 1000, 'dispersion.custom', 'id')
-        assert 'id xu yu zu fx fy fz' in script[0]
+    def testDump(self, single):
+        single.dump(1, 'all', 'custom', 1000, 'dispersion.custom', 'id')
+        assert 'id xu yu zu fx fy fz' in single[0]
 
-    def testDumpModify(self, script):
-        script.dump_modify(1)
-        assert "format float '%20.15f'" in script[0]
+    def testDumpModify(self, single):
+        single.dump_modify(1)
+        assert "format float '%20.15f'" in single[0]
 
 
 @pytest.mark.parametrize('jobname,files', [('dispersion', [DISPLACE_DAT])])

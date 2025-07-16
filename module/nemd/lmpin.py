@@ -497,7 +497,7 @@ class Ave(RampUp):
         """
         Customized with cell averaging.
         """
-        if self.options.prod_ens == self.NPT or not self.options.relax_time:
+        if self.options.prod_ens == self.NPT:
             super().relaxation(**kwargs)
             return
         # NVE and NVT production runs use averaged cell
@@ -513,6 +513,8 @@ class Ave(RampUp):
         :param modulus float: the modules in berendsen barostat.
         :param rec_num int: the number of records.
         """
+        if not self.relax_step:
+            return
         # Run NPT with boundary recorded.
         spans = [f'{i}l' for i in self.XYZ]
         for name, dim in zip(spans, self.XYZ):
@@ -600,6 +602,7 @@ class Script(Ave):
     """
     MODULUS_VAR = f'${{{RampUp.MODULUS}}}'
     FACT = 'fact'
+    EVERY = 'every'
 
     def __init__(self, *args, loop_num=1000, wnum=3, rec_num=100, **kwargs):
         """
@@ -616,14 +619,14 @@ class Script(Ave):
         self.wstep = int(self.relax_step * 10 / loop_num / (self.wnum + 1))
         self.wstep = max([int(self.wstep / self.rec_num), 10]) * self.rec_num
 
-    def rampUp(self, ensemble=None):
+    def rampUp(self):
         """
         Ramp up temperature to the targe value.
-
-        :param ensemble str: the ensemble to ramp up temperature.
         """
-        if ensemble == self.NPT or not self.options.relax_time:
+        if self.options.prod_ens == self.NPT:
             super().rampUp()
+            return
+        if not self.relax_step:
             return
         # NVT at low temperature
         self.nvt(nstep=self.relax_step / 2E1,
@@ -634,7 +637,7 @@ class Script(Ave):
                  stemp=self.options.temp,
                  temp=self.options.temp)
         # Change the volume to approach the target pressure (1 frame per cycle)
-        with self.tmp_dump(self.DUMP_ID, 'every',
+        with self.tmp_dump(self.DUMP_ID, self.EVERY,
                            {self.wstep * (self.wnum + 1): self.DUMP_Q}):
             self.cycle()
         # NVT and NPT relaxation to reach the exact target pressure
@@ -656,7 +659,7 @@ class Script(Ave):
         :param key str: keyword.
         :param kwargs dict: temporarily values and values to restore
         """
-        if self.dump_file.endswith(self.XTC_EXT):
+        if self.dump_file.endswith(self.XTC_EXT) and key == self.EVERY:
             # ERROR: Cannot change dump_modify every for dump xtc (src/EXTRA-DUMP/dump_xtc.cpp:144)
             yield
             return

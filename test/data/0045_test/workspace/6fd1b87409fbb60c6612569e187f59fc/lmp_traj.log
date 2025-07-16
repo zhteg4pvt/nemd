@@ -1,5 +1,5 @@
 ..........Options..........
-trj: amorp_bldr.custom.gz
+trj: amorp_bldr.xtc
 task: density rdf msd clash view xyz
 data_file: amorp_bldr.data
 last_pct: 0.6
@@ -11,30 +11,37 @@ INTERAC: False
 PYTHON: 2
 CPU: 1
 DEBUG: False
-JobStart: 11:05:02 04/27/2025
+JobStart: 22:42:41 07/15/2025
 ...........................
 10 atoms selected.
-7 trajectory frames found.
-density, view, clash, xyz analyze all frames and save per frame results ∈ [0.000, 5.000] ps
-rdf, msd average results from last 60.0% frames ∈ [ 2.000,  5.000] ps
+27 trajectory frames found.
+{'view', 'clash', 'xyz', 'density'} analyze all frames ∈ [0.000, 25.000] ps
+{'rdf', 'msd'} analyze frames of last 60.0% ∈ [ 10.000,  25.000] ps
 Density data written into lmp_traj_density.csv
-Density: 0.00164 ± 0 g/cm^3 ∈ [2.0000, 5.0000] ps
+Density: 0.00179 ± 2.487e-05 g/cm^3 ∈ [10.0000, 25.0000] ps
 Density figure saved as lmp_traj_density.png
-The volume fluctuates: [404483.55 404483.55] Å^3
+The volume fluctuates: [363256.03 379883.29] Å^3
+6%, [!n]
+12%, [!n]
 25%, [!n]
+31%, [!n]
+43%, [!n]
 50%, [!n]
+62%, [!n]
 75%, [!n]
+81%, [!n]
+93%, [!n]
 100%
 Radial distribution function data written into lmp_traj_rdf.csv
-RDF peak 76.15 ± nan found at 10.280000000000001 Å
+RDF peak 35.44 ± nan found at 7.22 Å
 Rdf figure saved as lmp_traj_rdf.png
 Mean squared displacement data written into lmp_traj_msd.csv
-Diffusion Coefficient 0.001175 ± 0.0001139 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.982)
+Diffusion Coefficient 0.003586 ± 0.0002663 cm^2/s calculated by fitting MSD ∈ [0.001 11] ps. (R-squared: 0.948)
 Msd figure saved as lmp_traj_msd.png
 Clash data written into lmp_traj_clash.csv
-Clash: 0 ± 0 count ∈ [2.0000, 5.0000] ps
+Clash: 0 ± 0 count ∈ [10.0000, 25.0000] ps
 Clash figure saved as lmp_traj_clash.png
 Trajectory visualization are written into lmp_traj_view.html
 XYZ coordinates are written into lmp_traj_xyz.xyz
 Finished.
-11:05:12 04/27/2025
+22:42:53 07/15/2025

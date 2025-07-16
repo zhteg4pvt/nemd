@@ -109,8 +109,11 @@ class Traj(list):
             with mdtraj.formats.XTCTrajectoryFile(self.file) as fh:
                 for xyz, _, step, box in zip(*fh.read()):
                     # FIXME: triclinic support
-                    box = pbc.Box.fromParams(*np.diag(box))
-                    yield frame.Frame(xyz, box=box, step=step.astype(np.int64))
+                    # The conventional units in the XTC file are nanometers and picoseconds.
+                    box = pbc.Box.fromParams(*np.diag(box * 10))
+                    yield frame.Frame(xyz.astype(np.float64) * 10,
+                                      box=box,
+                                      step=step.item())
             return
         func = gzip.open if self.file.endswith('.gz') else open
         with func(self.file, 'rt') as fh:
