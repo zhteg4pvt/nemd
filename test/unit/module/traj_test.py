@@ -32,6 +32,7 @@ class TestTraj:
     HEX = envutils.test_data('hexane_liquid')
     FRM = os.path.join(HEX, 'dump.custom')
     GZ = os.path.join(HEX, 'dump.custom.gz')
+    XTC = envutils.test_data('hexane_xtc', 'amorp_bldr.xtc')
 
     @pytest.fixture
     def trj(self, file, options, start):
@@ -47,7 +48,8 @@ class TestTraj:
 
     @pytest.mark.parametrize('file,opts,start,expected',
                              [(FRM, None, 0, 0), (FRM, None, None, 0),
-                              (GZ, ['-last_pct', '0.8'], None, 7000)])
+                              (GZ, ['-last_pct', '0.8'], None, 7000),
+                              (XTC, ['-last_pct', '0.8'], None, 0)])
     def testSetStart(self, trj, expected):
         trj.setStart()
         assert expected == trj.start

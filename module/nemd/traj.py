@@ -46,7 +46,7 @@ class Traj(list):
     STEP_MK = 'ITEM: TIMESTEP'
     STEP_CMD = f"zgrep -A1 '{STEP_MK}' {{file}} | sed '/{STEP_MK}/d;/^--$/d'"
 
-    def __init__(self, file=None, options=None, start=0, delay=False):
+    def __init__(self, file=None, options=None, start=None, delay=False):
         """
         :param file str: the trajectory file
         :param options 'argparse.Namespace': command line options
@@ -75,13 +75,16 @@ class Traj(list):
     def setStart(self):
         """
         Set the start time for full coordinates.
+
+        :param tuple task: tasks that analyze every trajectory frame.
         """
         if self.start is not None:
             return
-        if self.options is None or self.options.slice != [None]:
+        if self.file.endswith(symbols.XTC_EXT) or self.options is None or \
+                self.options.slice != [None]:
             self.start = 0
             return
-        # No all-frame tasks found, fully read the last frames.
+        # No all-frame tasks found, only last frames are fully read.
         proc = subprocess.Popen(self.STEP_CMD.format(file=self.file),
                                 shell=True,
                                 stdout=subprocess.PIPE,
@@ -91,6 +94,8 @@ class Traj(list):
         if not stdout:
             return
         steps = np.loadtxt(io.StringIO(stdout), dtype=int)
+        if not steps.shape:
+            steps = steps.reshape(1)
         # From the 2nd to the last frame in case of a broken last one.
         self.start = steps[self.options.last_pct.getSidx(steps, buffer=1)]
 

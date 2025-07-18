@@ -80,7 +80,7 @@ class SinglePoint(Base):
     READ_DATA_RE = re.compile(rf'{READ_DATA}\s*([\w.]*)')
     PAIR_COEFF = 'pair_coeff'
     CUSTOM_EXT = '.custom'
-    XTC_EXT = '.xtc'
+    XTC_EXT = symbols.XTC_EXT
     DUMP_ID, DUMP_Q = 1, 1000
 
     V_ATOM_STYLE = ATOMIC

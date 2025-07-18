@@ -20,19 +20,14 @@ class Traj(logutils.Base):
     Analyze a trajectory file.
     """
 
-    def __init__(self,
-                 options,
-                 task=tuple(x.name for x in analyzer.ALL_FRM),
-                 **kwargs):
+    def __init__(self, options, **kwargs):
         """
         :param options 'argparse.Driver': Parsed command-line options.
-        :param tuple task: tasks that analyze every trajectory frame.
         """
         super().__init__(options=options, **kwargs)
         self.trj = None
         self.rdr = None
         self.gids = None
-        self.task = set(self.options.task).intersection(task)
 
     def run(self):
         """
@@ -64,18 +59,19 @@ class Traj(logutils.Base):
         self.gids = self.rdr.elements.index[selected].tolist()
         self.log(f"{len(self.gids)} atoms selected.")
 
-    def setFrames(self):
+    def setFrames(self, task=tuple(x.name for x in analyzer.ALL_FRM)):
         """
         Read and log trajectory frames.
         """
+        all_frms = set(self.options.task).intersection(task)
         self.trj = traj.Traj(self.options.trj,
                              options=self.options,
-                             start=0 if self.task else None)
+                             start=0 if all_frms else None)
         if len(self.trj) == 0:
             self.error(f'{self.options.trj} contains no frames.')
         self.log(f"{len(self.trj)} trajectory frames found.")
-        if self.task:
-            self.log(f"{self.task} analyze all frames {symbols.ELEMENT_OF} "
+        if all_frms:
+            self.log(f"{all_frms} analyze all frames {symbols.ELEMENT_OF} "
                      f"[{self.trj.time[0]:.3f}, {self.trj.time[-1]:.3f}] ps")
         lst = set(self.options.task).intersection(parserutils.LmpTraj.LAST_FRM)
         if not lst:
