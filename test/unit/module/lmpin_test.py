@@ -133,10 +133,10 @@ class TestSinglePoint:
         single.run_step(nstep=nstep)
         assert expected == single[0]
 
-    @pytest.mark.parametrize('data,expected', [([], 1), (['run 0'], 2),
-                                               (['fix %s'], 2),
-                                               ([['fix %s']], 3),
-                                               ([['fix %s', 'fix %s']], 5)])
+    @pytest.mark.parametrize('data,expected', [([], 2), (['run 0'], 3),
+                                               (['fix %s'], 3),
+                                               ([['fix %s']], 4),
+                                               ([['fix %s', 'fix %s']], 6)])
     def testFinalize(self, single, data, expected):
         single.extend(data)
         single.finalize()
@@ -303,10 +303,12 @@ class TestAve:
 
     @pytest.mark.parametrize(
         'args,expected',
-        [(('CC', '-prod_ens', 'NPT'), (9, 1, 1000000)),
-         (('CC', '-prod_ens', 'NVT'), (41, 2, 1000000, 10000)),
-         (('CC', '-prod_ens', 'NVT', '-relax_time', '0'), (1, 0)),
-         (('CC', '-prod_ens', 'NVE'), (41, 2, 1000000, 10000))])
+        [(('CC', '-prod_ens', 'NPT'), (10, 1, 1000000)),
+         (('CC', '-prod_ens', 'NVT'), (42, 2, 1000000, 10000)),
+         (('CC', '-prod_ens', 'NPT', '-relax_time', '0'), (2, 0)),
+         (('CC', '-prod_ens', 'NVT', '-relax_time', '0'), (2, 0)),
+         (('CC', '-prod_ens', 'NVE', '-relax_time', '0'), (2, 0)),
+         (('CC', '-prod_ens', 'NVE'), (42, 2, 1000000, 10000))])
     def testRelaxation(self, args, emol, expected):
         options = parserutils.MolBase().parse_args(args)
         kwargs = dict(options=options, atom_total=emol.GetNumAtoms())

@@ -104,6 +104,16 @@ class TestCmd:
 
     @pytest.mark.parametrize(
         'args,options,expected',
+        [(["echo hi"], dict(name='performance',), False),
+         (["nemd_run"], dict(name='integration'), False),
+         (["nemd_run"], dict(name='performance',), True)])
+    def testSetMem(self, manual, options, expected):
+        manual.options = types.SimpleNamespace(**options)
+        manual.setMem()
+        assert expected == manual.args[0].startswith('MEM_INTVL')
+
+    @pytest.mark.parametrize(
+        'args,options,expected',
         [(["echo hi"], dict(screen='off', DEBUG=None), False),
          (["nemd_run"], dict(screen='off', DEBUG=None), True),
          (["nemd_run"], dict(screen='off', DEBUG=True), False),

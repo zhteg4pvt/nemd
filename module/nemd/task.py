@@ -15,6 +15,7 @@ import types
 import pandas as pd
 
 from nemd import analyzer
+from nemd import envutils
 from nemd import jobutils
 from nemd import lmpin
 from nemd import logutils
@@ -119,6 +120,7 @@ class Cmd(taskbase.Cmd):
     CPU_RE = re.compile(fr"{jobutils.FLAG_CPU} +\d*")
     DEBUG_RE = re.compile(f"{jobutils.FLAG_DEBUG}( +(True|False))?")
     SEP = f"{symbols.RETURN}"
+    PERFORMANCE = 'performance'
 
     def run(self):
         """
@@ -129,6 +131,7 @@ class Cmd(taskbase.Cmd):
         self.addQuot()
         self.numCpu()
         self.setDebug()
+        self.setMem()
         self.setScreen()
         self.exit()
 
@@ -200,6 +203,17 @@ class Cmd(taskbase.Cmd):
                 self.args[idx] = self.DEBUG_RE.sub(debug_bool, cmd)
             else:
                 self.args[idx] = f"{cmd} {debug_bool}"
+
+    def setMem(self):
+        """
+        Set the memory interval.
+        """
+        if self.options.name != self.PERFORMANCE:
+            return
+        for idx, cmd in enumerate(self.args):
+            if jobutils.NEMD_RUN not in cmd:
+                continue
+            self.args[idx] = f"{envutils.MEM_INTVL}=1 {cmd}"
 
     def setScreen(self):
         """

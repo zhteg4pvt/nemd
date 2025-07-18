@@ -157,7 +157,7 @@ class Parser(parserutils.Workflow):
     WFLAGS = parserutils.Workflow.WFLAGS[1:]
     INTEGRATION = 'integration'
     SCIENTIFIC = 'scientific'
-    PERFORMANCE = 'performance'
+    PERFORMANCE = task.Cmd.PERFORMANCE
     TESTS = [INTEGRATION, SCIENTIFIC, PERFORMANCE]
 
     def setUp(self):

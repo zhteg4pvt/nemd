@@ -98,7 +98,7 @@ class TestMol:
         emol.EmbedMolecule(randomSeed=randomSeed, clearConfs=clearConfs)
         assert expected == len(emol.confs)
 
-    @pytest.mark.parametrize('smiles', ['c1=cc=cc=c1'])
+    @pytest.mark.parametrize('smiles', ['c1ccccc1'])
     @pytest.mark.parametrize('cnum,randomSeed,numConfs,clearConfs,expected',
                              [(1, -1, 1, False, (2, True)),
                               (2, 2**31, 2, True, (2, True)),
