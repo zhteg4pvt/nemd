@@ -1,0 +1,14 @@
+..........Options..........
+inscript: amorp_bldr.in
+data_file: amorp_bldr.data
+NAME: lammps
+JOBNAME: lammps
+INTERAC: False
+PYTHON: 2
+CPU: None
+DEBUG: None
+JobStart: 17:33:35 07/16/2025
+...........................
+Running lammps simulations...
+Finished.
+21:19:53 07/16/2025

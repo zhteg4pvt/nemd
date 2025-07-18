@@ -257,7 +257,7 @@ class SinglePoint(Base):
     def finalize(self, block_id=0):
         """
         Finalize by balancing the fixes with unfixes, flattening the sublist,
-        and terminating with the quit command.
+        write restart, and terminating with the quit command.
 
         :param block_id int: the starting fix id.
         """
@@ -274,7 +274,8 @@ class SinglePoint(Base):
                 ascii_id += 1
             self[idx:idx + 1] = cmds
             block_id += 1
-        self.join('quit 0')
+        self.join('write_restart', f"{self.options.JOBNAME}.rst")
+        self.join('quit', 0)
 
     def equal(self, name, expr, bracked=False, quoted=False, **kwargs):
         """
