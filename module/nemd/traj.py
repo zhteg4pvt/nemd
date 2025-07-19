@@ -18,8 +18,75 @@ import pandas as pd
 
 from nemd import constants
 from nemd import frame
-from nemd import pbc
+from nemd import numbautils
 from nemd import symbols
+
+
+class Box(np.ndarray):
+    """
+    The simulation box (e.g., periodic boundary conditions).
+
+    https://docs.lammps.org/Howto_triclinic.html
+    https://manual.gromacs.org/current/reference-manual/algorithms/periodic-boundary-conditions.html
+    """
+
+    def __new__(cls, frm, dtype=np.float64, **kwargs):
+        """
+        :param data 'np.ndarray': the box vectors.
+        :param dtype type: the data type.
+        :return (sub-)class of the base: the box.
+        """
+        return np.asarray(frm, dtype=dtype).view(cls)
+
+    @property
+    def volume(self):
+        """
+        Get the box volume.
+
+        :param float: the box volume.
+        """
+        return self.span.prod()
+
+    @property
+    def span(self):
+        """
+        Get the span of the box.
+
+        FIXME: triclinic support
+
+        :return 'numpy.ndarray': the span of the box.
+        """
+        return np.diag(self)
+
+    def norms(self, vecs):
+        """
+        Calculate the PBC distance of the vectors.
+
+        FIXME: triclinic support
+
+        :param vecs `np.array`: the vectors
+        :return `np.ndarray`: the PBC distances
+        """
+        return np.array(numbautils.norms(vecs, self.span))
+
+    @property
+    def edges(self):
+        """
+        Get the edges from point list of low and high points.
+
+        # FIXME: triclinic support
+
+        :return 12x2x3 numpy.ndarray: 12 edges of the box, and each edge
+            contains two points.
+        """
+        abc = self.transpose()
+        out = np.stack((np.zeros((3, 3)), abc), axis=1)
+        cab = np.roll(abc, 1, axis=0)
+        out = np.concatenate((out, np.stack((abc, abc + cab), axis=1)))
+        bca = np.roll(cab, 1, axis=0)
+        out = np.concatenate((out, np.stack((abc, abc + bca), axis=1)))
+        ends = np.tile(abc.sum(axis=0), (3, 1))
+        return np.concatenate((out, np.stack((out[-3:, 1, :], ends), axis=1)))
 
 
 class Time(pd.Index):
@@ -102,8 +169,6 @@ class Traj(list):
         """
         Open and read the trajectory frames.
 
-        https://docs.lammps.org/Howto_triclinic.html
-        https://manual.gromacs.org/current/reference-manual/algorithms/periodic-boundary-conditions.html
         https://mdtraj.org/1.9.4/api/generated/mdtraj.formats.XTCTrajectoryFile.html
 
         :return generator of 'Frame': trajectory frames
@@ -113,9 +178,9 @@ class Traj(list):
                 for xyz, _, step, box in zip(*fh.read()):
                     # The conventional units in the XTC file are nanometers and picoseconds.
                     xyz *= 10
+                    box *= 10
                     # FIXME: triclinic support
-                    box = pbc.Box.fromParams(*np.diag(box * 10))
-                    yield frame.Frame(xyz, box=box, step=step.item())
+                    yield frame.Frame(xyz, box=Box(box), step=step)
             return
         func = gzip.open if self.file.endswith('.gz') else open
         with func(self.file, 'rt') as fh:

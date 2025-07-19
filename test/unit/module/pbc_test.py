@@ -135,6 +135,7 @@ class TestBoxNumba:
     @pytest.mark.parametrize('params', [([1, 2, 3, 90, 90, 90]),
                                         ([3, 2, 5, 90, 90, 90])])
     def testEdges(self, params, box):
+        breakpoint()
         assert sum(params[:3]) * 12 == box.edges.sum()
 
     @pytest.mark.parametrize('tilted,vec', [(False, [1, 1, 1])])

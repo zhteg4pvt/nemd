@@ -248,7 +248,7 @@ class Figure(plotly.graph_objects.Figure):
         :return list of Frame: the frames
         """
         return [
-            plotly.graph_objects.Frame(data=self.traces, name=x.step)
+            plotly.graph_objects.Frame(data=self.traces, name=int(x.step))
             for x in self._frm.iter()
         ]
 
