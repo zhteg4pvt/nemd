@@ -77,7 +77,7 @@ class SinglePoint(Base):
     SW = 'sw'
 
     READ_DATA = 'read_data'
-    READ_DATA_RE = re.compile(rf'{READ_DATA}\s*([\w.]*)')
+    READ_DATA_RE = re.compile(rf'{READ_DATA}\s*(\S*)')
     PAIR_COEFF = 'pair_coeff'
     CUSTOM_EXT = '.custom'
     XTC_EXT = symbols.XTC_EXT

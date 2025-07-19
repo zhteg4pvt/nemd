@@ -38,10 +38,11 @@ class Base(builtinsutils.Object):
 
         :return `subprocess.CompletedProcess`: a CompletedProcess instance.
         """
-        with osutils.chdir(self.dirname), open(self.logfile, 'w') as fh:
+        with osutils.chdir(self.dirname), open(self.logfile, 'w') as fh, open(
+                f'{self.jobname}.err', 'w') as err:
             return subprocess.run(self.getCmd(),
                                   stdout=fh,
-                                  stderr=fh,
+                                  stderr=err,
                                   env=self.env,
                                   shell=True)
 
