@@ -104,9 +104,9 @@ class TestCmd:
 
     @pytest.mark.parametrize(
         'args,options,expected',
-        [(["echo hi"], dict(name='performance',), False),
+        [(["echo hi"], dict(name='performance', ), False),
          (["nemd_run"], dict(name='integration'), False),
-         (["nemd_run"], dict(name='performance',), True)])
+         (["nemd_run"], dict(name='performance', ), True)])
     def testSetMem(self, manual, options, expected):
         manual.options = types.SimpleNamespace(**options)
         manual.setMem()

@@ -203,7 +203,8 @@ class BoxNumba(Base):
 
         :param float: the box volume
         """
-        return np.prod(self.span)
+        low, hi = self.to_numpy()[:, :2].transpose()
+        return np.prod(hi - low)
 
     @methodtools.lru_cache()
     @property

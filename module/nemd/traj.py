@@ -75,8 +75,6 @@ class Traj(list):
     def setStart(self):
         """
         Set the start time for full coordinates.
-
-        :param tuple task: tasks that analyze every trajectory frame.
         """
         if self.start is not None:
             return
@@ -113,10 +111,11 @@ class Traj(list):
         if self.file.endswith('.xtc'):
             with mdtraj.formats.XTCTrajectoryFile(self.file) as fh:
                 for xyz, _, step, box in zip(*fh.read()):
-                    # FIXME: triclinic support
                     # The conventional units in the XTC file are nanometers and picoseconds.
+                    xyz *= 10
+                    # FIXME: triclinic support
                     box = pbc.Box.fromParams(*np.diag(box * 10))
-                    yield frame.Frame(xyz * 10, box=box, step=step.item())
+                    yield frame.Frame(xyz, box=box, step=step.item())
             return
         func = gzip.open if self.file.endswith('.gz') else open
         with func(self.file, 'rt') as fh:

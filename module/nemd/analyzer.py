@@ -125,10 +125,8 @@ class Base(logutils.Base):
         """
         if self.data.index.name is None:
             return
-
         with plotutils.pyplot(inav=self.options.INTERAC,
                               name=self.name) as plt:
-
             self.fig = plt.figure(figsize=(10, 6))
             ax = self.fig.add_axes([0.13, 0.1, 0.8, 0.8])
             line = '-' if selected is None else '--'
@@ -139,7 +137,6 @@ class Base(logutils.Base):
                     line,
                     marker=marker,
                     label='average')
-
             if self.data.shape[-1] == 2 and self.data.iloc[:, 1].any():
                 # Data has non-zero standard deviation column
                 vals, errors = self.data.iloc[:, 0], self.data.iloc[:, 1]
@@ -366,10 +363,9 @@ class Density(Job):
         """
         if self.data is not None:
             return
-
         mass = self.rdr.molecular_weight / scipy.constants.Avogadro
-        mass_scaled = mass / constants.ANG_TO_CM**3
-        data = [mass_scaled / x.box.volume for x in self.trj]
+        data = np.fromiter((x.box.volume for x in self.trj), dtype=float)
+        data[:] = mass / data / constants.ANG_TO_CM**3
         self.data = pd.DataFrame({self.label: data}, index=self.trj.time)
 
 
