@@ -4,6 +4,7 @@ import pytest
 
 from nemd import envutils
 from nemd import frame
+from nemd import np
 from nemd import parserutils
 from nemd import traj
 
@@ -15,6 +16,38 @@ def options(opts):
     parser = parserutils.LmpTraj(delay=True)
     parser.add(parser)
     return parser.parse_args(opts)
+
+
+class TestBox:
+
+    @pytest.fixture
+    def box(self, vecs):
+        return traj.Box(np.transpose(vecs))
+
+    @pytest.mark.parametrize('vecs,expected',
+                             [([[1, 0, 0], [0, 2, 0], [0, 0, 3]], 6),
+                              ([[1, 0, 0], [1, 1, 0], [1, 2, 3]], 3)])
+    def testVolume(self, box, expected):
+        np.testing.assert_almost_equal(box.volume, expected)
+
+    @pytest.mark.parametrize('vecs,expected',
+                             [([[1, 0, 0], [0, 2, 0], [0, 0, 3]], [1, 2, 3]),
+                              ([[1, 0, 0], [1, 1, 0], [1, 2, 3]], [1, 1, 3])])
+    def testSpan(self, box, expected):
+        np.testing.assert_almost_equal(box.span, expected)
+
+    @pytest.mark.parametrize(
+        'vecs,vec,expected',
+        [([[1, 0, 0], [0, 2, 0], [0, 0, 3]], [0.5, 1, 1.5], 1.87082869),
+         ([[1, 0, 0], [1, 1, 0], [1, 2, 3]], [0.5, 1, 1.5], 1.58113883)])
+    def testNorms(self, box, vec, expected):
+        np.testing.assert_almost_equal(box.norms(np.array([vec]))[0], expected)
+
+    @pytest.mark.parametrize('vecs,expected',
+                             [([[1, 0, 0], [0, 2, 0], [0, 0, 3]], (12, 2, 3)),
+                              ([[1, 0, 0], [1, 1, 0], [1, 2, 3]], (12, 2, 3))])
+    def testEdges(self, box, expected):
+        assert expected == box.edges.shape
 
 
 class TestTime:

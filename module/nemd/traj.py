@@ -45,7 +45,7 @@ class Box(np.ndarray):
 
         :param float: the box volume.
         """
-        return self.span.prod()
+        return np.dot(np.cross(self[:, 0], self[:, 1]), self[:, 2])
 
     @property
     def span(self):
