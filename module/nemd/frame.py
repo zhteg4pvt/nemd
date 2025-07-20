@@ -123,39 +123,36 @@ class Frame(Base):
             return
         if dreader is None:
             return
+        span = self.box.span
         # The unwrapped xyz can directly perform molecule center operation
         for gids in dreader.mols.values():
             center = self[gids, :].mean(axis=0)
-            self[gids, :] += (center % self.box.span) - center
+            self[gids, :] += center % span - center
 
-    def write(self, fh, dreader=None, visible=None, points=None):
+    def write(self,
+              fh,
+              dreader=None,
+              visible=None,
+              points=None,
+              fmt=('%s', '%.4f', '%.4f', '%.4f')):
         """
         Write XYZ to a file.
 
         :param fh '_io.TextIOWrapper': file handdle to write out xyz.
-        :param dreader 'oplsua.Reader': datafile reader
+        :param dreader 'oplsua.Reader': datafile reader.
         :param visible list: visible atom gids.
         :param points list: additional point to visualize.
+        :param fmt tuple: the format of each row.
         """
         data = self[visible] if visible else self
-        index = np.argwhere(~np.isnan(data[:, 0])).flatten()
+        sel = np.argwhere(~np.isnan(data[:, 0])).flatten()
+        index = [symbols.UNKNOWN] * len(sel) if dreader is None else \
+                dreader.masses.element[dreader.atoms.type_id.loc[sel]]
         data = pd.DataFrame(data, columns=symbols.XYZU, index=index)
-        if dreader is None:
-            data.index = [symbols.UNKNOWN] * data.shape[0]
-        else:
-            type_ids = dreader.atoms.type_id.loc[data.index]
-            data.index = dreader.masses.element[type_ids]
-        if points:
-            points = np.array(points)
+        if points is not None:
             points = pd.DataFrame(points,
-                                  index=[symbols.UNKNOWN] * points.shape[0],
+                                  index=[symbols.UNKNOWN] * len(points),
                                   columns=symbols.XYZU)
             data = pd.concat((data, points), axis=0)
-        fh.write(f'{data.shape[0]}\n')
-        data.to_csv(fh,
-                    mode='a',
-                    index=True,
-                    sep=' ',
-                    header=True,
-                    quotechar=' ',
-                    float_format='%.4f')
+        fh.write(f'{data.shape[0]}\n\n')
+        np.savetxt(fh, data.reset_index().to_numpy(), fmt=fmt)
