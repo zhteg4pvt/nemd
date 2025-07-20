@@ -23,8 +23,8 @@ task: toteng
 data_file: None
 last_pct: 0.2
 slice: None
-NAME: mb_lmp_log
-JOBNAME: mb_lmp_log
+NAME: mb lmp log
+JOBNAME: mb lmp log
 INTERAC: False
 PYTHON: 2
 CPU: 1

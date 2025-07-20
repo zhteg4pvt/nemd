@@ -188,6 +188,7 @@ class TestReader:
         raw.setOptions()
         assert debug == raw.options.DEBUG
         assert 2 == len(raw.options.JobStart)
+        assert isinstance(raw.options.NAME, str)
 
     @pytest.mark.parametrize('data,onum,num', [(AMORP_LOG, 26, 6),
                                                (MB_LMP_LOG, 35, 22)])

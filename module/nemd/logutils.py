@@ -283,16 +283,19 @@ class Reader:
         with open(self.namepath, 'r') as fh:
             self.lines = [x.strip() for x in fh.readlines()]
 
-    def setOptions(self):
+    def setOptions(self, names=('NAME', 'JOBNAME')):
         """
         Set the options from the log file.
+
+        :param names tuple: only one string follows each name.
         """
         options = {}
         for line in self.cropOptions():
             key, val = line.split(COLON_SEP)
             key = key.split()[-1]
-            vals = val.split()
-            options[key] = val if len(vals) == 1 else vals
+            if key not in names and len(val.split()) > 1:
+                val = val.split()
+            options[key] = val
         self.options = types.SimpleNamespace(**options)
 
     def cropOptions(self):
