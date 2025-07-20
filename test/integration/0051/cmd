@@ -1,2 +1,2 @@
 # Trajectory analyses on water for RDF, Clash, XYZ, MSD and visualization without datafile
-nemd_run lmp_traj_driver.py $NEMD_SRC/test/data/water/dump.custom.gz -task view rdf clash xyz msd -last_pct 0.6 -slice 3
+nemd_run lmp_traj_driver.py $NEMD_SRC/test/data/water/dump.custom.gz -task view rdf clash xyz msd -last_pct 0.6 -slice 4

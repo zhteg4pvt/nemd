@@ -72,12 +72,15 @@ class TestTraj:
         return traj.Traj(file, options=options, start=start, delay=True)
 
     @pytest.mark.parametrize('file,opts,start,expected',
-                             [(FRM, None, 0, 1),
-                              (GZ, ['-last_pct', '0.8'], 0, 46),
-                              (GZ, ['-last_pct', '0.8'], None, 38)])
+                             [(FRM, None, 0, (1, 105.0)),
+                              (GZ, ['-last_pct', '0.8'], 0, (46, 105.0)),
+                              (GZ, ['-last_pct', '0.8'], None, (38, 105.0)),
+                              (XTC, ['-last_pct', '0.8'], None,
+                               (1402, 1400.0))])
     def testSetup(self, trj, expected):
         trj.setUp()
-        assert expected == len([x for x in trj if isinstance(x, frame.Frame)])
+        num = len([x for x in trj if isinstance(x, frame.Frame)])
+        assert expected == (num, trj.time[-1])
 
     @pytest.mark.parametrize('file,opts,start,expected',
                              [(FRM, None, 0, 0), (FRM, None, None, 0),

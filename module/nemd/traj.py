@@ -136,7 +136,8 @@ class Traj(list):
         sliced = getattr(self.options, 'slice', [None])
         self.extend(list(itertools.islice(self.frame, *sliced)))
         # FIXME: obtain the timestep from log file instead of options
-        fac = getattr(self.options, 'timestep', 1) * constants.FEMTO_TO_PICO
+        fac = 1 if self.file.endswith('.xtc') else \
+            getattr(self.options, 'timestep', 1) * constants.FEMTO_TO_PICO
         self.time = Time([x.step * fac for x in self], options=self.options)
 
     def setStart(self):
@@ -175,12 +176,12 @@ class Traj(list):
         """
         if self.file.endswith('.xtc'):
             with mdtraj.formats.XTCTrajectoryFile(self.file) as fh:
-                for xyz, _, step, box in zip(*fh.read()):
+                for xyz, time, step, box in zip(*fh.read()):
                     # The conventional units in the XTC file are nanometers and picoseconds.
                     xyz *= 10
                     box *= 10
                     # FIXME: triclinic support
-                    yield frame.Frame(xyz, box=Box(box), step=step)
+                    yield frame.Frame(xyz, box=Box(box), step=time)
             return
         func = gzip.open if self.file.endswith('.gz') else open
         with func(self.file, 'rt') as fh:

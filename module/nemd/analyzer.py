@@ -614,7 +614,7 @@ class MSD(RDF):
             squared = np.square([np.linalg.norm(x, axis=1) for x in disp])
             msd.append(np.average(squared.mean(axis=0), weights=weights))
 
-        ps_time = self.trj.time[:num]
+        ps_time = self.trj.time[-num:]
         self.sidx = math.floor(num * spct)
         self.eidx = math.ceil(num * (1 - epct))
         name = f"Tau (ps) ({self.sidx} {self.eidx})"

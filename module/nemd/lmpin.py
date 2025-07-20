@@ -120,8 +120,8 @@ class SinglePoint(Base):
         self.coeff()
         self.traj()
         self.thermo()
-        self.minimize()
         self.timestep()
+        self.minimize()
         self.simulation()
 
     def setup(self):

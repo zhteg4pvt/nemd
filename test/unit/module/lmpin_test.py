@@ -106,6 +106,12 @@ class TestSinglePoint:
         single.dump_modify(*args, sort=sort, fmt=fmt)
         assert (expected == single[0]) if expected else (not single)
 
+    @pytest.mark.parametrize('temp,expected', [(300, 1), (0, 0)])
+    def testTimestep(self, single, expected, temp):
+        single.options.temp = temp
+        single.timestep()
+        assert expected == len(single)
+
     @pytest.mark.parametrize(
         'no_minimize,geo,val,expected',
         [(False, None, None, 'minimize 1.0e-6 1.0e-8 1000000 10000000'),
@@ -117,12 +123,6 @@ class TestSinglePoint:
         single.options.substruct = [None, val]
         single.minimize(geo=geo)
         assert (expected in single) if expected else (2 == len(single))
-
-    @pytest.mark.parametrize('temp,expected', [(300, 1), (0, 0)])
-    def testTimestep(self, single, expected, temp):
-        single.options.temp = temp
-        single.timestep()
-        assert expected == len(single)
 
     def testSimulation(self, single):
         single.simulation()
