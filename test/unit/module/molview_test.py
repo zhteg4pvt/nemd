@@ -41,7 +41,7 @@ class TestFrame:
     @pytest.mark.parametrize('rdr,expected', [(None, ['X']),
                                               (RDR, ['O', 'H'])])
     def testElements(self, frm, expected):
-        assert (expected == frm.elements).all()
+        assert (expected == frm.ele).all()
 
     @pytest.mark.parametrize('rdr,expected', [(None, 0), (RDR, 12)])
     def testBonds(self, frm, expected):

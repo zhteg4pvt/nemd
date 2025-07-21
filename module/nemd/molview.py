@@ -5,7 +5,6 @@ This module visualizes the trajectory.
 """
 import warnings
 
-import methodtools
 import numpy as np
 import pandas as pd
 import plotly
@@ -42,6 +41,8 @@ class Frame(pd.DataFrame):
         self.rdr = rdr
         self.box = None
         self.step = None
+        self.clr = None
+        self.ele = None
         self.setUp()
 
     def setUp(self):
@@ -49,14 +50,16 @@ class Frame(pd.DataFrame):
         Set up.
         """
         self.update(self.trj[0])
-        if self.rdr is None:
-            return
-        self[self.ELEMENT] = self.rdr.elements.element
-        size_map = dict(self.rdr.pair_coeffs.dist.items())
-        self[self.SIZE] = self.rdr.atoms.type_id.map(size_map)
-        elements = set(self.rdr.masses.element)
-        color_map = {x: table.TABLE.loc[x].cpk_color for x in elements}
-        self[self.COLOR] = self.rdr.elements.element.map(color_map)
+        if self.rdr is not None:
+            self[self.ELEMENT] = self.rdr.elements.element
+            size_map = dict(self.rdr.pair_coeffs.dist.items())
+            self[self.SIZE] = self.rdr.atoms.type_id.map(size_map)
+            elements = set(self.rdr.masses.element)
+            color_map = {x: table.TABLE.loc[x].cpk_color for x in elements}
+            self[self.COLOR] = self.rdr.elements.element.map(color_map)
+        self.clr = self[self.COLOR].to_numpy()
+        uniq = self[[self.ELEMENT, self.SIZE]].drop_duplicates()
+        self.ele = uniq.sort_values(by=self.SIZE, ascending=False).element
 
     def update(self, other):
         """
@@ -77,35 +80,25 @@ class Frame(pd.DataFrame):
 
         :return iterator of (list, Dataframe): information, coordinates
         """
-        for element in self.elements:
+        for element in self.ele:
             sel = self[self[self.ELEMENT] == element]
             yield sel[self.ELE_SIZE_CLR].values[0], sel[symbols.XYZU]
-
-    @methodtools.lru_cache()
-    @property
-    def elements(self):
-        """
-        Get the element.
-
-        :return list of str: elements sorted by size
-        """
-        to_sort = self[[self.ELEMENT, self.SIZE]].drop_duplicates()
-        return to_sort.sort_values(by=self.SIZE, ascending=False).element
 
     @property
     def bonds(self):
         """
         Get the bonds.
 
-        :return DataFrame, dict: bond points, bond style
+        :return np.ndarray, str: bond points, bond color
         """
         if self.rdr is None:
             return
+        xyzs = self[symbols.XYZU].to_numpy()
         for aids in self.rdr.bonds.getPairs():
-            pnts = self.loc[list(aids)][symbols.XYZU]
-            pnts = pd.concat([pnts, pnts.mean().to_frame().transpose()])
-            for pnts, idx in zip([pnts[::2], pnts[1::]], aids):
-                yield pnts, dict(width=8, color=self.xs(idx).color)
+            pnts = xyzs[aids, :]
+            mid = pnts.mean(axis=0)
+            for pnt, idx in zip(pnts, aids):
+                yield np.stack((pnt, mid)), self.clr[idx]
 
     @property
     def lims(self):
@@ -189,11 +182,12 @@ class Figure(plotly.graph_objects.Figure):
 
         :return Scatter3d iterator: the line traces to represent bonds.
         """
-        for points, line in self._frm.bonds:
-            yield plotly.graph_objects.Scatter3d(x=points.xu,
-                                                 y=points.yu,
-                                                 z=points.zu,
-                                                 line=line,
+        for xyz, color in self._frm.bonds:
+            yield plotly.graph_objects.Scatter3d(x=xyz[:, 0],
+                                                 y=xyz[:, 1],
+                                                 z=xyz[:, 2],
+                                                 line=dict(width=8,
+                                                           color=color),
                                                  opacity=0.8,
                                                  mode='lines',
                                                  showlegend=False,
