@@ -23,17 +23,23 @@ class Frame(pd.DataFrame):
     SIZE = 'size'
     COLOR = 'color'
     ELE_SIZE_CLR = [ELEMENT, SIZE, COLOR]
-    COLUMNS = symbols.XYZU + ELE_SIZE_CLR
-    # https://webmail.life.nthu.edu.tw/~fmhsu/rasframe/CPKCLRS.HTM
-    X_LINE = [0., 0., 0.0, 'X', 20, '#FF1493']
     _metadata = ['trj', 'rdr', 'box', 'elements']
 
-    def __init__(self, trj, rdr=None):
+    def __init__(self,
+                 trj,
+                 rdr=None,
+                 line=(0., 0., 0.0, 'X', 20, '#FF1493'),
+                 columns=tuple(symbols.XYZU + ELE_SIZE_CLR)):
         """
-        :param trj 'traj.Traj': the trajectory
-        :param rdr `oplsua.Reader`: data file reader
+        :param trj 'traj.Traj': the trajectory.
+        :param rdr `oplsua.Reader`: data file reader.
+        :param line tuple: one template line.
+        :param columns tuple: the columns.
+
+        https://webmail.life.nthu.edu.tw/~fmhsu/rasframe/CPKCLRS.HTM
         """
-        super().__init__([self.X_LINE] * trj[0].shape[0], columns=self.COLUMNS)
+        super().__init__([line for _ in range(trj[0].shape[0])],
+                         columns=columns)
         self.trj = trj
         self.rdr = rdr
         self.box = None
@@ -66,7 +72,8 @@ class Frame(pd.DataFrame):
         self.step = other.step
         return self
 
-    def getCoords(self):
+    @property
+    def coords(self):
         """
         Get the coordinates element wisely.
 
@@ -87,7 +94,8 @@ class Frame(pd.DataFrame):
         to_sort = self[[self.ELEMENT, self.SIZE]].drop_duplicates()
         return to_sort.sort_values(by=self.SIZE, ascending=False).element
 
-    def getBonds(self):
+    @property
+    def bonds(self):
         """
         Get the bonds.
 
@@ -101,7 +109,8 @@ class Frame(pd.DataFrame):
             for pnts, idx in zip([pnts[::2], pnts[1::]], aids):
                 yield pnts, dict(width=8, color=self.xs(idx).color)
 
-    def getRanges(self):
+    @property
+    def span(self):
         """
         Get the ranges.
 
@@ -126,46 +135,9 @@ class Figure(plotly.graph_objects.Figure):
     """
     Figure of trajectory frame(s).
     """
-    LINE = dict(opacity=0.8, mode='lines', showlegend=False, hoverinfo='skip')
-    EDGE = dict(opacity=0.5,
-                mode='lines',
-                showlegend=False,
-                hoverinfo='skip',
-                line=dict(width=8, color='#b300ff'))
-    PLAY = dict(label="Play",
-                method="animate",
-                args=[None, dict(fromcurrent=True)])
-    PAUSE = dict(label='Pause',
-                 method="animate",
-                 args=[[None], dict(mode='immediate')])
-    MENU = dict(type="buttons",
-                showactive=False,
-                font={'color': '#000000'},
-                direction="left",
-                pad=dict(r=10, t=87),
-                xanchor="right",
-                yanchor="top",
-                x=0.1,
-                y=0)
-    SLIDER = dict(active=0,
-                  yanchor="top",
-                  xanchor="left",
-                  x=0.1,
-                  y=0,
-                  pad=dict(b=10, t=50),
-                  len=0.9,
-                  transition=dict(duration=300, easing='cubic-in-out'),
-                  currentvalue=dict(prefix='Frame:',
-                                    visible=True,
-                                    xanchor='right'))
-    AXES = ['xaxis', 'yaxis', 'zaxis']
-    LAYOUT = dict(template='plotly_dark', overwrite=True, uirevision=True)
-    _metadata = Frame._metadata + ['outfile', 'fig']
 
     def __init__(self, *arg, delay=False, **kwargs):
         """
-        :param trj `traj.Traj`: the trajectory
-        :param rdr `oplsua.Reader`: data file reader
         :param delay bool: delay the setup if True
         """
         super().__init__()
@@ -179,10 +151,8 @@ class Figure(plotly.graph_objects.Figure):
         Main method.
         """
         self.add_traces(self.traces)
-        self.update(frames=self.getFrames())
-        with warnings.catch_warnings(record=True):
-            # *scattermapbox* is deprecated! Use *scattermap* due to plotly_dark
-            self.update_layout(**self.getLayout())
+        self.updateFrame()
+        self.updateLayout()
         if envutils.is_interac():
             self.show()
 
@@ -202,7 +172,7 @@ class Figure(plotly.graph_objects.Figure):
 
         :return Scatter3d iterator: the scattered markers to represent atoms.
         """
-        for (element, size, color), coords in self._frm.getCoords():
+        for (element, size, color), coords in self._frm.coords:
             yield plotly.graph_objects.Scatter3d(
                 x=coords.xu,
                 y=coords.yu,
@@ -221,12 +191,15 @@ class Figure(plotly.graph_objects.Figure):
 
         :return Scatter3d iterator: the line traces to represent bonds.
         """
-        for points, line in self._frm.getBonds():
+        for points, line in self._frm.bonds:
             yield plotly.graph_objects.Scatter3d(x=points.xu,
                                                  y=points.yu,
                                                  z=points.zu,
                                                  line=line,
-                                                 **self.LINE)
+                                                 opacity=0.8,
+                                                 mode='lines',
+                                                 showlegend=False,
+                                                 hoverinfo='skip')
 
     @property
     def edges(self):
@@ -239,40 +212,88 @@ class Figure(plotly.graph_objects.Figure):
             yield plotly.graph_objects.Scatter3d(x=edges[:, 0],
                                                  y=edges[:, 1],
                                                  z=edges[:, 2],
-                                                 **self.EDGE)
+                                                 opacity=0.5,
+                                                 mode='lines',
+                                                 showlegend=False,
+                                                 hoverinfo='skip',
+                                                 line=dict(width=8,
+                                                           color='#b300ff'))
 
-    def getFrames(self):
+    def updateFrame(self):
         """
-        Get animation frames.
-
-        :return list of Frame: the frames
+        Update animation frames.
         """
-        return [
+        self.update(frames=[
             plotly.graph_objects.Frame(data=self.traces, name=int(x.step))
             for x in self._frm.iter()
-        ]
+        ])
 
-    def getLayout(self):
+    def updateLayout(self):
         """
         Update the figure layout.
-
-        :return dict: keyword arguments for layout.
         """
-        names = [x['name'] for x in self.frames]
-        steps = [dict(label=x, method='animate', args=[[x]]) for x in names]
-        sliders = [{**self.SLIDER, **dict(steps=steps)}]
-        updatemenus = [{**self.MENU, **dict(buttons=[self.PLAY, self.PAUSE])}]
-        return dict(scene=self.scene,
-                    sliders=sliders,
-                    updatemenus=updatemenus,
-                    **self.LAYOUT)
+        with warnings.catch_warnings(record=True):
+            # *scattermapbox* is deprecated! Use *scattermap* due to plotly_dark
+            self.update_layout(scene=self.scene,
+                               sliders=[self.slider],
+                               updatemenus=[self.updatemenus],
+                               template='plotly_dark',
+                               overwrite=True,
+                               uirevision=True)
 
     @property
     def scene(self):
         """
         Return the scene with axis range and styles.
 
-        :return dict: keyword arguments for scene.
+        :return dict: the scene.
         """
-        rngs = [dict(range=x, autorange=False) for x in self._frm.getRanges()]
-        return dict(**dict(zip(self.AXES, rngs)), aspectmode='cube')
+        rngs = [dict(range=x, autorange=False) for x in self._frm.span]
+        return dict(**dict(zip(['xaxis', 'yaxis', 'zaxis'], rngs)),
+                    aspectmode='cube')
+
+    @property
+    def slider(self):
+        """
+        The slider.
+
+        :return dict: the slider.
+        """
+        names = [x['name'] for x in self.frames]
+        steps = [dict(label=x, method='animate', args=[[x]]) for x in names]
+        return dict(active=0,
+                    yanchor="top",
+                    xanchor="left",
+                    x=0.1,
+                    y=0,
+                    pad=dict(b=10, t=50),
+                    len=0.9,
+                    transition=dict(duration=300, easing='cubic-in-out'),
+                    currentvalue=dict(prefix='Frame:',
+                                      visible=True,
+                                      xanchor='right'),
+                    steps=steps)
+
+    @property
+    def updatemenus(self):
+        """
+        The update menus.
+
+        :return dict: the updatemenus.
+        """
+        play = dict(label="Play",
+                    method="animate",
+                    args=[None, dict(fromcurrent=True)])
+        pause = dict(label='Pause',
+                     method="animate",
+                     args=[[None], dict(mode='immediate')])
+        return dict(type="buttons",
+                    showactive=False,
+                    font={'color': '#000000'},
+                    direction="left",
+                    pad=dict(r=10, t=87),
+                    xanchor="right",
+                    yanchor="top",
+                    x=0.1,
+                    y=0,
+                    buttons=[play, pause])
