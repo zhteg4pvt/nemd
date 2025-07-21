@@ -28,18 +28,16 @@ class Frame(pd.DataFrame):
     def __init__(self,
                  trj,
                  rdr=None,
-                 line=(0., 0., 0.0, 'X', 20, '#FF1493'),
+                 line=(0., 0., 0.0, 'X', 5, '#FF1493'),
                  columns=tuple(symbols.XYZU + ELE_SIZE_CLR)):
         """
         :param trj 'traj.Traj': the trajectory.
         :param rdr `oplsua.Reader`: data file reader.
         :param line tuple: one template line.
+            https://webmail.life.nthu.edu.tw/~fmhsu/rasframe/CPKCLRS.HTM
         :param columns tuple: the columns.
-
-        https://webmail.life.nthu.edu.tw/~fmhsu/rasframe/CPKCLRS.HTM
         """
-        super().__init__([line for _ in range(trj[0].shape[0])],
-                         columns=columns)
+        super().__init__([line] * trj[0].shape[0], columns=columns)
         self.trj = trj
         self.rdr = rdr
         self.box = None
@@ -110,9 +108,9 @@ class Frame(pd.DataFrame):
                 yield pnts, dict(width=8, color=self.xs(idx).color)
 
     @property
-    def span(self):
+    def lims(self):
         """
-        Get the ranges.
+        Get the limits is each dimensions.
 
         :return ndarray: xyz ranges.
         """
@@ -236,7 +234,7 @@ class Figure(plotly.graph_objects.Figure):
             # *scattermapbox* is deprecated! Use *scattermap* due to plotly_dark
             self.update_layout(scene=self.scene,
                                sliders=[self.slider],
-                               updatemenus=[self.updatemenus],
+                               updatemenus=[self.buttons],
                                template='plotly_dark',
                                overwrite=True,
                                uirevision=True)
@@ -248,9 +246,11 @@ class Figure(plotly.graph_objects.Figure):
 
         :return dict: the scene.
         """
-        rngs = [dict(range=x, autorange=False) for x in self._frm.span]
-        return dict(**dict(zip(['xaxis', 'yaxis', 'zaxis'], rngs)),
-                    aspectmode='cube')
+        scene = {
+            f"{x}axis": dict(range=y, autorange=False)
+            for x, y in zip('xyz', self._frm.lims)
+        }
+        return dict(**scene, aspectmode='cube')
 
     @property
     def slider(self):
@@ -275,11 +275,11 @@ class Figure(plotly.graph_objects.Figure):
                     steps=steps)
 
     @property
-    def updatemenus(self):
+    def buttons(self):
         """
-        The update menus.
+        The play and pause buttons.
 
-        :return dict: the updatemenus.
+        :return dict: the buttons.
         """
         play = dict(label="Play",
                     method="animate",

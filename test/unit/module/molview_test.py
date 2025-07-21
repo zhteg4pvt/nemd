@@ -32,10 +32,10 @@ class TestFrame:
         assert expected == (frm.step, frm.box.max().max())
 
     @pytest.mark.parametrize('rdr,expected',
-                             [(None, ['X', 20, '#FF1493', 9, 3]),
+                             [(None, ['X', 5, '#FF1493', 9, 3]),
                               (RDR, ['O', 3.1507, '#f00000', 3, 3])])
-    def testGetCoords(self, frm, expected):
-        info, coords = next(frm.getCoords())
+    def testCoords(self, frm, expected):
+        info, coords = next(frm.coords)
         assert expected == [*info, *coords.shape]
 
     @pytest.mark.parametrize('rdr,expected', [(None, ['X']),
@@ -45,14 +45,14 @@ class TestFrame:
 
     @pytest.mark.parametrize('rdr,expected', [(None, 0), (RDR, 12)])
     def testBonds(self, frm, expected):
-        assert expected == len(list(frm.getBonds()))
+        assert expected == len(list(frm.bonds))
 
     @pytest.mark.parametrize(
         'rdr,expected',
         [(None, [[-7.670475, 6.3679647], [-3.896735, 10.141705],
                  [-6.89382, 7.14462]])])
-    def testGetRanges(self, frm, expected):
-        np.testing.assert_almost_equal(frm.getRanges(), expected, decimal=6)
+    def testLims(self, frm, expected):
+        np.testing.assert_almost_equal(frm.lims, expected, decimal=6)
 
     @pytest.mark.parametrize('rdr,expected', [(None, [0, 834, 1000])])
     def testIter(self, frm, expected):
@@ -93,15 +93,26 @@ class TestFigure:
         assert 12 == len(list(fig.edges))
 
     @pytest.mark.parametrize('rdr', [(None), (RDR)])
-    def testGetFrames(self, fig):
-        assert 3 == len(fig.getFrames())
+    def testUpdateFrame(self, fig):
+        fig.updateFrame()
+        assert 3 == len(fig.frames)
 
     @pytest.mark.parametrize('rdr', [(None), (RDR)])
-    def testGetLayout(self, fig):
-        fig.update(frames=fig.getFrames())
-        assert 3 == len(fig.getLayout()['sliders'][0]['steps'])
+    def testUpdateLayout(self, fig):
+        fig.updateFrame()
+        fig.updateLayout()
+        assert 3 == len(fig.layout['sliders'][0]['steps'])
 
     @pytest.mark.parametrize('rdr', [(None), (RDR)])
     def testScene(self, fig):
         assert ['xaxis', 'yaxis', 'zaxis',
                 'aspectmode'] == list(fig.scene.keys())
+
+    @pytest.mark.parametrize('rdr,expected', [(None, 3)])
+    def testSlider(self, fig, expected):
+        fig.updateFrame()
+        assert expected == len(fig.slider['steps'])
+
+    @pytest.mark.parametrize('rdr,expected', [(None, 2)])
+    def testButtons(self, fig, expected):
+        assert expected == len(fig.buttons['buttons'])
