@@ -341,6 +341,8 @@ class Frame(frame.Base):
         """
         Get the global atom id group.
 
+        FIXME: self.gids excludes bonded atoms on request for RDF.
+
         :param gid int: the global atom id
         :param less bool: only include the gids less than the current gid
         :return np.ndarray: global atom id group

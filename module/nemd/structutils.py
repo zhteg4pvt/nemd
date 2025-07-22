@@ -570,8 +570,7 @@ class PackedStruct(Struct):
         """
         One attempt on setting the conformers.
         """
-        tenth, threshold = self.conf_total / 10., -1
-        with logger.oneLine(logging.DEBUG) as log:
+        with logger.progress(self.conf_total, level=logging.DEBUG) as prog:
             for num, conf in enumerate(self.conf, 1):
                 try:
                     conf.setConformer()
@@ -579,11 +578,8 @@ class PackedStruct(Struct):
                     self.reset()
                     self.placed.append(num - 1)
                     return
-                else:
-                    # One conformer successfully placed
-                    if num > threshold:
-                        log(f"{int(num / self.conf_total * 100)}%")
-                        threshold = round(threshold + tenth, 1)
+                # One conformer successfully placed
+                prog(num)
         self.placed.append(num)
 
     def isPossible(self, intvl=5, zscore=scipy.stats.norm.ppf(0.9995)):

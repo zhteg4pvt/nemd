@@ -110,11 +110,11 @@ class TestLogger:
                               (logging.CRITICAL, logging.INFO)])
     def testOneLine(self, logger_lvl, lvl, logger):
         logger.setLevel(logger_lvl)
-        with logger.oneLine(lvl) as log:
-            log('hi')
-            log('wa')
-            log('last')
-        assert ('' if lvl < logger_lvl else 'hi wa last \n') == logger.data
+        with logger.progress(3, level=lvl) as prog:
+            prog(1)
+            prog(2)
+            prog(3)
+        assert ('' if lvl < logger_lvl else '33% 66% 100%\n') == logger.data
 
 
 @mock.patch('nemd.logutils.Logger', Logger)

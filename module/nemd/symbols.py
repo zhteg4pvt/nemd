@@ -5,6 +5,7 @@
 """
 This module provides non-numerical symbols and hardcoded numerical constants.
 """
+EMPTY = ''
 STAR = '*'
 CARBON = 'C'
 UNKNOWN = 'X'

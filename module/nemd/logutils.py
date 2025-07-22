@@ -5,6 +5,7 @@ Creates loggers for modules and scripts, log messages and options, parse log
 files, and redirect stdout and stderr.
 """
 import contextlib
+import functools
 import io
 import logging
 import os
@@ -163,37 +164,49 @@ class Logger(logging.Logger):
         return logger
 
     @contextlib.contextmanager
-    def oneLine(self, level=logging.INFO, separator=' '):
+    def progress(self, num, level=logging.INFO, terminator=symbols.SPACE):
         """
-        Print messages within one line to StreamHandler.
+        Print progress messages within one line.
 
-        :param level int: the logging level
-        :param separator str: the separator between messages.
-        :return `function`: the function to print one message as a word followed
-            by a seperator within a line.
+        :param num int: total number of the data.
+        :param level int: the logging level/
+        :param terminator str: the terminator during progress logging.
+        :return `function`: the function to print the progress based on index.
         """
         assert level != logging.ERROR
-        terminators = {}
+        params = types.SimpleNamespace(index=0, num=num, nth=num / 10.)
+        hdlrs = {
+            x: x.terminator
+            for x in self.handlers if isinstance(x, logging.StreamHandler)
+        }
+        for hdlr in hdlrs:
+            hdlr.terminator = terminator
         try:
-            for handler in self.handlers:
-                if not isinstance(handler, logging.StreamHandler):
-                    continue
-                terminators[handler] = handler.terminator
-                handler.terminator = separator
-            match level:
-                case logging.DEBUG:
-                    yield self.debug
-                case logging.INFO:
-                    yield self.log
-                case logging.WARNING:
-                    yield self.warning
-                case logging.CRITICAL:
-                    yield self.critical
+            yield functools.partial(self.prog,
+                                    params=params,
+                                    hdlrs=hdlrs.keys(),
+                                    level=level)
         finally:
-            for handler, terminator in terminators.items():
+            for handler, terminator in hdlrs.items():
                 handler.terminator = terminator
-            if self.isEnabledFor(level):
-                self._log(level, '', ())
+            super().log(level, symbols.EMPTY)
+
+    def prog(self, idx, params=None, hdlrs=None, level=logging.INFO):
+        """
+        Log the progress.
+
+        :param index int: the current index
+        :param params SimpleNamespace: the index, threshold, and increment.
+        :param hdlrs iterable: stream handlers.
+        :param level int: the logging level.
+        """
+        if idx < params.index:
+            return
+        params.index += params.nth
+        if idx == params.num:
+            for hdlr in hdlrs:
+                hdlr.terminator = symbols.EMPTY
+        super().log(level, f"{int(idx / params.num * 100)}%")
 
 
 class Script:
