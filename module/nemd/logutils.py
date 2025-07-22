@@ -163,7 +163,7 @@ class Logger(logging.Logger):
         return logger
 
     @contextlib.contextmanager
-    def oneLine(self, level, separator=' '):
+    def oneLine(self, level=logging.INFO, separator=' '):
         """
         Print messages within one line to StreamHandler.
 

@@ -292,7 +292,7 @@ class TestClash:
 class TestRDF:
 
     @pytest.fixture
-    def rdf(self, trj, gids, rdr, jobs):
+    def rdf(self, trj, gids, rdr, jobs, logger):
         options = parserutils.LmpTraj().parse_args(
             [trj, '-last_pct', '0.8', '-task', 'rdf', '-NAME', 'lmp_traj'])
         return analyzer.RDF(trj=traj.Traj(trj, options=options),
@@ -300,7 +300,7 @@ class TestRDF:
                             gids=gids,
                             rdr=rdr,
                             jobs=jobs,
-                            logger=mock.Mock())
+                            logger=logger)
 
     @pytest.mark.parametrize('trj,rdr,jobs', [(HEX_TRJ, HEX_RDR, None)])
     @pytest.mark.parametrize('gids,expected', [([1], None),

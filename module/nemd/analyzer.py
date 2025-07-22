@@ -510,25 +510,26 @@ class RDF(Clash):
         bins = round(max_dist / res)
         hist_range = [res / 2, res * bins + res / 2]
         rdf, num = np.zeros((bins)), len(self.gids)
-        tenth, threshold, = len(self.trj.sel) / 10., 0
-        for idx, frm in enumerate(self.trj.sel, start=1):
-            self.debug(f"Analyzing frame {idx} for RDF...")
-            dfrm = dist.Frame(frm,
-                              gids=self.gids,
-                              cut=self.cut,
-                              srch=self.srch)
-            dists = dfrm.getDists(grp=self.grp, grps=self.grps)
-            hist, edge = np.histogram(dists, range=hist_range, bins=bins)
-            mid = np.array([x for x in zip(edge[:-1], edge[1:])]).mean(axis=1)
-            # 4pi*r^2*dr*rho from Radial distribution function - Wikipedia
-            norm_factor = 4 * np.pi * mid**2 * res * num / frm.box.volume
-            # Stands at every id but either (1->2) or (2->1) is computed
-            rdf += (hist * 2 / num / norm_factor)
-            if idx >= threshold:
-                new_line = "" if idx == len(self.trj.sel) else ", [!n]"
-                self.log(f"{int(idx / len(self.trj.sel) * 100)}%{new_line}")
-                threshold = round(threshold + tenth, 1)
-        rdf /= len(self.trj.sel)
+        sel_num = len(self.trj.sel)
+        tenth, threshold, = len(self.trj.sel) / 10., -1
+        with self.logger.oneLine() as log:
+            for idx, frm in enumerate(self.trj.sel, start=1):
+                dfrm = dist.Frame(frm,
+                                  gids=self.gids,
+                                  cut=self.cut,
+                                  srch=self.srch)
+                dists = dfrm.getDists(grp=self.grp, grps=self.grps)
+                hist, edge = np.histogram(dists, range=hist_range, bins=bins)
+                mid = np.array([x for x in zip(edge[:-1], edge[1:])
+                                ]).mean(axis=1)
+                # 4pi*r^2*dr*rho from Radial distribution function - Wikipedia
+                norm_factor = 4 * np.pi * mid**2 * res * num / frm.box.volume
+                # Stands at every id but either (1->2) or (2->1) is computed
+                rdf += (hist * 2 / num / norm_factor)
+                if idx > threshold:
+                    log(f"{int(idx / sel_num * 100)}%")
+                    threshold = round(threshold + tenth, 1)
+        rdf /= sel_num
         mid, rdf = np.concatenate(([0], mid)), np.concatenate(([0], rdf))
         index = pd.Index(data=mid, name=f'r ({symbols.ANGSTROM})')
         self.data = pd.DataFrame(data={self.label: rdf}, index=index)
