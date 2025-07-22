@@ -241,7 +241,7 @@ class LastPct(float):
         :param arg str: the input argument.
         :return `cls`: the customized last percentage
         """
-        value = type_positive_float(arg, include_top=False, top=1)
+        value = type_positive_float(arg, top=1)
         return cls(value)
 
     def getSidx(self, data, buffer=0):

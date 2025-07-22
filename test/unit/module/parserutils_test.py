@@ -127,7 +127,8 @@ class TestLastPct:
         return parserutils.LastPct.type(arg)
 
     @pytest.mark.parametrize('arg,expected', [('0.2', 0.2), ('0', RAISED),
-                                              ('0.99', 0.99), ('1', RAISED)])
+                                              ('0.99', 0.99), ('1', 1),
+                                              ('1.1', RAISED)])
     @pytestutils.Raises
     def testType(self, arg, expected):
         assert expected == parserutils.LastPct.type(arg)
