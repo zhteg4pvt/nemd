@@ -1,2 +1,2 @@
 slow 1 00:00:03 2 00:00:06 5 00:00:08 10 00:00:16 20 00:00:31
-label Simulation_Time_(ns)
+label XYZ_of_trajectory_(ns)

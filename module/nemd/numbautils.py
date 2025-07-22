@@ -47,7 +47,7 @@ def norms(vecs, span):
 
     :param vecs vectors nx3 numpy.ndarray: each sublist is a vector
     :param span numpy.ndarray: box span lengths
-    :return list of floats: distances within half box span
+    :return np.ndarray: distances within half box span
     """
     shift = np.round(np.divide(vecs, span)) * span
-    return [np.linalg.norm(x) for x in vecs - shift]
+    return np.array([np.linalg.norm(x) for x in vecs - shift])

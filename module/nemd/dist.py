@@ -334,8 +334,8 @@ class Frame(frame.Base):
         """
         if grps is None:
             grps = (self.getGrp(x, less=less) for x in grp)
-        dists = [self.box.norms(self[x] - self[y]) for x, y in zip(grp, grps)]
-        return np.concatenate(dists) if dists else np.array([])
+        return np.concatenate(
+            [self.box.norms(self[x] - self[y]) for x, y in zip(grp, grps)])
 
     def getGrp(self, gid, less=True):
         """
@@ -343,7 +343,7 @@ class Frame(frame.Base):
 
         :param gid int: the global atom id
         :param less bool: only include the gids less than the current gid
-        :return list of floats: global atom id group
+        :return np.ndarray: global atom id group
         """
         if self.cell is not None:
             return self.cell.get(gid, less)

@@ -36,7 +36,9 @@ class Box(np.ndarray):
         :param dtype type: the data type.
         :return (sub-)class of the base: the box.
         """
-        return np.asarray(frm, dtype=dtype).view(cls)
+        obj = np.asarray(frm, dtype=dtype).view(cls)
+        obj._span = None
+        return obj
 
     @property
     def volume(self):
@@ -56,7 +58,9 @@ class Box(np.ndarray):
 
         :return 'numpy.ndarray': the span of the box.
         """
-        return np.diag(self)
+        if self._span is None:
+            self._span = np.diag(self)
+        return self._span
 
     def norms(self, vecs):
         """

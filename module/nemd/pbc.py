@@ -195,6 +195,7 @@ class BoxNumba(Base):
         """
         super().__init__(*args, **kwargs)
         self.tilt = tilt
+        self._span = None
 
     @property
     def volume(self):
@@ -205,7 +206,6 @@ class BoxNumba(Base):
         """
         return np.prod(self.span)
 
-    @methodtools.lru_cache()
     @property
     def span(self):
         """
@@ -215,7 +215,9 @@ class BoxNumba(Base):
 
         :return 'numpy.ndarray': the span of the box.
         """
-        return (self.hi - self.lo).values
+        if self._span is None:
+            self._span = (self.hi - self.lo).to_numpy()
+        return self._span
 
     @methodtools.lru_cache()
     @property
