@@ -34,7 +34,10 @@ class TestFunc:
     @pytest.mark.parametrize("other,values,expected", [([1], None, [2, 5]),
                                                        ([2, 6], [6, 7], [7])])
     def testDiff(self, array, other, values, expected):
-        np.testing.assert_array_equal(array.diff(other, on=values), expected)
+        if values is not None:
+            values = np.array(values)
+        diff = array.diff(np.array(other), on=values)
+        np.testing.assert_array_equal(diff, expected)
 
     @pytest.mark.parametrize('shape,on', [(None, [1, 2, 5])])
     @pytest.mark.parametrize("value,expected", [(2, [1])])

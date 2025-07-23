@@ -25,7 +25,6 @@ class Base(logutils.Base):
     """
     Base class for job and aggregator.
     """
-
     DATA_EXT = '.csv'
     FIG_EXT = '.png'
     ST_DEV = 'St Dev'
@@ -185,7 +184,6 @@ class Job(Base):
     """
     The analyzer base class.
     """
-
     UNIT = 'a.u.'
     PROP = None
 
@@ -339,13 +337,12 @@ class Density(Job):
     """
     Structural density.
     """
-
     UNIT = 'g/cm^3'
 
     def __init__(self, trj=None, gids=None, **kwargs):
         """
         :param traj `traj.Traj`: traj frames
-        :param gids list of int: global ids for the selected atoms
+        :param gids np.ndarray: global ids for the selected atoms
         """
         super().__init__(**kwargs)
         self.trj = trj
@@ -355,7 +352,7 @@ class Density(Job):
         self.sidx = self.trj.time.sidx
         if self.gids is None:
             frm = next(x for x in self.trj if isinstance(x, frame.Frame))
-            self.gids = list(range(frm.shape[0]))
+            self.gids = np.array(list(range(frm.shape[0])))
 
     def set(self):
         """
@@ -373,7 +370,6 @@ class XYZ(Density):
     """
     xyz file writer.
     """
-
     DATA_EXT = '.xyz'
 
     def run(self, center=False, wrapped=True, broken_bonds=False):
@@ -406,7 +402,6 @@ class View(Density):
     """
     Coordinates visualization.
     """
-
     DATA_EXT = '.html'
 
     def run(self):
@@ -422,7 +417,6 @@ class Clash(Density):
     """
     Clashes between atoms.
     """
-
     UNIT = 'count'
 
     def __init__(self, *args, cut=None, srch=None, **kwargs):
@@ -441,9 +435,9 @@ class Clash(Density):
             self.srch = any(x.large(self.cut) for x in self.trj.sel)
         if self.srch and self.grp is not None:
             # The smallest gid included in grps (direct or from distance cell)
-            gids = sorted(self.grp)
-            self.grp = gids[1:]
-            self.grps = [gids[:i] for i in range(1, len(gids))]
+            self.gids.sort()
+            self.grp = self.gids[1:]
+            self.grps = [self.gids[:i] for i in range(1, len(self.gids))]
 
     def set(self):
         """
@@ -459,13 +453,15 @@ class Clash(Density):
             self.warning("Clash requires least two atoms selected.")
             return
         data = []
-        for frm in self.trj:
-            dfrm = dist.Frame(frm,
-                              gids=self.gids,
-                              struct=self.rdr,
-                              srch=self.srch)
-            clashes = dfrm.getClashes(self.grp, grps=self.grps)
-            data.append(len(clashes))
+        with self.logger.progress(len(self.trj)) as prog:
+            for idx, frm in enumerate(self.trj, start=1):
+                dfrm = dist.Frame(frm,
+                                  gids=self.gids,
+                                  struct=self.rdr,
+                                  srch=self.srch)
+                clashes = dfrm.getClashes(self.grp, grps=self.grps)
+                data.append(len(clashes))
+                prog(idx)
         self.data = pd.DataFrame(data={self.label: data}, index=self.trj.time)
 
 
@@ -473,7 +469,6 @@ class RDF(Clash):
     """
     Radial distribution function.
     """
-
     UNIT = 'r'
     PROP = f'peak'
 
@@ -574,7 +569,6 @@ class MSD(RDF):
     """
     Mean squared displacement & diffusion coefficient.
     """
-
     UNIT = f'{symbols.ANGSTROM}^2'
     PROP = 'Diffusion Coefficient'
 
@@ -592,7 +586,7 @@ class MSD(RDF):
         if self.jobs:
             return
 
-        if not self.gids:
+        if self.gids is None or not len(self.gids):
             self.warning("MSD requires least one atom selected.")
             return
 
@@ -668,7 +662,6 @@ class TotEng(Job):
     """
     Thermodynamic analyzer.
     """
-
     FLOAT_FMT = '%.8g'
 
     def __init__(self, thermo=None, **kwargs):

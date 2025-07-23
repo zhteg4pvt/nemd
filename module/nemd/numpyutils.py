@@ -5,6 +5,8 @@ numpy utilities.
 """
 import numpy as np
 
+from nemd import numbautils
+
 
 class IntArray(np.ndarray):
     """
@@ -14,7 +16,7 @@ class IntArray(np.ndarray):
     def __new__(cls, shape=None, on=None):
         """
         :param shape tuple or int: shape of the bit array.
-        :param on list: the int array values to set on.
+        :param on np.ndarray: the int array values to set on.
         """
         if on is None:
             on = []
@@ -22,7 +24,9 @@ class IntArray(np.ndarray):
             shape = max(on) + 1 if len(on) else 1
         array = np.zeros(shape, dtype=bool)
         array[on] = True
-        return np.asarray(array).view(cls)
+        obj = np.asarray(array).view(cls)
+        obj.zeros = None
+        return obj
 
     @property
     def on(self):
@@ -43,17 +47,34 @@ class IntArray(np.ndarray):
             raise KeyError('Not all values are on.')
         return np.cumsum(self)[on] - 1
 
-    def diff(self, other, on=None):
+    def diff(self, off, on=None):
         """
-        Get the values that are on but not in the other array.
+        Get the values that are on and not off.
 
+        :param off np.ndarray: another other array
+        :param on np.ndarray: the values to compute difference with
+        :return list of int: the difference
+        """
+        if self.zeros is None:
+            self.zeros = np.zeros(shape=self.shape, dtype=np.bool_)
+        return self._diff(self.zeros, self.on if on is None else on, off)
+
+    @staticmethod
+    @numbautils.jit
+    def _diff(zeros, on, off):
+        """
+        Get the values that are on and not off.
+
+        :param zeros np.ndarray: the zeros array
         :param other np.ndarray: another other array
         :param on np.ndarray: the values to compute difference with
         :return list of int: the difference
         """
-        cped = self.copy() if on is None else IntArray(shape=self.shape, on=on)
-        cped[other] = False
-        return cped.on
+        zeros[on] = True
+        zeros[off] = False
+        left = zeros.nonzero()[0]
+        zeros[left] = False
+        return left
 
     def less(self, value):
         """

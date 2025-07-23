@@ -26,24 +26,22 @@ from nemd import symbols
 from nemd import timeutils
 
 STDERR = 'stderr'
-JOBSTART = 'JobStart:'
-FINISHED = 'Finished.'
-OPTIONS = 'Options'
 COLON_SEP = f'{symbols.COLON} '
 PEAK_MEMORY_USAGE = 'Peak memory usage'
 
 
 @contextlib.contextmanager
-def redirect(*args, logger=None, **kwargs):
+def redirect(logger=None, stderr='stderr'):
     """
     Redirecting all kinds of stdout in Python via wurlitzer
     https://eli.thegreenplace.net/2015/redirecting-all-kinds-of-stdout-in-python/
 
     :param logger 'logging.Logger': the logger to print the out and err messages.
+    :param stderr str: standard error key.
     :return dict: the redirected stdout and stderr
     """
     redirected = {}
-    out = {x: io.StringIO() for x in ['stdout', STDERR]}
+    out = {x: io.StringIO() for x in ['stdout', stderr]}
     try:
         with wurlitzer.pipes(**out):
             yield redirected
@@ -55,8 +53,8 @@ def redirect(*args, logger=None, **kwargs):
         if logger is None:
             return
         for key, msg in redirected.items():
-            if key == STDERR:
-                logger.info(f'The following {STDERR} is found:')
+            if key == stderr:
+                logger.info(f'The following {stderr} is found:')
             logger.info(msg)
 
 
@@ -83,6 +81,7 @@ class Logger(logging.Logger):
     """
     A script logger to save information into a file.
     """
+    OPTIONS = 'Options'
     OPTIONS_START = f'..........{OPTIONS}..........'
     OPTIONS_END = OPTIONS_START.replace(OPTIONS, '.' * len(OPTIONS))
 
@@ -123,7 +122,7 @@ class Logger(logging.Logger):
             if type(val) is list:
                 val = symbols.SPACE.join(map(str, val))
             self.info(f"{key}{COLON_SEP}{val}")
-        self.info(f"{JOBSTART} {timeutils.ctime()}")
+        self.info(f"JobStart: {timeutils.ctime()}")
         self.info(self.OPTIONS_END)
 
     def log(self, msg, timestamp=False):
@@ -240,19 +239,20 @@ class Script:
             self.memory.thread.start()
         return self.logger
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb, finished='Finished.'):
         """
         Stop the memory monitoring and print the messages.
 
         :param exc_type `type`: the exception type
         :param exc_val Exception: the exception
         :param exc_tb traceback: the traceback object
+        :param finished str: the closing note.
         :raise Exception: when in DEBUG mode
         """
         if self.memory:
             self.logger.log(self.MEMORY_FMT.format(value=self.memory.result))
         if not exc_type:
-            self.logger.log(FINISHED, timestamp=True)
+            self.logger.log(finished, timestamp=True)
             return
         if isinstance(exc_val, SystemExit):
             # Error calls sys.exit(1)

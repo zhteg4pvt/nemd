@@ -82,7 +82,7 @@ class TestCellOrig:
                                                (True, [0])])
     def testGet(self, cell, gids, gid, less, expected):
         cell.set(gids)
-        assert expected == cell.get(gid, less=less)
+        np.testing.assert_equal(cell.get(gid, less=less), expected)
 
     @pytest.mark.parametrize('file,cut', [(HEX_FRM, 10)])
     @pytest.mark.parametrize('to_set,gids,expected',
@@ -140,7 +140,7 @@ class TestCellNumba:
                                                (True, [0])])
     def testGet(self, cell, gids, gid, less, expected):
         cell.set(gids)
-        assert expected == cell.get(gid, less)
+        np.testing.assert_equal(cell.get(gid, less), expected)
 
     @pytest.mark.parametrize('file,cut', [(HEX_FRM, 10)])
     @pytest.mark.parametrize('to_set,gids,expected',
@@ -165,6 +165,8 @@ class TestFrame:
 
     @pytest.fixture
     def fr(self, frm, gids, cut, struct, srch):
+        if gids is not None:
+            gids = np.array(gids)
         return dist.Frame(frm, gids=gids, cut=cut, struct=struct, srch=srch)
 
     @pytest.mark.parametrize('file', [HEX_FRM])
@@ -193,7 +195,9 @@ class TestFrame:
          (False, [0], None, False, [0., 1.524349, 15.3781802]),
          (True, [1], None, True, [1.52434905])])
     def testGetDists(self, fr, grp, grps, less, expected):
-        dists = fr.getDists(grp, grps=grps, less=less)
+        if grps is not None:
+            grps = np.array(grps)
+        dists = fr.getDists(np.array(grp), grps=grps, less=less)
         np.testing.assert_almost_equal(dists, expected, decimal=6)
 
     @pytest.mark.parametrize('file,gids,cut,struct',
@@ -215,17 +219,21 @@ class TestFrame:
          (True, [5, 203], None, False, [6.2680227, 5.1520511]),
          (False, [5, 203], None, False, [6.2680227, 5.1520511, 8.8596222])])
     def testGetClashes(self, fr, grp, grps, less, expected):
-        clashes = fr.getClashes(grp, grps=grps, less=less)
+        if grps is not None:
+            grps = np.array(grps)
+        clashes = fr.getClashes(np.array(grp), grps=grps, less=less)
         np.testing.assert_almost_equal(clashes, expected, decimal=6)
 
     @pytest.mark.parametrize('file,gids,gid,cut,struct',
                              [(HEX_FRM, [0, 1, 5, 203], 0, 5.2, MODIFIED)])
     @pytest.mark.parametrize('srch,grp,less,expected',
-                             [(True, [[5]], True, [6.2680227]),
+                             [(True, [5], True, [6.2680227]),
                               (True, None, True, []),
                               (True, None, False, [6.2680227]),
                               (False, None, False, [6.2680227, 8.8596222])])
     def testGetClash(self, fr, gid, grp, less, expected):
+        if grp is not None:
+            grp = np.array(grp)
         clash = fr.getClash(gid, grp=grp, less=less)
         np.testing.assert_almost_equal(clash, expected, decimal=6)
 
@@ -247,13 +255,13 @@ class TestFrame:
     @pytest.mark.parametrize('struct,num,incl14,expected',
                              [(None, 3, True, 1), (HEX_RDR, 3, True, 4),
                               (HEX_RDR, 3, False, 3)])
-    def testGetExcluded(self, struct, num, incl14, expected):
-        incl = dist.Frame.getExcluded(struct=struct, num=num, incl14=incl14)
+    def testGetExcl(self, struct, num, incl14, expected):
+        incl = dist.Frame.getExcl(struct=struct, num=num, incl14=incl14)
         assert expected == len(incl[0])
 
     @pytest.mark.parametrize(
         'file,cut,gids,to_set,srch,struct',
-        [(HEX_FRM, None, [], np.array([1, 12]), None, None)])
+        [(HEX_FRM, None, None, np.array([1, 12]), None, None)])
     def testSet(self, fr, to_set):
         assert not fr.cell.cell.any()
         fr.set(to_set)

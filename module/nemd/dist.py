@@ -122,13 +122,13 @@ class CellOrig:
 
         :param gid int: the global atom ids
         :param gt bool: only include the global atom ids greater than the gid
-        :return list of int: the neighbor atom ids around the coordinates
+        :return np.ndarray: the neighbor atom ids around the coordinates
         """
         cids = map(tuple, self.nbrs[tuple(self.getCid(gid))])
         gids = [self.cell[x].nonzero()[0] for x in cids if not self.empty[x]]
         if less:
             gids = [x[x < gid] for x in gids]
-        return [y for x in gids for y in x]
+        return np.array([y for x in gids for y in x])
 
     def gidsGet(self, gids):
         """
@@ -207,7 +207,7 @@ class CellNumba(CellOrig):
         ]
         if less:
             gids = [x[x < gid] for x in gids]
-        return [y for x in gids for y in x]
+        return np.array([y for x in gids for y in x])
 
     def gidsGet(self, gids):
         """
@@ -232,7 +232,7 @@ class CellNumba(CellOrig):
         for nbr in nbrs:
             self.uniq[nbr[0], nbr[1], nbr[2]] = False
         gids = [self.cell[x[0], x[1], x[2]].nonzero()[0] for x in nbrs]
-        return [y for x in gids for y in x]
+        return np.array([y for x in gids for y in x])
 
     @staticmethod
     def getNbrs(nx, ny, nz):
@@ -293,6 +293,8 @@ class Frame(frame.Base):
         self.struct = struct
         self.srch = srch
         self.cell = None
+        self._radii = None
+        self._excl = None
         if delay:
             return
         self.setUp()
@@ -313,7 +315,6 @@ class Frame(frame.Base):
         self.cell = self.Cell(self, self.box.span, self.cut)
         self.set(self.gids.on)
 
-    @methodtools.lru_cache()
     @property
     def radii(self):
         """
@@ -321,7 +322,9 @@ class Frame(frame.Base):
 
         :return `Radius`: the radii
         """
-        return Radius(struct=self.struct, num=self.shape[0])
+        if self._radii is None:
+            self._radii = Radius(struct=self.struct, num=self.shape[0])
+        return self._radii
 
     def getDists(self, grp, grps=None, less=True):
         """
@@ -397,7 +400,6 @@ class Frame(frame.Base):
         thresholds = self.radii.get(gid, gids)
         return dists[np.nonzero(dists < thresholds)]
 
-    @methodtools.lru_cache()
     @property
     def excluded(self):
         """
@@ -405,13 +407,15 @@ class Frame(frame.Base):
 
         :return dict: global atom id -> excluded global atom ids array.
         """
-        return self.getExcluded(struct=self.struct, num=self.shape[0])
+        if self._excl is None:
+            self._excl = self.getExcl(struct=self.struct, num=self.shape[0])
+        return self._excl
 
     @methodtools.lru_cache()
     @classmethod
-    def getExcluded(cls, struct=None, num=1, incl14=True):
+    def getExcl(cls, struct=None, num=1, incl14=True):
         """
-        Set the pair exclusion. Atoms in bonds and angles are in the exclusion.
+        Get the pair exclusion. Atoms in bonds and angles are in the exclusion.
         The dihedral angles are in the exclusion if incl14=True.
 
         :param struct `lmpatomic.Struct`: the structure

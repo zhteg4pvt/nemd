@@ -279,6 +279,8 @@ class TestGrownFrame:
 
     @pytest.mark.parametrize('grp,expected', [(None, 16), ([0, 1], 36)])
     def testGetDists(self, dist, grp, expected):
+        if grp is not None:
+            grp = np.array(grp)
         assert expected == dist.getDists(grp=grp).shape[0]
 
 

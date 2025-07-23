@@ -56,7 +56,7 @@ class Traj(logutils.Base):
             return
         if self.options.sel:
             selected = self.rdr.elements.element.isin([self.options.sel])
-        self.gids = self.rdr.elements.index[selected].tolist()
+        self.gids = self.rdr.elements.index[selected].to_numpy()
         self.log(f"{len(self.gids)} atoms selected.")
 
     def setFrames(self, task=tuple(x.name for x in analyzer.ALL_FRM)):

@@ -192,7 +192,8 @@ class TestDensity:
         if trj is not None:
             trj = traj.Traj(trj, options=options)
         job = analyzer.Density(trj=trj, gids=gids)
-        assert expected == (job.sidx, job.gids and len(job.gids))
+        assert expected == (job.sidx,
+                            None if job.gids is None else len(job.gids))
 
     @pytest.mark.parametrize('trj,rdr,expected', [(AR_TRJ, AR_RDR, 0.0018261)])
     def testSet(self, trj, rdr, expected):
@@ -247,13 +248,13 @@ class TestView:
 class TestClash:
 
     @pytest.fixture
-    def clash(self, trj, gids, rdr):
+    def clash(self, trj, gids, rdr, logger):
         options = parserutils.LmpTraj().parse_args(
             [trj, '-last_pct', '0.8', '-task', 'clash'])
         return analyzer.Clash(trj=traj.Traj(trj, options=options),
                               gids=gids,
                               rdr=rdr,
-                              logger=mock.Mock())
+                              logger=logger)
 
     @pytest.mark.parametrize(
         'trj,gids,cut,srch,rdr,expected',
@@ -336,6 +337,8 @@ class TestMSD:
 
     @pytest.fixture
     def msd(self, trj, gids, rdr):
+        if gids is not None:
+            gids = np.array(gids)
         options = parserutils.LmpTraj().parse_args(
             [trj, '-last_pct', '0.8', '-task', 'msd'])
         return analyzer.MSD(trj=traj.Traj(trj, options=options),
