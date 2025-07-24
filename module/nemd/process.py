@@ -32,17 +32,18 @@ class Base(builtinsutils.Object):
         self.env = env
         self.logfile = f'{self.jobname}{symbols.LOG_EXT}'
 
-    def run(self):
+    def run(self, ext=symbols.LOG_EXT):
         """
         Make & change directory, set up, build command, and run command.
 
+        :param ext str: the stdout extension.
         :return `subprocess.CompletedProcess`: a CompletedProcess instance.
         """
-        with osutils.chdir(self.dirname), open(self.logfile, 'w') as fh, open(
-                f'{self.jobname}.err', 'w') as err:
+        with osutils.chdir(self.dirname), open(f'{self.jobname}{ext}',
+                                               'w') as out:
             return subprocess.run(self.getCmd(),
-                                  stdout=fh,
-                                  stderr=err,
+                                  stdout=out,
+                                  stderr=subprocess.STDOUT,
                                   env=self.env,
                                   shell=True)
 
@@ -96,8 +97,7 @@ class Check(Process):
     """
     Subprocess to run check cmd.
     """
-
-    SEP = symbols.SEMICOLON
+    SEP = ' && '
 
 
 class Submodule(Base):
@@ -179,6 +179,12 @@ class Lmp(Submodule):
         """
         super().__init__(*args, **kwargs)
         self.infile = infile
+
+    def run(self, ext='.std'):
+        """
+        See parent.
+        """
+        return super().run(ext=ext)
 
     @property
     def args(self):

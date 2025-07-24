@@ -44,7 +44,7 @@ class TestProcess:
 class TestCheck:
 
     @pytest.mark.parametrize('tokens,expected',
-                             [(['echo', 'hello'], 'echo;hello')])
+                             [(['echo', 'hello'], 'echo && hello')])
     def testGetCmd(self, tokens, expected):
         assert expected == process.Check(tokens).getCmd(write_cmd=False)
 
