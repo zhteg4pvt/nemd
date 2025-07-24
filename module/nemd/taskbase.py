@@ -7,6 +7,7 @@ Under jobcontrol:
  3) Cmd generates the cmd for execution
 """
 import functools
+import os
 import re
 import types
 
@@ -247,7 +248,7 @@ class Cmd(Job):
         # Please rearrange or modify the prerequisite jobs' input by subclassing
         for jobname in jobnames:
             file = jobutils.Job(jobname, dirname=self.job.dirname).outfile
-            self.args[self.args.index(None)] = file
+            self.args[self.args.index(None)] = os.path.relpath(file, os.curdir)
 
     def rmUnknown(self):
         """

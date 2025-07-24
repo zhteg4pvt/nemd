@@ -601,7 +601,7 @@ class MSD(RDF):
         else:
             weights = np.ones((len(self.gids)), dtype=np.float32)
 
-        msd = self.iter(np.array(self.trj.sel), self.gids, weights)
+        msd = numbautils.msd(np.array(self.trj.sel), self.gids, weights)
         msd = np.fromiter(msd, np.float32, len(self.trj.sel) - 1)
         msd = np.insert(msd, 0, 0)
         num = len(msd)
@@ -611,22 +611,6 @@ class MSD(RDF):
         name = f"Tau (ps) ({self.sidx} {self.eidx})"
         tau_idx = pd.Index(data=ps_time - ps_time[0], name=name)
         self.data = pd.DataFrame({self.label: msd}, index=tau_idx)
-
-    @staticmethod
-    @numbautils.jit
-    def iter(trj, gids, wt):
-        """
-        Get the iterator of mean squared displacement.
-
-        :param trj np.ndarray: the trajectory.
-        :param gids np.ndarray: the selected global atom ids.
-        :param wt np.ndarray: the weight of each atom.
-        :return float: mean squared displacement of each tau.
-        """
-        num, total = len(trj), sum(wt)
-        for idx in range(1, num):
-            sq = np.square(trj[idx:, gids, :] - trj[:-idx, gids, :])
-            yield np.dot(sq.sum(axis=2).sum(axis=0) / (num - idx), wt) / total
 
     def fit(self):
         """

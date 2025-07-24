@@ -113,11 +113,12 @@ class Lammps(logutils.Base, process.Lmp):
         """
         self.log('Running lammps simulations...')
         proc = super().run()
-        if proc.returncode:
-            with open(self.logfile, 'r') as fh:
-                cont = rex.finditer(fh.read())
-                self.error('\n'.join(x.group(1) for x in cont))
-        return proc
+        if not proc.returncode:
+            return proc
+        # FIXME: the message by error->one (src/input.cpp:666) not in either stdout or stderr
+        with open(self.logfile, 'r') as fh:
+            cont = rex.finditer(fh.read())
+            self.error('\n'.join(x.group(1) for x in cont))
 
     @functools.cached_property
     def args(self):
