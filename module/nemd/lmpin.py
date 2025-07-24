@@ -624,9 +624,6 @@ class Script(Ave):
         """
         Ramp up temperature to the targe value.
         """
-        if self.options.prod_ens == self.NPT:
-            super().rampUp()
-            return
         if not self.relax_step:
             return
         # NVT at low temperature
@@ -718,7 +715,7 @@ class Script(Ave):
         try:
             yield cdw
         finally:
-            self.shell(*cdw)
+            self.shell(*cdw, newline=True)
 
     def wiggle(self, file='press_vol', vol='vol', amp='amp'):
         """

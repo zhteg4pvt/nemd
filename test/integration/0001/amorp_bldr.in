@@ -85,6 +85,7 @@ variable modulus equal ${imodulus}
 variable imodulus delete
 variable defm_id delete
 shell cd ..
+
 fix 6a all temp/berendsen 300 300 100
 fix 6b all nve
 run 100000

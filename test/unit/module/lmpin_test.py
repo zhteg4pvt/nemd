@@ -378,8 +378,7 @@ class TestScript:
 
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize('args,expected',
-                             [(('-prod_ens', 'NPT'), 2),
-                              (('-prod_ens', 'NVE'), 39),
+                             [(('-prod_ens', 'NVE'), 39),
                               (('-prod_ens', 'NVE', '-relax_time', '0'), 0)])
     def testRampUp(self, script, expected):
         script.rampUp()
@@ -405,7 +404,7 @@ class TestScript:
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize(
         'args,dirname,expected',
-        [((), 'name', ['shell mkdir name', 'shell cd name\n', 'shell cd ..'])])
+        [((), 'name', ['shell mkdir name', 'shell cd name\n', 'shell cd ..\n'])])
     def testTmpDir(self, script, dirname, expected):
         with script.tmp_dir(dirname):
             pass
