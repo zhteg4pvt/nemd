@@ -17,9 +17,9 @@ from nemd import frame
 from nemd import jobutils
 from nemd import logutils
 from nemd import molview
+from nemd import numbautils
 from nemd import plotutils
 from nemd import symbols
-from nemd import numbautils
 
 
 class Base(logutils.Base):
@@ -602,8 +602,8 @@ class MSD(RDF):
             weights = np.ones((len(self.gids)), dtype=np.float32)
 
         msd = self.iter(np.array(self.trj.sel), self.gids, weights)
-        msd = np.fromiter(msd, np.float32, len(self.trj.sel) -1)
-        msd = np.insert(msd, 0, 0) / len(self.gids)
+        msd = np.fromiter(msd, np.float32, len(self.trj.sel) - 1)
+        msd = np.insert(msd, 0, 0)
         num = len(msd)
         ps_time = self.trj.time[-num:]
         self.sidx = math.floor(num * spct)
@@ -614,19 +614,19 @@ class MSD(RDF):
 
     @staticmethod
     @numbautils.jit
-    def iter(trj, gids, weights):
+    def iter(trj, gids, wt):
         """
         Get the iterator of mean squared displacement.
 
         :param trj np.ndarray: the trajectory.
         :param gids np.ndarray: the selected global atom ids.
-        :param weights np.ndarray: the weight of each atom.
+        :param wt np.ndarray: the weight of each atom.
         :return float: mean squared displacement of each tau.
         """
-        num = len(trj)
+        num, total = len(trj), sum(wt)
         for idx in range(1, num):
             sq = np.square(trj[idx:, gids, :] - trj[:-idx, gids, :])
-            yield np.dot(sq.sum(axis=2).sum(axis=0) / (num - idx), weights)
+            yield np.dot(sq.sum(axis=2).sum(axis=0) / (num - idx), wt) / total
 
     def fit(self):
         """
