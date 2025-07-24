@@ -1,2 +1,4 @@
 slow(00:05:27)
 label(ab_lmp_traj)
+slow ab_lmp_traj 00:04:01
+label ab_lmp_traj
