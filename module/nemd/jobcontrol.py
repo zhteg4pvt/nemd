@@ -184,17 +184,15 @@ class Runner(logutils.Base):
         """
         Set cpu numbers for the project.
         """
-        if self.options.CPU:
+        total = self.options.CPU[0] if self.options.CPU else self.max_cpu
+        try:
+            per = self.options.CPU[1]
+        except (TypeError, IndexError):
             # Evenly distribute among subjobs if only total cpu specified
-            num = self.options.CPU[1] if len(self.options.CPU) > 1 else \
-                max([math.floor(self.options.CPU[0] / len(self.jobs)), 1])
-            self.cpu = [math.floor(self.options.CPU[0] / num), num]
-        else:
-            # Single cpu per job ensures efficiency
-            self.cpu = [self.max_cpu, 1]
-
+            per = max([math.floor(total / len(self.jobs)), 1])
+        self.cpu = math.floor(total / per)
         jobutils.pop_arg(self.args, jobutils.FLAG_CPU)
-        jobutils.set_arg(self.args, jobutils.FLAG_CPU, str(self.cpu[1]))
+        jobutils.set_arg(self.args, jobutils.FLAG_CPU, str(per))
 
     def clean(self, agg=False):
         """
@@ -219,7 +217,7 @@ class Runner(logutils.Base):
         """
         if not self.jobs:
             self.error(f"No jobs to {'aggregate' if agg else 'run'}.")
-        cpu = self.max_cpu if agg else self.cpu[0]
+        cpu = self.max_cpu if agg else self.cpu
         prog = self.options.screen in [jobutils.PARALLEL, jobutils.JOB]
         jobs = None if agg else self.jobs
         self.proj.run(np=cpu, progress=prog, jobs=jobs, **kwargs)

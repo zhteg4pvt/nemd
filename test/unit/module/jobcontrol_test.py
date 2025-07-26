@@ -119,14 +119,16 @@ class TestRunner:
 
     @pytest.mark.parametrize('max_cpu,jobs', [(12, [None] * 4)])
     @pytest.mark.parametrize('original,expected',
-                             [([], [12, 1]), (['-CPU', '3'], [3, 1]),
+                             [([], [4, 3]), (['-CPU', '3'], [3, 1]),
                               (['-CPU', '12'], [4, 3]),
                               (['-CPU', '7', '3'], [2, 3])])
     def testSetCpu(self, max_cpu, jobs, runner, expected):
         runner.max_cpu = max_cpu
         runner.jobs = jobs
         runner.setCpu()
-        assert expected == runner.cpu
+        assert expected == [
+            runner.cpu, int(jobutils.get_arg(runner.args, '-CPU'))
+        ]
 
     @pytest.mark.parametrize('original,file,status,pre',
                              [(['-clean', '-DEBUG'], True, True, None)])
