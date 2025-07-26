@@ -419,7 +419,11 @@ class GriddedStruct(Struct):
         """
         Set coordinates.
         """
-        grids = [np.arange(0, x, y) for x, y in zip(self.box.span, self.size)]
+        nums = (self.box.span / self.size).round().astype(int)
+        grids = [
+            np.linspace(0, x, y, endpoint=False)
+            for x, y in zip(self.box.span, nums)
+        ]
         meshgrid = np.meshgrid(*grids, indexing='ij')
         vectors = np.stack(meshgrid, axis=-1).reshape(-1, 3)
         np.random.shuffle(vectors)

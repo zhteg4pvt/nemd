@@ -402,9 +402,9 @@ class TestScript:
         assert expected == len(script)
 
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
-    @pytest.mark.parametrize(
-        'args,dirname,expected',
-        [((), 'name', ['shell mkdir name', 'shell cd name\n', 'shell cd ..\n'])])
+    @pytest.mark.parametrize('args,dirname,expected', [
+        ((), 'name', ['shell mkdir name', 'shell cd name\n', 'shell cd ..\n'])
+    ])
     def testTmpDir(self, script, dirname, expected):
         with script.tmp_dir(dirname):
             pass

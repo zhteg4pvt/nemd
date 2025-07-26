@@ -758,7 +758,7 @@ class Script(Ave):
         Adjust the simulation box by deformation and NPT.
         """
         with self.block() as blk:
-            blk.deform(100, 'remap', 'v', parm=f"%s scale ${{{self.FACT}}}")
+            blk.deform(100, 'remap', 'x', parm=f"%s scale ${{{self.FACT}}}")
             blk.nvt(nstep=self.wstep / 2,
                     stemp=self.options.temp,
                     temp=self.options.temp)
@@ -788,8 +788,10 @@ class Script(Ave):
         """
         super().relaxation(modulus=modulus)
 
-    def production(self, modulus=MODULUS_VAR):
+    def production(self, **kwargs):
         """
         See parent.
         """
-        super().production(modulus=modulus)
+        if self.relax_step:
+            kwargs[self.MODULUS] = self.MODULUS_VAR
+        super().production(**kwargs)

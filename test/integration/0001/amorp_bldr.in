@@ -59,7 +59,7 @@ variable fact python getBdryFact
 python getBdryFact input 2 1 press_vol return v_fact format fsf here "from nemd.lmpfunc import getBdryFact"
 print "fact=${fact}"
 if "${fact} == 1" then "jump SELF defm_break"
-fix 4a all deform 100 x scale ${fact} y scale ${fact} z scale ${fact} remap v
+fix 4a all deform 100 x scale ${fact} y scale ${fact} z scale ${fact} remap x
 fix 4b all temp/berendsen 300 300 100
 fix 4c all nve
 run 1250

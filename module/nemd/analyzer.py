@@ -573,13 +573,12 @@ class MSD(RDF):
     UNIT = f'{symbols.ANGSTROM}^2'
     PROP = 'Diffusion Coefficient'
 
-    def set(self, spct=0.1, epct=0.2, weights=None):
+    def set(self, spct=0.1, epct=0.2):
         """
         Set the mean squared displacement and diffusion coefficient.
 
         :param spct float: exclude the frames of this percentage at head
         :param epct float: exclude the frames of this percentage at tail
-        :param weights list: the weights on averaging the msd
         """
         if self.data is not None:
             return

@@ -136,7 +136,7 @@ class TestVol:
     @pytest.mark.parametrize('press,expected', [(-2937, 1),
                                                 (100, 0.9771745628227441),
                                                 (-5000, 1.0374337169706997)])
-    def testSetAve(self, vol, expected):
+    def testSetFactor(self, vol, expected):
         vol.read()
         vol.setAve()
         vol.setFactor()
