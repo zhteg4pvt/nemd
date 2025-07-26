@@ -193,6 +193,7 @@ class Runner(logutils.Base):
             # Single cpu per job ensures efficiency
             self.cpu = [self.max_cpu, 1]
 
+        jobutils.pop_arg(self.args, jobutils.FLAG_CPU)
         jobutils.set_arg(self.args, jobutils.FLAG_CPU, str(self.cpu[1]))
 
     def clean(self, agg=False):

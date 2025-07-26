@@ -63,7 +63,8 @@ def msd(trj, gids, wt):
     :param wt np.ndarray: the weight of each atom.
     :return float: mean squared displacement of each tau.
     """
-    num, total = len(trj), sum(wt)
+    wt /= sum(wt)
+    num = len(trj)
     for idx in range(1, num):
         sq = np.square(trj[idx:, gids, :] - trj[:-idx, gids, :])
-        yield np.dot(sq.sum(axis=2).sum(axis=0) / (num - idx), wt) / total
+        yield np.dot(sq.sum(axis=2).sum(axis=0) / (num - idx), wt)

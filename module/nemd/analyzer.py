@@ -603,6 +603,7 @@ class MSD(RDF):
         msd = numbautils.msd(np.array(self.trj.sel), self.gids, weights)
         msd = np.fromiter(msd, np.float32, len(self.trj.sel) - 1)
         msd = np.insert(msd, 0, 0)
+
         num = len(msd)
         ps_time = self.trj.time[-num:]
         self.sidx = math.floor(num * spct)
