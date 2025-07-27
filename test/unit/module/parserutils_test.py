@@ -141,6 +141,17 @@ class TestLastPct:
         assert expected == last_ptc.getSidx(data, buffer=buffer)
 
 
+class TestCpu:
+
+    @pytest.mark.parametrize('args,forced,expected',
+                             [([1], None, [1, True]), ([], None, [False]),
+                              ([1], False, [1, False]),
+                              ([True], False, [1, False])])
+    def testInit(self, args, forced, expected):
+        cpu = parserutils.Cpu(args, forced=forced)
+        assert expected == [*cpu, cpu.forced]
+
+
 @pytestutils.Raises
 class TestAction:
 
@@ -224,6 +235,21 @@ class TestValid:
         fvals = [[x, y] for x, y in zip(flags, values) if y is not None]
         fvals = [[x, *y] if isinstance(y, list) else [x, y] for x, y in fvals]
         return [y for x in fvals for y in x]
+
+    @mock.patch('os.cpu_count', return_value=8)
+    @pytest.mark.parametrize('flags', [(['-CPU', '-DEBUG'])])
+    @pytest.mark.parametrize('values,expected',
+                             [((None, 'off'), [6, False]),
+                              ((None, 'on'), [1, False]),
+                              (('2', 'off'), [2, True]),
+                              (('2', 'on'), [2, True]),
+                              ((['2', '1', '2'], 'on'), RAISED),
+                              ((['6', '3'], 'on'), [6, 3, True])])
+    def testCpu(self, mocked, args, expected, raises):
+        parser = parserutils.Driver()
+        parser.error = mock.Mock(side_effect=RAISED)
+        options = parser.parse_args(args)
+        assert expected == [*options.CPU, options.CPU.forced]
 
     @pytest.mark.parametrize('valid', [parserutils.MolValid])
     @pytest.mark.parametrize('flags', [('-cru', '-cru_num', '-mol_num')])
@@ -329,11 +355,12 @@ class TestDriver:
         options = parser.parse_args(args)
         assert expected == options.PYTHON
 
-    @pytest.mark.parametrize('args,expected', [([], None),
-                                               (['-CPU', '2'], [2]),
+    @pytest.mark.parametrize('cpu_count', [8])
+    @pytest.mark.parametrize('args,expected', [([], [6]), (['-CPU', '2'], [2]),
                                                (['-CPU', '2', '3'], [2, 3])])
-    def testAddCpu(self, parser, args, expected):
-        options = parser.parse_args(args)
+    def testAddCpu(self, parser, args, expected, cpu_count):
+        with mock.patch('os.cpu_count', return_value=cpu_count):
+            options = parser.parse_args(args)
         assert expected == options.CPU
 
     @pytest.mark.parametrize('ekey', ['DEBUG'])
@@ -376,7 +403,7 @@ class TestDriver:
     def testParseArgs(self, mocked):
         options = mocked.parse_args(['-JOBNAME', 'hi'])
         assert 'hi' == options.JOBNAME
-        assert next(iter(mocked.valids)).run.called
+        assert options.CPU is not None
 
 
 class TestAdd:

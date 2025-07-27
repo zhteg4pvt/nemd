@@ -173,14 +173,14 @@ class Cmd(taskbase.Cmd):
         """
         Set the cpu number.
         """
-        flag_cpu = f"{jobutils.FLAG_CPU} {jobutils.get_arg(self.doc[symbols.ARGS], jobutils.FLAG_CPU)}"
+        flag_cpu = f"{jobutils.FLAG_CPU} {self.options.CPU[1]}"
         for idx, cmd in enumerate(self.args):
             if jobutils.NEMD_RUN not in cmd:
                 continue
             if jobutils.FLAG_CPU not in cmd:
                 # CPU not defined in the cmd file
                 self.args[idx] = f"{cmd} {flag_cpu}"
-            elif self.options.CPU:
+            elif self.options.CPU.forced:
                 # CPU defined in the cmd file, but users forced one
                 self.args[idx] = self.CPU_RE.sub(f"{flag_cpu}", cmd)
             # Use the CPU defined in the cmd file

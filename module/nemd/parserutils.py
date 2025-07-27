@@ -22,6 +22,7 @@ from nemd import sw
 from nemd import symbols
 
 FLAG_NAME = '-name'
+FLAG_CPU = jobutils.FLAG_CPU
 
 
 def type_file(arg):
@@ -257,6 +258,18 @@ class LastPct(float):
         return max(0, sidx - buffer) if buffer else sidx
 
 
+class Cpu(list):
+
+    def __init__(self, *args, forced=None):
+        """
+        :param forced bool: whether the cpu number if forced by users.
+        """
+        super().__init__(*args)
+        self.forced = forced
+        if forced is None:
+            self.forced = bool(self)
+
+
 class Action(argparse.Action):
     """
     Action on multiple values after the type check.
@@ -407,6 +420,27 @@ class Valid:
         pass
 
 
+class CpuValid(Valid):
+    """
+    Class to valid the cpu parameters.
+    """
+
+    def run(self, cpu=1):
+        """
+        See parent.
+        """
+        if self.options.CPU:
+            if len(self.options.CPU) > 2:
+                raise ValueError(f'More than 2 arguments found. ({FLAG_CPU})')
+            self.options.CPU = Cpu(self.options.CPU)
+            return
+        if not self.options.DEBUG:
+            # Debug mode: 1 cpu to avoid threading -> stdout available for pdb
+            # Production mode: 75% of cpu count as total to avoid overloading
+            cpu = max([round(os.cpu_count() * 0.75), 1])
+        self.options.CPU = Cpu([cpu], forced=False)
+
+
 class MdValid(Valid):
     """
     Class to valid the damp parameters.
@@ -517,7 +551,6 @@ class Driver(argparse.ArgumentParser, builtinsutils.Object):
     FLAG_INTERAC = jobutils.FLAG_INTERAC
     FLAG_JOBNAME = jobutils.FLAG_JOBNAME
     FLAG_PYTHON = jobutils.FLAG_PYTHON
-    FLAG_CPU = jobutils.FLAG_CPU
     FLAG_DEBUG = jobutils.FLAG_DEBUG
     JFLAGS = [FLAG_INTERAC, FLAG_JOBNAME, FLAG_PYTHON, FLAG_CPU, FLAG_DEBUG]
 
@@ -580,12 +613,12 @@ class Driver(argparse.ArgumentParser, builtinsutils.Object):
                               default=envutils.get_python_mode(),
                               choices=envutils.PYTHON_MODES,
                               help='0: native; 1: compiled; 2: cached.')
-        if self.FLAG_CPU in self.JFLAGS:
-            self.add_argument(
-                self.FLAG_CPU,
-                type=type_positive_int,
-                nargs='+',
-                help='Total number of CPUs (the number for one task).')
+        if FLAG_CPU in self.JFLAGS:
+            self.add_argument(FLAG_CPU,
+                              type=type_positive_int,
+                              nargs='+',
+                              help='Total number of CPUs [CPUs per task].')
+            self.valids.add(CpuValid)
         if self.FLAG_DEBUG in self.JFLAGS:
             self.addBool(
                 self.FLAG_DEBUG,

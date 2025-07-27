@@ -9,6 +9,7 @@ import test_workflow
 
 from nemd import envutils
 from nemd import osutils
+from nemd import parserutils
 from nemd import task
 from nemd import timeutils
 
@@ -75,17 +76,14 @@ class TestCmd:
         manual.addQuot()
         assert expected == manual.args
 
-    @pytest.mark.parametrize('doc_args', [(['-CPU', '2'])])
     @pytest.mark.parametrize(
-        'args,options,expected',
-        [(["echo hi"], None, ['echo hi']),
-         (["nemd_run"], None, ['nemd_run -CPU 2']),
-         (["nemd_run -CPU 3"], [], ['nemd_run -CPU 3']),
-         (["nemd_run -CPU 3"], [6, 3], ['nemd_run -CPU 2'])])
-    def testNumCpu(self, manual, doc_args, options, expected):
-        manual.doc = dict(args=doc_args)
-        if options:
-            manual.options.CPU = options
+        'args,cpus,forced,expected',
+        [(["echo hi"], [3, 2], True, ['echo hi']),
+         (["nemd_run"], [3, 2], False, ['nemd_run -CPU 2']),
+         (["nemd_run -CPU 3"], [5, 7], False, ['nemd_run -CPU 3']),
+         (["nemd_run -CPU 3"], [5, 7], True, ['nemd_run -CPU 7'])])
+    def testNumCpu(self, manual, cpus, forced, expected):
+        manual.options.CPU = parserutils.Cpu(cpus, forced=forced)
         manual.numCpu()
         assert expected == manual.args
 

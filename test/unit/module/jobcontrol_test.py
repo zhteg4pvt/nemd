@@ -23,7 +23,6 @@ class TestRunner:
 
     @pytest.fixture
     def ran(self, runner, Cmd, Job, pre):
-        runner.setMaxCpu()
         runner.add(Cmd)
         runner.add(Job, pre=pre)
         runner.setProj()
@@ -60,16 +59,6 @@ class TestRunner:
                 self.out = status
 
         return Job
-
-    @pytest.mark.parametrize('cpu_count', [8])
-    @pytest.mark.parametrize('original,expected',
-                             [(['-DEBUG', 'off'], 6), (['-DEBUG', 'on'], 1),
-                              (['-DEBUG', 'off', '-CPU', '2'], 2),
-                              (['-DEBUG', 'on', '-CPU', '2'], 2)])
-    def testSetMaxCpu(self, original, cpu_count, runner, expected):
-        with mock.patch('os.cpu_count', return_value=cpu_count):
-            runner.setMaxCpu()
-        assert expected == runner.max_cpu
 
     @pytest.mark.parametrize('original', [[]])
     @pytest.mark.parametrize(
@@ -117,18 +106,17 @@ class TestRunner:
         runner.openJobs()
         assert 4 == len(runner.jobs)
 
-    @pytest.mark.parametrize('max_cpu,jobs', [(12, [None] * 4)])
+    @pytest.mark.parametrize('jobs', [([None] * 4)])
     @pytest.mark.parametrize('original,expected',
-                             [([], [4, 3]), (['-CPU', '3'], [3, 1]),
+                             [([], [4, 2]), (['-CPU', '3'], [3, 1]),
                               (['-CPU', '12'], [4, 3]),
                               (['-CPU', '7', '3'], [2, 3])])
-    def testSetCpu(self, max_cpu, jobs, runner, expected):
-        runner.max_cpu = max_cpu
+    def testSetCpu(self, original, jobs, runner, expected):
+        with mock.patch('os.cpu_count', return_value=12):
+            runner.options = parserutils.Workflow().parse_args(original)
         runner.jobs = jobs
         runner.setCpu()
-        assert expected == [
-            runner.cpu, int(jobutils.get_arg(runner.args, '-CPU'))
-        ]
+        assert expected == runner.options.CPU
 
     @pytest.mark.parametrize('original,file,status,pre',
                              [(['-clean', '-DEBUG'], True, True, None)])
