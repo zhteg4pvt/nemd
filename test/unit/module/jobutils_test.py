@@ -9,30 +9,31 @@ from nemd import jobutils
 NEMD_SRC = envutils.get_src()
 
 
-class TestFunc:
+class TestArgs:
+
+    @pytest.fixture
+    def args(self, cmd):
+        return jobutils.Args(cmd)
 
     @pytest.mark.parametrize(
         'cmd,first,all_args',
         [(['[Ar]', '-cru_num', '1', '2', '-DEBUG'], '1', ['1', '2']),
          ([], None, None)])
-    def testGetArg(self, cmd, first, all_args):
-        assert first == jobutils.get_arg(cmd, '-cru_num')
+    def testGet(self, args, first, all_args):
+        assert first == args.get('-cru_num')
         val = first if first else 'val'
-        assert val == jobutils.get_arg(cmd, '-cru_num', default='val')
-        assert all_args == jobutils.get_arg(cmd, '-cru_num', first=False)
+        assert val == args.get('-cru_num', default='val')
+        assert all_args == args.get('-cru_num', first=False)
         vals = all_args if all_args else ['val']
-        assert vals == jobutils.get_arg(cmd,
-                                        '-cru_num',
-                                        default=['val'],
-                                        first=False)
+        assert vals == args.get('-cru_num', default=['val'], first=False)
 
     @pytest.mark.parametrize(
         'cmd,popped,num',
         [(['[Ar]', '-cru_num', '1', '2', '-DEBUG'], ['1', '2'], 2),
          ([], None, 0), (['[Ar]', '-cru_num', '2', '-DEBUG'], ['2'], 2)])
-    def testPopArg(self, cmd, popped, num):
-        assert popped == jobutils.pop_arg(cmd, '-cru_num')
-        assert num == len(cmd)
+    def testRm(self, args, popped, num):
+        assert popped == args.rm('-cru_num')
+        assert num == len(args)
 
     @pytest.mark.parametrize('cmd,expected',
                              [(['[Ar]', '-cru_num', '1', '2', '-DEBUG'
@@ -40,8 +41,8 @@ class TestFunc:
                               ([], ['-cru_num', '5']),
                               (['[Ar]', '-cru_num', '2', '-DEBUG'
                                 ], ['[Ar]', '-cru_num', '5', '-DEBUG'])])
-    def testSetArg(self, cmd, expected):
-        assert expected == jobutils.set_arg(cmd, '-cru_num', '5')
+    def testSet(self, args, expected):
+        assert expected == args.set('-cru_num', '5')
 
 
 @pytest.mark.skipif(NEMD_SRC is None, reason="cannot locate test dir")

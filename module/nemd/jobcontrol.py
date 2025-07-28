@@ -47,12 +47,11 @@ class Runner(logutils.Base):
         super().__init__(options=options, **kwargs)
         self.original = original
         self.proj = None
-        self.cpu = None
         self.prereq = {}
         self.oprs = []
         self.jobs = []
         self.status = {}
-        self.args = self.original[:]
+        self.args = jobutils.Args(self.original)
         # flow/project.py gets logger from logging.getLogger(__name__)
         logutils.Logger.get('flow.project')
 
@@ -68,18 +67,14 @@ class Runner(logutils.Base):
         if symbols.TASK in self.options.jtype:
             self.setJobs()
             self.setProj()
-            self.plotJobs()
             self.openJobs()
-            self.setCpu()
-            self.clean()
-            self.runProj()
+            self.runJobs()
             self.logStatus()
         if symbols.AGGREGATOR in self.options.jtype:
             self.setAggs()
             self.setAggProj()
             self.findJobs()
-            self.clean(agg=True)
-            self.runProj(agg=True)
+            self.runProj()
 
     def setJobs(self):
         """
@@ -113,14 +108,6 @@ class Runner(logutils.Base):
         Initiate the project.
         """
         self.proj = flow.project.FlowProject.init_project()
-        self.proj.doc[self.PREREQ] = self.prereq
-        self.proj.doc[symbols.ARGS] = self.args
-        self.args = self.proj.doc[symbols.ARGS]
-
-    def plotJobs(self):
-        """
-        Plot the job-dependency graph.
-        """
         if not self.options.DEBUG:
             return
         with plotutils.pyplot(inav=self.options.INTERAC,
@@ -161,20 +148,47 @@ class Runner(logutils.Base):
         # for randomSeed in [0, 1]:
         #     AllChem.EmbedMolecule(mol, randomSeed=randomSeed)
         #     print(mol.GetConformer().GetPositions())
-        jobutils.pop_arg(self.args, self.FLAG_SEED)
+        self.args.rm(self.FLAG_SEED)
         seed = getattr(self.options, self.FLAG_SEED[1:], 1)
         return {self.FLAG_SEED: (seed_incre + seed) % symbols.MAX_INT32}
+
+    def runJobs(self):
+        """
+        Run task project.
+        """
+        self.setCpu()
+        self.proj.doc[self.PREREQ] = self.prereq
+        self.proj.doc[symbols.ARGS] = self.args
+        self.runProj(agg=False)
 
     def setCpu(self):
         """
         Set cpu numbers for the project.
         """
-        if len(self.options.CPU) == 1:
-            # Evenly distribute among subjobs if only total cpu specified
-            cpu = max([math.floor(self.options.CPU[0] / len(self.jobs)), 1])
-            self.options.CPU.append(cpu)
-        self.options.CPU[0] /= self.options.CPU[1]
-        self.options.CPU[0] = max([math.floor(self.options.CPU[0]), 1])
+        if len(self.options.CPU) == 2:
+            return
+        # Evenly distribute among subjobs if only total cpu specified
+        cpu_per_job = math.floor(self.options.CPU[0] / len(self.jobs)) or 1
+        self.options.CPU.append(cpu_per_job)
+
+    def runProj(self,
+                agg=True,
+                progress=(jobutils.PARALLEL, jobutils.JOB),
+                **kwargs):
+        """
+        Run all jobs or aggregators registered in the project.
+
+        :param agg bool: run aggregators instead of jobs.
+        :param progress tuple: the screen type to show progress bar.
+        """
+        if not self.jobs:
+            self.error(f"No jobs to {'aggregate' if agg else 'run'}.")
+        self.clean(agg=agg)
+        self.proj.run(np=math.floor(self.options.CPU[0] / self.options.CPU[1])
+                      or 1,
+                      progress=self.options.screen in progress,
+                      jobs=None if agg else self.jobs,
+                      **kwargs)
 
     def clean(self, agg=False):
         """
@@ -190,21 +204,6 @@ class Runner(logutils.Base):
                 continue
             for job in self.jobs:
                 opr.cls(job, jobname=opr.jobname, options=self.options).clean()
-
-    def runProj(self, agg=False, **kwargs):
-        """
-        Run all jobs or aggregators registered in the project.
-
-        :param agg bool: run aggregators instead of jobs.
-        """
-        if not self.jobs:
-            self.error(f"No jobs to {'aggregate' if agg else 'run'}.")
-        prog = self.options.screen in [jobutils.PARALLEL, jobutils.JOB]
-        jobs = None if agg else self.jobs
-        self.proj.run(np=self.options.CPU[0],
-                      progress=prog,
-                      jobs=jobs,
-                      **kwargs)
 
     def logStatus(self):
         """
@@ -242,7 +241,7 @@ class Runner(logutils.Base):
         """
         self.add(task.TimeAgg)
 
-    def setAggProj(self, filter=None):
+    def setAggProj(self):
         """
         Initiate the aggregation project.
         """

@@ -35,79 +35,79 @@ JOB = 'job'
 WORKSPACE = 'workspace'
 
 
-def get_arg(args, flag, default=None, first=True):
+class Args(list):
     """
-    Get the value after the flag in command arg list.
-
-    :param args list: the arg list
-    :param flag str: set the value after this flag
-    :param default str: the default if the flag doesn't exist or not followed by
-        value(s)
-    :param first bool: only return the first value after the flag
-    :return str or list: the value(s) after the flag
+    Customized for command line arguments.
     """
-    try:
-        idx = args.index(flag)
-    except ValueError:
-        # Flag not found
-        return default
 
-    val = args[idx + 1]
-    if val.startswith('-'):
-        # Flag followed by another flag
-        return
+    def get(self, flag, default=None, first=True):
+        """
+        Get the value after the flag in command arg list.
 
-    if first:
-        return val
-
-    selected = []
-    for delta, arg in enumerate(args[idx + 1:]):
-        if arg.startswith('-'):
-            break
-        selected.append(arg)
-    return selected
-
-
-def pop_arg(args, flag, val=None):
-    """
-    Pop the value after the flag in command arg list.
-
-    :param args list: the arg list
-    :param flag str: set the value after this flag
-    :param val str: the default if no flag found or no value(s) followed
-    :return list: the values after the flag
-    """
-    values = get_arg(args, flag, first=False)
-    if values is None:
+        :param flag str: set the value after this flag
+        :param default str: the default if the flag doesn't exist or not followed by
+            value(s)
+        :param first bool: only return the first value after the flag
+        :return str or list: the value(s) after the flag
+        """
         try:
-            args.remove(flag)
+            idx = self.index(flag)
         except ValueError:
-            pass
-        return val
+            # Flag not found
+            return default
 
-    flag_idx = args.index(flag)
-    deta = len(values) if isinstance(values, list) else 1
-    for idx in reversed(range(flag_idx, flag_idx + deta + 1)):
-        args.pop(idx)
-    return values
+        val = self[idx + 1]
+        if val.startswith('-'):
+            # Flag followed by another flag
+            return
 
+        if first:
+            return val
 
-def set_arg(args, flag, val):
-    """
-    Set the value after the flag in command arg list.
+        selected = []
+        for delta, arg in enumerate(self[idx + 1:]):
+            if arg.startswith('-'):
+                break
+            selected.append(arg)
+        return selected
 
-    :param args list: the arg list
-    :param flag str: set the value after this flag
-    :param val str: the new value
-    :return list: the modified arg list
-    """
-    try:
-        idx = args.index(flag)
-    except ValueError:
-        args.extend([flag, str(val)])
-        return args
-    args[idx + 1] = val
-    return args
+    def rm(self, flag, val=None):
+        """
+        Remove the flag, and pop the value after the flag in command arg list.
+
+        :param flag str: set the value after this flag
+        :param val str: the default if no flag found or no value(s) followed
+        :return list: the values after the flag
+        """
+        values = self.get(flag, first=False)
+        if values is None:
+            try:
+                self.remove(flag)
+            except ValueError:
+                pass
+            return val
+
+        flag_idx = self.index(flag)
+        deta = len(values) if isinstance(values, list) else 1
+        for idx in reversed(range(flag_idx, flag_idx + deta + 1)):
+            self.pop(idx)
+        return values
+
+    def set(self, flag, val):
+        """
+        Set the value after the flag in command arg list.
+
+        :param flag str: set the value after this flag
+        :param val str: the new value
+        :return list: the modified arg list
+        """
+        try:
+            idx = self.index(flag)
+        except ValueError:
+            self.extend([flag, str(val)])
+            return self
+        self[idx + 1] = val
+        return self
 
 
 class Job(builtinsutils.Dict, builtinsutils.Object):

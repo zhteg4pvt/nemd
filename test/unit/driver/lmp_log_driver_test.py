@@ -19,7 +19,7 @@ class TestLmpLog:
 
     @pytest.fixture
     def lmplog(self, args, logger):
-        jobutils.set_arg(args, '-JOBNAME', 'anme')
+        args = jobutils.Args(args).set('-JOBNAME', 'anme')
         options = parserutils.LmpLog().parse_args(args)
         return driver.LmpLog(options, logger=logger)
 

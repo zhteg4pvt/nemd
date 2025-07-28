@@ -218,7 +218,7 @@ class Cmd(Job):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.args = []
+        self.args = jobutils.Args([])
         if not self.jobs:
             return
         self.args += self.doc[symbols.ARGS]
@@ -244,12 +244,11 @@ class Cmd(Job):
             jobnames = self.doc[self.PREREQ][self.jobname]
         except KeyError:
             return
-        self.args = self.TMPL + self.args
         # Pass the outfiles of the prerequisite jobs to the current via cmd args
         # Please rearrange or modify the prerequisite jobs' input by subclassing
         for jobname in jobnames:
             file = jobutils.Job(jobname, dirname=self.job.dirname).outfile
-            self.args[self.args.index(None)] = os.path.relpath(file, os.curdir)
+            self.args.insert(0, os.path.relpath(file, os.curdir))
 
     def rmUnknown(self):
         """
@@ -284,7 +283,8 @@ class Cmd(Job):
         """
         Add quotations to words containing special characters.
         """
-        self.args = [self.quote(x) for x in self.args]
+        for idx, arg in enumerate(self.args):
+            self.args[idx] = self.quote(arg)
 
     @staticmethod
     def quote(arg,
@@ -307,14 +307,13 @@ class Cmd(Job):
         """
         Set the jobname flag in the arguments.
         """
-        jobutils.set_arg(self.args, jobutils.FLAG_JOBNAME, self.jobname)
+        self.args.set(jobutils.FLAG_JOBNAME, self.jobname)
 
     def setCpu(self):
         """
         Set the cpu number.
         """
-        jobutils.set_arg(self.args, jobutils.FLAG_CPU,
-                         str(self.options.CPU[1]))
+        self.args.set(jobutils.FLAG_CPU, str(self.options.CPU[1]))
 
     def getCmd(self, prefix=RUN, write=True):
         """

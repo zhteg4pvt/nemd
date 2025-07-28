@@ -27,8 +27,7 @@ class TestRunner:
         runner.add(Job, pre=pre)
         runner.setProj()
         runner.openJobs()
-        runner.setCpu()
-        runner.runProj()
+        runner.runJobs()
         return runner
 
     @pytest.fixture
@@ -73,29 +72,15 @@ class TestRunner:
         runner.add(job, jobname='job2', pre=pre)
         assert expected[2] == runner.prereq.get('job2')
 
-    @pytest.mark.parametrize('original', [[]])
-    def testSetProj(self, original, runner):
-        runner.setProj()
-        assert runner.proj is not None
-        assert 'args' in runner.proj.document
-        assert 'prereq' in runner.proj.document
-
     @pytest.mark.parametrize('original,expected',
                              [(['-JOBNAME', 'myname', '-DEBUG', 'off'], False),
                               (['-JOBNAME', 'myname', '-DEBUG', 'on'], True)])
-    def testPlotJobs(self, runner, expected):
+    def testSetProj(self, runner, expected):
         runner.add(taskbase.Job)
         runner.add(taskbase.Job, jobname='job2')
         runner.setProj()
-        runner.plotJobs()
+        assert runner.proj is not None
         assert expected == os.path.isfile('myname_nx.png')
-
-    @pytest.mark.parametrize('kwargs,expected',
-                             [({}, None), (dict(state_num=1), [1]),
-                              (dict(state_num=3), [1, 2, 3])])
-    def testSetState(self, kwargs, expected):
-        runner = jobcontrol.Runner(types.SimpleNamespace(**kwargs), [])
-        np.testing.assert_equal(runner.state.get('-seed'), expected)
 
     @pytest.mark.parametrize('original', [[]])
     @pytest.mark.parametrize(
@@ -106,11 +91,26 @@ class TestRunner:
         runner.openJobs()
         assert 4 == len(runner.jobs)
 
+    @pytest.mark.parametrize('kwargs,expected',
+                             [({}, None), (dict(state_num=1), [1]),
+                              (dict(state_num=3), [1, 2, 3])])
+    def testState(self, kwargs, expected):
+        runner = jobcontrol.Runner(types.SimpleNamespace(**kwargs), [])
+        np.testing.assert_equal(runner.state.get('-seed'), expected)
+
+    @pytest.mark.parametrize('original,file,status,pre',
+                             [(['-clean', '-DEBUG'], True, True, None)])
+    def testRunJobs(self, ran):
+        assert 2 == len(ran.options.CPU)
+        assert 'args' in ran.proj.document
+        assert 'prereq' in ran.proj.document
+        assert 2 == len(ran.status)
+
     @pytest.mark.parametrize('jobs', [([None] * 4)])
     @pytest.mark.parametrize('original,expected',
-                             [([], [4, 2]), (['-CPU', '3'], [3, 1]),
-                              (['-CPU', '12'], [4, 3]),
-                              (['-CPU', '7', '3'], [2, 3])])
+                             [([], [9, 2]), (['-CPU', '3'], [3, 1]),
+                              (['-CPU', '12'], [12, 3]),
+                              (['-CPU', '7', '3'], [7, 3])])
     def testSetCpu(self, original, jobs, runner, expected):
         with mock.patch('os.cpu_count', return_value=12):
             runner.options = parserutils.Workflow().parse_args(original)
