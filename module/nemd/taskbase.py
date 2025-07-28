@@ -232,6 +232,7 @@ class Cmd(Job):
         self.rmUnknown()
         self.addQuot()
         self.setName()
+        self.setCpu()
 
     def addfiles(self):
         """
@@ -307,6 +308,13 @@ class Cmd(Job):
         Set the jobname flag in the arguments.
         """
         jobutils.set_arg(self.args, jobutils.FLAG_JOBNAME, self.jobname)
+
+    def setCpu(self):
+        """
+        Set the cpu number.
+        """
+        jobutils.set_arg(self.args, jobutils.FLAG_CPU,
+                         str(self.options.CPU[1]))
 
     def getCmd(self, prefix=RUN, write=True):
         """

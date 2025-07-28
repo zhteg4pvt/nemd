@@ -117,7 +117,6 @@ class Cmd(taskbase.Cmd):
     """
     The class to parse file, setup cmd, and run job.
     """
-    CPU_RE = re.compile(fr"{jobutils.FLAG_CPU} +\d*")
     DEBUG_RE = re.compile(f"{jobutils.FLAG_DEBUG}( +(True|False))?")
     SEP = f"{symbols.RETURN}"
     PERFORMANCE = 'performance'
@@ -169,9 +168,11 @@ class Cmd(taskbase.Cmd):
             quoted = [self.quote(x) for x in words]
             self.args[idx] = symbols.SPACE.join(quoted)
 
-    def numCpu(self):
+    def numCpu(self, rex=re.compile(fr"{jobutils.FLAG_CPU} +\d*")):
         """
-        Set the cpu number.
+        See parent.
+
+        :param rex `re.Pattern`: the regular expression to search cpu.
         """
         flag_cpu = f"{jobutils.FLAG_CPU} {self.options.CPU[1]}"
         for idx, cmd in enumerate(self.args):
@@ -182,7 +183,7 @@ class Cmd(taskbase.Cmd):
                 self.args[idx] = f"{cmd} {flag_cpu}"
             elif self.options.CPU.forced:
                 # CPU defined in the cmd file, but users forced one
-                self.args[idx] = self.CPU_RE.sub(f"{flag_cpu}", cmd)
+                self.args[idx] = rex.sub(f"{flag_cpu}", cmd)
             # Use the CPU defined in the cmd file
 
     def setDebug(self):

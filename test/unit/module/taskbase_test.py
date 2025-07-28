@@ -144,7 +144,8 @@ class TestCmd:
     def cmd(self, name, file, parser, tmpl, jobs):
         attrs = dict(FILE=file, ParserClass=parser, TMPL=tmpl)
         Name = type(name, (taskbase.Cmd, ), attrs)
-        return Name(*jobs, status={}, logger=mock.Mock())
+        options = parserutils.Driver().parse_args(['-CPU', '2', '1'])
+        return Name(*jobs, options=options, status={}, logger=mock.Mock())
 
     @pytest.mark.parametrize('dirname,file,parser,tmpl', [('empty', *THREE)])
     @pytest.mark.parametrize('name', ['MolBldr'])
@@ -166,10 +167,10 @@ class TestCmd:
     @pytest.mark.parametrize('dirname,file,parser,tmpl', [('empty', *THREE)])
     @pytest.mark.parametrize(
         "name,jobname,expected",
-        [('Job', None, 'nemd_run -JOBNAME job'),
-         ('Job', 'mol_bldr', 'nemd_run -JOBNAME mol_bldr')])
+        [('Job', None, 'nemd_run -JOBNAME job -CPU 1'),
+         ('Job', 'mol_bldr', 'nemd_run -JOBNAME mol_bldr -CPU 1')])
     def testRunOpr(self, cmd, jobname, expected):
-        assert expected == cmd.runOpr(jobname=jobname)
+        assert expected == cmd.runOpr(jobname=jobname, options=cmd.options)
         assert not glob.glob('.*_document.json')
 
     @pytest.mark.parametrize('dirname,file,parser,tmpl',
@@ -232,9 +233,17 @@ class TestCmd:
     @pytest.mark.parametrize('name,dirname,file,parser,tmpl',
                              [('MolBldr', 'empty', *THREE)])
     def testSetName(self, cmd):
-        cmd.args = []
         cmd.setName()
         assert ['-JOBNAME', 'mol_bldr'] == cmd.args
+
+    @pytest.mark.parametrize('name,dirname,file,parser,tmpl',
+                             [('MolBldr', 'empty', *THREE)])
+    @pytest.mark.parametrize('cpu,expected', [(['1', '2'], '2'),
+                                              (['2', '3'], '3')])
+    def testSetCpu(self, cmd, cpu, expected):
+        cmd.options = parserutils.Driver().parse_args(['-CPU', *cpu])
+        cmd.setCpu()
+        assert expected == cmd.args[-1]
 
     @pytest.mark.parametrize('dirname', ['0045_test'])
     @pytest.mark.parametrize('name,file,parser,tmpl,expected', [
