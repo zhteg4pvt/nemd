@@ -5,6 +5,7 @@ parser utilities.
 """
 import argparse
 import functools
+import math
 import os
 import pathlib
 import random
@@ -268,6 +269,16 @@ class Cpu(list):
         self.forced = forced
         if forced is None:
             self.forced = bool(self)
+
+    def set(self, jobs):
+        """
+        Set the cpu number per job.
+
+        :param list: the jobs.
+        """
+        if len(self) == 1:
+            # Evenly distribute among subjobs if only total cpu specified
+            self.append(math.floor(self[0] / len(jobs)) or 1)
 
 
 class Action(argparse.Action):

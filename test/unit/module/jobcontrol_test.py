@@ -31,6 +31,13 @@ class TestRunner:
         return runner
 
     @pytest.fixture
+    def agg(self, ran):
+        ran.add(taskbase.Agg)
+        ran.setAggProj()
+        ran.runProj(agg=True)
+        return ran
+
+    @pytest.fixture
     def Cmd(self, file):
         """
         Return a simple Cmd class that runs under jobcontrol.
@@ -106,18 +113,6 @@ class TestRunner:
         assert 'prereq' in ran.proj.document
         assert 2 == len(ran.status)
 
-    @pytest.mark.parametrize('jobs', [([None] * 4)])
-    @pytest.mark.parametrize('original,expected',
-                             [([], [9, 2]), (['-CPU', '3'], [3, 1]),
-                              (['-CPU', '12'], [12, 3]),
-                              (['-CPU', '7', '3'], [7, 3])])
-    def testSetCpu(self, original, jobs, runner, expected):
-        with mock.patch('os.cpu_count', return_value=12):
-            runner.options = parserutils.Workflow().parse_args(original)
-        runner.jobs = jobs
-        runner.setCpu()
-        assert expected == runner.options.CPU
-
     @pytest.mark.parametrize('original,file,status,pre',
                              [(['-clean', '-DEBUG'], True, True, None)])
     def testClean(self, ran):
@@ -185,20 +180,13 @@ class TestRunner:
 
     @pytest.mark.parametrize('original,file,status,pre',
                              [(['-clean', '-DEBUG'], True, True, None)])
-    def testCleanAgg(self, ran):
-        ran.add(taskbase.Agg)
-        ran.setAggProj()
-        ran.runProj(agg=True)
-        file = jobutils.Job('agg', dirname=ran.jobs[0].project.fn('')).file
+    def testCleanAgg(self, agg):
+        file = jobutils.Job('agg', dirname=agg.proj.fn('')).file
         assert os.path.exists(file)
-        ran.clean(agg=True)
+        agg.clean(agg=True)
         assert not os.path.exists(file)
 
     @pytest.mark.parametrize('original,file,status,pre',
                              [(['-DEBUG'], True, True, None)])
-    def testRunProjAgg(self, ran):
-        ran.add(taskbase.Agg)
-        ran.setAggProj()
-        ran.runProj(agg=True)
-        job = jobutils.Job('agg', dirname=ran.jobs[0].project.fn(''))
-        assert job['status']
+    def testRunProj(self, agg):
+        assert jobutils.Job('agg', dirname=agg.proj.fn(''))['status']

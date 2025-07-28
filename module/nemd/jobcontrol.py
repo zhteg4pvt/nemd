@@ -156,20 +156,10 @@ class Runner(logutils.Base):
         """
         Run task project.
         """
-        self.setCpu()
+        self.options.CPU.set(self.jobs)
         self.proj.doc[self.PREREQ] = self.prereq
         self.proj.doc[symbols.ARGS] = self.args
         self.runProj(agg=False)
-
-    def setCpu(self):
-        """
-        Set cpu numbers for the project.
-        """
-        if len(self.options.CPU) == 2:
-            return
-        # Evenly distribute among subjobs if only total cpu specified
-        cpu_per_job = math.floor(self.options.CPU[0] / len(self.jobs)) or 1
-        self.options.CPU.append(cpu_per_job)
 
     def runProj(self,
                 agg=True,

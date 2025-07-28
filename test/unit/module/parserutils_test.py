@@ -143,13 +143,23 @@ class TestLastPct:
 
 class TestCpu:
 
+    @pytest.fixture
+    def cpu(self, args, forced):
+        return parserutils.Cpu(args, forced=forced)
+
     @pytest.mark.parametrize('args,forced,expected',
                              [([1], None, [1, True]), ([], None, [False]),
                               ([1], False, [1, False]),
                               ([True], False, [1, False])])
-    def testInit(self, args, forced, expected):
-        cpu = parserutils.Cpu(args, forced=forced)
+    def testInit(self, cpu, expected):
         assert expected == [*cpu, cpu.forced]
+
+    @pytest.mark.parametrize('jobs,forced', [([None] * 4, True)])
+    @pytest.mark.parametrize('args,expected', [([3], [3, 1]), ([12], [12, 3]),
+                                               ([7, 3], [7, 3])])
+    def testSet(self, cpu, jobs, expected):
+        cpu.set(jobs)
+        assert expected == cpu
 
 
 @pytestutils.Raises
