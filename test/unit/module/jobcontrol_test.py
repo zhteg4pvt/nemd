@@ -7,7 +7,7 @@ import pytest
 
 from nemd import jobcontrol
 from nemd import jobutils
-from nemd import np
+import numpy as np
 from nemd import parserutils
 from nemd import taskbase
 

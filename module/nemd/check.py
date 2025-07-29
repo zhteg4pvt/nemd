@@ -13,8 +13,8 @@ from nemd import envutils
 from nemd import jobutils
 from nemd import lmpfull
 from nemd import logutils
-from nemd import np
-from nemd import pd
+import numpy as np
+import pandas as pd
 from nemd import plotutils
 
 

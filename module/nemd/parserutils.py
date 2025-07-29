@@ -9,6 +9,7 @@ import math
 import os
 import pathlib
 import random
+import numpy as np
 
 from nemd import analyzer
 from nemd import builtinsutils
@@ -17,7 +18,6 @@ from nemd import envutils
 from nemd import is_debug
 from nemd import jobutils
 from nemd import lmpin
-from nemd import np
 from nemd import rdkitutils
 from nemd import sw
 from nemd import symbols
@@ -370,12 +370,8 @@ class SliceAction(Action):
             (1: END; 2: START, END; 3: START, END, STEP)
         :return tuple of int: start, stop, and step
         """
-        sliced = slice(*args)
-        start = 0 if sliced.start is None else sliced.start
-        step = 1 if sliced.step is None else sliced.step
-        if step == 0 or start > sliced.stop:
-            self.error(f"{args} can't slice")
-        return start, sliced.stop, step
+        args = [None if x.lower() == 'none' else type_int(x) for x in args]
+        return slice(*args)
 
 
 class StructAction(Action):
@@ -1019,8 +1015,7 @@ class LmpLog(Lammps):
         parser.add_argument(
             cls.FLAG_SLICE,
             metavar='START END STEP',
-            type=type_nonnegative_int,
-            default=[None],
+            default=slice(None),
             action=SliceAction,
             nargs='+',
             help="Slice the input data by END, START END, or START END STEP.")

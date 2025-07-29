@@ -1,7 +1,7 @@
 import pytest
 
 from nemd import cru
-from nemd import np
+import numpy as np
 
 
 class TestMoiety:

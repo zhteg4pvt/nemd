@@ -3,7 +3,7 @@ from rdkit import Chem
 
 from nemd import envutils
 from nemd import lmpfull
-from nemd import np
+import numpy as np
 from nemd import numpyutils
 from nemd import oplsua
 from nemd import parserutils

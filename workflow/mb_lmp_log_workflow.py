@@ -8,7 +8,7 @@ import sys
 
 from nemd import jobcontrol
 from nemd import logutils
-from nemd import np
+import numpy as np
 from nemd import parserutils
 from nemd import task
 

@@ -20,8 +20,7 @@ def pyplot(inav=False, name='the plot'):
     """
     import matplotlib
     obackend = matplotlib.get_backend()
-    backend = obackend if inav else 'Agg'
-    matplotlib.use(backend)
+    matplotlib.use('qt5agg' if inav else 'Agg')
     from matplotlib import pyplot as plt
     try:
         yield plt

@@ -4,7 +4,7 @@ import pytest
 
 from nemd import envutils
 from nemd import frame
-from nemd import np
+import numpy as np
 from nemd import parserutils
 from nemd import traj
 

@@ -16,7 +16,7 @@ import pytest
 from nemd import envutils
 from nemd import frame
 from nemd import jobutils
-from nemd import np
+import numpy as np
 from nemd import oplsua
 from nemd import osutils
 from nemd import pytestutils

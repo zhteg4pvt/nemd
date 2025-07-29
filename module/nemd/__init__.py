@@ -37,7 +37,7 @@ if not is_debug():
     # FIXME: sh are not lazy-imported due to `AttributeError: module 'sh' has no
     #  attribute 'grep'` on sh.grep
     modules = [
-        'numpy', 'pandas', 'numba', 'networkx', 'rdkit', 'rdkit.Chem', 'scipy',
+        'pandas', 'numba', 'networkx', 'rdkit', 'rdkit.Chem', 'scipy',
         'signac', 'flow', 'wurlitzer', 'pkgutil', 'chemparse', 'psutil'
     ]
     names = [
@@ -48,6 +48,3 @@ if not is_debug():
     ]
     for name in modules + [f"nemd.{x}" for x in names]:
         lazy_import.lazy_module(name)
-import flow
-import numpy as np
-import pandas as pd

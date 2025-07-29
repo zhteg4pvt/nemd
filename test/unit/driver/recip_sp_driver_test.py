@@ -5,8 +5,8 @@ from unittest import mock
 import pytest
 import recip_sp_driver as driver
 
-from nemd import np
-from nemd import pd
+import numpy as np
+import pandas as pd
 from nemd import plotutils
 
 

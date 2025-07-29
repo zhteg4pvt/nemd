@@ -13,6 +13,7 @@ import re
 import sys
 import traceback
 import types
+import pandas as pd
 
 import wurlitzer
 
@@ -20,7 +21,6 @@ from nemd import builtinsutils
 from nemd import envutils
 from nemd import is_debug
 from nemd import jobutils
-from nemd import pd
 from nemd import psutils
 from nemd import symbols
 from nemd import timeutils

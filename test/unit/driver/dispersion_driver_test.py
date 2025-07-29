@@ -4,7 +4,7 @@ import dispersion_driver as driver
 import pytest
 
 from nemd import envutils
-from nemd import np
+import numpy as np
 
 ARGS = ['-name', 'Si', '-JOBNAME', 'dispersion']
 BANDS = envutils.test_data('0044', 'phonons', 'dispersion.bands')

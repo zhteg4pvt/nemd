@@ -137,8 +137,8 @@ class Traj(list):
         Set up.
         """
         self.setStart()
-        sliced = getattr(self.options, 'slice', [None])
-        self.extend(list(itertools.islice(self.frame, *sliced)))
+        sliced = getattr(self.options, 'slice', slice(None))
+        self.extend(list(itertools.islice(self.frame, sliced.start, sliced.stop, sliced.step)))
         # FIXME: obtain the timestep from log file instead of options
         fac = 1 if self.file.endswith('.xtc') else \
             getattr(self.options, 'timestep', 1) * constants.FEMTO_TO_PICO

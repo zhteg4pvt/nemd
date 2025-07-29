@@ -11,9 +11,9 @@ from nemd import alamode
 from nemd import constants
 from nemd import jobutils
 from nemd import logutils
-from nemd import np
+import numpy as np
 from nemd import parserutils
-from nemd import pd
+import pandas as pd
 from nemd import plotutils
 from nemd import symbols
 

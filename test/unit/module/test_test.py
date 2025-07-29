@@ -6,7 +6,7 @@ import pytest
 import test_workflow
 
 from nemd import envutils
-from nemd import np
+import numpy as np
 from nemd import test
 
 

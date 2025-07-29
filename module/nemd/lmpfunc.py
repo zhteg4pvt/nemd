@@ -81,7 +81,6 @@ class Length(Base):
     """
     Analyze xyzl (hi - lo) data.
     """
-
     XL = 'xl'
     YL = 'yl'
     ZL = 'zl'
@@ -247,7 +246,6 @@ class Vol(Press):
     """
     Calculate the volume scale factor based on the pressure and volume.
     """
-
     SCALE = 'scale'
     FITTED = 'Fitted'
 
@@ -290,11 +288,11 @@ class Vol(Press):
         cropped = self.ave[left_bound + 1:right_bound]
         vol = self.vol[left_bound + 1:right_bound]
         vol_name = self.getColumn(self.VOL).name
-        delta = self.data.groupby(by=vol_name).std().mean().iloc[0] / 20
-        if self.press < cropped.min() - delta:
+        delta = self.data.groupby(by=vol_name).std().mean().item() * 0.05
+        if cropped.min() - delta > self.press:
             # Expand the volume as the target pressure is smaller
             self.factor = self.vol.max() / vol.mean()
-        if self.press > cropped.max() + delta:
+        if cropped.max() + delta < self.press:
             # Compress the volume as the target pressure is larger
             self.factor = self.vol.min() / vol.mean()
 

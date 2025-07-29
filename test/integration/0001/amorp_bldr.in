@@ -43,7 +43,7 @@ shell cd defm_${defm_id}
 
 variable vol equal vol
 variable amp equal 0.01*v_vol^(1/3)
-fix 3a all deform 100 x wiggle ${amp} 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
+fix 3a all deform 312 x wiggle ${amp} 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
 fix 3b all ave/time 1 25 25 c_thermo_press v_vol file press_vol
 fix 3c all temp/berendsen 300 300 100
 fix 3d all nve
@@ -59,7 +59,7 @@ variable fact python getBdryFact
 python getBdryFact input 2 1 press_vol return v_fact format fsf here "from nemd.lmpfunc import getBdryFact"
 print "fact=${fact}"
 if "${fact} == 1" then "jump SELF defm_break"
-fix 4a all deform 100 x scale ${fact} y scale ${fact} z scale ${fact} remap x
+fix 4a all deform 125 x scale ${fact} y scale ${fact} z scale ${fact}
 fix 4b all temp/berendsen 300 300 100
 fix 4c all nve
 run 1250

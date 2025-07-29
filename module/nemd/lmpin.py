@@ -729,14 +729,17 @@ class Script(Ave):
         self.equal(vol, vol)
         self.equal(amp, f"0.01*v_{vol}^(1/3)")
         with self.block() as blk:
-            parm = f"%s wiggle ${{{amp}}} {self.wstep * self.options.timestep}"
-            blk.deform(self.rec_num, parm=parm)
+            blk.deform(
+                round(self.wstep / 8),
+                parm=
+                f"%s wiggle ${{{amp}}} {self.wstep * self.options.timestep}")
+            nstep = self.wstep * self.wnum
             blk.ave_time('c_thermo_press',
                          f'v_{vol}',
                          file=file,
                          nstep=self.wstep,
                          num=self.rec_num)
-            blk.nvt(nstep=self.wstep * self.wnum,
+            blk.nvt(nstep=nstep,
                     stemp=self.options.temp,
                     temp=self.options.temp)
         self.delete(vol, amp)
@@ -757,15 +760,14 @@ class Script(Ave):
         """
         Adjust the simulation box by deformation and NPT.
         """
+        nstep = self.wstep / 2
         with self.block() as blk:
-            blk.deform(100, 'remap', 'x', parm=f"%s scale ${{{self.FACT}}}")
-            blk.nvt(nstep=self.wstep / 2,
+            blk.deform(round(nstep / 10), parm=f"%s scale ${{{self.FACT}}}")
+            blk.nvt(nstep=nstep,
                     stemp=self.options.temp,
                     temp=self.options.temp)
         self.delete(self.FACT)
-        self.nvt(nstep=self.wstep / 2,
-                 stemp=self.options.temp,
-                 temp=self.options.temp)
+        self.nvt(nstep=nstep, stemp=self.options.temp, temp=self.options.temp)
 
     def if_then(self, cond, action, **kwargs):
         """
