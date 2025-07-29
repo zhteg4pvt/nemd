@@ -137,8 +137,9 @@ class Traj(list):
         Set up.
         """
         self.setStart()
-        sliced = getattr(self.options, 'slice', slice(None))
-        self.extend(list(itertools.islice(self.frame, sliced.start, sliced.stop, sliced.step)))
+        slc = getattr(self.options, 'slice', None)
+        frames = itertools.islice(self.frame, *slc) if slc else self.frame
+        self.extend(list(frames))
         # FIXME: obtain the timestep from log file instead of options
         fac = 1 if self.file.endswith('.xtc') else \
             getattr(self.options, 'timestep', 1) * constants.FEMTO_TO_PICO
@@ -151,7 +152,7 @@ class Traj(list):
         if self.start is not None:
             return
         if self.file.endswith(symbols.XTC_EXT) or self.options is None or \
-                self.options.slice != [None]:
+                self.options.slice:
             self.start = 0
             return
         # No all-frame tasks found, only last frames are fully read.

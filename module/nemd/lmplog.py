@@ -67,7 +67,9 @@ class Log(lmpin.Base):
         Concatenate and clear the current thermo block.
         """
         data = pd.read_csv(io.StringIO(''.join(self)), sep=r'\s+')
-        self.thermo = pd.concat((self.thermo, data))[self.options.slice]
+        self.thermo = pd.concat((self.thermo, data))
+        if self.options.slice:
+            self.thermo = self.thermo[slice(*self.options.slice)]
         self.clear()
 
     def finalize(self):

@@ -47,6 +47,11 @@ class TestType:
     def testFloat(self, arg, expected):
         assert expected == parserutils.type_float(arg)
 
+    @pytest.mark.parametrize('arg,expected', [('1', 1), ('None', None),
+                                              ('none', None)])
+    def testInt(self, arg, expected):
+        assert expected == parserutils.type_int(arg)
+
     @pytest.mark.parametrize('arg,expected', [('0', 0), ('1.12', RAISED),
                                               ('-1', -1)])
     def testInt(self, arg, expected):
@@ -197,12 +202,12 @@ class TestAction:
         assert expected == parser.parse_args(args).dest
 
     @pytest.mark.parametrize(
-        'action,dtype',
-        [(parserutils.SliceAction, parserutils.type_nonnegative_int)])
-    @pytest.mark.parametrize('args,expected', [(['9'], (0, 9, 1)),
-                                               (['9', '1'], RAISED),
-                                               (['1', '9', '3'], (1, 9, 3)),
-                                               (['1', '9', '0'], RAISED)])
+        'action,dtype', [(parserutils.SliceAction, parserutils.type_slice)])
+    @pytest.mark.parametrize('args,expected',
+                             [(['9'], (9, )), (['9', '1'], (9, 1)),
+                              (['1', '9', '3'], (1, 9, 3)),
+                              (['1', 'none', '3'], (1, None, 3)),
+                              (['1', '9', '0', '6'], RAISED)])
     def testSlice(self, parser, args, expected):
         assert expected == parser.parse_args(args).dest
 
@@ -499,7 +504,7 @@ class TestAdd:
     @pytest.mark.parametrize(
         'args,positional,expected',
         [([], False, [['toteng'], None,
-                      parserutils.LastPct(0.2), [None]]),
+                      parserutils.LastPct(0.2), None]),
          ([
              LOG_FILE, '-task', 'temp', 'e_mol', '-data_file', DATA_FILE,
              '-last_pct', '0.66', '-slice', '1', '8', '3'
@@ -516,7 +521,7 @@ class TestAdd:
     @pytest.mark.parametrize(
         'args,positional,expected',
         [([], False, [['density'], None,
-                      parserutils.LastPct(0.2), [None]]),
+                      parserutils.LastPct(0.2), None]),
          ([
              TRAJ_FILE, '-task', 'rdf', 'msd', '-data_file', DATA_FILE,
              '-last_pct', '0.66', '-slice', '1', '8', '3'

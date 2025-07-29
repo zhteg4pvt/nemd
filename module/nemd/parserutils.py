@@ -9,6 +9,7 @@ import math
 import os
 import pathlib
 import random
+
 import numpy as np
 
 from nemd import analyzer
@@ -82,6 +83,17 @@ def type_float(arg):
         return float(arg)
     except ValueError:
         raise argparse.ArgumentTypeError(f'Cannot convert {arg} to a float')
+
+
+def type_slice(arg):
+    """
+    Check and convert to an integer or None.
+
+    :param arg str: the input argument.
+    :return `int`: the converted integer or None.
+    :raise ArgumentTypeError: argument cannot be converted to an integer.
+    """
+    return None if arg.lower() == 'none' else type_int(arg)
 
 
 def type_int(arg):
@@ -368,10 +380,11 @@ class SliceAction(Action):
 
         :param args list of str: the arguments for the slice function.
             (1: END; 2: START, END; 3: START, END, STEP)
-        :return tuple of int: start, stop, and step
+        :return tuple: start, stop, and step
         """
-        args = [None if x.lower() == 'none' else type_int(x) for x in args]
-        return slice(*args)
+        if len(args) > 3:
+            self.error(f"More than 3 argument found.")
+        return args
 
 
 class StructAction(Action):
@@ -1015,7 +1028,7 @@ class LmpLog(Lammps):
         parser.add_argument(
             cls.FLAG_SLICE,
             metavar='START END STEP',
-            default=slice(None),
+            type=type_slice,
             action=SliceAction,
             nargs='+',
             help="Slice the input data by END, START END, or START END STEP.")
