@@ -619,11 +619,10 @@ class Script(Ave):
         self.nvt(nstep=self.relax_step / 2E1,
                  stemp=self.options.temp,
                  temp=self.options.temp)
+        # [record, deform, nvt], wiggle, npt, wiggle
         self.loop()
         nstep = self.relax_step / 1E1
-        self.wiggle(nstep)
-        # NVT and NPT relaxation to reach the exact target pressure
-        self.nvt(nstep=nstep, temp=self.options.temp)
+        self.wiggle(nstep, file='loop.wiggle')
         self.equal('press', 'press')
         self.npt(nstep=nstep,
                  stemp=self.options.temp,
@@ -631,6 +630,16 @@ class Script(Ave):
                  spress='${press}',
                  press=self.options.press,
                  modulus=self.MODULUS_VAR)
+        self.wiggle(nstep, file='npt.wiggle')
+        self.equal('press', 'press')
+        self.npt(nstep=nstep,
+                 stemp=self.options.temp,
+                 temp=self.options.temp,
+                 spress='${press}',
+                 press=self.options.press,
+                 modulus=self.MODULUS_VAR)
+        self.delete('press')
+        self.wiggle(nstep, file='final.wiggle')
 
     @contextlib.contextmanager
     def tmp_dump(self, dump_id, key, kwargs):
@@ -652,7 +661,7 @@ class Script(Ave):
             self.dump_modify(dump_id, key, *kwargs.values())
 
     def loop(self,
-             num=10000,
+             num=1000,
              loop_id='loop_id',
              start_lb='start_lb',
              break_lb='break_lb'):
@@ -668,9 +677,9 @@ class Script(Ave):
             self.variable(loop_id, 'loop', 0, num - 1, 'pad')
             self.join('label', start_lb)
             self.print(loop_id)
-            # Maximum total steps: (record + relaxation) * loop number
+            # Maximum total steps: (record + deform + relaxation) * loop number
             fac = self.adjust(int(self.relax_step / num / 2),
-                               file=f"${{{loop_id}}}")
+                              file=f"${{{loop_id}}}")
             self.if_then(f"${{{fac}}} == 1", f'jump SELF {break_lb}')
             self.join('next', loop_id)
             self.join('jump', 'SELF', start_lb, newline=True)
@@ -699,28 +708,29 @@ class Script(Ave):
         """
         self.join('shell', *args, **kwargs)
 
-    def adjust(self, nstep, file='adjust', rec=20, fac='fac'):
+    def adjust(self, nstep, file='adjust', rec=50, fac='fac'):
         """
         Adjust the box in nvt ensembles.
 
-        :param nstep int: number of steps.
+        :param nstep int: simulation step number for recording.
         :param file str: the output file.
         :param rec int: the number of records.
         :param fac str: the expansion / compression volume factor.
         :return str: the volume factor.
         """
-        nstep = max(nstep, 100)
+        nstep = max(nstep, self.options.pdamp)
         with self.block() as blk:
             blk.ave_time(self.CPRESS, file=file, nstep=nstep, num=rec)
             blk.nvt(nstep=nstep, temp=self.options.temp)
         self.python(fac, 'getBdryFac', 'fsf', self.options.press, file)
         self.print(fac)
+        half = round(nstep / 2)
         with self.block() as blk:
-            blk.deform(round(nstep / rec), parm=f"%s scale ${{{fac}}}")
-            blk.nvt(nstep=nstep,
+            blk.deform(round(half / rec), parm=f"%s scale ${{{fac}}}")
+            blk.nvt(nstep=half,
                     stemp=self.options.temp,
                     temp=self.options.temp)
-        self.nvt(nstep=nstep, stemp=self.options.temp, temp=self.options.temp)
+        self.nvt(nstep=half, stemp=self.options.temp, temp=self.options.temp)
         return fac
 
     def deform(self, period, *args, parm=None):
@@ -753,7 +763,7 @@ class Script(Ave):
         :param num int: the number of sinusoidal waves.
         :param imodulus str: calculated modulus from wiggle.
         """
-        nstep = max(nstep, 10000)
+        nstep = max(nstep, self.options.pdamp * 4)
         self.equal('vol', 'vol')
         self.equal('amp', "0.005*v_vol^(1/3)")
         wstep = round(nstep / num)
@@ -761,7 +771,11 @@ class Script(Ave):
             blk.deform(
                 int(wstep / rec),
                 parm=f"%s wiggle ${{amp}} {wstep * self.options.timestep}")
-            blk.ave_time(self.CPRESS, 'v_vol', file=file, nstep=nstep, num=rec * num)
+            blk.ave_time(self.CPRESS,
+                         'v_vol',
+                         file=file,
+                         nstep=nstep,
+                         num=rec * num)
             blk.nvt(nstep=nstep, temp=self.options.temp)
         self.python(imodulus, 'getModulus', 'sif', file, rec)
         self.equal(self.MODULUS, imodulus, bracked=True)

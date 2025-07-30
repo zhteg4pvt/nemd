@@ -157,11 +157,11 @@ class Factor(Press):
         Main method to run.
         """
         super().run()
-        std = self.getColumn(self.PRESS).std()
-        if self.press > self.ave + std:
-            return 0.999
-        elif self.press < self.ave - std:
-            return 1.001
+        delta = self.getColumn(self.PRESS).std() * 0.05
+        if self.press > self.ave + delta:
+            return 0.995
+        elif self.press < self.ave - delta:
+            return 1.005
         else:
             return 1
 
