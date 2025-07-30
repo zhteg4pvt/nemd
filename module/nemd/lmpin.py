@@ -507,12 +507,12 @@ class Ave(RampUp):
                  stemp=self.options.temp,
                  temp=self.options.temp)
 
-    def average(self, modulus=10, rec_num=10):
+    def average(self, modulus=10, rec=10):
         """
         Change the box to the average boundary of a NPT simulation.
 
         :param modulus float: the modules in berendsen barostat.
-        :param rec_num int: the number of records.
+        :param rec int: the number of records.
         """
         if not self.relax_step:
             return
@@ -524,7 +524,7 @@ class Ave(RampUp):
             blk.ave_time(*[f'v_{i}' for i in spans],
                          file=self.XYZ,
                          nstep=self.relax_step,
-                         num=rec_num)
+                         num=rec)
             blk.npt(nstep=self.relax_step,
                     stemp=self.options.temp,
                     temp=self.options.temp,
@@ -587,38 +587,23 @@ class Ave(RampUp):
             to_print = f'{label}: {to_print}'
         self.join('print', f'"{to_print}"')
 
-    def delete(self, *args):
+    def delete(self, *args, newline=False):
         """
         Delete variables.
 
         :param args tuple of str: the variables to delete.
         """
-        for arg in args:
-            self.variable(arg, 'delete')
+        for idx, arg in enumerate(args, 1):
+            self.variable(arg, 'delete', newline=newline and idx == len(args))
 
 
 class Script(Ave):
     """
-    Customized with relaxation cycles.
+    Customized relaxation with nvt loops.
     """
     MODULUS_VAR = f'${{{RampUp.MODULUS}}}'
-    FACT = 'fact'
     EVERY = 'every'
-
-    def __init__(self, *args, loop_num=1000, wnum=3, rec_num=100, **kwargs):
-        """
-        :param loop_num int: the maximum number of cycles.
-        :param wnum int: the number of sinusoidal waves in each cycle.
-        :param rec_num int: each sinusoidal wave records this number of data.
-        """
-        super().__init__(*args, **kwargs)
-        self.loop_num = loop_num
-        self.wnum = wnum
-        self.rec_num = rec_num
-        # Maximum Total Cycle Steps: self.relax_steps * 10.
-        # Deformation and relaxation cost one more additional self.wstep
-        self.wstep = int(self.relax_step * 10 / loop_num / (self.wnum + 1))
-        self.wstep = max([int(self.wstep / self.rec_num), 10]) * self.rec_num
+    CPRESS = 'c_thermo_press'
 
     def rampUp(self):
         """
@@ -634,14 +619,13 @@ class Script(Ave):
         self.nvt(nstep=self.relax_step / 2E1,
                  stemp=self.options.temp,
                  temp=self.options.temp)
-        # Change the volume to approach the target pressure (1 frame per cycle)
-        with self.tmp_dump(self.DUMP_ID, self.EVERY,
-                           {self.wstep * (self.wnum + 1): self.DUMP_Q}):
-            self.cycle()
+        self.loop()
+        nstep = self.relax_step / 1E1
+        self.wiggle(nstep)
         # NVT and NPT relaxation to reach the exact target pressure
-        self.nvt(nstep=self.relax_step / 1E1, temp=self.options.temp)
+        self.nvt(nstep=nstep, temp=self.options.temp)
         self.equal('press', 'press')
-        self.npt(nstep=self.relax_step / 1E1,
+        self.npt(nstep=nstep,
                  stemp=self.options.temp,
                  temp=self.options.temp,
                  spress='${press}',
@@ -667,40 +651,31 @@ class Script(Ave):
         finally:
             self.dump_modify(dump_id, key, *kwargs.values())
 
-    def cycle(self,
-              defm_id='defm_id',
-              defm_start='defm_start',
-              defm_break='defm_break',
-              imodulus='imodulus'):
+    def loop(self,
+             num=10000,
+             loop_id='loop_id',
+             start_lb='start_lb',
+             break_lb='break_lb'):
         """
-        Deform the box to get close to the target pressure by cycles, in which
-        the system wiggle, adjust, and relax.
+        Deform to approach the target pressure by nvt, adjust, and relaxation.
 
-        :param defm_id str: deformation id loop from 0 to loop_num - 1
-        :param defm_start str: label to start the deformation loop
-        :param defm_break str: terminated deformation goes to this label
+        :param num int: the maximum loop number.
+        :param loop_id str: loop id.
+        :param start_lb str: label to start the deformation loop
+        :param break_lb str: terminated deformation goes to this label
         """
-        self.variable(defm_id, 'loop', 0, self.loop_num - 1, 'pad')
-        # Loop start
-        self.join('label', defm_start)
-        self.print(defm_id)
-        with self.tmp_dir(f"defm_${{{defm_id}}}") as cdw:
-            # Wiggle for factor
-            file = self.wiggle()
-            self.python(self.FACT, 'getBdryFact', 'fsf', self.options.press,
-                        file)
-            self.print(self.FACT)
-            self.if_then(f"${{{self.FACT}}} == 1", f'jump SELF {defm_break}')
-            # Adjust and continue
-            self.adjust()
-            self.shell(*cdw)
-            self.join('next', defm_id)
-            self.join('jump', 'SELF', defm_start, newline=True)
-            # Break with the modulus evaluation as (files in subdir).
-            self.join('label', defm_break)
-            self.python(imodulus, 'getModulus', 'sif', file, self.rec_num)
-            self.equal(self.MODULUS, imodulus, bracked=True)
-            self.delete(imodulus, defm_id)
+        with self.tmp_dir('loop'):
+            self.variable(loop_id, 'loop', 0, num - 1, 'pad')
+            self.join('label', start_lb)
+            self.print(loop_id)
+            # Maximum total steps: (record + relaxation) * loop number
+            fac = self.adjust(int(self.relax_step / num / 2),
+                               file=f"${{{loop_id}}}")
+            self.if_then(f"${{{fac}}} == 1", f'jump SELF {break_lb}')
+            self.join('next', loop_id)
+            self.join('jump', 'SELF', start_lb, newline=True)
+            self.join('label', break_lb)
+            self.delete(loop_id, fac)
 
     @contextlib.contextmanager
     def tmp_dir(self, dirname, cdw=('cd', os.pardir)):
@@ -713,37 +688,40 @@ class Script(Ave):
         self.shell('mkdir', dirname)
         self.shell('cd', dirname, newline=True)
         try:
-            yield cdw
+            yield
         finally:
+            self.join()
             self.shell(*cdw, newline=True)
 
-    def wiggle(self, file='press_vol', vol='vol', amp='amp'):
+    def shell(self, *args, **kwargs):
         """
-        Wiggle simulation.
+        Shell command.
+        """
+        self.join('shell', *args, **kwargs)
 
-        :param file str: the filename to record pressure and volume.
-        :param vol str: the volume variable name.
-        :param amp str: the wiggle amplitude.
-        :return filename: the pressure and volume filename.
+    def adjust(self, nstep, file='adjust', rec=20, fac='fac'):
         """
-        self.equal(vol, vol)
-        self.equal(amp, f"0.01*v_{vol}^(1/3)")
+        Adjust the box in nvt ensembles.
+
+        :param nstep int: number of steps.
+        :param file str: the output file.
+        :param rec int: the number of records.
+        :param fac str: the expansion / compression volume factor.
+        :return str: the volume factor.
+        """
+        nstep = max(nstep, 100)
         with self.block() as blk:
-            blk.deform(
-                round(self.wstep / 8),
-                parm=
-                f"%s wiggle ${{{amp}}} {self.wstep * self.options.timestep}")
-            nstep = self.wstep * self.wnum
-            blk.ave_time('c_thermo_press',
-                         f'v_{vol}',
-                         file=file,
-                         nstep=self.wstep,
-                         num=self.rec_num)
+            blk.ave_time(self.CPRESS, file=file, nstep=nstep, num=rec)
+            blk.nvt(nstep=nstep, temp=self.options.temp)
+        self.python(fac, 'getBdryFac', 'fsf', self.options.press, file)
+        self.print(fac)
+        with self.block() as blk:
+            blk.deform(round(nstep / rec), parm=f"%s scale ${{{fac}}}")
             blk.nvt(nstep=nstep,
                     stemp=self.options.temp,
                     temp=self.options.temp)
-        self.delete(vol, amp)
-        return file
+        self.nvt(nstep=nstep, stemp=self.options.temp, temp=self.options.temp)
+        return fac
 
     def deform(self, period, *args, parm=None):
         """
@@ -756,19 +734,6 @@ class Script(Ave):
             args = tuple(parm % i for i in self.XYZ) + args
         self.fix_all('deform', period, *args)
 
-    def adjust(self):
-        """
-        Adjust the simulation box by deformation and NPT.
-        """
-        nstep = self.wstep / 2
-        with self.block() as blk:
-            blk.deform(round(nstep / 10), parm=f"%s scale ${{{self.FACT}}}")
-            blk.nvt(nstep=nstep,
-                    stemp=self.options.temp,
-                    temp=self.options.temp)
-        self.delete(self.FACT)
-        self.nvt(nstep=nstep, stemp=self.options.temp, temp=self.options.temp)
-
     def if_then(self, cond, action, **kwargs):
         """
         If command.
@@ -778,11 +743,29 @@ class Script(Ave):
         """
         self.join('if', f'"{cond}"', 'then', f'"{action}"', **kwargs)
 
-    def shell(self, *args, **kwargs):
+    def wiggle(self, nstep, file='wiggle', rec=50, num=4, imodulus='imodulus'):
         """
-        Shell command.
+        Run simulation with averaging.
+
+        :param nstep int: run this number of steps.
+        :param file str: the filename to record pressure and volume.
+        :param rec int: each wave records this number of data.
+        :param num int: the number of sinusoidal waves.
+        :param imodulus str: calculated modulus from wiggle.
         """
-        self.join('shell', *args, **kwargs)
+        nstep = max(nstep, 10000)
+        self.equal('vol', 'vol')
+        self.equal('amp', "0.005*v_vol^(1/3)")
+        wstep = round(nstep / num)
+        with self.block() as blk:
+            blk.deform(
+                int(wstep / rec),
+                parm=f"%s wiggle ${{amp}} {wstep * self.options.timestep}")
+            blk.ave_time(self.CPRESS, 'v_vol', file=file, nstep=nstep, num=rec * num)
+            blk.nvt(nstep=nstep, temp=self.options.temp)
+        self.python(imodulus, 'getModulus', 'sif', file, rec)
+        self.equal(self.MODULUS, imodulus, bracked=True)
+        self.delete('vol', 'amp', imodulus, newline=True)
 
     def relaxation(self, modulus=MODULUS_VAR):
         """
@@ -795,5 +778,5 @@ class Script(Ave):
         See parent.
         """
         if self.relax_step:
-            kwargs[self.MODULUS] = self.MODULUS_VAR
+            kwargs.setdefault(self.MODULUS, self.MODULUS_VAR)
         super().production(**kwargs)

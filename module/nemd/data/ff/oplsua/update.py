@@ -8,11 +8,11 @@ import io
 import os
 
 import chemparse
+import numpy as np
+import pandas as pd
 
 from nemd import builtinsutils
-import numpy as np
 from nemd import oplsua
-import pandas as pd
 from nemd import rdkitutils
 from nemd import symbols
 

@@ -2,11 +2,11 @@ import argparse
 import os
 from unittest import mock
 
+import numpy as np
+import pandas as pd
 import pytest
 import recip_sp_driver as driver
 
-import numpy as np
-import pandas as pd
 from nemd import plotutils
 
 

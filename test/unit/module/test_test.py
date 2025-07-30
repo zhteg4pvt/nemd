@@ -2,11 +2,11 @@ import os
 import shutil
 from unittest import mock
 
+import numpy as np
 import pytest
 import test_workflow
 
 from nemd import envutils
-import numpy as np
 from nemd import test
 
 

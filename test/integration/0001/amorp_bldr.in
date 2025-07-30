@@ -35,84 +35,93 @@ run 50000
 unfix 2a
 unfix 2b
 
-variable defm_id loop 0 999 pad
-label defm_start
-print "defm_id=${defm_id}"
-shell mkdir defm_${defm_id}
-shell cd defm_${defm_id}
+shell mkdir loop
+shell cd loop
 
-variable vol equal vol
-variable amp equal 0.01*v_vol^(1/3)
-fix 3a all deform 312 x wiggle ${amp} 2500 y wiggle ${amp} 2500 z wiggle ${amp} 2500
-fix 3b all ave/time 1 25 25 c_thermo_press v_vol file press_vol
-fix 3c all temp/berendsen 300 300 100
-fix 3d all nve
-run 7500
+variable loop_id loop 0 9999 pad
+label start_lb
+print "loop_id=${loop_id}"
+fix 3a all ave/time 1 5 5 c_thermo_press file ${loop_id}
+fix 3b all temp/berendsen 300 300 100
+fix 3c all nve
+run 100
 unfix 3a
 unfix 3b
 unfix 3c
-unfix 3d
 
-variable vol delete
-variable amp delete
-variable fact python getBdryFact
-python getBdryFact input 2 1 press_vol return v_fact format fsf here "from nemd.lmpfunc import getBdryFact"
-print "fact=${fact}"
-if "${fact} == 1" then "jump SELF defm_break"
-fix 4a all deform 125 x scale ${fact} y scale ${fact} z scale ${fact}
+variable fac python getBdryFac
+python getBdryFac input 2 1 ${loop_id} return v_fac format fsf here "from nemd.lmpfunc import getBdryFac"
+print "fac=${fac}"
+fix 4a all deform 5 x scale ${fac} y scale ${fac} z scale ${fac}
 fix 4b all temp/berendsen 300 300 100
 fix 4c all nve
-run 1250
+run 100
 unfix 4a
 unfix 4b
 unfix 4c
 
-variable fact delete
 fix 5a all temp/berendsen 300 300 100
 fix 5b all nve
-run 1250
+run 100
 unfix 5a
 unfix 5b
 
-shell cd ..
-next defm_id
-jump SELF defm_start
+if "${fac} == 1" then "jump SELF break_lb"
+next loop_id
+jump SELF start_lb
 
-label defm_break
-variable imodulus python getModulus
-python getModulus input 2 press_vol 100 return v_imodulus format sif here "from nemd.lmpfunc import getModulus"
-variable modulus equal ${imodulus}
-variable imodulus delete
-variable defm_id delete
+label break_lb
+variable loop_id delete
+variable fac delete
+
 shell cd ..
 
-fix 6a all temp/berendsen 300 300 100
-fix 6b all nve
+variable vol equal vol
+variable amp equal 0.005*v_vol^(1/3)
+fix 6a all deform 500 x wiggle ${amp} 25000 y wiggle ${amp} 25000 z wiggle ${amp} 25000
+fix 6b all ave/time 1 500 500 c_thermo_press v_vol file wiggle
+fix 6c all temp/berendsen 300 300 100
+fix 6d all nve
 run 100000
 unfix 6a
 unfix 6b
+unfix 6c
+unfix 6d
 
-variable press equal press
-fix 7a all press/berendsen iso ${press} 1 1000 modulus ${modulus}
-fix 7b all temp/berendsen 300 300 100
-fix 7c all nve
+variable imodulus python getModulus
+python getModulus input 2 wiggle 50 return v_imodulus format sif here "from nemd.lmpfunc import getModulus"
+variable modulus equal ${imodulus}
+variable vol delete
+variable amp delete
+variable imodulus delete
+
+fix 7a all temp/berendsen 300 300 100
+fix 7b all nve
 run 100000
 unfix 7a
 unfix 7b
-unfix 7c
+
+variable press equal press
+fix 8a all press/berendsen iso ${press} 1 1000 modulus ${modulus}
+fix 8b all temp/berendsen 300 300 100
+fix 8c all nve
+run 100000
+unfix 8a
+unfix 8b
+unfix 8c
 
 variable xl equal "xhi - xlo"
 variable yl equal "yhi - ylo"
 variable zl equal "zhi - zlo"
-fix 8a all ave/time 1 100000 100000 v_xl v_yl v_zl file xyz
-fix 8b all press/berendsen iso 1 1 1000 modulus ${modulus}
-fix 8c all temp/berendsen 300 300 100
-fix 8d all nve
+fix 9a all ave/time 1 100000 100000 v_xl v_yl v_zl file xyz
+fix 9b all press/berendsen iso 1 1 1000 modulus ${modulus}
+fix 9c all temp/berendsen 300 300 100
+fix 9d all nve
 run 1000000
-unfix 8a
-unfix 8b
-unfix 8c
-unfix 8d
+unfix 9a
+unfix 9b
+unfix 9c
+unfix 9d
 
 print "Final: xl=${xl} yl=${yl} zl=${zl}"
 variable ave_x python getXL
@@ -135,15 +144,15 @@ variable ave_z delete
 variable ratio_x delete
 variable ratio_y delete
 variable ratio_z delete
-fix 9a all temp/berendsen 300 300 100
-fix 9b all nve
+fix 10a all temp/berendsen 300 300 100
+fix 10b all nve
 run 10000
-unfix 9a
-unfix 9b
-
-fix 10a all nve
-run 1000000
 unfix 10a
+unfix 10b
+
+fix 11a all nve
+run 1000000
+unfix 11a
 
 write_restart amorp_bldr.rst
 quit 0

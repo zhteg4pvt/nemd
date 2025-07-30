@@ -11,12 +11,12 @@ import shutil
 from unittest import mock
 
 import flow
+import numpy as np
 import pytest
 
 from nemd import envutils
 from nemd import frame
 from nemd import jobutils
-import numpy as np
 from nemd import oplsua
 from nemd import osutils
 from nemd import pytestutils

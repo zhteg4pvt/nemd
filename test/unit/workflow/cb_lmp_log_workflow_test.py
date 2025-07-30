@@ -1,7 +1,6 @@
 import cb_lmp_log_workflow as workflow
-import pytest
-
 import numpy as np
+import pytest
 
 
 class TestRunner:

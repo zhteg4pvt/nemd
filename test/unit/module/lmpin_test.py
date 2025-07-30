@@ -1,11 +1,11 @@
 import os
 import types
 
+import numpy as np
 import pytest
 
 from nemd import lmpatomic
 from nemd import lmpin
-import numpy as np
 from nemd import parserutils
 from nemd import xtal
 
@@ -370,15 +370,7 @@ class TestScript:
 
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize('args,expected',
-                             [(('-relax_time', '1'), 2500),
-                              (('-relax_time', '0.01'), 1000),
-                              (('-relax_time', '0.5555'), 1300)])
-    def testInit(self, script, expected):
-        assert expected == script.wstep
-
-    @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
-    @pytest.mark.parametrize('args,expected',
-                             [(('-prod_ens', 'NVE'), 39),
+                             [(('-prod_ens', 'NVE'), 41),
                               (('-prod_ens', 'NVE', '-relax_time', '0'), 0)])
     def testRampUp(self, script, expected):
         script.rampUp()
@@ -396,14 +388,14 @@ class TestScript:
         assert expected == script
 
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
-    @pytest.mark.parametrize('args,expected', [((), 30)])
-    def testCycle(self, script, expected):
-        script.cycle()
+    @pytest.mark.parametrize('args,expected', [((), 22)])
+    def testLoop(self, script, expected):
+        script.loop()
         assert expected == len(script)
 
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize('args,dirname,expected', [
-        ((), 'name', ['shell mkdir name', 'shell cd name\n', 'shell cd ..\n'])
+        ((), 'name', ['shell mkdir name', 'shell cd name\n', '', 'shell cd ..\n'])
     ])
     def testTmpDir(self, script, dirname, expected):
         with script.tmp_dir(dirname):
@@ -411,10 +403,10 @@ class TestScript:
         assert expected == script
 
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
-    @pytest.mark.parametrize('args,expected', [((), ('press_vol', 6))])
+    @pytest.mark.parametrize('args,expected', [((), 10)])
     def testWiggle(self, script, expected):
-        file = script.wiggle()
-        assert expected == (file, len(script))
+        script.wiggle(10000)
+        assert expected == len(script)
 
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize('args,dargs,parm,expected', [(
@@ -426,9 +418,9 @@ class TestScript:
         assert expected == script[0]
 
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
-    @pytest.mark.parametrize('args,expected', [((), 5)])
+    @pytest.mark.parametrize('args,expected', [((), 9)])
     def testAdjust(self, script, expected):
-        script.adjust()
+        script.adjust(100)
         assert expected == len(script)
 
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])

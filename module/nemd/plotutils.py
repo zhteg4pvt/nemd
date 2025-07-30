@@ -33,4 +33,9 @@ def pyplot(inav=False, name='the plot'):
         plt.close('all')
     finally:
         # Restore the backend
-        matplotlib.use(obackend)
+        try:
+            matplotlib.use(obackend)
+        except ImportError:
+            # Cannot load backend 'macosx' which requires the 'macosx'
+            # interactive framework, as 'qt' is currently running
+            pass

@@ -137,7 +137,8 @@ class Base(logutils.Base):
                     line,
                     marker=marker,
                     label='average')
-            if self.data.shape[0] > 1 and self.data.shape[-1] == 2 and self.data.iloc[:, 1].any():
+            if self.data.shape[0] > 1 and self.data.shape[
+                    -1] == 2 and self.data.iloc[:, 1].any():
                 # Data has non-zero standard deviation column
                 vals, errors = self.data.iloc[:, 0], self.data.iloc[:, 1]
                 ax.fill_between(self.data.index,

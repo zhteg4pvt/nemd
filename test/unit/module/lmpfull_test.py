@@ -1,9 +1,9 @@
+import numpy as np
 import pytest
 from rdkit import Chem
 
 from nemd import envutils
 from nemd import lmpfull
-import numpy as np
 from nemd import numpyutils
 from nemd import oplsua
 from nemd import parserutils

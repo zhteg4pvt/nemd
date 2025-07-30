@@ -1,10 +1,10 @@
 import os
 
+import numpy as np
 import pytest
 
 from nemd import envutils
 from nemd import frame
-import numpy as np
 from nemd import parserutils
 from nemd import traj
 

@@ -13,8 +13,8 @@ import re
 import sys
 import traceback
 import types
-import pandas as pd
 
+import pandas as pd
 import wurlitzer
 
 from nemd import builtinsutils

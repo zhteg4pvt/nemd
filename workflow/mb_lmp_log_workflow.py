@@ -6,9 +6,10 @@ Runs molecule builder, lammps simulation, and log analyzer.
 import functools
 import sys
 
+import numpy as np
+
 from nemd import jobcontrol
 from nemd import logutils
-import numpy as np
 from nemd import parserutils
 from nemd import task
 

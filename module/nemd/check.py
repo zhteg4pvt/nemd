@@ -9,12 +9,13 @@ import os
 import re
 import sys
 
+import numpy as np
+import pandas as pd
+
 from nemd import envutils
 from nemd import jobutils
 from nemd import lmpfull
 from nemd import logutils
-import numpy as np
-import pandas as pd
 from nemd import plotutils
 
 

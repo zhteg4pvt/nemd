@@ -1,10 +1,10 @@
 import os.path
 from unittest import mock
 
+import numpy as np
 import pytest
 from rdkit import Chem
 
-import numpy as np
 from nemd import parserutils
 from nemd import polymutils
 

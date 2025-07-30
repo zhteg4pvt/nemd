@@ -131,9 +131,7 @@ class Press(Base):
     """
     Analyze pressure data dumped by the LAMMPS.
     """
-
     PRESS = 'press'
-    VOL = 'vol'
 
     def setAve(self):
         """
@@ -142,11 +140,37 @@ class Press(Base):
         self.ave = self.getColumn(self.PRESS).mean()
 
 
+class Factor(Press):
+    """
+    Calculate the volume scale factor.
+    """
+
+    def __init__(self, press, *args, **kwargs):
+        """
+        :param press float: target pressure.
+        """
+        super().__init__(*args, **kwargs)
+        self.press = press
+
+    def run(self):
+        """
+        Main method to run.
+        """
+        super().run()
+        std = self.getColumn(self.PRESS).std()
+        if self.press > self.ave + std:
+            return 0.999
+        elif self.press < self.ave - std:
+            return 1.001
+        else:
+            return 1
+
+
 class Modulus(Press):
     """
     Analyze press_vol (pressure & volume) data.
     """
-
+    VOL = 'vol'
     MODULUS = 'modulus'
     STD_DEV = '_(Std_Dev)'
     SMOOTHED = '_(Smoothed)'
@@ -213,9 +237,9 @@ class Modulus(Press):
                 if not idx:
                     num = round(self.data.shape[0] / self.rec_num)
                     axis.set_title(f"Sinusoidal Deformation ({num} cycles)")
-            basename = os.path.basename(self.filename)
-            name = symbols.PERIOD.join(basename.split(symbols.PERIOD)[:-1])
-            fig.savefig(f"{name}_{self.MODULUS}{self.PNG_EXT}")
+            fig.savefig(
+                f"{os.path.splitext(self.filename)[0]}_{self.MODULUS}{self.PNG_EXT}"
+            )
 
     def subplot(self, ax, column):
         """
@@ -240,77 +264,6 @@ class Modulus(Press):
         ax.set_ylabel(self.getLabel(column))
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles, labels)
-
-
-class Vol(Press):
-    """
-    Calculate the volume scale factor based on the pressure and volume.
-    """
-    SCALE = 'scale'
-    FITTED = 'Fitted'
-
-    def __init__(self, press, *args, **kwargs):
-        """
-        :param press float: target pressure.
-        """
-        super().__init__(*args, **kwargs)
-        self.press = press
-        self.vol = None
-        self.factor = 1
-
-    def run(self):
-        """
-        Main method to run.
-        """
-        super().run()
-        self.setFactor()
-        self.plot()
-
-    def setAve(self):
-        """
-        Set the averaged data.
-        """
-        vol = self.getColumn(self.VOL)
-        vmin, vmax = vol.min(), vol.max()
-        self.vol = np.linspace(vmin, vmax, 100)
-        coef = np.polyfit(vol, self.getColumn(self.PRESS), 1)
-        self.ave = np.poly1d(coef)(self.vol)
-
-    def setFactor(self, excluded_ratio=0.5):
-        """
-        Set the scale factor.
-
-        :param excluded_ratio float: the ratio of the data to be excluded from
-            the fit.
-        """
-        left_bound = int(self.ave.shape[0] * excluded_ratio / 2)
-        right_bound = int(self.ave.shape[0] * (1 - excluded_ratio))
-        cropped = self.ave[left_bound + 1:right_bound]
-        vol = self.vol[left_bound + 1:right_bound]
-        vol_name = self.getColumn(self.VOL).name
-        delta = self.data.groupby(by=vol_name).std().mean().item() * 0.05
-        if cropped.min() - delta > self.press:
-            # Expand the volume as the target pressure is smaller
-            self.factor = self.vol.max() / vol.mean()
-        if cropped.max() + delta < self.press:
-            # Compress the volume as the target pressure is larger
-            self.factor = self.vol.min() / vol.mean()
-
-    def plot(self):
-        """
-        Plot the data and save the figure.
-        """
-        with plotutils.pyplot(inav=False) as plt:
-            fig, ax = plt.subplots(1, 1, figsize=(8, 6))
-            ax.plot(self.getColumn(self.VOL),
-                    self.getColumn(self.PRESS),
-                    '.',
-                    label=self.DATA)
-            ax.plot(self.vol, self.ave, '--', label=self.FITTED)
-            ax.set_xlabel(self.VOL.capitalize())
-            ax.set_ylabel(self.PRESS.capitalize())
-            name = os.path.splitext(os.path.basename(self.filename))[0]
-            fig.savefig(f"{name}_{self.SCALE}{self.PNG_EXT}")
 
 
 def getL(filename, last_pct=0.2, ending=Length.XL):
@@ -382,7 +335,7 @@ def getModulus(filename, rec_num):
     return modulus.modulus
 
 
-def getVolFact(press, filename):
+def getVolFac(press, filename):
     """
     Get the volume scale factor so that the pressure is expected to approach the
     target by scaling the volume.
@@ -391,12 +344,10 @@ def getVolFact(press, filename):
     :param filename str: the filename with path to load data from.
     :return float: the scale factor of the volume.
     """
-    scale = Vol(press, filename)
-    scale.run()
-    return scale.factor
+    return Factor(press, filename).run()
 
 
-def getBdryFact(press, filename):
+def getBdryFac(press, filename):
     """
     Get the boundary scale factor so that the pressure is expected to approach
     the target by scaling the boundary length.
@@ -405,4 +356,4 @@ def getBdryFact(press, filename):
     :param filename str: the filename with path to load data from.
     :return float: the scale factor of the volume.
     """
-    return getVolFact(press, filename)**(1 / 3)
+    return getVolFac(press, filename)**(1 / 3)

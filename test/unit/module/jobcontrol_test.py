@@ -3,11 +3,11 @@ import shutil
 import types
 from unittest import mock
 
+import numpy as np
 import pytest
 
 from nemd import jobcontrol
 from nemd import jobutils
-import numpy as np
 from nemd import parserutils
 from nemd import taskbase
 

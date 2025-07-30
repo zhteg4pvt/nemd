@@ -7,11 +7,12 @@ import functools
 import math
 import sys
 
+import numpy as np
+import pandas as pd
+
 from nemd import jobutils
 from nemd import logutils
-import numpy as np
 from nemd import parserutils
-import pandas as pd
 from nemd import plotutils
 
 

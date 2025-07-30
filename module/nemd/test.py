@@ -9,11 +9,12 @@ import os
 import pathlib
 import re
 
+import numpy as np
+import pandas as pd
+
 from nemd import check
 from nemd import jobutils
 from nemd import logutils
-import numpy as np
-import pandas as pd
 from nemd import process
 from nemd import symbols
 from nemd import timeutils
