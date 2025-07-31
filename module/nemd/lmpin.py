@@ -275,7 +275,6 @@ class SinglePoint(Base):
             self[idx:idx + 1] = cmds
             block_id += 1
         self.join('write_restart', f"{self.options.JOBNAME}.rst")
-        self.join('quit', 0)
 
     def equal(self, name, expr, bracked=False, quoted=False, **kwargs):
         """
