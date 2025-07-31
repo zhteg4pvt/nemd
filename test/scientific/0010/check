@@ -1,0 +1,1 @@
+nemd_check cmp ab_lmp_traj_msd.csv ab_lmp_traj_msd.csv atol=1E-8 rtol=0.05

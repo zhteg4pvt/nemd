@@ -630,7 +630,6 @@ class Script(Ave):
                  press=self.options.press,
                  modulus=self.MODULUS_VAR)
         self.wiggle(nstep, file='npt.wiggle')
-        self.equal('press', 'press')
         self.npt(nstep=nstep,
                  stemp=self.options.temp,
                  temp=self.options.temp,
@@ -776,6 +775,7 @@ class Script(Ave):
                          nstep=nstep,
                          num=rec * num)
             blk.nvt(nstep=nstep, temp=self.options.temp)
+        # Immediately variable imodulus is evaluated every time on access
         self.python(imodulus, 'getModulus', 'sif', file, rec)
         self.equal(self.MODULUS, imodulus, bracked=True)
         self.delete('vol', 'amp', imodulus, newline=True)

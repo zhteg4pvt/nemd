@@ -1,0 +1,1 @@
+nemd_check cmp ab_lmp_traj_density.csv ab_lmp_traj_density.csv atol=0.01 rtol=0.05
