@@ -25,4 +25,3 @@ unfix 0a
 unfix 0b
 
 write_restart amorp_bldr.rst
-quit 0

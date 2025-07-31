@@ -535,13 +535,13 @@ class Ave(RampUp):
         for name, dim in zip(aves, self.XYZ):
             self.python(name, f'get{dim.upper()}L', 'sf', self.XYZ)
         self.print(*aves, label='Averaged')
-        ratios = [f'ratio_{i}' for i in self.XYZ]
-        for ratio, ave, span in zip(ratios, aves, spans):
-            self.equal(ratio, f'v_{ave} / v_{span}', quoted=True)
-        scales = [f'{i} scale ${{{r}}}' for i, r in zip(self.XYZ, ratios)]
+        scales = [
+            f"{x} scale $(v_{y} / v_{z})"
+            for x, y, z in zip(self.XYZ, aves, spans)
+        ]
         self.join('change_box', 'all', *scales, 'remap')
         # Delete used variables.
-        self.delete(*spans, *aves, *ratios)
+        self.delete(*spans, *aves)
 
     def ave_time(self, *args, file=None, nstep=None, num=None):
         """
@@ -622,21 +622,19 @@ class Script(Ave):
         self.loop()
         nstep = self.relax_step / 1E1
         self.wiggle(nstep, file='loop.wiggle')
-        self.equal('press', 'press')
         self.npt(nstep=nstep,
                  stemp=self.options.temp,
                  temp=self.options.temp,
-                 spress='${press}',
+                 spress='$(press)',
                  press=self.options.press,
                  modulus=self.MODULUS_VAR)
         self.wiggle(nstep, file='npt.wiggle')
         self.npt(nstep=nstep,
                  stemp=self.options.temp,
                  temp=self.options.temp,
-                 spress='${press}',
+                 spress='$(press)',
                  press=self.options.press,
                  modulus=self.MODULUS_VAR)
-        self.delete('press')
         self.wiggle(nstep, file='final.wiggle')
 
     @contextlib.contextmanager
@@ -762,13 +760,14 @@ class Script(Ave):
         :param imodulus str: calculated modulus from wiggle.
         """
         nstep = max(nstep, self.options.pdamp * 4)
-        self.equal('vol', 'vol')
-        self.equal('amp', "0.005*v_vol^(1/3)")
         wstep = round(nstep / num)
         with self.block() as blk:
+            self.equal('vol', 'vol')
             blk.deform(
                 int(wstep / rec),
-                parm=f"%s wiggle ${{amp}} {wstep * self.options.timestep}")
+                parm=
+                f"%s wiggle $(0.005*v_vol^(1/3)) {wstep * self.options.timestep}"
+            )
             blk.ave_time(self.CPRESS,
                          'v_vol',
                          file=file,
@@ -778,7 +777,7 @@ class Script(Ave):
         # Immediately variable imodulus is evaluated every time on access
         self.python(imodulus, 'getModulus', 'sif', file, rec)
         self.equal(self.MODULUS, imodulus, bracked=True)
-        self.delete('vol', 'amp', imodulus, newline=True)
+        self.delete('vol', imodulus, newline=True)
 
     def relaxation(self, modulus=MODULUS_VAR):
         """

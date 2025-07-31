@@ -126,8 +126,7 @@ class TestFactor:
     def fac(self, press):
         return lmpfunc.Factor(press, PRESS_DATA)
 
-    @pytest.mark.parametrize('press,expected', [(-2937, 1),
-                                                (100, 0.999),
+    @pytest.mark.parametrize('press,expected', [(-2937, 1), (100, 0.999),
                                                 (-5000, 1.001)])
     def testRun(self, fac, expected):
         np.testing.assert_almost_equal(fac.run(), expected)
@@ -155,8 +154,7 @@ class TestFunc:
         modulus = lmpfunc.getModulus(PRESS_DATA, 100)
         np.testing.assert_almost_equal(modulus, 67468.3215132747)
 
-    @pytest.mark.parametrize('press,expected', [(-2937, 1),
-                                                (100, 0.999),
+    @pytest.mark.parametrize('press,expected', [(-2937, 1), (100, 0.999),
                                                 (-5000, 1.001)])
     def testGetVolFac(self, press, expected, tmp_dir):
         factor = lmpfunc.getVolFac(press, PRESS_DATA)
