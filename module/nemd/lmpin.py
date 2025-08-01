@@ -372,9 +372,7 @@ class RampUp(SinglePoint):
         """
         Start simulation from low temperature and constant volume.
         """
-        self.nvt(nstep=self.relax_step / 1E3,
-                 stemp=self.options.stemp,
-                 temp=self.options.stemp)
+        self.nvt(nstep=self.relax_step / 1E3, temp=self.options.stemp)
 
     def nvt(self, nstep=1E4, stemp=None, temp=300, style=BERENDSEN):
         """
@@ -447,7 +445,6 @@ class RampUp(SinglePoint):
         :param modulus float: the modulus for the barostat.
         """
         self.npt(nstep=self.relax_step,
-                 stemp=self.options.temp,
                  temp=self.options.temp,
                  press=self.options.press,
                  modulus=modulus)
@@ -502,9 +499,7 @@ class Ave(RampUp):
             return
         # NVE and NVT production runs use averaged cell
         self.average(**kwargs)
-        self.nvt(nstep=self.relax_step / 1E2,
-                 stemp=self.options.temp,
-                 temp=self.options.temp)
+        self.nvt(nstep=self.relax_step / 1E2, temp=self.options.temp)
 
     def average(self, modulus=10, rec=10):
         """
@@ -525,7 +520,6 @@ class Ave(RampUp):
                          nstep=self.relax_step,
                          num=rec)
             blk.npt(nstep=self.relax_step,
-                    stemp=self.options.temp,
                     temp=self.options.temp,
                     press=self.options.press,
                     modulus=modulus)
@@ -610,32 +604,14 @@ class Script(Ave):
         """
         if not self.relax_step:
             return
-        # NVT at low temperature
         self.nvt(nstep=self.relax_step / 2E1,
                  stemp=self.options.stemp,
                  temp=self.options.temp)
-        # Ramp up with constant volume
-        self.nvt(nstep=self.relax_step / 2E1,
-                 stemp=self.options.temp,
-                 temp=self.options.temp)
+        self.nvt(nstep=self.relax_step / 2E1, temp=self.options.temp)
         # [record, deform, nvt], wiggle, npt, wiggle
         self.loop()
-        nstep = self.relax_step / 1E1
-        self.wiggle(nstep, file='loop.wiggle')
-        self.npt(nstep=nstep,
-                 stemp=self.options.temp,
-                 temp=self.options.temp,
-                 spress='$(press)',
-                 press=self.options.press,
-                 modulus=self.MODULUS_VAR)
-        self.wiggle(nstep, file='npt.wiggle')
-        self.npt(nstep=nstep,
-                 stemp=self.options.temp,
-                 temp=self.options.temp,
-                 spress='$(press)',
-                 press=self.options.press,
-                 modulus=self.MODULUS_VAR)
-        self.wiggle(nstep, file='final.wiggle')
+        self.wiggle(self.relax_step / 1E1, file='wiggle')
+        self.nvt(nstep=self.relax_step / 1E1, temp=self.options.temp)
 
     @contextlib.contextmanager
     def tmp_dump(self, dump_id, key, kwargs):
@@ -723,10 +699,8 @@ class Script(Ave):
         half = round(nstep / 2)
         with self.block() as blk:
             blk.deform(round(half / rec), parm=f"%s scale ${{{fac}}}")
-            blk.nvt(nstep=half,
-                    stemp=self.options.temp,
-                    temp=self.options.temp)
-        self.nvt(nstep=half, stemp=self.options.temp, temp=self.options.temp)
+            blk.nvt(nstep=half, temp=self.options.temp)
+        self.nvt(nstep=half, temp=self.options.temp)
         return fac
 
     def deform(self, period, *args, parm=None):

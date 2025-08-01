@@ -78,7 +78,7 @@ shell cd ..
 
 variable vol equal vol
 fix 6a all deform 500 x wiggle $(0.005*v_vol^(1/3)) 25000 y wiggle $(0.005*v_vol^(1/3)) 25000 z wiggle $(0.005*v_vol^(1/3)) 25000
-fix 6b all ave/time 1 500 500 c_thermo_press v_vol file loop.wiggle
+fix 6b all ave/time 1 500 500 c_thermo_press v_vol file wiggle
 fix 6c all temp/berendsen 300 300 100
 fix 6d all nve
 run 100000
@@ -88,73 +88,29 @@ unfix 6c
 unfix 6d
 
 variable imodulus python getModulus
-python getModulus input 2 loop.wiggle 50 return v_imodulus format sif here "from nemd.lmpfunc import getModulus"
+python getModulus input 2 wiggle 50 return v_imodulus format sif here "from nemd.lmpfunc import getModulus"
 variable modulus equal ${imodulus}
 variable vol delete
 variable imodulus delete
 
-fix 7a all press/berendsen iso $(press) 1 1000 modulus ${modulus}
-fix 7b all temp/berendsen 300 300 100
-fix 7c all nve
+fix 7a all temp/berendsen 300 300 100
+fix 7b all nve
 run 100000
 unfix 7a
 unfix 7b
-unfix 7c
-
-variable vol equal vol
-fix 8a all deform 500 x wiggle $(0.005*v_vol^(1/3)) 25000 y wiggle $(0.005*v_vol^(1/3)) 25000 z wiggle $(0.005*v_vol^(1/3)) 25000
-fix 8b all ave/time 1 500 500 c_thermo_press v_vol file npt.wiggle
-fix 8c all temp/berendsen 300 300 100
-fix 8d all nve
-run 100000
-unfix 8a
-unfix 8b
-unfix 8c
-unfix 8d
-
-variable imodulus python getModulus
-python getModulus input 2 npt.wiggle 50 return v_imodulus format sif here "from nemd.lmpfunc import getModulus"
-variable modulus equal ${imodulus}
-variable vol delete
-variable imodulus delete
-
-fix 9a all press/berendsen iso $(press) 1 1000 modulus ${modulus}
-fix 9b all temp/berendsen 300 300 100
-fix 9c all nve
-run 100000
-unfix 9a
-unfix 9b
-unfix 9c
-
-variable vol equal vol
-fix 10a all deform 500 x wiggle $(0.005*v_vol^(1/3)) 25000 y wiggle $(0.005*v_vol^(1/3)) 25000 z wiggle $(0.005*v_vol^(1/3)) 25000
-fix 10b all ave/time 1 500 500 c_thermo_press v_vol file final.wiggle
-fix 10c all temp/berendsen 300 300 100
-fix 10d all nve
-run 100000
-unfix 10a
-unfix 10b
-unfix 10c
-unfix 10d
-
-variable imodulus python getModulus
-python getModulus input 2 final.wiggle 50 return v_imodulus format sif here "from nemd.lmpfunc import getModulus"
-variable modulus equal ${imodulus}
-variable vol delete
-variable imodulus delete
 
 variable xl equal "xhi - xlo"
 variable yl equal "yhi - ylo"
 variable zl equal "zhi - zlo"
-fix 11a all ave/time 1 100000 100000 v_xl v_yl v_zl file xyz
-fix 11b all press/berendsen iso 1 1 1000 modulus ${modulus}
-fix 11c all temp/berendsen 300 300 100
-fix 11d all nve
+fix 8a all ave/time 1 100000 100000 v_xl v_yl v_zl file xyz
+fix 8b all press/berendsen iso 1 1 1000 modulus ${modulus}
+fix 8c all temp/berendsen 300 300 100
+fix 8d all nve
 run 1000000
-unfix 11a
-unfix 11b
-unfix 11c
-unfix 11d
+unfix 8a
+unfix 8b
+unfix 8c
+unfix 8d
 
 print "Final: xl=${xl} yl=${yl} zl=${zl}"
 variable ave_x python getXL
@@ -171,14 +127,14 @@ variable zl delete
 variable ave_x delete
 variable ave_y delete
 variable ave_z delete
-fix 12a all temp/berendsen 300 300 100
-fix 12b all nve
+fix 9a all temp/berendsen 300 300 100
+fix 9b all nve
 run 10000
-unfix 12a
-unfix 12b
+unfix 9a
+unfix 9b
 
-fix 13a all nve
+fix 10a all nve
 run 1000000
-unfix 13a
+unfix 10a
 
 write_restart amorp_bldr.rst

@@ -133,10 +133,10 @@ class TestSinglePoint:
         single.run_step(nstep=nstep)
         assert expected == single[0]
 
-    @pytest.mark.parametrize('data,expected', [([], 2), (['run 0'], 3),
-                                               (['fix %s'], 3),
-                                               ([['fix %s']], 4),
-                                               ([['fix %s', 'fix %s']], 6)])
+    @pytest.mark.parametrize('data,expected', [([], 1), (['run 0'], 2),
+                                               (['fix %s'], 2),
+                                               ([['fix %s']], 3),
+                                               ([['fix %s', 'fix %s']], 5)])
     def testFinalize(self, single, data, expected):
         single.extend(data)
         single.finalize()
@@ -303,12 +303,12 @@ class TestAve:
 
     @pytest.mark.parametrize(
         'args,expected',
-        [(('CC', '-prod_ens', 'NPT'), (10, 1, 1000000)),
-         (('CC', '-prod_ens', 'NVT'), (42, 2, 1000000, 10000)),
-         (('CC', '-prod_ens', 'NPT', '-relax_time', '0'), (2, 0)),
-         (('CC', '-prod_ens', 'NVT', '-relax_time', '0'), (2, 0)),
-         (('CC', '-prod_ens', 'NVE', '-relax_time', '0'), (2, 0)),
-         (('CC', '-prod_ens', 'NVE'), (42, 2, 1000000, 10000))])
+        [(('CC', '-prod_ens', 'NPT'), (9, 1, 1000000)),
+         (('CC', '-prod_ens', 'NVT'), (35, 2, 1000000, 10000)),
+         (('CC', '-prod_ens', 'NPT', '-relax_time', '0'), (1, 0)),
+         (('CC', '-prod_ens', 'NVT', '-relax_time', '0'), (1, 0)),
+         (('CC', '-prod_ens', 'NVE', '-relax_time', '0'), (1, 0)),
+         (('CC', '-prod_ens', 'NVE'), (35, 2, 1000000, 10000))])
     def testRelaxation(self, args, emol, expected):
         options = parserutils.MolBase().parse_args(args)
         kwargs = dict(options=options, atom_total=emol.GetNumAtoms())
@@ -320,7 +320,7 @@ class TestAve:
         assert expected == (len(ave), num, *nsteps)
 
     @pytest.mark.parametrize('expected', [
-        'change_box all x scale ${ratio_x} y scale ${ratio_y} z scale ${ratio_z} remap'
+        'change_box all x scale $(v_ave_x / v_xl) y scale $(v_ave_y / v_yl) z scale $(v_ave_z / v_zl) remap'
     ])
     def testAverage(self, ave, expected):
         ave.average()
@@ -370,7 +370,7 @@ class TestScript:
 
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize('args,expected',
-                             [(('-prod_ens', 'NVE'), 41),
+                             [(('-prod_ens', 'NVE'), 36),
                               (('-prod_ens', 'NVE', '-relax_time', '0'), 0)])
     def testRampUp(self, script, expected):
         script.rampUp()
@@ -403,7 +403,7 @@ class TestScript:
         assert expected == script
 
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
-    @pytest.mark.parametrize('args,expected', [((), 10)])
+    @pytest.mark.parametrize('args,expected', [((), 8)])
     def testWiggle(self, script, expected):
         script.wiggle(10000)
         assert expected == len(script)
