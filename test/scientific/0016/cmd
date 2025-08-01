@@ -1,2 +1,9 @@
-nemd_run amorphous_builder_driver.py O -mol_num 400 -force_field OPLSUA SPC
-nemd_run custom_dump_driver.py dump.custom -data_file amorphous_builder.data -task rdf
+# (relaxed) rotational scan of n-butane
+nemd_run mb_lmp_log_workflow.py CCCC -struct_rg CCCC 0 360 10 -task E_pair E_mol TotEng
+# https://switkes.chemistry.ucsc.edu/teaching/CHEM1B/RotationalConformation/Conformations_of_butane.html
+# https://www.researchgate.net/figure/Colour-online-Plot-of-energy-kJ-mol-1-as-a-function-of-the-C-C-C-C-torsion-of_fig2_318880498
+# https://chemistry.stackexchange.com/questions/11015/conformations-of-butane
+# https://www.sas.upenn.edu/~kimg/mcephome/chem502/ethbutconform/butane.htm
+# Smaller 1 - 4 vdw radius are needed as the following references
+# https://pubmed.ncbi.nlm.nih.gov/24549797/
+# http://trappe.oit.umn.edu/

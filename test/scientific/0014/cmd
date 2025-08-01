@@ -1,1 +1,1 @@
-nemd_run cb_lmp_post_workflow.py -task TotEng
+nemd_run cb_lmp_log_workflow.py -task TotEng
