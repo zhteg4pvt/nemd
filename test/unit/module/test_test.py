@@ -100,7 +100,7 @@ class TestCheck:
 
     @pytest.mark.parametrize(
         'dirname,expected',
-        [('empty', None),
+        [('empty', '| finished   |\n|------------|\n'), ('empty_check', None),
          ('0001', 'polymer_builder.data is different from amorp_bldr.data.\n'),
          ('0046_test', None)])
     def testRun(self, check, expected):

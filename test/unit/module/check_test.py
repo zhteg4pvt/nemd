@@ -114,28 +114,40 @@ class TestCollect:
                             '3ec5394f589c9363bd15af35d45a7c44')
 
     @pytest.fixture
-    def collect(self, args, copied):
-        collect = check.Collect(*args)
-        collect.error = mock.Mock()
+    def collect(self, args, kwargs, copied):
+        collect = check.Collect(*args, **kwargs)
+        collect.error = mock.Mock(side_effect=ValueError)
         return collect
 
-    @pytest.mark.parametrize('dirname,args,expected',
-                             [('0049', ['task_time'], (0, 1)),
-                              ('0049_ubuntu', ['task_time', 'memory'],
-                               (2, 2))])
-    def testSet(self, collect, expected):
-        collect.set()
-        assert expected == collect.data.shape
-        assert bool(expected[0]) == os.path.isfile('collect.csv')
+    @pytest.mark.parametrize(
+        'dirname,args,kwargs,expected',
+        [('0049', ['task_time'], {}, (0, 1)),
+         ('0049', ['task_time'], dict(dropna='False'), ValueError),
+         ('0049_ubuntu', ['task_time', 'memory'], {}, (2, 2)),
+         ('0049_ubuntu', ['task_time', 'memory', 'finished'], {}, (2, 3)),
+         ('0000', ['task_time', 'memory', 'finished'], {}, (0, 3)),
+         ('0001_fail', ['task_time', 'finished'], {}, (1, 1)),
+         ('0001_fail', ['finished'], dict(dropna='False'), ValueError)])
+    def testSet(self, collect, expected, raises):
+        with raises:
+            collect.set()
+            assert expected == collect.data.shape
+            assert os.path.isfile('collect.csv')
 
-    @pytest.mark.parametrize('dirname,args,expected',
-                             [('0049', ['task_time'], 0),
-                              (TEST0049, ['task_time'], 1),
-                              (TEST0049, ['task_time', 'memory'], 1),
-                              ('0049_ubuntu', ['task_time', 'memory'], 2),
-                              ('0049_ubuntu', ['memory'], 1)])
-    def testPlot(self, collect, expected):
+    @pytest.mark.parametrize('kwargs', [{}])
+    @pytest.mark.parametrize(
+        'dirname,args,expected,outfiles',
+        [('0049', ['task_time'], [], []),
+         (TEST0049, ['task_time'], [1], ['collect_task.png']),
+         (TEST0049, ['task_time', 'memory'], [1], ['collect_task.png']),
+         ('0049_ubuntu', ['task_time', 'memory'], [2], ['collect.png']),
+         ('0049_ubuntu', ['task_time', 'finished'], [2], ['collect.png']),
+         ('0049_ubuntu', ['task_time', 'memory', 'finished'], [1, 1, 1],
+          ['collect_task.png', 'collect_memory.png', 'collect_finished.png']),
+         ('0049_ubuntu', ['memory'], [1], ['collect_memory.png'])])
+    def testPlot(self, collect, expected, outfiles):
         collect.set()
         collect.plot()
-        assert expected == (len(collect.fig.axes) if collect.fig else 0)
-        assert bool(expected) == os.path.exists('collect.png')
+        assert expected == [len(x.axes) for x in collect.figs]
+        for outfile in outfiles:
+            assert os.path.exists(outfile)

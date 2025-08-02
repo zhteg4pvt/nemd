@@ -178,6 +178,15 @@ class Check(Base):
         with open(proc.logfile) as fh:
             return fh.read()
 
+    @functools.cached_property
+    def raw(self, default='nemd_check collect finished dropna=False'):
+        """
+        see parent.
+
+        :param default str: the default check cmd.
+        """
+        return super().raw if os.path.isfile(self.infile) else [default]
+
 
 class Tag(Base):
     """

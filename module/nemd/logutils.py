@@ -28,6 +28,7 @@ from nemd import timeutils
 STDERR = 'stderr'
 COLON_SEP = f'{symbols.COLON} '
 PEAK_MEMORY_USAGE = 'Peak memory usage'
+FINISHED = 'Finished.'
 
 
 @contextlib.contextmanager
@@ -239,20 +240,19 @@ class Script:
             self.memory.thread.start()
         return self.logger
 
-    def __exit__(self, exc_type, exc_val, exc_tb, finished='Finished.'):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         """
         Stop the memory monitoring and print the messages.
 
         :param exc_type `type`: the exception type
         :param exc_val Exception: the exception
         :param exc_tb traceback: the traceback object
-        :param finished str: the closing note.
         :raise Exception: when in DEBUG mode
         """
         if self.memory:
             self.logger.log(self.MEMORY_FMT.format(value=self.memory.result))
         if not exc_type:
-            self.logger.log(finished, timestamp=True)
+            self.logger.log(FINISHED, timestamp=True)
             return
         if isinstance(exc_val, SystemExit):
             # Error calls sys.exit(1)
@@ -265,7 +265,6 @@ class Reader:
     """
     A class to read the log file.
     """
-
     TOTAL_TIME = 'Task Total Timing: '
     MEMORY_RE = re.compile(fr'{PEAK_MEMORY_USAGE}: (\d+.\d+) (\w+)')
     TIME_LEN = len(timeutils.ctime())
@@ -381,12 +380,30 @@ class Reader:
                 continue
             return float(match.group(1))
 
+    @property
+    def finished(self):
+        """
+        Return the finished time.
+
+        :return 'datetime.datetime': finished time.
+        """
+        try:
+            idx = self.lines.index(FINISHED)
+        except ValueError:
+            return
+        for line in self.lines[idx + 1:]:
+            if line.startswith(PEAK_MEMORY_USAGE):
+                continue
+            return timeutils.dtime(line)
+
     @classmethod
-    def collect(cls, *columns):
+    def collect(cls, *columns, dropna=True, dtypes=(float, int)):
         """
         Collect data from the log files.
 
         :param columns tuple: reader property and options attribute names.
+        :param dropna bool: drop the nan values.
+        :param dtypes tuple: covert the index column data types.
         :return 'pd.DataFrame': the collected data.
         """
         rdrs = [cls(x.logfile) for x in jobutils.Job.search() if x.logfile]
@@ -396,24 +413,33 @@ class Reader:
         rex = re.compile(rf"{re.escape(name)}_(.*)")
         jobnames = [x.options.JOBNAME for x in rdrs]
         matches = [rex.match(x) for x in jobnames]
+        if len(matches) > 1 and not all(matches):
+            name = 'Jobname'
         params = [x.group(1) for x in matches] if all(matches) else jobnames
         index = pd.Index(params, name=name.replace('_', ' '))
-        data = [[
-            getattr(x if hasattr(x, y) else x.options, y, None)
-            for y in columns
-        ] for x in rdrs]
+        data = [[x.get(y) for y in columns] for x in rdrs]
         data = pd.DataFrame(data, index=index, columns=columns)
-        data.dropna(inplace=True, axis=1, how='all')
-        data.dropna(inplace=True, axis=0)
-        try:
-            data.index = data.index.astype(int)
-        except ValueError:
+        if dropna:
+            data.dropna(inplace=True, axis=1, how='all')
+        for dtype in dtypes:
             try:
-                data.index = data.index.astype(int)
+                data.index = data.index.astype(dtype)
             except ValueError:
                 pass
         data.sort_index(axis=0, inplace=True)
         return data
+
+    def get(self, attr):
+        """
+        Get the attribute.
+
+        :param attr str: the attribute name.
+        :param any: the attribute
+        """
+        try:
+            return getattr(self, attr)
+        except AttributeError:
+            return getattr(self.options, attr, None)
 
 
 class Base(builtinsutils.Object):

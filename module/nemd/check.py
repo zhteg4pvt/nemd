@@ -23,13 +23,17 @@ class Exist(logutils.Base):
     """
     The class to perform file existence check.
     """
+    KEYS = set()
 
-    def __init__(self, *args, logger=None):
+    def __init__(self, *args, logger=None, **kwargs):
         """
         :param args str: the target filenames
         """
         super().__init__(logger=logger)
         self.args = args
+        self.kwargs = kwargs
+        for key in self.KEYS.intersection(self.kwargs.keys()):
+            self.kwargs[key] = eval(self.kwargs[key])
 
     def run(self):
         """
@@ -100,11 +104,6 @@ class Cmp(Exist):
     """
     KEYS = {'atol', 'rtol', 'equal_nan'}
 
-    def __init__(self, *args, **kwargs):
-        self.keys = self.KEYS.intersection(kwargs.keys())
-        self.kwargs = {x: eval(kwargs.pop(x)) for x in self.keys}
-        super().__init__(*args, **kwargs)
-
     def run(self):
         """
         The main method to compare files.
@@ -118,7 +117,7 @@ class Cmp(Exist):
         """
         Compare the file content for exact match.
         """
-        if self.keys:
+        if self.kwargs:
             return
         for target in self.args[1:]:
             if filecmp.cmp(self.args[0], target):
@@ -137,7 +136,7 @@ class Cmp(Exist):
         """
         Compare csv files via np.allclose.
         """
-        if not self.keys or not all(x.endswith('.csv') for x in self.args):
+        if not self.kwargs or not all(x.endswith('.csv') for x in self.args):
             return
         origin = pd.read_csv(self.args[0])
         object = origin.select_dtypes(include='object')
@@ -159,7 +158,7 @@ class Cmp(Exist):
         """
         Compare the lammps data files.
         """
-        if not self.keys or not all(x.endswith('.data') for x in self.args):
+        if not self.kwargs or not all(x.endswith('.data') for x in self.args):
             return
         origin = lmpfull.Reader.read(self.args[0])
         for target in self.args[1:]:
@@ -172,16 +171,20 @@ class Collect(Exist):
     """
     The class to collect the log files and plot the requested data.
     """
+    DROPNA = 'dropna'
+    KEYS = {DROPNA}
+    TASK_TIME = 'task_time'
     TIME_MIN = 'Task Time (min)'
     MEMORY_MB = 'Memory (MB)'
-    COLUMNS = {'task_time': TIME_MIN, 'memory': 'Memory (MB)'}
-    TWINX = {TIME_MIN: MEMORY_MB}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.data = None
-        self.fig = None
+        self.figs = []
         self.outfile = f"{self.name}.csv"
+        if not self.args:
+            self.args = [TASK_TIME]
+        self.kwargs.setdefault(self.DROPNA, True)
 
     def run(self):
         """
@@ -190,18 +193,27 @@ class Collect(Exist):
         self.set()
         self.plot()
 
-    def set(self, func=lambda x: x.total_seconds() / 60):
+    def set(self, finished='finished', func=lambda x: x.total_seconds() / 60):
         """
         Set the time and memory data from the log files.
 
         :param func 'func': map the task time from seconds to minutes.
         """
-        self.data = logutils.Reader.collect(*self.args)
-        self.data.rename(columns=self.COLUMNS, inplace=True)
-        if self.TIME_MIN in self.data.columns:
-            self.data[self.TIME_MIN] = self.data[self.TIME_MIN].map(func)
-        if self.data.empty:
-            return
+        self.data = logutils.Reader.collect(*self.args, **self.kwargs)
+        if not self.kwargs[self.DROPNA] and (self.data.empty
+                                             or self.data.isna().any().any()):
+            self.error(self.data[self.data.isna().any(axis=1)].to_markdown())
+        self.data.rename(columns={'memory': 'Memory (MB)'}, inplace=True)
+        if self.TASK_TIME in self.data.columns:
+            self.data[self.TASK_TIME] = self.data[self.TASK_TIME].map(func)
+            columns = {self.TASK_TIME: self.TIME_MIN}
+            self.data.rename(columns=columns, inplace=True)
+        if finished in self.data.columns:
+            first = self.data[finished].min()
+            self.data[finished] -= first
+            self.data[finished] = self.data[finished].map(func)
+            columns = {finished: f"{finished.capitalize()} on {first} (min)"}
+            self.data.rename(columns=columns, inplace=True)
         self.data.to_csv(self.outfile)
         jobutils.Job.reg(self.outfile)
 
@@ -211,39 +223,42 @@ class Collect(Exist):
         """
         if self.data.empty:
             return
-        twinx_lbs = [self.TWINX.get(x) for x in self.args]
-        for col in self.data.columns.difference(twinx_lbs):
-            twinx_lb = self.TWINX.get(col)
-            if twinx_lb and twinx_lb not in self.data.columns:
-                twinx_lb = None
+        columns, twinx = self.data.columns, None
+        if len(columns) == 2:
+            columns, twinx = columns[:1], columns[1]
+        for col in columns:
             with plotutils.pyplot(inav=envutils.is_interac()) as plt:
-                self.fig = plt.figure(figsize=(10, 6))
-                ax1 = self.fig.add_subplot(1, 1, 1)
-                color = 'g' if twinx_lb else 'k'
+                fig = plt.figure(figsize=(10, 6))
+                ax1 = fig.add_subplot(1, 1, 1)
+                color = 'g' if twinx else 'k'
                 ax1.plot(self.data.index, self.data[col], f'{color}-.*')
                 ax1.set_xlabel(self.data.index.name)
                 ax1.set_ylabel(col, color=color)
-                if twinx_lb:
+                if twinx:
                     ax1.tick_params(axis='y', colors='g')
                     ax2 = ax1.twinx()
                     ax2.spines['left'].set_color('g')
                     ax2.plot(self.data.index,
-                             self.data[twinx_lb],
+                             self.data[twinx],
                              'b--o',
                              markerfacecolor='none',
                              alpha=0.9)
-                    ax2.set_ylabel(twinx_lb, color='b')
+                    ax2.set_ylabel(twinx, color='b')
                     ax2.tick_params(axis='y', colors='b')
                     ax2.spines['right'].set_color('b')
-                self.fig.tight_layout()
-                outfile = f"{self.name}.png"
-                self.fig.savefig(outfile)
+                fig.tight_layout()
+                outfile = self.name
+                if not twinx:
+                    outfile += f'_{col.split()[0].lower()}'
+                outfile += '.png'
+                fig.savefig(outfile)
                 jobutils.Job.reg(outfile)
+                self.figs.append(fig)
 
 
 if __name__ == "__main__":
     """
-    Run library module as a script.
+    Run module as a script.
     """
     Classes = [Exist, Glob, Has, Cmp, Collect]
     try:

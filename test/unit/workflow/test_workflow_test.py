@@ -29,7 +29,7 @@ class TestRunner:
 
     @pytest.mark.parametrize('original,expected',
                              [(['-name', 'integration'], 57),
-                              (['-name', 'scientific'], 19),
+                              (['-name', 'scientific'], 18),
                               (['-name', 'performance'], 11)])
     def testNames(self, runner, expected):
         assert expected == len(runner.names)
