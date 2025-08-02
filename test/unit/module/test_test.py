@@ -109,6 +109,17 @@ class TestCheck:
         msg = check.run()
         assert (msg.endswith(expected) if expected else msg is None)
 
+    @pytest.mark.parametrize(
+        'dirname,expected',
+        [('empty', ['nemd_check collect finished dropna=False']),
+         ('empty_check', []),
+         ('0001', [
+             '# polymers are built the same',
+             'nemd_check cmp polymer_builder.data amorp_bldr.data'
+         ])])
+    def testRaw(self, check, expected):
+        assert expected == check.raw
+
 
 class TestTag:
 

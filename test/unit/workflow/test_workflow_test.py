@@ -28,7 +28,7 @@ class TestRunner:
         runner.setJobs()
 
     @pytest.mark.parametrize('original,expected',
-                             [(['-name', 'integration'], 57),
+                             [(['-name', 'integration'], 58),
                               (['-name', 'scientific'], 18),
                               (['-name', 'performance'], 11)])
     def testNames(self, runner, expected):

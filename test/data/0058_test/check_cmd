@@ -1,0 +1,1 @@
+nemd_check collect task_time && nemd_check exist collect.csv collect_task.png

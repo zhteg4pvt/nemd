@@ -1,0 +1,34 @@
+..........Options..........
+cru: [Ar]
+cru_num: 1
+mol_num: 1
+buffer: None
+density: 0.5
+method: grid
+substruct: None
+force_field: OPLSUA TIP3P
+timestep: 1
+stemp: 10
+temp: 22.0
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 1
+prod_time: 1
+prod_ens: NVE
+seed: 1
+no_minimize: False
+NAME: Temperature_(K)
+JOBNAME: Temperature_(K)_22
+INTERAC: False
+PYTHON: 2
+CPU: [8]
+DEBUG: None
+JobStart: 14:31:49 08/02/2025
+...........................
+[14:31:49] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
+WARNING: Box span / 2 (2.00 Å) < 11.00 Å (cutoff)
+Data file written into Temperature_(K)_22.data
+In script written into Temperature_(K)_22.in
+Finished.
+14:31:49 08/02/2025

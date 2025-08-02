@@ -6,6 +6,7 @@ import sys
 import types
 from unittest import mock
 
+import numpy as np
 import pytest
 
 from nemd import envutils
@@ -224,16 +225,20 @@ class TestReader:
         assert mem == reader.finished
 
     @pytest.mark.parametrize('dirname,columns,expected',
-                             [('0049', ['task_time'], (0, 1)),
-                              (TEST0049, ['task_time'], (2, 1)),
-                              (TEST0049, ['finished'], (2, 1)),
-                              ('0001_fail', ['task_time'], (1, 1)),
-                              ('0001_fail', ['finished'], (1, 0)),
-                              (TEST0049, ['task_time', 'memory'], (2, 1)),
-                              ('0049_ubuntu', ['task_time', 'memory'], (2, 2)),
-                              ('0049_ubuntu', ['memory'], (2, 1))])
+                             [('0049', ['task_time'], (0, 1, np.int64)),
+                              ('0058_test', ['task_time'], (2, 1, np.float64)),
+                              (TEST0049, ['task_time'], (2, 1, np.int64)),
+                              (TEST0049, ['finished'], (2, 1, np.int64)),
+                              ('0001_fail', ['task_time'], (1, 1, np.object_)),
+                              ('0001_fail', ['finished'], (1, 0, np.object_)),
+                              (TEST0049, ['task_time', 'memory'],
+                               (2, 1, np.int64)),
+                              ('0049_ubuntu', ['task_time', 'memory'],
+                               (2, 2, np.int64)),
+                              ('0049_ubuntu', ['memory'], (2, 1, np.int64))])
     def testCollect(self, columns, expected, copied):
-        assert expected == logutils.Reader.collect(*columns).shape
+        collected = logutils.Reader.collect(*columns)
+        assert expected == (*collected.shape, collected.index.dtype)
 
     @pytest.mark.parametrize('data', [AMORP_LOG])
     @pytest.mark.parametrize('attr,expected',

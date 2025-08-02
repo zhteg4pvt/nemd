@@ -1,0 +1,4 @@
+echo "0058: Performance: [Ar] Amorphous Builder at different temperatures"
+nemd_run amorp_bldr_driver.py "[Ar]" -method grid -mol_num 1 -temp 111.11 -seed 1 -NAME "Temperature_(K)" -JOBNAME "Temperature_(K)_111.11" -CPU 8 > /dev/null
+nemd_run amorp_bldr_driver.py "[Ar]" -method grid -mol_num 1 -temp 22 -seed 1 -NAME "Temperature_(K)" -JOBNAME "Temperature_(K)_22" -CPU 8 > /dev/null
+exit 0

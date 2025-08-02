@@ -14,6 +14,7 @@ import sys
 import traceback
 import types
 
+import numpy as np
 import pandas as pd
 import wurlitzer
 
@@ -397,13 +398,12 @@ class Reader:
             return timeutils.dtime(line)
 
     @classmethod
-    def collect(cls, *columns, dropna=True, dtypes=(float, int)):
+    def collect(cls, *columns, dropna=True):
         """
         Collect data from the log files.
 
         :param columns tuple: reader property and options attribute names.
         :param dropna bool: drop the nan values.
-        :param dtypes tuple: covert the index column data types.
         :return 'pd.DataFrame': the collected data.
         """
         rdrs = [cls(x.logfile) for x in jobutils.Job.search() if x.logfile]
@@ -421,11 +421,14 @@ class Reader:
         data = pd.DataFrame(data, index=index, columns=columns)
         if dropna:
             data.dropna(inplace=True, axis=1, how='all')
-        for dtype in dtypes:
-            try:
-                data.index = data.index.astype(dtype)
-            except ValueError:
-                pass
+        try:
+            data.index = data.index.astype(float)
+        except ValueError:
+            pass
+        else:
+            index = data.index.astype(int)
+            if np.allclose(data.index, index, rtol=0, atol=0.1):
+                data.index = index
         data.sort_index(axis=0, inplace=True)
         return data
 
