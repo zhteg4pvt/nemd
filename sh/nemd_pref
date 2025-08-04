@@ -22,6 +22,9 @@ case $(uname) in
     osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to true'
     ;;
   Linux*)
+    sudo snap install pycharm-community --classic
+    grep 'alias cdg' ~/.bashrc || echo 'alias cdg="cd ~/git/nemd"' >> ~/.bashrc
+    grep PS1 ~/.bashrc || echo 'export PS1="\[\e[02m\]\u\[\e[33m\]@\[\e[32m\]\h$ \[\e[34m\]\W \[\e[31m\]\$(git symbolic-ref --short HEAD 2>/dev/null) \[\e[0m\]"' >> ~/.bashrc
     ;;
  esac
 
