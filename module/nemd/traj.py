@@ -131,16 +131,18 @@ class Traj(list):
             return
         self.setUp()
 
-    def setUp(self):
+    def setUp(self, fac=1):
         """
         Set up.
+
+        :param fac float: factor from step to time.
         """
         self.setStart()
-        sliced = getattr(self.options, 'slice', [None])
+        sliced = self.options and self.options.slice or [None]
         self.extend(list(self.frame)[slice(*sliced)])
         # FIXME: obtain the timestep from log file instead of options
-        fac = 1 if self.file.endswith('.xtc') else \
-            getattr(self.options, 'timestep', 1) * constants.FEMTO_TO_PICO
+        if not self.file.endswith('.xtc') and self.options:
+            fac = self.options.timestep * constants.FEMTO_TO_PICO
         self.time = Time([x.step * fac for x in self], options=self.options)
 
     def setStart(self):

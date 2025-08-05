@@ -1055,6 +1055,11 @@ class LmpTraj(LmpLog):
         parser.add_argument('-sel', help=f'The element of the selected atoms.')
         if positional:
             parser.valids.add(TrajValid)
+            parser.add_argument(Md.FLAG_TIMESTEP,
+                                metavar='fs',
+                                type=type_positive_float,
+                                default=1,
+                                help='Trajectory timetep.')
 
 
 class Workflow(Driver):

@@ -18,9 +18,9 @@ class TestRunner:
     def testSetJobs(self, runner, check_flow):
         runner.setJobs()
 
-    @pytest.mark.parametrize(
-        'original,expected',
-        [(['-scale_range', '0.95', '1.05', '0.05'], [0.95, 1.0, 1.05])])
+    @pytest.mark.parametrize('original,expected', [
+        (['-scale_range', '0.95', '1.05', '5'], [0.95, 0.975, 1., 1.025, 1.05])
+    ])
     def testState(self, runner, expected):
         np.testing.assert_almost_equal(runner.state['-scale_factor'], expected)
 
@@ -36,10 +36,11 @@ class TestParser:
     def parser(self):
         return workflow.Parser()
 
-    @pytest.mark.parametrize(
-        'args,expected',
-        [(['-scale_range', '0.9', '1.2', '0.1'], [0.9, 1.2, 0.1]),
-         (['-scale_range', '0.9', '1.2'], SystemExit)])
+    @pytest.mark.parametrize('args,expected',
+                             [(['-scale_range', '0.9', '1.2', '4'],
+                               (0.9, 1.2, 4)),
+                              (['-scale_range', '0.9', '1.2'], (0.9, 1.2, 31)),
+                              (['-scale_range', '0.9'], SystemExit)])
     def testParseArgs(self, parser, args, expected, raises):
         with raises:
             options = parser.parse_args(args)

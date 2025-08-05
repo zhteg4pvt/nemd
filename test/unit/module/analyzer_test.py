@@ -187,17 +187,21 @@ class TestDensity:
                                                    (AR_TRJ, None, (5, 10)),
                                                    (AR_TRJ, [0, 1], (5, 2))])
     def testInit(self, trj, gids, expected):
-        options = trj and parserutils.LmpTraj().parse_args(
-            [trj, '-last_pct', '0.8', '-task', 'xyz'])
         if trj is not None:
+            args = [trj, '-last_pct', '0.8', '-task', 'xyz']
+            options = parserutils.LmpTraj().parse_args(args)
             trj = traj.Traj(trj, options=options)
         job = analyzer.Density(trj=trj, gids=gids)
         assert expected == (job.sidx,
                             None if job.gids is None else len(job.gids))
 
-    @pytest.mark.parametrize('trj,rdr,expected', [(AR_TRJ, AR_RDR, 0.0018261)])
-    def testSet(self, trj, rdr, expected):
-        job = analyzer.Density(trj=traj.Traj(trj), rdr=rdr)
+    @pytest.mark.parametrize('trj,data_file,expected',
+                             [(AR_TRJ, AR_DAT, 0.0018261)])
+    def testSet(self, trj, data_file, expected):
+        args = [trj, '-data_file', data_file]
+        options = parserutils.LmpTraj().parse_args(args)
+        job = analyzer.Density(trj=traj.Traj(trj, options=options),
+                               rdr=lmpfull.Reader(data_file))
         job.set()
         np.testing.assert_almost_equal(job.data.max(), [expected])
 
@@ -214,7 +218,7 @@ class TestXYZ:
                 tmp_dir):
         options = parserutils.LmpTraj().parse_args(
             [trj, '-JOBNAME', 'xyz', '-task', 'xyz'])
-        job = analyzer.XYZ(trj=traj.Traj(trj),
+        job = analyzer.XYZ(trj=traj.Traj(trj, options=options),
                            rdr=rdr,
                            options=options,
                            logger=mock.Mock())
@@ -228,15 +232,17 @@ class TestXYZ:
 class TestView:
 
     TRJ = envutils.test_data('water', 'three.custom')
-    RDR = lmpfull.Reader(envutils.test_data('water', 'polymer_builder.data'))
+    DAT = envutils.test_data('water', 'polymer_builder.data')
 
     @pytest.mark.parametrize('trj', [TRJ])
-    @pytest.mark.parametrize('rdr', [(None), (RDR)])
-    def testRun(self, trj, rdr, tmp_dir):
-        options = parserutils.LmpTraj().parse_args(
-            [trj, '-JOBNAME', 'view', '-task', 'view'])
-        job = analyzer.View(trj=traj.Traj(trj),
-                            rdr=rdr,
+    @pytest.mark.parametrize('dat', [(None), (DAT)])
+    def testRun(self, trj, dat, tmp_dir):
+        args = [trj, '-JOBNAME', 'view', '-task', 'view']
+        if dat:
+            args += ['-data_file', dat]
+        options = parserutils.LmpTraj().parse_args(args)
+        job = analyzer.View(trj=traj.Traj(trj, options=options, start=0),
+                            rdr=lmpfull.Reader(dat) if dat else None,
                             options=options,
                             logger=mock.Mock())
         job.run()

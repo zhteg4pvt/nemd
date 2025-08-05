@@ -47,7 +47,7 @@ class Runner(jobcontrol.Runner):
 
 class LinspaceAction(parserutils.Action):
     """
-    Action that allows three values.
+    Action for np.linspace.
     """
 
     def doTyping(self, *args):
@@ -57,7 +57,7 @@ class LinspaceAction(parserutils.Action):
         :return tuple: start, stop, and num.
         """
         if len(args) == 2:
-            args += ((args[1] - args[0]) / 0.01 +1,)
+            args += ((args[1] - args[0]) / 0.01 + 1, )
         if len(args) != 3:
             self.error("Please define start, stop, and num.")
         return args[0], args[1], round(args[2])
@@ -81,8 +81,7 @@ class Parser(parserutils.Workflow):
             type=parserutils.type_positive_float,
             action=LinspaceAction,
             nargs='+',
-            help='The scale range on the crystal lattice parameters.'
-        )
+            help='The scale range on the crystal lattice parameters.')
         parserutils.XtalBldr.add(parser, append=False)
         parserutils.LmpLog.add(parser)
 
