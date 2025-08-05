@@ -290,7 +290,7 @@ class Cpu(list):
         """
         if len(self) == 1:
             # Evenly distribute among subjobs if only total cpu specified
-            self.append(math.floor(self[0] / len(jobs)) or 1)
+            self.append(round(self[0] / len(jobs)) or 1)
 
 
 class Action(argparse.Action):

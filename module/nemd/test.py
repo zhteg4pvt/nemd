@@ -176,7 +176,7 @@ class Check(Base):
         if not completed.returncode:
             return
         with open(proc.logfile) as fh:
-            return fh.read()
+            return fh.read() or 'non-zero return code'
 
     @functools.cached_property
     def raw(self, default='nemd_check collect finished dropna=False'):

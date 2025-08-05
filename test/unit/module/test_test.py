@@ -102,7 +102,7 @@ class TestCheck:
         'dirname,expected',
         [('empty', '| finished   |\n|------------|\n'), ('empty_check', None),
          ('0001', 'polymer_builder.data is different from amorp_bldr.data.\n'),
-         ('0046_test', None)])
+         ('0046_test', None), ('returncode', 'non-zero return code')])
     def testRun(self, check, expected):
         with open('amorp_bldr.data', 'w'):
             pass
