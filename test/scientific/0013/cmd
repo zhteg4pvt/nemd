@@ -1,2 +1,2 @@
 # Argon fluid: MSD diffusion
-nemd_run ab_lmp_traj_workflow.py "[Ar]" -mol_num 123 -last_pct 0.4 -task msd -state_num 4 -slice none none 200
+nemd_run ab_lmp_traj_workflow.py "[Ar]" -mol_num 123 -last_pct 0.4 -task msd -state_num 4 -slice none none 50

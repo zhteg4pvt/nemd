@@ -1,3 +1,3 @@
-# Ar solid at 50K of density 0.5: large deviation from the equilibrated 1.672
+# Ar solid at 50K (below the 83.81 K melting point): from intial density 0.5 g/cm^3 to crystal density 1.6 g/cm^3
 nemd_run ab_lmp_traj_workflow.py "[Ar]" -mol_num 1000 -density 0.5 -last_pct 0.2 -temp 50 -task density -state_num 4
-# https://iopscience.iop.org/article/10.1088/0256-307X/18/1/325/meta
+# https://iopscience.iop.org/article/10.1088/0256-307X/18/1/325/meta (initial configuration 1350 kg/m^3)

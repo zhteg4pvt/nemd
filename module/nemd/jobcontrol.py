@@ -14,7 +14,6 @@ This class handles jobs and aggregators:
 import functools
 import itertools
 import math
-import os
 
 import flow
 import networkx as nx
@@ -156,7 +155,6 @@ class Runner(logutils.Base):
         """
         Run task project.
         """
-        self.options.CPU.set(self.jobs)
         self.proj.doc[self.PREREQ] = self.prereq
         self.proj.doc[symbols.ARGS] = self.args
         self.runProj(agg=False)
@@ -174,6 +172,7 @@ class Runner(logutils.Base):
         if not self.jobs:
             self.error(f"No jobs to {'aggregate' if agg else 'run'}.")
         self.clean(agg=agg)
+        self.options.CPU.set(self.jobs)
         self.proj.run(np=math.floor(self.options.CPU[0] / self.options.CPU[1])
                       or 1,
                       progress=self.options.screen in progress,
