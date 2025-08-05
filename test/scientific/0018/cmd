@@ -1,3 +1,3 @@
-# Ar solid at 50K: density 0.5 (large deviation from the equilibrated 1.672), 4 replica, 1000 Ar, last 20% pct
+# Ar solid at 50K of density 0.5: large deviation from the equilibrated 1.672
 nemd_run ab_lmp_traj_workflow.py "[Ar]" -mol_num 1000 -density 0.5 -last_pct 0.2 -temp 50 -task density -state_num 4
 # https://iopscience.iop.org/article/10.1088/0256-307X/18/1/325/meta
