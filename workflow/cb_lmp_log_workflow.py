@@ -34,7 +34,7 @@ class Runner(jobcontrol.Runner):
         """
         return {
             parserutils.XtalBldr.FLAG_SCALED_FACTOR:
-            np.arange(*self.options.scale_range)
+            np.linspace(*self.options.scale_range)
         }
 
     def setAggs(self):
@@ -43,6 +43,24 @@ class Runner(jobcontrol.Runner):
         """
         self.add(task.LmpAgg, jobname='lmp_log_agg')
         super().setAggs()
+
+
+class LinspaceAction(parserutils.Action):
+    """
+    Action that allows three values.
+    """
+
+    def doTyping(self, *args):
+        """
+        Check and return the start, stop, and num.
+
+        :return tuple: start, stop, and num.
+        """
+        if len(args) == 2:
+            args += ((args[1] - args[0]) / 0.01 +1,)
+        if len(args) != 3:
+            self.error("Please define start, stop, and num.")
+        return args[0], args[1], round(args[2])
 
 
 class Parser(parserutils.Workflow):
@@ -58,11 +76,12 @@ class Parser(parserutils.Workflow):
         """
         parser.add_argument(
             '-scale_range',
-            default=(0.95, 1.05, 0.01),
-            nargs=3,
-            metavar='FLOAT',
+            metavar='START STOP NUM',
+            default=(0.95, 1.05, 11),
             type=parserutils.type_positive_float,
-            help='The range of scale factors on the crystal lattice parameters.'
+            action=LinspaceAction,
+            nargs='+',
+            help='The scale range on the crystal lattice parameters.'
         )
         parserutils.XtalBldr.add(parser, append=False)
         parserutils.LmpLog.add(parser)

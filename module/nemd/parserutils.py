@@ -5,7 +5,6 @@ parser utilities.
 """
 import argparse
 import functools
-import math
 import os
 import pathlib
 import random
