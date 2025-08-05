@@ -230,7 +230,7 @@ class SinglePoint(Base):
                 f'fix rest all restrain {geo} -2000.0 -2000.0 {self.options.substruct[1]}'
             )
         self.join('min_style', min_style)
-        self.append(f"minimize 1.0e-6 1.0e-8 1000000 10000000")
+        self.append(f"minimize 1.0e-6 1.0e-6 1000 10000")
         if restrain:
             self.append('unfix rest')
 

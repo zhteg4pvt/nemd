@@ -114,7 +114,7 @@ class TestSinglePoint:
 
     @pytest.mark.parametrize(
         'no_minimize,geo,val,expected',
-        [(False, None, None, 'minimize 1.0e-6 1.0e-8 1000000 10000000'),
+        [(False, None, None, 'minimize 1.0e-6 1.0e-6 1000 10000'),
          (True, None, None, None),
          (True, 'dihedral 1 2 3 4', 120,
           'fix rest all restrain dihedral 1 2 3 4 -2000.0 -2000.0 120')])

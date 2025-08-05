@@ -50,7 +50,8 @@ class TestTime:
                              [([], None, None), ([0, 1, 2], None, 0),
                               ([0, 1, 2], [XTC, *ARGS], 1)])
     def testNew(self, time, args, expected):
-        options= None if args is None else parserutils.LmpTraj().parse_args(args)
+        options = None if args is None else parserutils.LmpTraj().parse_args(
+            args)
         time = traj.Time(time, options=options)
         assert expected == time.start
 
@@ -63,15 +64,15 @@ class TestTraj:
 
     @pytest.fixture
     def trj(self, file, args, start):
-        options = None if args is None else parserutils.LmpTraj().parse_args([file] + args)
+        options = None if args is None else parserutils.LmpTraj().parse_args(
+            [file] + args)
         return traj.Traj(file, options=options, start=start, delay=True)
 
     @pytest.mark.parametrize('file,args,start,expected',
                              [(FRM, ['-task', 'xyz'], 0, (1, 105.0)),
                               (GZ, ARGS, 0, (46, 105.0)),
                               (GZ, ARGS, None, (38, 105.0)),
-                              (XTC, ARGS, None,
-                               (1402, 1400.0))])
+                              (XTC, ARGS, None, (1402, 1400.0))])
     def testSetUp(self, trj, expected):
         trj.setUp()
         num = len([x for x in trj if isinstance(x, frame.Frame)])
@@ -79,8 +80,7 @@ class TestTraj:
 
     @pytest.mark.parametrize('file,args,start,expected',
                              [(FRM, None, 0, 0), (FRM, None, None, 0),
-                              (GZ,ARGS, None, 7000),
-                              (XTC, ARGS, None, 0)])
+                              (GZ, ARGS, None, 7000), (XTC, ARGS, None, 0)])
     def testSetStart(self, trj, expected):
         trj.setStart()
         assert expected == trj.start
@@ -93,8 +93,7 @@ class TestTraj:
         assert expected == isinstance(frm, frame.Frame)
 
     @pytest.mark.parametrize('file,args,start,expected',
-                             [(GZ, None, 0, 46),
-                              (GZ, ARGS, None, 37)])
+                             [(GZ, None, 0, 46), (GZ, ARGS, None, 37)])
     def testSel(self, trj, expected):
         trj.setUp()
         assert expected == len(trj.sel)
