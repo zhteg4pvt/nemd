@@ -1,1 +1,1 @@
-nemd_check cmp pb_lmp_post_workflow_rdf.csv pb_lmp_post_workflow_rdf.csv rtol=0.05
+nemd_check cmp ab_lmp_traj_rdf.csv ab_lmp_traj_rdf.csv rtol=0.05

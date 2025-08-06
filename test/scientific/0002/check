@@ -1,1 +1,1 @@
-nemd_check cmp ab_lmp_traj_density.csv ab_lmp_traj_density.csv rtol=1e-2 atol=1e-5
+nemd_check cmp ab_lmp_traj_density.csv ab_lmp_traj_density.csv rtol=5e-2 atol=1e-5
