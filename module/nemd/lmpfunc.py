@@ -237,9 +237,9 @@ class Modulus(Press):
                 if not idx:
                     num = round(self.data.shape[0] / self.rec_num)
                     axis.set_title(f"Sinusoidal Deformation ({num} cycles)")
-            fig.savefig(
-                f"{os.path.splitext(self.filename)[0]}_{self.MODULUS}{self.PNG_EXT}"
-            )
+            basename = os.path.basename(self.filename)
+            root, _ = os.path.splitext(basename)
+            fig.savefig(f"{root}_{self.MODULUS}{self.PNG_EXT}")
 
     def subplot(self, ax, column):
         """

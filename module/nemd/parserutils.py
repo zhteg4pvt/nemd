@@ -845,6 +845,7 @@ class Md(Driver):
                             choices=lmpin.Script.ENSEMBLES,
                             default=lmpin.Script.NVE,
                             help='Production ensemble.')
+
         cls.addSeed(parser)
         # Skip the structure minimization step
         parser.add_argument(cls.FLAG_NO_MINIMIZE,

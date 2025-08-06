@@ -337,6 +337,7 @@ class RampUp(SinglePoint):
     MODULUS = 'modulus'
     ENSEMBLES = [NVE, NVT, NPT]
     BERENDSEN = 'berendsen'
+    NOSE_HOOVER = 'nose_hoover'
 
     def __init__(self, *args, **kwargs):
         """
@@ -387,11 +388,15 @@ class RampUp(SinglePoint):
             return
         if stemp is None:
             stemp = temp
+        args = (stemp, temp, self.options.tdamp)
         with self.block() as blk:
-            if style == self.BERENDSEN:
-                blk.fix_all('temp/berendsen', stemp, temp, self.options.tdamp)
-                blk.nve(nstep=nstep)
-            # FIXME: support thermostat more than berendsen.
+            match style:
+                case self.BERENDSEN:
+                    blk.fix_all('temp/berendsen', *args)
+                    blk.nve(nstep=nstep)
+                case self.NOSE_HOOVER:
+                    blk.fix_all('nvt', 'temp', *args)
+                    blk.run_step(nstep=nstep)
 
     def fix_all(self, *args):
         """
@@ -413,15 +418,18 @@ class RampUp(SinglePoint):
 
     def npt(self,
             nstep=20000,
+            stemp=None,
+            temp=300,
             spress=None,
             press=1,
             style=BERENDSEN,
-            modulus=10,
-            **kwargs):
+            modulus=10):
         """
         Append command for constant pressure and temperature.
 
         :param nstep int: run this number of steps.
+        :param stemp float: starting temperature.
+        :param temp float: target temperature.
         :param spress float: starting pressure.
         :param press float: target pressure.
         :param style str: the barostat style.
@@ -429,14 +437,19 @@ class RampUp(SinglePoint):
         """
         if not nstep:
             return
+        if stemp is None:
+            stemp = temp
         if spress is None:
             spress = press
+        args = ('iso', spress, press, self.options.pdamp)
         with self.block() as blk:
-            if style == self.BERENDSEN:
-                blk.fix_all('press/berendsen', 'iso', spress, press,
-                            self.options.pdamp, self.MODULUS, modulus)
-                blk.nvt(nstep=nstep, **kwargs)
-        # FIXME: support thermostat more than berendsen.
+            match style:
+                case self.BERENDSEN:
+                    blk.fix_all('press/berendsen', *args, self.MODULUS, modulus)
+                    blk.nvt(nstep=nstep, stemp=stemp, temp=temp)
+                case self.NOSE_HOOVER:
+                    blk.fix_all('npt', 'temp', stemp, temp, self.options.tdamp, *args)
+                    blk.run_step(nstep=nstep)
 
     def relaxation(self, modulus=10):
         """

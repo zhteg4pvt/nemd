@@ -110,7 +110,7 @@ class TestModulus:
     @pytest.mark.parametrize('label,expected',
                              [('c_thermo_press', 'xyzl_xl.png'),
                               ('v_vol', 'xyzl_yl.png')])
-    def testSubplot(self, label, expected, modulus):
+    def testSubplot(self, label, expected, modulus, tmp_dir):
         modulus.read()
         modulus.setAve()
         with plotutils.pyplot(inav=False) as plt:
