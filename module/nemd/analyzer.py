@@ -522,6 +522,9 @@ class RDF(Clash):
                 # Stands at every id but either (1->2) or (2->1) is computed
                 rdf += (hist * 2 / num / norm_factor)
                 prog(idx)
+                # The memory usage of CellNumba dfrm.cell is not released
+                # by dfrm reassignment or deletion. (8GB memory stest 12)
+                del dfrm.cell
         rdf /= sel_num
         mid, rdf = np.concatenate(([0], mid)), np.concatenate(([0], rdf))
         index = pd.Index(data=mid, name=f'r ({symbols.ANGSTROM})')
