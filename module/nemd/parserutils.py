@@ -791,6 +791,7 @@ class Md(Driver):
     FLAG_RELAX_TIME = '-relax_time'
     FLAG_PROD_TIME = '-prod_time'
     FLAG_PROD_ENS = '-prod_ens'
+    FLAG_STAT = '-stat'
     FLAG_NO_MINIMIZE = '-no_minimize'
 
     @classmethod
@@ -845,7 +846,10 @@ class Md(Driver):
                             choices=lmpin.Script.ENSEMBLES,
                             default=lmpin.Script.NVE,
                             help='Production ensemble.')
-
+        parser.add_argument(cls.FLAG_STAT,
+                            choices=lmpin.RampUp.STATS,
+                            default=lmpin.RampUp.NOSE_HOOVER,
+                            help='Thermostat and barostat style.')
         cls.addSeed(parser)
         # Skip the structure minimization step
         parser.add_argument(cls.FLAG_NO_MINIMIZE,

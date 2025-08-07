@@ -180,6 +180,7 @@ class TestSinglePoint:
 class TestRampUp:
     ARGS = ('-relax_time', '0.01', '-prod_time', '0.02', '-stemp', '2',
             '-temp', '3', '-press', '4')
+    BERENDSEN = ARGS + ('-stat', 'berendsen')
 
     @pytest.fixture
     def ramp_up(self, smiles, args, emol):
@@ -214,7 +215,8 @@ class TestRampUp:
 
     @pytest.mark.parametrize(
         'smiles,args,expected',
-        [('CC', ARGS, 'fix %s all temp/berendsen 2.0 2.0 100')])
+        [('CC', ARGS, 'fix %s all nvt temp 2.0 2.0 100'),
+         ('CC', BERENDSEN, 'fix %s all temp/berendsen 2.0 2.0 100')])
     def testStartLow(self, ramp_up, expected):
         ramp_up.startLow()
         assert expected == ramp_up[0][0]
@@ -234,10 +236,14 @@ class TestRampUp:
         ramp_up.fix_all('temp/berendsen', 10, 10, 100)
         assert 'fix %s all temp/berendsen 10 10 100' == ramp_up[0]
 
-    @pytest.mark.parametrize('smiles,args,expected', [('CC', ARGS, [
-        'fix %s all press/berendsen iso 1 4.0 1000 modulus 10',
-        'fix %s all temp/berendsen 2.0 3.0 100'
-    ])])
+    @pytest.mark.parametrize('smiles', ['CC'])
+    @pytest.mark.parametrize('args,expected', [
+        (ARGS, ['fix %s all npt temp 2.0 3.0 100 iso 1 4.0 1000', 'run 1000']),
+        (BERENDSEN, [
+            'fix %s all press/berendsen iso 1 4.0 1000 modulus 10',
+            'fix %s all temp/berendsen 2.0 3.0 100'
+        ])
+    ])
     def testRampUp(self, ramp_up, expected):
         ramp_up.rampUp()
         assert expected == ramp_up[0][:2]
@@ -257,23 +263,32 @@ class TestRampUp:
                     style=style)
         assert (expected == ramp_up[0][0]) if expected else (not ramp_up)
 
-    @pytest.mark.parametrize('smiles,args,expected', [('CC', ARGS, [
-        'fix %s all press/berendsen iso 4.0 4.0 1000 modulus 10',
-        'fix %s all temp/berendsen 3.0 3.0 100'
-    ])])
+    @pytest.mark.parametrize('smiles', ['CC'])
+    @pytest.mark.parametrize(
+        'args,expected',
+        [(ARGS,
+          ['fix %s all npt temp 3.0 3.0 100 iso 4.0 4.0 1000', 'run 10000']),
+         (BERENDSEN, [
+             'fix %s all press/berendsen iso 4.0 4.0 1000 modulus 10',
+             'fix %s all temp/berendsen 3.0 3.0 100'
+         ])])
     def testRelaxation(self, ramp_up, expected):
         ramp_up.relaxation()
         assert expected == ramp_up[0][:2]
 
-    @pytest.mark.parametrize('smiles,args', [('CC', ARGS)])
+    @pytest.mark.parametrize('smiles', ['CC'])
     @pytest.mark.parametrize(
-        'prod_ens,expected',
-        [('NVE', ['fix %s all nve', 'run 20000']),
-         ('NVT', [
+        'args,prod_ens,expected',
+        [(ARGS, 'NVE', ['fix %s all nve', 'run 20000']),
+         (ARGS, 'NVT', ['fix %s all nvt temp 3.0 3.0 100', 'run 20000']),
+         (ARGS, 'NPT',
+          ['fix %s all npt temp 3.0 3.0 100 iso 4.0 4.0 1000', 'run 20000']),
+         (BERENDSEN, 'NVE', ['fix %s all nve', 'run 20000']),
+         (BERENDSEN, 'NVT', [
              'fix %s all temp/berendsen 3.0 3.0 100', 'fix %s all nve',
              'run 20000'
          ]),
-         ('NPT', [
+         (BERENDSEN, 'NPT', [
              'fix %s all press/berendsen iso 4.0 4.0 1000 modulus 10',
              'fix %s all temp/berendsen 3.0 3.0 100', 'fix %s all nve',
              'run 20000'
@@ -303,19 +318,19 @@ class TestAve:
 
     @pytest.mark.parametrize(
         'args,expected',
-        [(('CC', '-prod_ens', 'NPT'), (9, 1, 1000000)),
-         (('CC', '-prod_ens', 'NVT'), (35, 2, 1000000, 10000)),
+        [(('CC', '-prod_ens', 'NPT'), (5, 1, 1000000)),
+         (('CC', '-prod_ens', 'NVT'), (29, 2, 1000000, 10000)),
          (('CC', '-prod_ens', 'NPT', '-relax_time', '0'), (1, 0)),
          (('CC', '-prod_ens', 'NVT', '-relax_time', '0'), (1, 0)),
          (('CC', '-prod_ens', 'NVE', '-relax_time', '0'), (1, 0)),
-         (('CC', '-prod_ens', 'NVE'), (35, 2, 1000000, 10000))])
+         (('CC', '-prod_ens', 'NVE'), (29, 2, 1000000, 10000))])
     def testRelaxation(self, args, emol, expected):
         options = parserutils.MolBase().parse_args(args)
         kwargs = dict(options=options, atom_total=emol.GetNumAtoms())
         ave = lmpin.Ave(struct=types.SimpleNamespace(**kwargs))
         ave.relaxation()
         ave.finalize()
-        num = sum([x.endswith('all temp/berendsen 300 300 100') for x in ave])
+        num = sum(['temp 300 300 100' in x for x in ave])
         nsteps = [int(x.split()[-1]) for x in ave if x.startswith('run')]
         assert expected == (len(ave), num, *nsteps)
 
@@ -370,7 +385,8 @@ class TestScript:
 
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize('args,expected',
-                             [(('-prod_ens', 'NVE'), 36),
+                             [(('-prod_ens', 'NVE', '-stat', 'berendsen'), 36),
+                              (('-prod_ens', 'NVE'), 28),
                               (('-prod_ens', 'NVE', '-relax_time', '0'), 0)])
     def testRampUp(self, script, expected):
         script.rampUp()
@@ -403,7 +419,8 @@ class TestScript:
         assert expected == script
 
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
-    @pytest.mark.parametrize('args,expected', [((), 8)])
+    @pytest.mark.parametrize('args,expected', [((), 0),
+                                               (('-stat', 'berendsen'), 8)])
     def testWiggle(self, script, expected):
         script.wiggle(10000)
         assert expected == len(script)
@@ -442,17 +459,20 @@ class TestScript:
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize(
         'args,expected',
-        [((), 'fix 0b all press/berendsen iso 1 1 1000 modulus ${modulus}')])
+        [((), 'fix 0b all npt temp 300 300 100 iso 1 1 1000'),
+         (('-stat', 'berendsen'),
+          'fix 0b all press/berendsen iso 1 1 1000 modulus ${modulus}')])
     def testRelaxation(self, script, expected):
         script.relaxation()
         script.finalize()
         assert expected in script
 
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
-    @pytest.mark.parametrize(
-        'args,expected',
-        [(('-prod_ens', 'NPT'),
-          'fix 0a all press/berendsen iso 1 1 1000 modulus ${modulus}')])
+    @pytest.mark.parametrize('args,expected', [
+        (('-prod_ens', 'NPT'), 'fix 0a all npt temp 300 300 100 iso 1 1 1000'),
+        (('-prod_ens', 'NPT', '-stat', 'berendsen'),
+         'fix 0a all press/berendsen iso 1 1 1000 modulus ${modulus}')
+    ])
     def testProduction(self, script, expected):
         script.production()
         script.finalize()

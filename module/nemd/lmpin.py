@@ -338,6 +338,7 @@ class RampUp(SinglePoint):
     ENSEMBLES = [NVE, NVT, NPT]
     BERENDSEN = 'berendsen'
     NOSE_HOOVER = 'nose_hoover'
+    STATS = [BERENDSEN, NOSE_HOOVER]
 
     def __init__(self, *args, **kwargs):
         """
@@ -375,7 +376,7 @@ class RampUp(SinglePoint):
         """
         self.nvt(nstep=self.relax_step / 1E3, temp=self.options.stemp)
 
-    def nvt(self, nstep=1E4, stemp=None, temp=300, style=BERENDSEN):
+    def nvt(self, nstep=1E4, stemp=None, temp=300, style=None):
         """
         Append command for constant volume and temperature.
 
@@ -390,7 +391,7 @@ class RampUp(SinglePoint):
             stemp = temp
         args = (stemp, temp, self.options.tdamp)
         with self.block() as blk:
-            match style:
+            match style or self.options.stat:
                 case self.BERENDSEN:
                     blk.fix_all('temp/berendsen', *args)
                     blk.nve(nstep=nstep)
@@ -422,7 +423,7 @@ class RampUp(SinglePoint):
             temp=300,
             spress=None,
             press=1,
-            style=BERENDSEN,
+            style=None,
             modulus=10):
         """
         Append command for constant pressure and temperature.
@@ -443,12 +444,14 @@ class RampUp(SinglePoint):
             spress = press
         args = ('iso', spress, press, self.options.pdamp)
         with self.block() as blk:
-            match style:
+            match style or self.options.stat:
                 case self.BERENDSEN:
-                    blk.fix_all('press/berendsen', *args, self.MODULUS, modulus)
+                    blk.fix_all('press/berendsen', *args, self.MODULUS,
+                                modulus)
                     blk.nvt(nstep=nstep, stemp=stemp, temp=temp)
                 case self.NOSE_HOOVER:
-                    blk.fix_all('npt', 'temp', stemp, temp, self.options.tdamp, *args)
+                    blk.fix_all('npt', 'temp', stemp, temp, self.options.tdamp,
+                                *args)
                     blk.run_step(nstep=nstep)
 
     def relaxation(self, modulus=10):
@@ -746,6 +749,8 @@ class Script(Ave):
         :param num int: the number of sinusoidal waves.
         :param imodulus str: calculated modulus from wiggle.
         """
+        if self.options.stat != self.BERENDSEN:
+            return
         nstep = max(nstep, self.options.pdamp * 4)
         wstep = round(nstep / num)
         with self.block() as blk:

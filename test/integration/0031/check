@@ -1,1 +1,2 @@
 nemd_check cmp amorp_bldr.data amorp_bldr.data
+nemd_check cmp amorp_bldr.in amorp_bldr.in
