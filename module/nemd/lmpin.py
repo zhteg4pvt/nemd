@@ -346,8 +346,12 @@ class RampUp(SinglePoint):
         """
         super().__init__(*args, **kwargs)
         self.relax_step = self.options.relax_time * constants.NANO_TO_FEMTO / self.options.timestep
+        self.barostat = self.options.stat
         if self.relax_step:
             self.relax_step = round(self.relax_step, -3) or 1E3
+        if self.barostat == self.BERENDSEN and self.struct is not None and self.struct.box.tilt is not None:
+            # BERENDSEN doesn't support NPT
+            self.barostat = self.NOSE_HOOVER
 
     def simulation(self):
         """
@@ -444,7 +448,7 @@ class RampUp(SinglePoint):
             spress = press
         args = ('iso', spress, press, self.options.pdamp)
         with self.block() as blk:
-            match style or self.options.stat:
+            match style or self.barostat:
                 case self.BERENDSEN:
                     blk.fix_all('press/berendsen', *args, self.MODULUS,
                                 modulus)
@@ -749,7 +753,7 @@ class Script(Ave):
         :param num int: the number of sinusoidal waves.
         :param imodulus str: calculated modulus from wiggle.
         """
-        if self.options.stat != self.BERENDSEN:
+        if self.barostat != self.BERENDSEN:
             return
         nstep = max(nstep, self.options.pdamp * 4)
         wstep = round(nstep / num)

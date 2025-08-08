@@ -184,18 +184,24 @@ class TestRampUp:
 
     @pytest.fixture
     def ramp_up(self, smiles, args, emol):
-        args = (smiles, ) + args
-        options = parserutils.MolBase().parse_args(args)
-        kwargs = dict(options=options, atom_total=emol.GetNumAtoms())
-        return lmpin.RampUp(struct=types.SimpleNamespace(**kwargs))
+        options = parserutils.MolBase().parse_args((smiles, ) + args)
+        struct = lmpatomic.Struct.fromMols([emol], options=options)
+        return lmpin.RampUp(struct=struct)
 
     @pytest.mark.parametrize('smiles', ['CC'])
-    @pytest.mark.parametrize('args,expected',
-                             [(('-relax_time', '1'), 1000000.0),
-                              (('-relax_time', '0'), 0.0),
-                              (('-relax_time', '0.0001'), 1000.0)])
-    def testInit(self, ramp_up, expected):
-        assert expected == ramp_up.relax_step
+    @pytest.mark.parametrize(
+        'args,tilt,expected',
+        [(('-relax_time', '1'), None, (1000000.0, 'nose_hoover')),
+         (('-relax_time', '0'), None, (0.0, 'nose_hoover')),
+         (('-relax_time', '0.0001'), None, (1000.0, 'nose_hoover')),
+         (('-stat', 'berendsen'), None, (1000000.0, 'berendsen')),
+         (('-stat', 'berendsen'), [], (1000000.0, 'nose_hoover'))])
+    def testInit(self, args, smiles, emol, tilt, expected):
+        options = parserutils.MolBase().parse_args((smiles, ) + args)
+        struct = lmpatomic.Struct.fromMols([emol], options=options)
+        struct.box.tilt = tilt
+        ramp_up = lmpin.RampUp(struct=struct)
+        assert expected == (ramp_up.relax_step, ramp_up.barostat)
 
     @pytest.mark.parametrize('smiles,args,expected',
                              [('CC', (), 9), ('CC', ('-temp', '0'), 1),
@@ -313,8 +319,8 @@ class TestAve:
     @pytest.fixture
     def ave(self, smiles, emol):
         options = parserutils.MolBase().parse_args([smiles])
-        kwargs = dict(options=options, atom_total=emol.GetNumAtoms())
-        return lmpin.Ave(struct=types.SimpleNamespace(**kwargs))
+        struct = lmpatomic.Struct.fromMols([emol], options=options)
+        return lmpin.Ave(struct=struct)
 
     @pytest.mark.parametrize(
         'args,expected',
@@ -326,8 +332,8 @@ class TestAve:
          (('CC', '-prod_ens', 'NVE'), (29, 2, 1000000, 10000))])
     def testRelaxation(self, args, emol, expected):
         options = parserutils.MolBase().parse_args(args)
-        kwargs = dict(options=options, atom_total=emol.GetNumAtoms())
-        ave = lmpin.Ave(struct=types.SimpleNamespace(**kwargs))
+        struct = lmpatomic.Struct.fromMols([emol], options=options)
+        ave = lmpin.Ave(struct=struct)
         ave.relaxation()
         ave.finalize()
         num = sum(['temp 300 300 100' in x for x in ave])
@@ -380,8 +386,8 @@ class TestScript:
     @pytest.fixture
     def script(self, smiles, emol, args):
         options = parserutils.MolBase().parse_args([smiles, *args])
-        kwargs = dict(options=options, atom_total=emol.GetNumAtoms())
-        return lmpin.Script(struct=types.SimpleNamespace(**kwargs))
+        struct = lmpatomic.Struct.fromMols([emol], options=options)
+        return lmpin.Script(struct=struct)
 
     @pytest.mark.parametrize('smiles,cnum', [('CC', 1)])
     @pytest.mark.parametrize('args,expected',
