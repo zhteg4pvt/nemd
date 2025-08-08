@@ -88,10 +88,16 @@ class TestCmp:
          (['original.csv', 'different.csv'
            ], dict(atol='1e-06'), 'different.csv')])
     def testCsv(self, cmp, expected):
-        try:
-            cmp.csv()
-        except ValueError:
-            pass
+        cmp.csv()
+
+    @pytest.mark.parametrize(
+        'args,kwargs,expected',
+        [(['original.csv'], {}, (1, 3)),
+         (['original.csv'], dict(selected='Clash (count) (num=2)'), (1, 1))])
+    def testReadCsv(self, args, kwargs, expected, copied):
+        cmp = check.Cmp(*args, **kwargs)
+        _, non = cmp.readCsv(cmp.args[0])
+        assert expected == non.shape
 
     @pytest.mark.parametrize(
         'args,kwargs,expected',
@@ -103,10 +109,7 @@ class TestCmp:
          (['original.data', 'different.data'
            ], dict(atol='1e-03'), 'different.data')])
     def testData(self, cmp, expected):
-        try:
-            cmp.data()
-        except ValueError:
-            pass
+        cmp.data()
 
 
 class TestCollect:

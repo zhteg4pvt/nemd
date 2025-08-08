@@ -142,7 +142,8 @@ class Base(logutils.Base):
                 # Data has non-zero standard deviation column
                 vals = self.data.iloc[:, 0].astype(float)
                 errors = self.data.iloc[:, 1].astype(float)
-                ax.fill_between(self.data.index, vals - errors,
+                ax.fill_between(self.data.index,
+                                vals - errors,
                                 vals + errors,
                                 color='y',
                                 label='stdev',

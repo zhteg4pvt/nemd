@@ -104,6 +104,13 @@ class Cmp(Exist):
     """
     KEYS = {'atol', 'rtol', 'equal_nan'}
 
+    def __init__(self, *args, selected=None, **kwargs):
+        """
+        :param selected str: the selected csv column.
+        """
+        super().__init__(*args, **kwargs)
+        self.selected = selected
+
     def run(self):
         """
         The main method to compare files.
@@ -134,25 +141,32 @@ class Cmp(Exist):
 
     def csv(self):
         """
-        Compare csv files via np.allclose.
+        Compare csv files using np.allclose.
         """
         if not self.kwargs or not all(x.endswith('.csv') for x in self.args):
             return
-        origin = pd.read_csv(self.args[0])
-        object = origin.select_dtypes(include='object')
-        nonobj = origin.select_dtypes(exclude='object')
+        obj, non = self.readCsv(self.args[0])
+        shapes = [*obj.shape, *non.shape]
         for target in self.args[1:]:
-            data = pd.read_csv(target)
-            tgt_obj = data.select_dtypes(include='object')
-            if object.shape != tgt_obj.shape:
-                self.errorDiff(target)
-            if not all(object == tgt_obj):
-                self.errorDiff(target)
-            tgt_nonobj = data.select_dtypes(exclude='object')
-            if nonobj.shape != tgt_nonobj.shape:
-                self.errorDiff(target)
-            if not np.allclose(nonobj, tgt_nonobj, **self.kwargs):
-                self.errorDiff(target)
+            t_obj, t_non = self.readCsv(target)
+            if shapes == [*t_obj.shape, *t_non.shape] and all(obj == t_obj) \
+                    and np.allclose(non, t_non, **self.kwargs):
+                continue
+            self.errorDiff(target)
+
+    def readCsv(self, filename, object='object'):
+        """
+        Read csv and split by object type.
+
+        :param filename str: the csv file to read.
+        :param object str: the object data type.
+        return tuple: include object, exclude object.
+        """
+        data = pd.read_csv(filename)
+        if self.selected:
+            data = data[[self.selected]]
+        return data.select_dtypes(include=object), data.select_dtypes(
+            exclude=object)
 
     def data(self):
         """
