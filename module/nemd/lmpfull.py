@@ -401,7 +401,7 @@ class Mol(lmpatomic.Mol):
             case 1:
                 name = 'coordinates (angstrom)'
             case 2:
-                name = 'distance (angstrom)'
+                name = 'bond (angstrom)'
             case 3:
                 name = 'angle (degree)'
             case 4:
@@ -648,7 +648,7 @@ class Script(lmpin.Script):
         """
         pass
 
-    def minimize(self, *args, geo=None, **kwargs):
+    def minimize(self, *args, geo=None, maxiter=1000, maxeval=10000, **kwargs):
         """
         See parent.
         """
@@ -657,7 +657,13 @@ class Script(lmpin.Script):
             gids = mol.getSubstructMatch(gid=True)
             if not gids.empty:
                 geo = f"{gids.name.split()[0]} {' '.join(map(str, gids + 1))}"
-        super().minimize(*args, geo=geo, **kwargs)
+        if self.struct.conf_total == 1:
+            maxiter, maxeval = 1000000, 10000000
+        super().minimize(*args,
+                         geo=geo,
+                         maxiter=maxiter,
+                         maxeval=maxeval,
+                         **kwargs)
         fixed = [[x, y] for x, y in zip(['b', 'a'], self.struct.shake()) if y]
         if not fixed:
             return

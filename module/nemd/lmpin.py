@@ -215,22 +215,30 @@ class SinglePoint(Base):
             return
         self.join('dump_modify', idx, *args)
 
-    def minimize(self, min_style='fire', geo=None):
+    def minimize(
+        self,
+        geo=None,
+        maxiter=1000,
+        maxeval=10000,
+        min_style='fire',
+    ):
         """
         Write commands related to minimization.
 
-        :param min_style str: cg, fire, spin, etc.
         :param geo str: the geometry to restrain (e.g., dihedral 1 2 3 4).
+        :param maxiter int: max iterations of minimizer.
+        :param maxeval int: max number of force/energy evaluations.
+        :param min_style str: cg, fire, spin, etc.
         """
         if self.options.no_minimize:
             return
         restrain = geo and (len(self.options.substruct) > 1)
         if restrain:
             self.append(
-                f'fix rest all restrain {geo} -2000.0 -2000.0 {self.options.substruct[1]}'
+                f'fix rest all restrain {geo} 2000.0 2000.0 {self.options.substruct[1]}'
             )
         self.join('min_style', min_style)
-        self.append(f"minimize 1.0e-6 1.0e-6 1000 10000")
+        self.append(f"minimize 1.0e-6 1.0e-6 {maxiter} {maxeval}")
         if restrain:
             self.append('unfix rest')
 

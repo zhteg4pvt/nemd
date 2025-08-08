@@ -1,0 +1,2 @@
+# isobutane bond energy surface
+nemd_run mb_lmp_log_workflow.py "CC(C)C" -temp 0 -struct_rg CC 1.4 1.62 0.01 -clean -slice -1 none

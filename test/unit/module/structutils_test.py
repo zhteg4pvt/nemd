@@ -326,10 +326,6 @@ class TestPackedStruct:
         struct.placed = placed
         assert expected == struct.isPossible(intvl=intvl)
 
-    @pytest.mark.parametrize('expected', [4])
-    def testConfTotal(self, struct, expected):
-        assert expected == struct.conf_total
-
     def testReset(self, struct):
         struct.setFrame()
         oxyz = struct.GetPositions()

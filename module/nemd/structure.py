@@ -425,6 +425,15 @@ class Struct:
         return (x for y in self.mols for x in y.confs)
 
     @property
+    def conf_total(self):
+        """
+        Return the total number of conformers.
+
+        :return int: the total number of conformers.
+        """
+        return sum([len(x.confs) for x in self.mols])
+
+    @property
     def atom_total(self):
         """
         Return The total number of atoms in all conformers across all molecules.

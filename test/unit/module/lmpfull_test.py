@@ -242,7 +242,6 @@ class TestMol:
         assert expected == fmol.nbr_charge.shape
 
 
-@pytest.mark.parametrize('cnum', [1])
 class TestScript:
 
     @pytest.fixture
@@ -250,26 +249,37 @@ class TestScript:
         options = parserutils.AmorpBldr().parse_args([smiles])
         return lmpfull.Struct.fromMols([emol], options=options).script
 
-    @pytest.mark.parametrize('smiles', ['O'])
+    @pytest.mark.parametrize('smiles,cnum', [('O', 1)])
     def testSetup(self, script):
         script.setup()
         assert 7 == len(script)
 
+    @pytest.mark.parametrize('cnum', [1])
     @pytest.mark.parametrize('smiles,expected', [('O', 3), ('C', 2)])
     def testPair(self, script, expected):
         script.pair()
         assert expected == len(script)
 
     @pytest.mark.parametrize('smiles', ['CCCC'])
-    @pytest.mark.parametrize('substruct,expected', [
-        (None, None), (['CCC'], None),
-        (['CCC', 120], 'fix rest all restrain angle 1 2 3 -2000.0 -2000.0 120')
+    @pytest.mark.parametrize('substruct,cnum,expected', [
+        (None, 1, None),
+        (['CCC'], 1, None),
+        (['CCC', 120], 2, [
+            'fix rest all restrain angle 1 2 3 2000.0 2000.0 120',
+            'minimize 1.0e-6 1.0e-6 1000 10000'
+        ]),
+        (['CCC', 120], 1, [
+            'fix rest all restrain angle 1 2 3 2000.0 2000.0 120',
+            'minimize 1.0e-6 1.0e-6 1000000 10000000'
+        ]),
     ])
     def testMinimize(self, script, substruct, expected):
         script.struct.options.substruct = substruct
         script.minimize()
-        assert (expected in script) if expected else (2 == len(script))
+        assert all(x in script
+                   for x in expected) if expected else (2 == len(script))
 
+    @pytest.mark.parametrize('cnum', [1])
     @pytest.mark.parametrize(
         'smiles,expected',
         [('C', None), ('O', 'fix rigid all shake 0.0001 10 10000 b 1 a 1')])

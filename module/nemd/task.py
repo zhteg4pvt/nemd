@@ -459,6 +459,8 @@ class AnalyzerAgg(analyzer.Agg):
         if has_value:
             # result.substruct contains the values  (e.g. CC: 2)
             self.data.index = pd.Index([x[1] for x in substruct], name=name)
+            self.data.index = self.data.index.astype(float)
+            self.data.sort_index(inplace=True)
             return
         # result.substruct contains the smiles (e.g. CCCC)
         # Read the reported value from the log (e.g. dihedral angle: 73.50 deg)

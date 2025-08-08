@@ -600,15 +600,6 @@ class PackedStruct(Struct):
         std = np.std(self.placed, ddof=1)
         return std and self.conf_total - np.average(self.placed) < zscore * std
 
-    @property
-    def conf_total(self):
-        """
-        Return the total number of conformers.
-
-        :return int: the total number of conformers.
-        """
-        return sum([len(x.confs) for x in self.mols])
-
     def reset(self):
         """
         Reset the state so that a new attempt can happen.

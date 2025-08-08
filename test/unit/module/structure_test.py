@@ -169,10 +169,14 @@ class TestStruct:
         assert list(gids) == [y for x in struct.conf for y in x.gids]
 
     @pytest.mark.parametrize('smiles,expected', [([], 0), (['O', 'CC'], 2)])
-    def testConformer(self, struct, expected):
+    def testConf(self, struct, expected):
         assert expected == len(list(struct.conf))
 
+    @pytest.mark.parametrize('smiles,expected', [([], 0), (['O', 'CC'], 2)])
+    def testConfTotal(self, struct, expected):
+        assert expected == struct.conf_total
+
     @pytest.mark.parametrize('smiles,expected', [([], 12), (['O', 'CC'], 17)])
-    def testConformer(self, struct, expected):
+    def testTotal(self, struct, expected):
         struct.setUp([self.RING])
         assert expected == struct.atom_total
