@@ -140,9 +140,9 @@ class Base(logutils.Base):
             if self.data.shape[0] > 1 and self.data.shape[
                     -1] == 2 and self.data.iloc[:, 1].any():
                 # Data has non-zero standard deviation column
-                vals, errors = self.data.iloc[:, 0], self.data.iloc[:, 1]
-                ax.fill_between(self.data.index,
-                                vals - errors,
+                vals = self.data.iloc[:, 0].astype(float)
+                errors = self.data.iloc[:, 1].astype(float)
+                ax.fill_between(self.data.index, vals - errors,
                                 vals + errors,
                                 color='y',
                                 label='stdev',

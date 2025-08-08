@@ -1,1 +1,2 @@
-nemd_run cb_lmp_log_workflow.py -task Press -dimension 3 3 3
+# Silicon Pressure vs Scale Factor
+nemd_run cb_lmp_log_workflow.py -task Press -last_pct 0.1 -relax_time 0 -prod_ens NVT -dimension 3 3 3

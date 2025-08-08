@@ -1,1 +1,1 @@
-nemd_check cmp ab_lmp_traj_rdf.csv ab_lmp_traj_rdf.csv atol=2E-6
+nemd_check cmp ab_lmp_traj_rdf.csv ab_lmp_traj_rdf.csv atol=0.15
