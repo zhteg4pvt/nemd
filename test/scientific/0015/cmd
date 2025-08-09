@@ -1,2 +1,9 @@
 # Silicon Pressure vs Scale Factor
 nemd_run cb_lmp_log_workflow.py -task Press -last_pct 0.1 -relax_time 0 -prod_ens NVT -dimension 3 3 3
+# 102 GPa 
+# https://www.shalomeo.com/Si-Silicon.html
+# https://en.wikipedia.org/wiki/Bulk_modulus
+# Why is (111) Silicon a Better Mechanical Material for MEMS?
+# https://link.springer.com/chapter/10.1007/978-3-642-59497-7_157
+# https://onlinelibrary.wiley.com/doi/full/10.1155/2013/319302
+# https://www.spiedigitallibrary.org/conference-proceedings-of-spie/7381/1/Molecular-dynamics-study-on-Youngs-modulus-of-silicon-nanostructures-at/10.1117/12.836706.short

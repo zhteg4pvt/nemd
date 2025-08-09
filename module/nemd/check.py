@@ -152,6 +152,7 @@ class Cmp(Exist):
             if shapes == [*t_obj.shape, *t_non.shape] and all(obj == t_obj) \
                     and np.allclose(non, t_non, **self.kwargs):
                 continue
+            breakpoint()
             self.errorDiff(target)
 
     def readCsv(self, filename, object='object'):
