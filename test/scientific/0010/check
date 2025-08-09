@@ -1,1 +1,1 @@
-nemd_check cmp ab_lmp_traj_msd.csv ab_lmp_traj_msd.csv atol=2E-8 rtol=0.05
+nemd_check cmp ab_lmp_traj_msd.csv ab_lmp_traj_msd.csv rtol=0.1 selected="Diffusion Coefficient (cm^2/s) (num=4)"

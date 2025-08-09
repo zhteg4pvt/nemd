@@ -279,7 +279,7 @@ if __name__ == "__main__":
         Class = next(x for x in Classes if x.name == sys.argv[1])
     except StopIteration:
         sys.exit(f'{sys.argv[1]} found. ({[x.name for x in Classes]})')
-    kwargs_re = re.compile(r'(.*)=(.*)')
+    kwargs_re = re.compile(r'(\w*)=(.*)')
     matches = [kwargs_re.match(x) for x in sys.argv[2:]]
     args = [x.strip() for x, y in zip(sys.argv[2:], matches) if y is None]
     kwargs = [[y.strip() for y in x.groups()] for x in matches if x]
