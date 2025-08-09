@@ -1,0 +1,61 @@
+..........Options..........
+cru: [Ar]
+cru_num: 1
+mol_num: 123
+buffer: None
+density: 0.001626
+method: grow
+substruct: None
+force_field: OPLSUA TIP3P
+timestep: 1
+stemp: 10
+temp: 300
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 1
+prod_time: 5.0
+prod_ens: NVE
+stat: berendsen
+seed: 2077973174
+no_minimize: False
+task: msd density
+data_file: None
+last_pct: 0.7
+slice: (None, None, 50)
+sel: None
+NAME: ab_lmp_traj
+JOBNAME: ab_lmp_traj
+INTERAC: False
+PYTHON: 2
+CPU: [9]
+DEBUG: None
+state_num: 4
+jtype: task aggregator
+prj_path: None
+clean: False
+screen: off
+JobStart: 15:45:30 08/09/2025
+...........................
+4 / 4 completed jobs.
+4 jobs found for aggregation.
+Aggregation Task: msd
+Mean squared displacement data written into workspace/ab_lmp_traj_msd_None.csv
+Diffusion Coefficient 0.1867 ± 0.0003705 cm^2/s calculated by fitting MSD ∈ [450 3.6e+03] ps. (R-squared: 1)
+Msd figure saved as workspace/ab_lmp_traj_msd_None.png
+Msd data written into ab_lmp_traj_msd.csv
+Aggregation Task: density
+Density data written into workspace/ab_lmp_traj_density_None.csv
+Density: 0.001637 ± 2.181e-19 g/cm^3 ∈ [1987.0000, 6387.0000] ps
+Density figure saved as workspace/ab_lmp_traj_density_None.png
+Density data written into ab_lmp_traj_density.csv
+Task Total Timing: 02:18:48
+| amorp_bld   | lammps    | lmp_traj   |
+|:------------|:----------|:-----------|
+| 00:07 ave   | 34:34 ave | 00:01 ave  |
+| 00:07 ebc   | 34:50 43b | 00:01 ebc  |
+| 00:07 c38   | 34:43 95c | 00:01 c38  |
+| 00:07 95c   | 34:24 c38 | 00:01 95c  |
+| 00:07 43b   | 34:19 ebc | 00:01 43b  |
+Finished.
+16:20:31 08/09/2025

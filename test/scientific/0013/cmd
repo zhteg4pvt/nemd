@@ -1,5 +1,5 @@
 # Argon fluid: MSD diffusion
-nemd_run ab_lmp_traj_workflow.py "[Ar]" -mol_num 123 -last_pct 0.4 -task msd -state_num 4 -slice none none 50
+nemd_run ab_lmp_traj_workflow.py "[Ar]" -mol_num 123 -density 0.001626 -last_pct 0.7 -stat berendsen -prod_time 5 -task msd density -state_num 4 -slice none none 50
 # 0.182 cm2*s-1 at 298 K
 # 3.1.1. Table 1. Self- and Binary-Diffusion Coefficients for Gases
 # Self-Diffusion and Binary-Diffusion Coefficients in Gases by Donald R. Burgess Jr.
