@@ -3,6 +3,7 @@
 """
 Lammps trajectory and log analyzers.
 """
+import functools
 import math
 import os
 import re
@@ -99,6 +100,7 @@ class Base(logutils.Base):
         """
         return f"{self.options.JOBNAME}_{self.name}{self.DATA_EXT}"
 
+    @functools.cache
     def fit(self):
         """
         Fit the data and report.
@@ -125,20 +127,25 @@ class Base(logutils.Base):
         """
         if self.data.index.name is None:
             return
+        shape = self.data.shape
+        err = shape[0] > 1 and shape[1] == 2 and self.data.iloc[:, 1].any()
         with plotutils.pyplot(inav=self.options.INTERAC,
                               name=self.name) as plt:
             self.fig = plt.figure(figsize=(10, 6))
             ax = self.fig.add_axes([0.13, 0.1, 0.8, 0.8])
-            line = '-' if selected is None else '--'
             if marker is None and len(self.data) < 10:
                 marker = '*'
             ax.plot(self.data.index,
                     self.data.iloc[:, 0],
-                    line,
+                    '-' if selected is None else '--',
                     marker=marker,
-                    label='average')
-            if self.data.shape[0] > 1 and self.data.shape[
-                    -1] == 2 and self.data.iloc[:, 1].any():
+                    label='average' if err else 'data')
+            if selected is not None:
+                ax.plot(selected.index,
+                        selected.iloc[:, 0],
+                        '.-g',
+                        label='selected')
+            if err:
                 # Data has non-zero standard deviation column
                 vals = self.data.iloc[:, 0].astype(float)
                 errors = self.data.iloc[:, 1].astype(float)
@@ -148,11 +155,9 @@ class Base(logutils.Base):
                                 color='y',
                                 label='stdev',
                                 alpha=0.3)
-                ax.legend()
-
-            if selected is not None:
-                ax.plot(selected.index, selected.iloc[:, 0], '.-g')
-
+            if self.fit() is not None:
+                ax.plot(self.fit()[:, 0], self.fit()[:, 1], '--r', label='fit')
+            ax.legend()
             label, unit, _ = self.parse(self.data.index.name)
             ax.set_xlabel(f"{label} ({unit})" if unit else label)
             ax.set_ylabel(self.data.columns.values.tolist()[0])
@@ -279,9 +284,12 @@ class Job(Base):
         """
         return f'{self.__class__.__name__} ({self.UNIT})'
 
+    @functools.cache
     def fit(self):
         """
         Select the data and report average with std.
+
+        :return np.ndarray: index and the fit.
         """
         if self.data.empty:
             return
@@ -295,6 +303,7 @@ class Job(Base):
         stime, etime = sel.index[0], sel.index[-1]
         self.log(f'{label}: {ave:.4g} {symbols.PLUS_MIN} {err:.4g} {unit} '
                  f'{symbols.ELEMENT_OF} [{stime:.4f}, {etime:.4f}] ps')
+        return np.array((sel.index, np.full(sel.index.shape, ave))).T
 
     def plot(self, selected=None, **kwargs):
         """
@@ -531,15 +540,18 @@ class RDF(Clash):
         index = pd.Index(data=mid, name=f'r ({symbols.ANGSTROM})')
         self.data = pd.DataFrame(data={self.label: rdf}, index=index)
 
+    @functools.cache
     def fit(self, window_length=31):
         """
         Smooth the rdf data and report peaks.
 
         :param window_length int: the window length when smoothing
+        :return np.ndarray: coordinates and the smoothed rdf.
         """
         if self.data.empty:
             return
-        smoothed = scipy.signal.savgol_filter(np.ravel(self.data.iloc[:, 0]),
+        raveled = np.ravel(self.data.iloc[:, 0])
+        smoothed = scipy.signal.savgol_filter(raveled,
                                               window_length=window_length,
                                               polyorder=2)
         idx = smoothed.argmax()
@@ -555,6 +567,7 @@ class RDF(Clash):
                  f'at {row.name} {symbols.ANGSTROM}')
         name = self.getName(label=self.data.columns[0])
         self.result = pd.Series({name: peak, f"{self.ST_DEV} of {name}": err})
+        return np.array([raveled, smoothed]).T
 
     @property
     def label(self):
@@ -617,10 +630,13 @@ class MSD(RDF):
         tau_idx = pd.Index(data=ps_time - ps_time[0], name=name)
         self.data = pd.DataFrame({self.label: msd}, index=tau_idx)
 
+    @functools.cache
     def fit(self):
         """
         Select and fit the mean squared displacement to calculate the diffusion
         coefficient.
+
+        :return np.ndarray: Tau and the MSD linear fit.
         """
         if self.data.empty:
             return
@@ -642,6 +658,7 @@ class MSD(RDF):
             f"{self.ST_ERR} of {name}": std_err
         })
         self.result.index.name = sel.index.name
+        return np.array([sel.index, slope * sel.index + intcp]).T
 
     @property
     def label(self):

@@ -159,12 +159,11 @@ class TestJob:
         density.logger.log.assert_called_with(expected)
 
     @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
-    @pytest.mark.parametrize('dirname,expected',
-                             [(TEST0045, (145, 2, 116, None))])
+    @pytest.mark.parametrize('dirname,expected', [(TEST0045, 3)])
     def testPlot(self, density, expected, tmp_dir):
         density.read()
         density.plot()
-        assert 2 == len(density.fig.axes[0].lines)
+        assert expected == len(density.fig.axes[0].lines)
 
     @pytest.mark.parametrize(
         'name,unit,label,names,err,expected',
