@@ -421,6 +421,16 @@ class Reader:
         data = pd.DataFrame(data, index=index, columns=columns)
         if dropna:
             data.dropna(inplace=True, axis=1, how='all')
+        cls.sort(data)
+        return data
+
+    @staticmethod
+    def sort(data):
+        """
+        Sort the data by index with type changed.
+
+        :param data `pd.DataFrame`: the data.
+        """
         try:
             data.index = data.index.astype(float)
         except ValueError:
@@ -430,7 +440,6 @@ class Reader:
             if np.allclose(data.index, index, rtol=0, atol=0.1):
                 data.index = index
         data.sort_index(axis=0, inplace=True)
-        return data
 
     def get(self, attr):
         """

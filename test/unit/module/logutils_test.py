@@ -7,6 +7,7 @@ import types
 from unittest import mock
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from nemd import envutils
@@ -239,6 +240,16 @@ class TestReader:
     def testCollect(self, columns, expected, copied):
         collected = logutils.Reader.collect(*columns)
         assert expected == (*collected.shape, collected.index.dtype)
+
+    @pytest.mark.parametrize('data,expected',
+                             [([[0, 1], [1, 2]], np.int64),
+                              ([['1', 1], ['0', 2]], np.int64),
+                              ([['1.1', 1], ['0', 2]], np.float64)])
+    def testSort(self, data, expected):
+        data = pd.DataFrame(data).set_index(0)
+        logutils.Reader.sort(data)
+        assert expected == data.index.dtype
+        assert (data.index == sorted(data.index)).all()
 
     @pytest.mark.parametrize('data', [AMORP_LOG])
     @pytest.mark.parametrize('attr,expected',

@@ -197,7 +197,7 @@ class Collect(Exist):
         self.figs = []
         self.outfile = f"{self.name}.csv"
         if not self.args:
-            self.args = [TASK_TIME]
+            self.args = [self.TASK_TIME]
         self.kwargs.setdefault(self.DROPNA, True)
 
     def run(self):
