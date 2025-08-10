@@ -117,7 +117,7 @@ class TestSinglePoint:
         [(False, None, None, 'minimize 1.0e-6 1.0e-6 1000 10000'),
          (True, None, None, None),
          (True, 'dihedral 1 2 3 4', 120,
-          'fix rest all restrain dihedral 1 2 3 4 2000.0 2000.0 120')])
+          'fix rest all restrain dihedral 1 2 3 4 -2000 -2000 120')])
     def testMinimize(self, single, no_minimize, geo, val, expected):
         single.no_minimize = no_minimize
         single.options.substruct = [None, val]

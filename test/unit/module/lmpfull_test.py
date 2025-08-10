@@ -265,11 +265,15 @@ class TestScript:
         (None, 1, None),
         (['CCC'], 1, None),
         (['CCC', 120], 2, [
-            'fix rest all restrain angle 1 2 3 2000.0 2000.0 120',
+            'fix rest all restrain angle 1 2 3 2000 2000 120',
             'minimize 1.0e-6 1.0e-6 1000 10000'
         ]),
         (['CCC', 120], 1, [
-            'fix rest all restrain angle 1 2 3 2000.0 2000.0 120',
+            'fix rest all restrain angle 1 2 3 2000 2000 120',
+            'minimize 1.0e-6 1.0e-6 1000000 10000000'
+        ]),
+        (['CCCC', 120], 1, [
+            'fix rest all restrain dihedral 1 2 3 4 -2000 -2000 120',
             'minimize 1.0e-6 1.0e-6 1000000 10000000'
         ]),
     ])

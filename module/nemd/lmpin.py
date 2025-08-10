@@ -215,13 +215,11 @@ class SinglePoint(Base):
             return
         self.join('dump_modify', idx, *args)
 
-    def minimize(
-        self,
-        geo=None,
-        maxiter=1000,
-        maxeval=10000,
-        min_style='fire',
-    ):
+    def minimize(self,
+                 geo=None,
+                 maxiter=1000,
+                 maxeval=10000,
+                 min_style='fire'):
         """
         Write commands related to minimization.
 
@@ -234,8 +232,9 @@ class SinglePoint(Base):
             return
         restrain = geo and (len(self.options.substruct) > 1)
         if restrain:
+            const = -2000 if geo.startswith('dihedral') else 2000
             self.append(
-                f'fix rest all restrain {geo} 2000.0 2000.0 {self.options.substruct[1]}'
+                f'fix rest all restrain {geo} {const} {const} {self.options.substruct[1]}'
             )
         self.join('min_style', min_style)
         self.append(f"minimize 1.0e-6 1.0e-6 {maxiter} {maxeval}")

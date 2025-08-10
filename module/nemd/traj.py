@@ -127,23 +127,20 @@ class Traj(list):
         self.options = options
         self.start = start
         self.time = None
+        # FIXME: obtain the timestep from log file instead of options
+        self.fac = self.options.timestep * constants.FEMTO_TO_PICO if self.options else 1
         if delay:
             return
         self.setUp()
 
-    def setUp(self, fac=1):
+    def setUp(self):
         """
         Set up.
-
-        :param fac float: factor from step to time.
         """
         self.setStart()
         sliced = self.options and self.options.slice or [None]
         self.extend(list(self.frame)[slice(*sliced)])
-        # FIXME: obtain the timestep from log file instead of options
-        if not self.file.endswith('.xtc') and self.options:
-            fac = self.options.timestep * constants.FEMTO_TO_PICO
-        self.time = Time([x.step * fac for x in self], options=self.options)
+        self.time = Time([x.step for x in self], options=self.options)
 
     def setStart(self):
         """
@@ -185,14 +182,13 @@ class Traj(list):
                     # The conventional units in the XTC file are nanometers and picoseconds.
                     xyz *= 10
                     box *= 10
-                    # FIXME: triclinic support
-                    yield frame.Frame(xyz, box=Box(box), step=time)
+                    yield frame.Frame(xyz, box=Box(box), step=step * self.fac)
             return
         func = gzip.open if self.file.endswith('.gz') else open
         with func(self.file, 'rt') as fh:
             while True:
                 try:
-                    yield frame.Frame.read(fh, start=self.start)
+                    yield frame.Frame.read(fh, start=self.start, fac=self.fac)
                 except EOFError:
                     return
 

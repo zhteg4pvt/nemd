@@ -58,7 +58,7 @@ class Frame(Base):
         self.step = getattr(frm, 'step', None) if step is None else step
 
     @classmethod
-    def read(cls, fh, start=0):
+    def read(cls, fh, start=0, fac=1):
         """
         Read a custom dumpy file with id, xu, yu, zu. Full coordinates
         information are available when step number >= start.
@@ -76,7 +76,7 @@ class Frame(Base):
         if step < start:
             with warnings.catch_warnings(record=True):
                 np.loadtxt(fh, skiprows=atom_num, max_rows=0)
-                return types.SimpleNamespace(step=step)
+                return types.SimpleNamespace(step=step * fac)
         data = np.loadtxt(fh, max_rows=atom_num, ndmin=2)
         if data.shape[0] != atom_num:
             raise EOFError('Incomplete Atom Coordinates')
@@ -87,7 +87,7 @@ class Frame(Base):
             ndata = np.full([atom_num, 3], np.nan)
             ndata[data[:, 0].astype(int) - 1, :] = data[:, 1:]
         # FIXME: triclinic support
-        return cls(ndata, box=pbc.Box.fromLines(header[5:8]), step=step)
+        return cls(ndata, box=pbc.Box.fromLines(header[5:8]), step=step * fac)
 
     def getCopy(self, **kwargs):
         """
