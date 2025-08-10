@@ -159,7 +159,7 @@ class TestJob:
         density.logger.log.assert_called_with(expected)
 
     @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
-    @pytest.mark.parametrize('dirname,expected', [(TEST0045, 3)])
+    @pytest.mark.parametrize('dirname,expected', [(TEST0045, 2)])
     def testPlot(self, density, expected, tmp_dir):
         density.read()
         density.plot()

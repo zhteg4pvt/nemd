@@ -3,7 +3,6 @@
 """
 Lammps trajectory and log analyzers.
 """
-import functools
 import math
 import os
 import re
@@ -37,6 +36,7 @@ class Base(logutils.Base):
         super().__init__(**kwargs)
         self.data = None
         self.fig = None
+        self.fitted = None
 
     def run(self):
         """
@@ -100,7 +100,6 @@ class Base(logutils.Base):
         """
         return f"{self.options.JOBNAME}_{self.name}{self.DATA_EXT}"
 
-    @functools.cache
     def fit(self):
         """
         Fit the data and report.
@@ -155,8 +154,11 @@ class Base(logutils.Base):
                                 color='y',
                                 label='stdev',
                                 alpha=0.3)
-            if self.fit() is not None:
-                ax.plot(self.fit()[:, 0], self.fit()[:, 1], '--r', label='fit')
+            if self.fitted is not None:
+                ax.plot(self.fitted[:, 0],
+                        self.fitted[:, 1],
+                        '--r',
+                        label='fit')
             ax.legend()
             label, unit, _ = self.parse(self.data.index.name)
             ax.set_xlabel(f"{label} ({unit})" if unit else label)
@@ -284,7 +286,6 @@ class Job(Base):
         """
         return f'{self.__class__.__name__} ({self.UNIT})'
 
-    @functools.cache
     def fit(self):
         """
         Select the data and report average with std.
@@ -296,6 +297,7 @@ class Job(Base):
 
         sel = self.data.iloc[self.sidx:self.eidx]
         name, ave = sel.columns[0], sel.iloc[:, 0].mean()
+        self.fitted = np.array((sel.index, np.full(sel.index.shape, ave))).T
         err = sel.iloc[:, 0].std() if sel.shape[1] else sel.iloc[:, 1].mean()
         self.result = pd.Series({name: ave, f"{self.ST_DEV} of {name}": err})
         self.result.index.name = sel.index.name
@@ -303,7 +305,6 @@ class Job(Base):
         stime, etime = sel.index[0], sel.index[-1]
         self.log(f'{label}: {ave:.4g} {symbols.PLUS_MIN} {err:.4g} {unit} '
                  f'{symbols.ELEMENT_OF} [{stime:.4f}, {etime:.4f}] ps')
-        return np.array((sel.index, np.full(sel.index.shape, ave))).T
 
     def plot(self, selected=None, **kwargs):
         """
@@ -540,7 +541,6 @@ class RDF(Clash):
         index = pd.Index(data=mid, name=f'r ({symbols.ANGSTROM})')
         self.data = pd.DataFrame(data={self.label: rdf}, index=index)
 
-    @functools.cache
     def fit(self, window_length=31):
         """
         Smooth the rdf data and report peaks.
@@ -567,7 +567,7 @@ class RDF(Clash):
                  f'at {row.name} {symbols.ANGSTROM}')
         name = self.getName(label=self.data.columns[0])
         self.result = pd.Series({name: peak, f"{self.ST_DEV} of {name}": err})
-        return np.array([raveled, smoothed]).T
+        self.fitted = np.array([self.data.index, smoothed]).T
 
     @property
     def label(self):
@@ -630,7 +630,6 @@ class MSD(RDF):
         tau_idx = pd.Index(data=ps_time - ps_time[0], name=name)
         self.data = pd.DataFrame({self.label: msd}, index=tau_idx)
 
-    @functools.cache
     def fit(self):
         """
         Select and fit the mean squared displacement to calculate the diffusion
@@ -658,7 +657,8 @@ class MSD(RDF):
             f"{self.ST_ERR} of {name}": std_err
         })
         self.result.index.name = sel.index.name
-        return np.array([sel.index, slope * sel.index + intcp]).T
+        fitted = (slope * xvals + intcp) / constants.ANG_TO_CM**2
+        self.fitted = np.array([sel.index, fitted]).T
 
     @property
     def label(self):
