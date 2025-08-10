@@ -32,7 +32,6 @@ def pyplot(inav=False, name='the plot'):
             plt.show(block=True)
         plt.close('all')
     finally:
-        # Restore the backend
         try:
             matplotlib.use(obackend)
         except ImportError:
