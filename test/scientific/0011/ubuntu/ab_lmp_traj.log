@@ -1,0 +1,60 @@
+..........Options..........
+cru: O
+cru_num: 1
+mol_num: 400
+buffer: None
+density: 0.8
+method: grow
+substruct: None
+force_field: ('OPLSUA', 'TIP3P')
+timestep: 1
+stemp: 10
+temp: 300
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 1
+prod_time: 1
+prod_ens: NVE
+stat: nose_hoover
+seed: 1669223337
+no_minimize: False
+task: density rdf
+data_file: None
+last_pct: 0.2
+slice: None
+sel: O
+NAME: ab_lmp_traj
+JOBNAME: ab_lmp_traj
+INTERAC: False
+PYTHON: 2
+CPU: [1]
+DEBUG: None
+state_num: 3
+jtype: task aggregator
+prj_path: None
+clean: False
+screen: off
+JobStart: 21:03:05 08/10/2025
+...........................
+3 / 3 completed jobs.
+3 jobs found for aggregation.
+Aggregation Task: density
+Density data written into workspace/ab_lmp_traj_density_None.csv
+Density: 0.9769 ± 2.223e-16 g/cm^3 ∈ [1838.0000, 2296.0000] ps
+Density figure saved as workspace/ab_lmp_traj_density_None.png
+Density data written into ab_lmp_traj_density.csv
+Aggregation Task: rdf
+Radial distribution function data written into workspace/ab_lmp_traj_rdf_None.csv
+RDF peak 2.596 ± 0.03552 found at 2.82 Å
+Rdf figure saved as workspace/ab_lmp_traj_rdf_None.png
+Rdf data written into ab_lmp_traj_rdf.csv
+Task Total Timing: 05:48:52
+| amorp_bld   | lammps    | lmp_traj   |
+|:------------|:----------|:-----------|
+| 00:10 ave   | 55:58 ave | 00:08 ave  |
+| 00:12 f6c   | 53:27 f6c | 00:08 f6c  |
+| 00:12 9e8   | 35:11 9e8 | 00:08 9e8  |
+| 00:08 301   | 19:18 301 | 00:08 301  |
+Finished.
+02:52:02 08/11/2025

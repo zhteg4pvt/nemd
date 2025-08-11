@@ -1,0 +1,101 @@
+..........Options..........
+scale_range: (0.95, 1.05, 11)
+name: Si
+dimension: (3, 3, 3)
+scale_factor: (1, 1, 1)
+timestep: 1
+stemp: 10
+temp: 300
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 0.0
+prod_time: 1
+prod_ens: NVT
+stat: nose_hoover
+seed: 1548707149
+no_minimize: False
+task: ('press',)
+data_file: None
+last_pct: 0.1
+slice: None
+NAME: cb_lmp_log
+JOBNAME: cb_lmp_log
+INTERAC: False
+PYTHON: 2
+CPU: [1]
+DEBUG: None
+jtype: task aggregator
+prj_path: None
+clean: False
+screen: off
+force_field: SW
+JobStart: 16:48:47 08/10/2025
+...........................
+11 / 11 completed jobs.
+Task Total Timing: 04:30:34
+| crystal_b   | lammps_ru   | lmp_log   |
+|:------------|:------------|:----------|
+| 00:01 ave   | 24:33 ave   | 00:01 ave |
+| 00:02 d7a   | 32:34 a52   | 00:02 b40 |
+| 00:02 d52   | 30:03 1ec   | 00:01 e41 |
+| 00:02 b40   | 28:07 d52   | 00:01 d7a |
+| 00:02 969   | 26:02 d7a   | 00:01 d52 |
+| 00:02 658   | 25:37 b40   | 00:01 c61 |
+| 00:02 32b   | 24:51 658   | 00:01 a52 |
+| 00:02 1ec   | 22:03 e41   | 00:01 969 |
+| 00:01 e41   | 20:37 32b   | 00:01 658 |
+| 00:01 c61   | 20:21 c61   | 00:01 5b0 |
+| 00:01 a52   | 20:06 5b0   | 00:01 32b |
+| 00:01 5b0   | 19:43 969   | 00:01 1ec |
+11 jobs found for aggregation.
+Aggregation Task: press
+Aggregation Parameters (num=1): scale_factor=0.95 
+Thermodynamic information data written into workspace/cb_lmp_log_press_0.csv
+Press: 1.943e+05 ± 584.1 bar ∈ [902.0000, 1000.0220] ps
+Press figure saved as workspace/cb_lmp_log_press_0.png
+Aggregation Parameters (num=1): scale_factor=0.96 
+Thermodynamic information data written into workspace/cb_lmp_log_press_1.csv
+Press: 1.508e+05 ± 319 bar ∈ [902.0000, 1000.0550] ps
+Press figure saved as workspace/cb_lmp_log_press_1.png
+Aggregation Parameters (num=1): scale_factor=0.97 
+Thermodynamic information data written into workspace/cb_lmp_log_press_2.csv
+Press: 1.091e+05 ± 204.4 bar ∈ [902.0000, 1000.0380] ps
+Press figure saved as workspace/cb_lmp_log_press_2.png
+Aggregation Parameters (num=1): scale_factor=0.98 
+Thermodynamic information data written into workspace/cb_lmp_log_press_3.csv
+Press: 7.074e+04 ± 143.5 bar ∈ [902.0000, 1000.0220] ps
+Press figure saved as workspace/cb_lmp_log_press_3.png
+Aggregation Parameters (num=1): scale_factor=0.99 
+Thermodynamic information data written into workspace/cb_lmp_log_press_4.csv
+Press: 3.544e+04 ± 136.3 bar ∈ [902.0000, 1000.0220] ps
+Press figure saved as workspace/cb_lmp_log_press_4.png
+Aggregation Parameters (num=1): scale_factor=1.0 
+Thermodynamic information data written into workspace/cb_lmp_log_press_5.csv
+Press: 3584 ± 88.8 bar ∈ [902.0000, 1000.0220] ps
+Press figure saved as workspace/cb_lmp_log_press_5.png
+Aggregation Parameters (num=1): scale_factor=1.01 
+Thermodynamic information data written into workspace/cb_lmp_log_press_6.csv
+Press: -2.563e+04 ± 119 bar ∈ [902.0000, 1000.0380] ps
+Press figure saved as workspace/cb_lmp_log_press_6.png
+Aggregation Parameters (num=1): scale_factor=1.02 
+Thermodynamic information data written into workspace/cb_lmp_log_press_7.csv
+Press: -5.175e+04 ± 92.34 bar ∈ [902.0000, 1000.0220] ps
+Press figure saved as workspace/cb_lmp_log_press_7.png
+Aggregation Parameters (num=1): scale_factor=1.03 
+Thermodynamic information data written into workspace/cb_lmp_log_press_8.csv
+Press: -7.568e+04 ± 107.3 bar ∈ [902.0000, 1000.0220] ps
+Press figure saved as workspace/cb_lmp_log_press_8.png
+Aggregation Parameters (num=1): scale_factor=1.04 
+Thermodynamic information data written into workspace/cb_lmp_log_press_9.csv
+Press: -9.718e+04 ± 73.95 bar ∈ [902.0000, 1000.0220] ps
+Press figure saved as workspace/cb_lmp_log_press_9.png
+Aggregation Parameters (num=1): scale_factor=1.05 
+Thermodynamic information data written into workspace/cb_lmp_log_press_10.csv
+Press: -1.165e+05 ± 70.5 bar ∈ [902.0000, 1000.0220] ps
+Press figure saved as workspace/cb_lmp_log_press_10.png
+Press data written into cb_lmp_log_press.csv
+The minimum Press of -1.165e+05 bar found at Scale Factor 1.05.
+Press figure saved as cb_lmp_log_press.png
+Finished.
+21:19:36 08/10/2025
