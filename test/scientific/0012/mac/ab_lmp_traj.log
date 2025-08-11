@@ -16,8 +16,8 @@ pdamp: 1000
 relax_time: 1
 prod_time: 1
 prod_ens: NVE
-stat: nose_hoover
-seed: 16074150
+stat: berendsen
+seed: 22518493
 no_minimize: False
 task: rdf density
 data_file: None
@@ -28,38 +28,38 @@ NAME: ab_lmp_traj
 JOBNAME: ab_lmp_traj
 INTERAC: False
 PYTHON: 2
-CPU: [1]
+CPU: [10]
 DEBUG: None
 state_num: 8
 jtype: task aggregator
 prj_path: None
 clean: False
 screen: off
-JobStart: 20:42:14 08/09/2025
+JobStart: 14:09:51 08/11/2025
 ...........................
 8 / 8 completed jobs.
+Task Total Timing: 00:33:39
+| amorp_bld   | lammps    | lmp_traj   |
+|:------------|:----------|:-----------|
+| 00:08 ave   | 03:00 ave | 01:04 ave  |
+| 00:08 e4d   | 03:01 e4d | 01:05 354  |
+| 00:08 71a   | 03:01 71a | 01:05 1e1  |
+| 00:08 5ea   | 03:01 5ea | 01:04 e4d  |
+| 00:08 58a   | 03:01 58a | 01:04 58a  |
+| 00:08 354   | 03:01 039 | 01:04 039  |
+| 00:08 1e1   | 03:00 001 | 01:04 001  |
+| 00:08 039   | 02:59 354 | 01:03 71a  |
+| 00:08 001   | 02:59 1e1 | 01:03 5ea  |
 8 jobs found for aggregation.
 Aggregation Task: rdf
 Radial distribution function data written into workspace/ab_lmp_traj_rdf_None.csv
-RDF peak 1.718 ± 0.5176 found at 3.76 Å
+RDF peak 1.442 ± 0.2242 found at 3.72 Å
 Rdf figure saved as workspace/ab_lmp_traj_rdf_None.png
 Rdf data written into ab_lmp_traj_rdf.csv
 Aggregation Task: density
 Density data written into workspace/ab_lmp_traj_density_None.csv
-Density: 0.001624 ± 2.17e-19 g/cm^3 ∈ [3370.0000, 4212.0000] ps
+Density: 0.001625 ± 2.17e-19 g/cm^3 ∈ [3450.0000, 4312.0000] ps
 Density figure saved as workspace/ab_lmp_traj_density_None.png
 Density data written into ab_lmp_traj_density.csv
-Task Total Timing: 00:30:17
-| amorp_bld   | lammps    | lmp_traj   |
-|:------------|:----------|:-----------|
-| 00:05 ave   | 02:48 ave | 00:53 ave  |
-| 00:06 c38   | 02:49 c38 | 00:54 3f5  |
-| 00:06 9ad   | 02:49 3f5 | 00:54 02d  |
-| 00:06 8dd   | 02:49 008 | 00:54 008  |
-| 00:06 3eb   | 02:48 8dd | 00:53 c38  |
-| 00:06 1c1   | 02:48 3eb | 00:53 9ad  |
-| 00:05 3f5   | 02:48 02d | 00:53 8dd  |
-| 00:05 02d   | 02:47 9ad | 00:53 3eb  |
-| 00:05 008   | 02:47 1c1 | 00:53 1c1  |
 Finished.
-21:12:45 08/09/2025
+14:14:12 08/11/2025
