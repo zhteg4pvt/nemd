@@ -216,7 +216,7 @@ class Figure(plotly.graph_objects.Figure):
         Update animation frames.
         """
         self.update(frames=[
-            plotly.graph_objects.Frame(data=self.traces, name=f'{x.step:.2f}')
+            plotly.graph_objects.Frame(data=self.traces, name=int(x.step))
             for x in self._frm.iter()
         ])
 

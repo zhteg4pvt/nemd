@@ -173,15 +173,15 @@ class Angle(Bond):
     ID_COLS = [ATOM1, ATOM2, ATOM3]
     COLUMNS = [TYPE_ID] + ID_COLS
 
-    @classmethod
-    def fromAtoms(cls, atoms, ff, impropers):
-        """
-        See parent.
-        """
-        angles = super().fromAtoms(atoms, ff)
-        # Drop angles due to the improper angles (see Mol.getImproperAtoms)
-        angles.dropLowest(impropers.getAngles(), ff.ene.to_dict())
-        return angles
+    # @classmethod
+    # def fromAtoms(cls, atoms, ff, impropers):
+    #     """
+    #     See parent.
+    #     """
+    #     angles = super().fromAtoms(atoms, ff)
+    #     # Drop angles due to the improper angles (see Mol.getImproperAtoms)
+    #     angles.dropLowest(impropers.getAngles(), ff.ene.to_dict())
+    #     return angles
 
     def dropLowest(self, angles, ene):
         """
@@ -447,7 +447,7 @@ class Mol(lmpatomic.Mol):
 
         :return Angle: the angles.
         """
-        return Angle.fromAtoms(self.getAngle(), self.ff.angles, self.impropers)
+        return Angle.fromAtoms(self.getAngle(), self.ff.angles)
 
     def getAngle(self):
         """
@@ -501,6 +501,11 @@ class Mol(lmpatomic.Mol):
         2) No rules for a center atom. (Charmm asks order for symmetricity)
         3) Number of internal geometry variables (3N_atom – 6) deletes one angle
 
+        A new force field for molecular mechanical simulation of nucleic acids and proteins
+        https://pubs.acs.org/doi/10.1021/ja00315a051 (Table XVII. Improper Torsional Parameters)
+
+        Discussion:
+
         1) Improper Senario
         When the Weiner et al. (1984,1986) force field was developed, improper
         torsions were designated for specific sp2 sites, as well as for united
@@ -530,6 +535,8 @@ class Mol(lmpatomic.Mol):
         angles θ1 = H1-N-H2 and θ2 = H1-N-H3, and the ω = H2-H1-N-H3
         ref: Atomic Forces for Geometry-Dependent Point Multipole and Gaussian
         Multipole Models
+        https://pmc.ncbi.nlm.nih.gov/articles/PMC2941241/pdf/nihms225430.pdf (Figure 2)
+        https://www.nature.com/articles/s41467-023-43720-2/figures/2
 
         :return generator: four atoms forming an improper angle.
         """
