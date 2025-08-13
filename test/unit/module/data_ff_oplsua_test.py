@@ -131,7 +131,7 @@ class TestRaw:
         assert (76, 7) == raw.impropers.shape
 
     def testGetLines(self, lines):
-        assert 2812 == len(lines)
+        assert 2811 == len(lines)
 
     def testWrite(self, raw, tmp_dir):
         with mock.patch.object(oplsua, 'DIRNAME', os.curdir):

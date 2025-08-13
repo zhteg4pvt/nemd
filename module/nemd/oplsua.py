@@ -93,14 +93,17 @@ class Atom(Charge):
     ATOMIC = 'atomic'
     CONN = 'conn'
     ORDER = [ATOMIC, CONN]
-    DTYPES = [(ATOMIC, int), (CONN, int)]
+    DTYPE = [(ATOMIC, int), (CONN, int)]
 
     def getZConn(self, ids):
+        """
+        Get the atomic number and conntivity.
 
-        return np.stack([
-            np.array([tuple(y) for y in zip(*x)], dtype=self.DTYPES)
-            for x in zip(self.atomic_number[ids].T, self.connectivity[ids].T)
-        ])
+        :param ids list: each value is a list of atom ids.
+        :return np.ndarray: atomic number and connectivity array.
+        """
+        ac = zip(self.atomic_number[ids].T, self.connectivity[ids].T)
+        return np.stack([np.fromiter(zip(*x), dtype=self.DTYPE) for x in ac])
 
     @methodtools.lru_cache()
     @property
@@ -481,7 +484,7 @@ class Improper(Bond):
 
     def match(self, atoms):
         """
-        Get force field matched improper by counting the symbols.
+        Get force field matched improper. (the third atom is the center)
 
         :param atoms list: bonded atoms.
         :return int: the index of the match.
@@ -489,7 +492,6 @@ class Improper(Bond):
         impr = self.getImpr(atoms)
         for id_col in reversed(self.ID_COLS[:2]):
             self.swap(atoms, impr, id_col)
-        print(self.atoms.loc[[x.GetIntProp(TYPE_ID) for x in atoms]])
         return impr.name
 
     def getImpr(self, atoms):
@@ -500,12 +502,11 @@ class Improper(Bond):
         :return pd.Series: the matched improper.
         """
         nbrs = atoms[:2] + atoms[3:]
-        nbrs = np.array([self.getZConn(x) for x in nbrs], dtype=Atom.DTYPES)
+        nbrs = np.array([self.getZConn(x) for x in nbrs], dtype=Atom.DTYPE)
         nbrs.sort(order=Atom.ORDER)
         # Center exact match; Others only symbol matched.
         ids = self.row[tuple([*self.getZConn(atoms[2]), *nbrs[Atom.ATOMIC]])]
         matches = [sum(x[1:] == nbrs) for x in self.atomic_conn[ids]]
-        print(self.loc[ids[np.argmax(matches)]])
         return self[self.ID_COLS].loc[ids[np.argmax(matches)]]
 
     @classmethod

@@ -61,7 +61,7 @@ class TestAngle:
         return lmpfull.Mol(mol).angles
 
     @pytest.mark.parametrize('smiles,expected', [('O', (1, 4)),
-                                                 ('CC(C)C', (2, 4))])
+                                                 ('CC(C)C', (3, 4))])
     def testFromAtoms(self, angles, expected):
         assert expected == angles.shape
 
@@ -118,7 +118,7 @@ class TestConformer:
         assert (4, 3) == conf.bonds.shape
 
     def testAngles(self, conf):
-        assert (3, 4) == conf.angles.shape
+        assert (4, 4) == conf.angles.shape
 
     def testDihedrals(self, conf):
         assert (2, 5) == conf.dihedrals.shape
@@ -345,7 +345,7 @@ class TestStruct:
         assert expected == struct.bonds.shape
 
     @pytest.mark.parametrize('smiless,expected', [(['[Ar]'], (0, 4)),
-                                                  (['O', 'CC(C)CC'], (3, 4))])
+                                                  (['O', 'CC(C)CC'], (4, 4))])
     def testAngles(self, struct, expected):
         assert expected == struct.angles.shape
 

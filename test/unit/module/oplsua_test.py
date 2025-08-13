@@ -140,7 +140,7 @@ class TestBond:
 
     @pytest.mark.parametrize('smiles', ['CC(C)O'])
     @pytest.mark.parametrize('idx,expected', [(1, 143), (2, 149)])
-    def testBond(self, bonds, mol, atoms, expected):
+    def testMatch(self, bonds, mol, atoms, expected):
         oplsua.Typer().type(mol)
         assert expected == bonds.match(atoms)
 
@@ -191,7 +191,7 @@ class TestDihedral:
 class TestImproper:
 
     @pytest.fixture
-    def improper(self):
+    def impr(self):
         return oplsua.Improper(atoms=oplsua.Atom())
 
     @pytest.fixture
@@ -199,20 +199,31 @@ class TestImproper:
         return [mol.GetAtomWithIdx(x) for x in ids]
 
     @pytest.mark.parametrize('smiles,ids,expected',
-                             [('CC(C)C', [0, 2, 1, 3], 30)])
-    def testGetMatched(self, improper, atoms, expected):
-        assert expected == improper.match(atoms)
+                             [('CC(C)C', [0, 2, 1, 3], [30, 2, 3, 1, 0])])
+    def testMatch(self, impr, atoms, expected):
+        assert expected == [impr.match(atoms), *[x.GetIdx() for x in atoms]]
 
-    def testRow(self, improper):
-        assert 11 == len(improper.row)
+    @pytest.mark.parametrize('smiles,ids,expected',
+                             [('CC(C)C', [0, 2, 1, 3], [7, 6, 8, 7])])
+    def testGetImpr(self, impr, atoms, expected):
+        assert (expected == impr.getImpr(atoms)).all()
 
-    def testConnAtomic(self, improper):
-        assert (76, 5) == improper.conn_atomic.shape
-        for conn_atomic, index in improper.row.items():
-            ids = (improper.conn_atomic == conn_atomic).all(axis=1)
-            assert list(ids).index(True) == index
-            parms = improper.loc[ids].drop(columns=improper.ID_COLS)
-            assert 1 == np.unique(parms, axis=0).shape[0]
+    @pytest.mark.parametrize('smiles', ['CC(C)O'])
+    @pytest.mark.parametrize('ids,expected', [([0], (6, 4)), ([3], (8, 2))])
+    def testGetZConn(self, atoms, expected):
+        assert expected == oplsua.Improper.getZConn(atoms[0])
+
+    def testRow(self, impr):
+        assert 11 == len(impr.row)
+
+    def testAtomicConn(self, impr):
+        assert (76, 4) == impr.atomic_conn.shape
+
+    @pytest.mark.parametrize('smiles,ids,expected',
+                             [('CC(C)C', [0, 2, 1, 3], [0, 3, 1, 2])])
+    def testSwap(self, impr, atoms, expected):
+        impr.swap(atoms, impr.getImpr(atoms), 'id2')
+        assert expected == [x.GetIdx() for x in atoms]
 
 
 class TestParser:

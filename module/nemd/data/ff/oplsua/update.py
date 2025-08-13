@@ -6,6 +6,7 @@ This script generates oplsua database.
 import functools
 import io
 import os
+import re
 
 import chemparse
 import numpy as np
@@ -338,16 +339,17 @@ class Raw(builtinsutils.Object):
 
     @staticmethod
     @functools.cache
-    def getLines(to_strip=f'{symbols.POUND}\n '):
+    def getLines(chars=f'{symbols.POUND}\n ', rex=re.compile(r' *#[^#]')):
         """
         The lines from the force field file.
 
-        :param to_strip: the chars to strip off.
+        :param chars: the chars to strip off.
+        :param rex 're.Pattern': the regular expression to match commit line.
         :return list: the stripped lines from the force field file.
         """
         pathname = os.path.join(oplsua.DIRNAME, f"{oplsua.OPLSUA}.prm")
         with open(pathname, 'r') as fh:
-            return [x.strip(to_strip) for x in fh.readlines()]
+            return [x.strip(chars) for x in fh.readlines() if not rex.match(x)]
 
     def write(self):
         """

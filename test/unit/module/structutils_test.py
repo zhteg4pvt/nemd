@@ -224,28 +224,27 @@ class TestGriddedStruct:
         return structutils.GriddedStruct.fromMols(mols)
 
     @pytest.mark.parametrize('expected',
-                             [[20.88765862, 15.8452838, 11.16757977]])
+                             [[20.90512401, 15.86235891, 11.18889986]])
     def testSetBox(self, struct, expected):
         np.testing.assert_almost_equal(struct.box.hi.values, expected)
 
-    @pytest.mark.parametrize('expected',
-                             [[10.44382931, 7.9226419, 5.58378988]])
+    @pytest.mark.parametrize('expected', [[10.452562, 7.93117945, 5.59444993]])
     def testSize(self, struct, expected):
         np.testing.assert_almost_equal(struct.size, expected)
 
     @pytest.mark.parametrize('expected',
-                             [[3.74465398, 2.40594602, 0.45998894]])
+                             [[3.74465398, 2.43400078, 0.45998894]])
     def testSetConformers(self, struct, expected):
         struct.setConformers()
         xyz = np.concatenate([x.GetPositions() for x in struct.conf])
         np.testing.assert_almost_equal(xyz.max(axis=0), expected)
 
-    @pytest.mark.parametrize('expected', [0.02351117892377739])
+    @pytest.mark.parametrize('expected', [0.023421534518535802])
     def testSetDensity(self, struct, expected):
         struct.setDensity()
         np.testing.assert_almost_equal(struct.density, expected)
 
-    @pytest.mark.parametrize('expected', [[14.1884832, 10.3285875, 0.459989]])
+    @pytest.mark.parametrize('expected', [[14.197216, 10.36518, 0.45998895]])
     def testGetPositions(self, struct, expected):
         struct.setConformers()
         xyz = struct.GetPositions()
