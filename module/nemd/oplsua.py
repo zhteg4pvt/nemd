@@ -90,6 +90,17 @@ class Atom(Charge):
     """
     The class to hold atom information.
     """
+    ATOMIC = 'atomic'
+    CONN = 'conn'
+    ORDER = [ATOMIC, CONN]
+    DTYPES = [(ATOMIC, int), (CONN, int)]
+
+    def getZConn(self, ids):
+
+        return np.stack([
+            np.array([tuple(y) for y in zip(*x)], dtype=self.DTYPES)
+            for x in zip(self.atomic_number[ids].T, self.connectivity[ids].T)
+        ])
 
     @methodtools.lru_cache()
     @property
@@ -467,7 +478,6 @@ class Improper(Bond):
     The class to hold improper information.
     """
     ID_COLS = ['id1', 'id2', 'id3', 'id4']
-    ATOMIC_NUMBERS = [6, 1, 7, 8]
 
     def match(self, atoms):
         """
@@ -476,10 +486,37 @@ class Improper(Bond):
         :param atoms list: bonded atoms.
         :return int: the index of the match.
         """
-        center = atoms[2]
-        atomics = [x.GetAtomicNum() for x in atoms if x != center]
-        vals = [self.getConn(center), center.GetAtomicNum(), *sorted(atomics)]
-        return self.row[tuple(vals)]
+        impr = self.getImpr(atoms)
+        for id_col in reversed(self.ID_COLS[:2]):
+            self.swap(atoms, impr, id_col)
+        print(self.atoms.loc[[x.GetIntProp(TYPE_ID) for x in atoms]])
+        return impr.name
+
+    def getImpr(self, atoms):
+        """
+        Get match improper.
+
+        :param atoms list: bonded atoms.
+        :return pd.Series: the matched improper.
+        """
+        nbrs = atoms[:2] + atoms[3:]
+        nbrs = np.array([self.getZConn(x) for x in nbrs], dtype=Atom.DTYPES)
+        nbrs.sort(order=Atom.ORDER)
+        # Center exact match; Others only symbol matched.
+        ids = self.row[tuple([*self.getZConn(atoms[2]), *nbrs[Atom.ATOMIC]])]
+        matches = [sum(x[1:] == nbrs) for x in self.atomic_conn[ids]]
+        print(self.loc[ids[np.argmax(matches)]])
+        return self[self.ID_COLS].loc[ids[np.argmax(matches)]]
+
+    @classmethod
+    def getZConn(cls, atom):
+        """
+        Get the atomic number and connectivity:
+
+        :param 'rdkit.Chem.rdchem.Atom': the atom.
+        :return tuple of ints: atomic number, connectivity.
+        """
+        return atom.GetAtomicNum(), cls.getConn(atom)
 
     @methodtools.lru_cache()
     @property
@@ -490,26 +527,50 @@ class Improper(Bond):
         NOTE: mapping may be only good for this specific force field (even this
             specific file only).
 
-        :return dict: the mapping from a hashed improper to type id.
+        :return dict: the mapping from a hashed improper to type ids.
         """
-        unique, index = np.unique(self.conn_atomic, axis=0, return_index=True)
-        return {tuple(x): y for x, y in zip(unique, index)}
+        val_to_idx = {}
+        unique, index = np.unique(self.atomic_conn, axis=0, return_index=True)
+        for row, idx in zip(unique, index):
+            key = tuple([*row[0], *row[1:][Atom.ATOMIC]])
+            val_to_idx.setdefault(key, []).append(idx)
+        return val_to_idx
 
+    @methodtools.lru_cache()
     @property
-    def conn_atomic(self):
+    def atomic_conn(self):
         """
         Return the connectivity and atomic number of the center atom, with the
         atomic numbers of the connected atoms.
+
+        FIXME: use hybridization instead of connectivity.
 
         :return `np.ndarray`: connectivity and atomic numbers of improper atoms.
         """
         # neighbors of CC(=O)C and CC(O)C have the same symbols
         # The third one is the center ('Improper Torsional Parameters' in prm)
-        conns = self.atoms.connectivity[self.id3]
-        atomic = self.atoms.atomic_number[self.id3]
-        atomics = self.atoms.atomic_number[[self.id1, self.id2, self.id4]]
-        atomics.sort(axis=0)
-        return np.array((conns, atomic, *atomics)).transpose()
+        nbrs = self.atoms.getZConn([self.id1, self.id2, self.id4])
+        nbrs.sort(order=Atom.ORDER, axis=1)
+        return np.concatenate((self.atoms.getZConn([self.id3]), nbrs), axis=1)
+
+    def swap(self, atoms, impr, id_col, func=lambda x: len(x.GetNeighbors())):
+        """
+        Get the atom match from neighbors.
+
+        :param atoms list: bonded atoms.
+        :param impr pd.Series: the match improper.
+        :param id_col str: the column name of the improper to swap.
+        :param func func: function to sort atoms.
+        """
+        idx = self.ID_COLS.index(id_col)
+        nbrs = atoms[:idx + 1] + atoms[3:]
+        atom = self.atoms.loc[impr[id_col]]
+        symbols = [x for x in nbrs if x.GetSymbol() == atom.symbol]
+        conns = [x for x in symbols if self.getConn(x) == atom.conn]
+        # GetNeighbors() sorts without implicit hydrogen atoms.
+        matched = sorted(conns or symbols, key=func)[-1]
+        index = atoms.index(matched)
+        atoms[idx], atoms[index] = matched, atoms[idx]
 
 
 class Parser:

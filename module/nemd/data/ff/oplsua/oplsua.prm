@@ -263,7 +263,8 @@ atom        131    CH    "CH Isopropyl Ketone"          6    13.019    3
 atom        132    C     "C t-Butyl Ketone"             6    12.011    4
 atom        133    C     "C Carboxylic Acid"            6    12.011    3
 atom        134    O     "=O Carboxylic Acid"           8    15.999    1
-atom        135    O     "-O- Carboxylic Acid"          8    15.999    1
+# The connectivity of -O- has been modified to be 2 from the original 1
+atom        135    O     "-O- Carboxylic Acid"          8    15.999    2
 atom        136    H     "H Carboxylic Acid"            1     1.008    1
 atom        137    CH3   "CH3 Acetic Acid"              6    15.035    1
 atom        138    CH2   "CH2 Propionic Acid"           6    14.027    2
@@ -276,6 +277,7 @@ atom        144    CH3   "CH3 (-C) Me Acetate"          6    15.035    1
 atom        145    CH3   "CH3 (-O) Me Acetate"          6    15.035    1
 atom        146    N     "NH2 Primary Amide"            7    14.007    3
 atom        147    N     "NHR Secondary Amide"          7    14.007    3
+# FIXME: improper favors planar when sp3 N connects with 3 non-aromatic atoms
 atom        148    N     "NR2 Tertiary Amide"           7    14.007    3
 atom        149    H     "H Primary Amide"              1     1.008    1
 atom        150    H     "H Secondary Amide"            1     1.008    1
@@ -758,6 +760,7 @@ angle         3    1   64      70.00     116.60
 angle         3    1   70      70.00     116.60
 angle         5    1   12      70.00     116.60
 angle         6    1   12      70.00     116.60
+# FIXME: missing ketone C-C-C force constant
 angle         7    1    7      00.00     119.20
 angle         9    1   12      70.00     116.60
 angle        12    1   14      70.00     116.60
