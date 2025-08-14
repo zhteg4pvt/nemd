@@ -1,0 +1,7 @@
+echo "0007: XYZ from XTC trajectory"
+MEM_INTVL=1 nemd_run lmp_traj_driver.py $NEMD_SRC/test/data/hexane_xtc/amorp_bldr_01.xtc -data_file $NEMD_SRC/test/data/hexane_xtc/amorp_bldr.data -task xyz -NAME "XYZ_of_trajectory_(ns)" -JOBNAME "XYZ_of_trajectory_(ns)_01" -CPU 1 > /dev/null
+MEM_INTVL=1 nemd_run lmp_traj_driver.py $NEMD_SRC/test/data/hexane_xtc/amorp_bldr_02.xtc -data_file $NEMD_SRC/test/data/hexane_xtc/amorp_bldr.data -task xyz -NAME "XYZ_of_trajectory_(ns)" -JOBNAME "XYZ_of_trajectory_(ns)_02" -CPU 1 > /dev/null
+MEM_INTVL=1 nemd_run lmp_traj_driver.py $NEMD_SRC/test/data/hexane_xtc/amorp_bldr_05.xtc -data_file $NEMD_SRC/test/data/hexane_xtc/amorp_bldr.data -task xyz -NAME "XYZ_of_trajectory_(ns)" -JOBNAME "XYZ_of_trajectory_(ns)_05" -CPU 1 > /dev/null
+MEM_INTVL=1 nemd_run lmp_traj_driver.py $NEMD_SRC/test/data/hexane_xtc/amorp_bldr_10.xtc -data_file $NEMD_SRC/test/data/hexane_xtc/amorp_bldr.data -task xyz -NAME "XYZ_of_trajectory_(ns)" -JOBNAME "XYZ_of_trajectory_(ns)_10" -CPU 1 > /dev/null
+MEM_INTVL=1 nemd_run lmp_traj_driver.py $NEMD_SRC/test/data/hexane_xtc/amorp_bldr_20.xtc -data_file $NEMD_SRC/test/data/hexane_xtc/amorp_bldr.data -task xyz -NAME "XYZ_of_trajectory_(ns)" -JOBNAME "XYZ_of_trajectory_(ns)_20" -CPU 1 > /dev/null
+exit 0
