@@ -1,0 +1,1 @@
+nemd_check cmp ab_lmp_traj_density.csv ab_lmp_traj_density.csv selected="Density (g/cm^3) (num=4)" atol=0.0002
