@@ -1,0 +1,34 @@
+..........Options..........
+cru: CCCC
+cru_num: 1
+mol_num: 100000
+buffer: None
+density: 0.5
+method: pack
+substruct: None
+force_field: OPLSUA TIP3P
+timestep: 1
+stemp: 10
+temp: 300
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 1
+prod_time: 1
+prod_ens: NVE
+stat: nose_hoover
+seed: 1
+no_minimize: False
+NAME: Packed_CCCC_Molecules
+JOBNAME: Packed_CCCC_Molecules_100000
+INTERAC: False
+PYTHON: 2
+CPU: [1]
+DEBUG: None
+JobStart: 10:54:50 08/14/2025
+...........................
+Data file written into Packed_CCCC_Molecules_100000.data
+In script written into Packed_CCCC_Molecules_100000.in
+Peak memory usage: 4545.2534 MB
+Finished.
+11:24:40 08/14/2025
