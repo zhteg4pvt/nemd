@@ -251,6 +251,7 @@ class Cmd(taskbase.Cmd):
                 shutil.rmtree(job.fn(jobutils.WORKSPACE))
             except FileNotFoundError:
                 pass
+        self._status.pop(self.job.dirname, None)
 
     def getCmd(self, **kwargs):
         """

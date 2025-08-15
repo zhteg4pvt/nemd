@@ -6,6 +6,7 @@ Under jobcontrol:
  2) Agg aggregates without cmd
  3) Cmd generates the cmd for execution
 """
+import collections
 import functools
 import os
 import re
@@ -37,19 +38,21 @@ class Job(builtinsutils.Object):
         """
         :param jobs list' of 'signac.job.Job': signac jobs
         :param options 'argparse.Namespace': commandline options
-        :param status dict: the post status of all jobs
+        :param status 'collections.defaultdict': the post status of all jobs
         :param logger 'logutils.Logger': the logger to print message in the post
         """
         super().__init__(**kwargs)
         self.jobs = jobs
         self.options = options
-        self.status = status
+        self._status = status
         self.logger = logger
         self.jobname = jobname or self.name
         job = self.jobs[0] if self.jobs else None
         self.doc = job.project.doc if job else None
         dirname = (job.project if self.agg else job).fn('') if job else None
         self.job = jobutils.Job(jobname=self.jobname, dirname=dirname)
+        if self._status is None:
+            self._status = collections.defaultdict(dict)
 
     @classmethod
     @property
@@ -106,10 +109,36 @@ class Job(builtinsutils.Object):
         :return str: the cmd.
         """
         obj = cls(*args, **kwargs)
+        obj.status = obj.out
         obj.run()
         if obj.OUT == STATUS and obj.out is None:
             obj.out = True
         return obj.getCmd()
+
+    @property
+    def status(self):
+        """
+        Get the status.
+
+        :return str: the status.
+        """
+        return self._status[self.job.dirname].get(self.jobname)
+
+    @status.setter
+    def status(self, value, prefix=''):
+        """
+        Set the job status.
+
+        :param value str: the status.
+        :param prefix str: the status prefix.
+        """
+        if self.options and self.options.DEBUG:
+            print(self.jobname, value)
+        self._status[self.job.dirname][self.jobname] = value
+        if self.OUT == STATUS and self.logger and isinstance(self.out, str):
+            if not self.agg:
+                prefix = f"{self.jobname} in {self.job.dirname}: "
+            self.logger.log(prefix + self.out.strip())
 
     def run(self):
         """
@@ -162,18 +191,11 @@ class Job(builtinsutils.Object):
 
         :return bool: whether the post-conditions are met.
         """
-        if self.status is None:
-            return bool(self.out)
-        key = (self.jobname, self.job.dirname)
-        if self.status.get(key):
+        if self.status:
             return True
-        if self.options and self.options.DEBUG:
-            print(self.jobname, self.out)
-        self.status[key] = self.out
-        if self.logger and self.OUT == STATUS and isinstance(self.out, str):
-            header = '' if self.agg else f"%s in %s: " % key
-            self.logger.log(header + self.out.strip())
-        return bool(self.out)
+        if self.out:
+            self.status = self.out
+        return bool(self.status)
 
     def getJobs(self):
         """
@@ -197,6 +219,7 @@ class Job(builtinsutils.Object):
         Clean the json file.
         """
         self.job.clean()
+        self._status[self.job.dirname].pop(self.jobname, None)
 
 
 class Agg(Job):

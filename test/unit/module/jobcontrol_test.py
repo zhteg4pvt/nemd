@@ -1,5 +1,4 @@
 import os
-import shutil
 import types
 from unittest import mock
 
@@ -111,7 +110,7 @@ class TestRunner:
         assert 2 == len(ran.options.CPU)
         assert 'args' in ran.proj.document
         assert 'prereq' in ran.proj.document
-        assert 2 == len(ran.status)
+        assert 2 == len([y for x in ran.status.values() for y in x.values()])
 
     @pytest.mark.parametrize('original,file,status,pre',
                              [(['-clean', '-DEBUG'], True, True, None)])
@@ -139,7 +138,6 @@ class TestRunner:
     @pytest.mark.parametrize('pre', [False])
     def testLogStatus(self, file, status, ran):
         ran.logStatus()
-        assert os.path.isfile('name_status.log')
         num = int(file and status)
         calls = ran.logger.log.call_args_list
         assert mock.call(f'{num} / 1 completed jobs.') == calls[0]

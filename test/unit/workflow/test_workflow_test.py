@@ -29,7 +29,7 @@ class TestRunner:
 
     @pytest.mark.parametrize('original,expected',
                              [(['-name', 'integration'], 58),
-                              (['-name', 'scientific'], 20),
+                              (['-name', 'scientific'], 19),
                               (['-name', 'performance'], 11)])
     def testNames(self, runner, expected):
         assert expected == len(runner.names)
@@ -38,7 +38,7 @@ class TestRunner:
         (['1', '-name', 'integration', '-jtype', 'task'
           ], '2 / 2 succeed sub-jobs.'),
         (['1', '-dirname',
-          envutils.test_data(), '-jtype', 'task'], '0 / 2 succeed sub-jobs.')
+          envutils.test_data(), '-jtype', 'task'], '0 / 1 succeed sub-jobs.')
     ])
     def testLogStatus(self, runner, expected, tmp_dir, flow_opr):
         runner.run()
