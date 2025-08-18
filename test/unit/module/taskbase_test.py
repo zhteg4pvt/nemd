@@ -10,13 +10,19 @@ from nemd import parserutils
 from nemd import taskbase
 
 
+OPTIONS = parserutils.Driver().parse_args(['-JOBNAME', 'nm', '-CPU', '2', '1'])
+
+
 class TestJob:
     TEST_0001 = envutils.test_data('0001_test')
     FAIL_0001 = envutils.test_data('0001_fail')
 
     @pytest.fixture
     def job(self, jobs, jobname, logger):
-        return taskbase.Job(*jobs, jobname=jobname, logger=logger)
+        return taskbase.Job(*jobs,
+                            jobname=jobname,
+                            options=OPTIONS,
+                            logger=logger)
 
     @pytest.mark.parametrize("dirname,jobname", [('empty', 'name')])
     def testAgg(self, job):
@@ -34,7 +40,8 @@ class TestJob:
     @pytest.mark.parametrize("dirname,jobname", [('empty', 'name')])
     def testRunOpr(self, job, jobname):
         with mock.patch('nemd.taskbase.Job.run') as mocked:
-            assert job.runOpr(jobname=jobname) is None
+            assert taskbase.Job.runOpr(jobname=jobname,
+                                       options=OPTIONS) is None
         assert mocked.called
         assert os.path.isfile('.name_document.json')
 
@@ -44,7 +51,7 @@ class TestJob:
                               (None, None, False, False, False),
                               (TEST_0001, 'check', None, True, False),
                               (FAIL_0001, 'check', None, True, True)])
-    def testStatus(self, jobname, job, status, expected, logged):
+    def testStatus(self, jobname, job, status, expected, logged, tmp_dir):
         job.status = status
         assert expected == job.post()
         assert logged == job.logger.log.called
@@ -73,7 +80,7 @@ class TestJob:
                              [(TEST_0001, 'check', True),
                               (TEST_0001, 'tag', False)])
     def testPostOpr(self, jobname, jobs, job, expected):
-        assert expected == job.postOpr(jobname=jobname, *jobs)
+        assert expected == job.postOpr(jobname=jobname, *jobs, options=OPTIONS)
 
     @pytest.mark.parametrize('dirname,jobname,expected', [(TEST_0001, None, 2),
                                                           (None, None, 0)])
@@ -98,8 +105,11 @@ class TestJob:
 class TestAgg:
 
     @pytest.fixture
-    def agg(self, jobs, jobname, logger):
-        return taskbase.Agg(*jobs, jobname=jobname, logger=logger)
+    def agg(self, jobs, jobname, logger, tmp_dir):
+        return taskbase.Agg(*jobs,
+                            jobname=jobname,
+                            options=OPTIONS,
+                            logger=logger)
 
     @pytest.mark.parametrize("dirname,jobname", [('empty', 'name')])
     def testAgg(self, agg):
@@ -111,13 +121,21 @@ class TestAgg:
         assert jobname == opr.opr.keywords['jobname']
         assert False == opr.opr._flow_aggregate._is_default_aggregator
 
-    @pytest.mark.parametrize('dirname,jobname,status,expected,logged',
-                             [('0037_test', 'test_agg', None, True, True),
-                              ('0037_test', 'time_agg', True, True, False),
+    @pytest.mark.parametrize('dirname,jobname,status',
+                             [('0037_test', 'test_agg', None),
+                              ('0037_test', 'time_agg', True),
+                              ('0037_test', 'time_agg2', None)])
+    def testStatus(self, agg, jobname, status):
+        agg.status = status
+        assert agg.status == status
+
+    @pytest.mark.parametrize('dirname,jobname,out,expected,logged',
+                             [('0037_test', 'test_agg', None, False, False),
+                              ('0037_test', 'time_agg', 'msg', True, True),
                               ('0037_test', 'time_agg2', None, False, False),
                               ('0037_test', 'time_agg2', True, True, False)])
-    def testStatus(self, agg, jobname, status, expected, logged):
-        agg.status = status
+    def testPost(self, agg, jobname, out, expected, logged):
+        agg.out = out
         assert expected == agg.post()
         assert logged == agg.logger.log.called
         if not logged:
@@ -131,11 +149,10 @@ class TestCmd:
     THREE = (None, None, None)
 
     @pytest.fixture
-    def cmd(self, name, file, parser, tmpl, jobs):
+    def cmd(self, name, file, parser, tmpl, jobs, logger):
         attrs = dict(FILE=file, ParserClass=parser, TMPL=tmpl)
         Name = type(name, (taskbase.Cmd, ), attrs)
-        options = parserutils.Driver().parse_args(['-CPU', '2', '1'])
-        return Name(*jobs, options=options, logger=mock.Mock())
+        return Name(*jobs, options=OPTIONS, logger=logger)
 
     @pytest.mark.parametrize('dirname,file,parser,tmpl', [('empty', *THREE)])
     @pytest.mark.parametrize('name', ['MolBldr'])
@@ -169,7 +186,7 @@ class TestCmd:
                              [('AmorpBldr', 'amorp_bldr', False),
                               ('LmpTraj', 'lmp_traj', True)])
     def testPostOpr(self, jobs, name, jobname, cmd, expected):
-        assert expected == cmd.postOpr(*jobs, jobname=jobname)
+        assert expected == cmd.postOpr(*jobs, jobname=jobname, options=OPTIONS)
 
     @pytest.mark.parametrize('dirname,file,parser,tmpl,',
                              [('0037_test', *THREE)])

@@ -12,7 +12,7 @@ SRC = envutils.get_src()
 class TestRunner:
 
     @pytest.fixture
-    def runner(self, original, logger):
+    def runner(self, original, logger, tmp_dir):
         options = workflow.Parser().parse_args(original + ['-CPU', '1'])
         return workflow.Runner(options=options,
                                original=original,

@@ -97,11 +97,13 @@ class TestRunner:
         runner.openJobs()
         assert 4 == len(runner.jobs)
 
-    @pytest.mark.parametrize('kwargs,expected',
-                             [({}, None), (dict(state_num=1), [1]),
-                              (dict(state_num=3), [1, 2, 3])])
-    def testState(self, kwargs, expected):
-        runner = jobcontrol.Runner(types.SimpleNamespace(**kwargs), [])
+    @pytest.mark.parametrize('args,expected',
+                             [([], None), (['-state_num', '1'], [1]),
+                              (['-state_num', '3'], [1, 2, 3])])
+    def testState(self, args, expected):
+        parser = parserutils.Workflow() if args else parserutils.Driver()
+        options = parser.parse_args(args)
+        runner = jobcontrol.Runner(options, [])
         np.testing.assert_equal(runner.state.get('-seed'), expected)
 
     @pytest.mark.parametrize('original,file,status,pre',

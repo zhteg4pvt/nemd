@@ -8,17 +8,65 @@ Under jobcontrol:
 """
 import collections
 import functools
+import multiprocessing
 import os
+import pathlib
 import re
 import types
 
 import flow
+import pandas as pd
 
 from nemd import builtinsutils
 from nemd import jobutils
 from nemd import symbols
 
 STATUS = 'status'
+
+
+class Status(collections.defaultdict):
+    """
+    The job status class.
+    """
+    INITIATED = 'Initiated'
+    PASSED = 'Passed'
+    COLUMNS = [INITIATED, PASSED]
+
+    def __init__(self, *args, jobname=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.view = pd.DataFrame(columns=self.COLUMNS,
+                                 index=pd.Index([], name='Dirname'))
+        self.file = pathlib.Path().cwd(
+        ) / f"{jobname}_status{symbols.LOG_EXT}" if jobname else None
+
+    def set(self, job, value):
+        """
+        Set the job status with view updated and written.
+
+        :param job 'jobutils.Job': the job with name in folder.
+        :param value 'str': the status to set.
+        """
+        self[job.dirname][job.jobname] = value
+        try:
+            row = self.view.loc[job.dirname]
+        except KeyError:
+            row = [set() for _ in range(len(self.COLUMNS))]
+            row = pd.Series(row, index=self.COLUMNS, name=job.dirname)
+            self.view = pd.concat((self.view, row.to_frame().T),
+                                  ignore_index=False)
+        status = self.PASSED if value else self.INITIATED
+        for column, jobnames in row.items():
+            if column == status:
+                jobnames.add(job.jobname)
+            else:
+                jobnames.discard(job.jobname)
+        if not self.file or "daemon" in multiprocessing.current_process(
+        )._config:
+            # self._status not synced inside a multiprocessing.Pool
+            return
+        view = self.view.map(lambda x: ' '.join(x))
+        view.index = view.index.map(lambda x: x.relative_to(self.file.parent))
+        self.file.write_text(view.to_markdown())
 
 
 class Job(builtinsutils.Object):
@@ -44,15 +92,13 @@ class Job(builtinsutils.Object):
         super().__init__(**kwargs)
         self.jobs = jobs
         self.options = options
-        self._status = status
+        self._status = Status(dict) if status is None else status
         self.logger = logger
         self.jobname = jobname or self.name
         job = self.jobs[0] if self.jobs else None
         self.doc = job.project.doc if job else None
         dirname = (job.project if self.agg else job).fn('') if job else None
         self.job = jobutils.Job(jobname=self.jobname, dirname=dirname)
-        if self._status is None:
-            self._status = collections.defaultdict(dict)
 
     @classmethod
     @property
@@ -88,7 +134,6 @@ class Job(builtinsutils.Object):
             with_job = not cls.agg
         if aggregator is None and cls.agg:
             aggregator = flow.aggregator()
-
         # Operator
         func = functools.partial(cls.runOpr, jobname=jobname, **kwargs)
         opr = flow.FlowProject.operation(name=jobname,
@@ -109,6 +154,7 @@ class Job(builtinsutils.Object):
         :return str: the cmd.
         """
         obj = cls(*args, **kwargs)
+        # FIXME: non-cmd should initialize status outside multiprocessing.Pool.
         obj.status = obj.out
         obj.run()
         if obj.OUT == STATUS and obj.out is None:
@@ -125,20 +171,13 @@ class Job(builtinsutils.Object):
         return self._status[self.job.dirname].get(self.jobname)
 
     @status.setter
-    def status(self, value, prefix=''):
+    def status(self, value):
         """
         Set the job status.
 
         :param value str: the status.
-        :param prefix str: the status prefix.
         """
-        if self.options and self.options.DEBUG:
-            print(self.jobname, value)
-        self._status[self.job.dirname][self.jobname] = value
-        if self.OUT == STATUS and self.logger and isinstance(self.out, str):
-            if not self.agg:
-                prefix = f"{self.jobname} in {self.job.dirname}: "
-            self.logger.log(prefix + self.out.strip())
+        self._status.set(self.job, value)
 
     def run(self):
         """
@@ -193,9 +232,14 @@ class Job(builtinsutils.Object):
         """
         if self.status:
             return True
-        if self.out:
-            self.status = self.out
-        return bool(self.status)
+        if not self.out:
+            return False
+        # FIXME: each job should execute post immediately after itself finishes.
+        self.status = self.out
+        if self.logger and self.OUT == STATUS and isinstance(self.out, str):
+            self.logger.log(self.out if self.agg else \
+                            f"{self.jobname} in {self.job.dirname}: {self.out}")
+        return True
 
     def getJobs(self):
         """

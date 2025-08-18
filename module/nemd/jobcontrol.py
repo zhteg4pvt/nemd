@@ -11,11 +11,9 @@ This class handles jobs and aggregators:
     7) execute the operators
     8) log the status and message.
 """
-import collections
 import functools
 import itertools
 import math
-import os
 
 import flow
 import networkx as nx
@@ -51,7 +49,7 @@ class Runner(logutils.Base):
         self.prereq = {}
         self.oprs = []
         self.jobs = []
-        self.status = collections.defaultdict(dict)
+        self.status = taskbase.Status(dict, jobname=self.options.JOBNAME)
         self.args = jobutils.Args(self.original)
         # flow/project.py gets logger from logging.getLogger(__name__)
         logutils.Logger.get('flow.project')
@@ -181,13 +179,6 @@ class Runner(logutils.Base):
                       progress=self.options.screen in progress,
                       jobs=None if agg else self.jobs,
                       **kwargs)
-
-        cdw = os.getcwd()
-        for dirname, status in self.status.items():
-            incompleted = [x for x, y in status.items() if not y]
-            if not incompleted:
-                continue
-            print(f"{os.path.relpath(dirname, cdw)}: {incompleted}")
 
     def clean(self, agg=False):
         """
