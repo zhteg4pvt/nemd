@@ -2,9 +2,37 @@
 # Authors: Teng Zhang (zhteg4@gmail.com)
 """
 Under jobcontrol:
- 1) Job executes without cmd
- 2) Agg aggregates without cmd
- 3) Cmd generates the cmd for execution
+ 1) Job executes without cmd.
+ 2) Agg aggregates without cmd.
+ 3) Cmd generates the cmd for execution.
+
+Dynamic Distribution Roadmap:
+
+*** new process for each job ***
+1) Main process starts Multiprocessing.Processes of no-prerequisite jobs.
+2) Main periodically checks the exitcode of all processes.
+    a) successful jobs run the post(), and report the status.
+    b) new prerequisite-passed jobs run the setUp(), and start new processes.
+3) All processes success or any fail.
+
+NOTE: keep active process number <= max number of simultaneous jobs
+https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Process.exitcode
+
+*** fixed number of processes ***
+1) Main process puts no-prerequisite jobs to eligible multiprocessing.Queue().
+2) Start Multiprocessing.Process of max number of simultaneous jobs with each periodically:
+    a) get one job from the queue.
+    b) execute the job.
+    c) put the job id to the finished multiprocessing.Queue().
+    d) sleep.
+3) Main process gets the job from the finished queue, runs the post(), and
+    reports the status.
+4) Main process searches new prerequisite-passed jobs, runs the setUp(), and puts
+    them to the eligible queue.
+5) Main process joins the processes when all status are passed.
+
+https://superfastpython.com/multiprocessing-manager-example/ (The complete example)
+https://www.youtube.com/watch?v=EI1gLCvdX_U (Queue section)
 """
 import collections
 import functools
@@ -234,7 +262,8 @@ class Job(builtinsutils.Object):
             return True
         if not self.out:
             return False
-        # FIXME: each job should execute post immediately after itself finishes.
+        # FIXME: every job should execute post outside the pool immediately on
+        #  finish instead of waiting others. (See Dynamic Distribution Roadmap)
         self.status = self.out
         if self.logger and self.OUT == STATUS and isinstance(self.out, str):
             self.logger.log(self.out if self.agg else \
