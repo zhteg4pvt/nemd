@@ -1,0 +1,34 @@
+..........Options..........
+cru: CCCC
+cru_num: 1
+mol_num: 50000
+buffer: None
+density: 0.5
+method: grow
+substruct: None
+force_field: OPLSUA TIP3P
+timestep: 1
+stemp: 10
+temp: 300
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 1
+prod_time: 1
+prod_ens: NVE
+stat: nose_hoover
+seed: 1
+no_minimize: False
+NAME: Grown_CCCC_Molecules
+JOBNAME: Grown_CCCC_Molecules_50000
+INTERAC: False
+PYTHON: 2
+CPU: [1]
+DEBUG: None
+JobStart: 09:07:22 08/18/2025
+...........................
+Data file written into Grown_CCCC_Molecules_50000.data
+In script written into Grown_CCCC_Molecules_50000.in
+Peak memory usage: 2122.7930 MB
+Finished.
+09:13:12 08/18/2025
