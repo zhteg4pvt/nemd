@@ -1,0 +1,25 @@
+..........Options..........
+trj: /home/zhteg4/git/nemd/test/data/hexane_xtc/amorp_bldr_02.xtc
+task: msd
+data_file: /home/zhteg4/git/nemd/test/data/hexane_xtc/amorp_bldr.data
+last_pct: 0.2
+slice: None
+sel: None
+timestep: 1
+NAME: MSD_of_trajectory_(ns)
+JOBNAME: MSD_of_trajectory_(ns)_02
+INTERAC: False
+PYTHON: 2
+CPU: [9]
+DEBUG: None
+JobStart: 16:32:14 08/20/2025
+...........................
+600 atoms selected.
+2001 trajectory frames found.
+{'msd'} analyze frames of last 20.0% ∈ [ 2855.000,  3254.000] ps
+Mean squared displacement data written into MSD_of_trajectory_(ns)_02_msd.csv
+Diffusion Coefficient 4.571e-05 ± 8.856e-08 cm^2/s calculated by fitting MSD ∈ [40 319] ps. (R-squared: 0.999)
+Msd figure saved as MSD_of_trajectory_(ns)_02_msd.png
+Peak memory usage: 1082.4172 MB
+Finished.
+16:32:16 08/20/2025
