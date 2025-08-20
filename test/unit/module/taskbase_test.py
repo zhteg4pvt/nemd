@@ -9,7 +9,6 @@ from nemd import jobutils
 from nemd import parserutils
 from nemd import taskbase
 
-
 OPTIONS = parserutils.Driver().parse_args(['-JOBNAME', 'nm', '-CPU', '2', '1'])
 
 

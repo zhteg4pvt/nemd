@@ -10,16 +10,16 @@ NAME: Density_of_trajectory_(ns)
 JOBNAME: Density_of_trajectory_(ns)_10
 INTERAC: False
 PYTHON: 2
-CPU: [1]
+CPU: [9]
 DEBUG: None
-JobStart: 19:20:57 08/18/2025
+JobStart: 15:20:35 08/20/2025
 ...........................
 600 atoms selected.
-10000 trajectory frames found.
-{'density'} analyze all frames ∈ [9401.000, 19400.000] ps
+10001 trajectory frames found.
+{'density'} analyze all frames ∈ [8254.000, 18254.000] ps
 Density data written into Density_of_trajectory_(ns)_10_density.csv
-Density: 0.8215 ± 4.34e-05 g/cm^3 ∈ [17401.0000, 19400.0000] ps
+Density: 0.6373 ± 0.01233 g/cm^3 ∈ [16255.0000, 18254.0000] ps
 Density figure saved as Density_of_trajectory_(ns)_10_density.png
-Peak memory usage: 1065.1525 MB
+Peak memory usage: 1078.5014 MB
 Finished.
-19:20:59 08/18/2025
+15:20:37 08/20/2025

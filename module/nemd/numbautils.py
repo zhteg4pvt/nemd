@@ -64,6 +64,8 @@ def msd(trj, gids, wt):
     :return float: mean squared displacement of each tau.
     """
     wt /= sum(wt)
+    for frm in trj:
+        frm -= np.dot(wt, np.ascontiguousarray(frm))
     num = len(trj)
     for idx in range(1, num):
         sq = np.square(trj[idx:, gids, :] - trj[:-idx, gids, :])

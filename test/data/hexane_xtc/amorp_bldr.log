@@ -16,17 +16,18 @@ pdamp: 1000
 relax_time: 1
 prod_time: 1
 prod_ens: NVE
+stat: nose_hoover
 seed: 1
 no_minimize: False
 NAME: amorp_bldr
 JOBNAME: amorp_bldr
 INTERAC: False
 PYTHON: 2
-CPU: None
+CPU: [9]
 DEBUG: None
-JobStart: 17:32:58 07/16/2025
+JobStart: 11:42:45 08/20/2025
 ...........................
 Data file written into amorp_bldr.data
 In script written into amorp_bldr.in
 Finished.
-17:33:02 07/16/2025
+11:42:51 08/20/2025

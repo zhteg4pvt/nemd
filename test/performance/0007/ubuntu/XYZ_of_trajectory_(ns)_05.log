@@ -10,14 +10,14 @@ NAME: XYZ_of_trajectory_(ns)
 JOBNAME: XYZ_of_trajectory_(ns)_05
 INTERAC: False
 PYTHON: 2
-CPU: [1]
+CPU: [9]
 DEBUG: None
-JobStart: 10:44:49 08/14/2025
+JobStart: 14:58:51 08/20/2025
 ...........................
 600 atoms selected.
-5000 trajectory frames found.
-{'xyz'} analyze all frames ∈ [4401.000, 9400.000] ps
+5001 trajectory frames found.
+{'xyz'} analyze all frames ∈ [3254.000, 8254.000] ps
 XYZ coordinates are written into XYZ_of_trajectory_(ns)_05_xyz.xyz
-Peak memory usage: 860.6925 MB
+Peak memory usage: 860.7048 MB
 Finished.
-10:45:05 08/14/2025
+14:59:09 08/20/2025

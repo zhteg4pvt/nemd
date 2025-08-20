@@ -1,0 +1,4 @@
+GPU package API: CUDA
+GPU package precision: mixed
+Compatible GPU present: yes
+EXTRA-DUMP GPU KSPACE MANYBODY MOLECULE OPENMP PYTHON RIGID 

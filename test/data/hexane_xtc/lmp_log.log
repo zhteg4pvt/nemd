@@ -1,0 +1,21 @@
+..........Options..........
+log: lammps_lmp.log
+task: ('toteng',)
+data_file: amorp_bldr.data
+last_pct: 0.2
+slice: None
+NAME: lmp_log
+JOBNAME: lmp_log
+INTERAC: True
+PYTHON: 2
+CPU: [9]
+DEBUG: None
+JobStart: 13:47:42 08/20/2025
+...........................
+50247 steps of thermo data found.
+Averages results from 40083.000 ps to 50131.000 ps
+Thermodynamic information data written into lmp_log_toteng.csv
+TotEng: 224.7 ± 0.1207 kcal/mol ∈ [40083.0000, 50131.0000] ps
+Toteng figure saved as lmp_log_toteng.png
+Finished.
+13:47:52 08/20/2025
