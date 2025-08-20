@@ -1,0 +1,27 @@
+..........Options..........
+trj: /home/zhteg4/git/nemd/test/data/hexane_xtc/amorp_bldr_01.xtc
+task: rdf
+data_file: /home/zhteg4/git/nemd/test/data/hexane_xtc/amorp_bldr.data
+last_pct: 1.0
+slice: None
+sel: None
+timestep: 1
+NAME: RDF_of_Trajectory_(ns)
+JOBNAME: RDF_of_Trajectory_(ns)_01
+INTERAC: False
+PYTHON: 2
+CPU: [1]
+DEBUG: None
+JobStart: 15:25:56 08/20/2025
+...........................
+600 atoms selected.
+1001 trajectory frames found.
+{'rdf'} analyze frames of last 100.0% ∈ [ 254.000,  1254.000] ps
+The volume fluctuates: [21454.33 25249.43] Å^3
+0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 
+Radial distribution function data written into RDF_of_Trajectory_(ns)_01_rdf.csv
+RDF peak 24.59 ± nan found at 1.52 Å
+Rdf figure saved as RDF_of_Trajectory_(ns)_01_rdf.png
+Peak memory usage: 1079.6196 MB
+Finished.
+15:26:21 08/20/2025
