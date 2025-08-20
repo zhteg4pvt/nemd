@@ -613,8 +613,8 @@ class MSD(RDF):
             return
 
         if self.rdr:
-            tids = self.rdr.atoms.type_id[self.gids]
-            weights = self.rdr.masses.mass[tids].to_numpy().astype(np.float32)
+            weights = self.rdr.masses.mass[
+                self.rdr.atoms.type_id].to_numpy().astype(np.float32)
         else:
             weights = np.ones((len(self.gids)), dtype=np.float32)
 

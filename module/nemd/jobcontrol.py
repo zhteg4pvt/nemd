@@ -49,7 +49,7 @@ class Runner(logutils.Base):
         self.prereq = {}
         self.oprs = []
         self.jobs = []
-        self.status = taskbase.Status(dict, jobname=self.options.JOBNAME)
+        self.status = taskbase.Status(dict, name=self.options.JOBNAME)
         self.args = jobutils.Args(self.original)
         # flow/project.py gets logger from logging.getLogger(__name__)
         logutils.Logger.get('flow.project')

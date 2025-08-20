@@ -67,6 +67,7 @@ def msd(trj, gids, wt):
     for frm in trj:
         frm -= np.dot(wt, np.ascontiguousarray(frm))
     num = len(trj)
+    wt = wt[gids] / wt[gids].sum()
     for idx in range(1, num):
         sq = np.square(trj[idx:, gids, :] - trj[:-idx, gids, :])
-        yield np.dot(sq.sum(axis=2).sum(axis=0) / (num - idx), wt)
+        yield np.dot(wt, sq.sum(axis=2).sum(axis=0) / (num - idx))

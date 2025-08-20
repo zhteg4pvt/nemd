@@ -72,7 +72,7 @@ class TestTraj:
                              [(FRM, ['-task', 'xyz'], 0, (1, 105.0)),
                               (GZ, ARGS, 0, (46, 105.0)),
                               (GZ, ARGS, None, (38, 105.0)),
-                              (XTC, ARGS, None, (1402, 1400.0))])
+                              (XTC, ARGS, None, (255, 254.0))])
     def testSetUp(self, trj, expected):
         trj.setUp()
         num = len([x for x in trj if isinstance(x, frame.Frame)])

@@ -1,5 +1,7 @@
 import glob
 import os
+import pathlib
+import types
 from unittest import mock
 
 import pytest
@@ -10,6 +12,31 @@ from nemd import parserutils
 from nemd import taskbase
 
 OPTIONS = parserutils.Driver().parse_args(['-JOBNAME', 'nm', '-CPU', '2', '1'])
+
+
+class TestStatus:
+
+    @pytest.fixture
+    def status(self, name, tmp_dir):
+        return taskbase.Status(dict, name=name)
+
+    @pytest.mark.parametrize('name,expected', [('name', 'name_status.log'),
+                                               (None, None)])
+    def testInit(self, status, expected):
+        assert (0, 2) == status.view.shape
+        assert (status.file and os.path.basename(status.file)) == expected
+
+    @pytest.mark.parametrize('name,dirname,jobname',
+                             [('name', 'driname', 'jobname')])
+    @pytest.mark.parametrize('value,expected', [('outfile', 'Passed'),
+                                                (None, 'Initiated')])
+    def testSet(self, status, dirname, jobname, value, expected):
+        dirname = pathlib.Path(dirname).absolute()
+        dirname.mkdir()
+        job = types.SimpleNamespace(dirname=dirname, jobname=jobname)
+        status.set(job, value)
+        assert 1 == len(status)
+        assert jobname in status.view[expected].loc[dirname]
 
 
 class TestJob:

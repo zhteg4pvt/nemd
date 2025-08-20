@@ -13,7 +13,7 @@ Dynamic Distribution Roadmap:
 2) Main periodically checks the exitcode of all processes.
     a) successful jobs run the post(), and report the status.
     b) new prerequisite-passed jobs run the setUp(), and start new processes.
-3) All processes success or any fail.
+3) All processes succeed or any fail.
 
 NOTE: keep active process number <= max number of simultaneous jobs
 https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Process.exitcode
@@ -60,12 +60,15 @@ class Status(collections.defaultdict):
     PASSED = 'Passed'
     COLUMNS = [INITIATED, PASSED]
 
-    def __init__(self, *args, jobname=None, **kwargs):
+    def __init__(self, *args, name=None, **kwargs):
+        """
+        :param name: the project jobname.
+        """
         super().__init__(*args, **kwargs)
         self.view = pd.DataFrame(columns=self.COLUMNS,
                                  index=pd.Index([], name='Dirname'))
-        self.file = pathlib.Path().cwd(
-        ) / f"{jobname}_status{symbols.LOG_EXT}" if jobname else None
+        self.file = name and (pathlib.Path().cwd() /
+                              f"{name}_status{symbols.LOG_EXT}")
 
     def set(self, job, value):
         """

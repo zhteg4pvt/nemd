@@ -341,7 +341,7 @@ class TestRDF:
 class TestMSD:
 
     @pytest.fixture
-    def msd(self, trj, gids, rdr):
+    def msd(self, trj, gids, rdr, logger):
         if gids is not None:
             gids = np.array(gids)
         options = parserutils.LmpTraj().parse_args(
@@ -350,35 +350,34 @@ class TestMSD:
                             options=options,
                             gids=gids,
                             rdr=rdr,
-                            logger=mock.Mock())
+                            logger=logger)
 
     @pytest.mark.parametrize(
         'trj,rdr,gids,spct,epct,expected,name',
-        [(FOUR_TRJ, HEX_RDR, None, 0.1, 0.2, 0.4820988, 'Tau (ps) (0 3)'),
-         (FOUR_TRJ, None, None, 0.1, 0.2, 0.4803063, 'Tau (ps) (0 3)'),
-         (FOUR_TRJ, HEX_RDR, [0, 1], 0.1, 0.2, 0.9921599, 'Tau (ps) (0 3)'),
-         (FOUR_TRJ, HEX_RDR, [0, 1], 0.4, 0.2, 0.9921599, 'Tau (ps) (1 3)'),
+        [(FOUR_TRJ, HEX_RDR, None, 0.1, 0.2, 0.4820897, 'Tau (ps) (0 3)'),
+         (FOUR_TRJ, None, None, 0.1, 0.2, 0.48032087, 'Tau (ps) (0 3)'),
+         (FOUR_TRJ, HEX_RDR, [0, 1], 0.1, 0.2, 0.99159753, 'Tau (ps) (0 3)'),
+         (FOUR_TRJ, HEX_RDR, [0, 1], 0.4, 0.2, 0.99159753, 'Tau (ps) (1 3)'),
          (AR_TRJ, None, [], 0.1, 0.2, np.nan, None),
          (HEX_TRJ, None, None, 0.1, 0.2, np.nan, None)])
     def testSet(self, msd, spct, epct, expected, name):
         msd.set(spct=spct, epct=epct)
-        np.testing.assert_almost_equal(msd.data.max().max(),
-                                       expected,
-                                       decimal=6)
+        mad_max = msd.data.max().max()
+        np.testing.assert_almost_equal(mad_max, expected, decimal=6)
         assert name == msd.data.index.name
 
     @pytest.mark.parametrize('trj,rdr,gids,spct,epct,expected,msg', [
         (FOUR_TRJ, HEX_RDR, None, 0.1, 0.2, [4.01749017e-06, 8.75353197e-07],
-         'Diffusion Coefficient 4.017e-06 ± 8.754e-07 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.955)'
+         'Diffusion Coefficient 4.017e-06 ± 8.753e-07 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.955)'
          ),
         (FOUR_TRJ, None, None, 0.1, 0.2, [4.00255214e-06, 8.72030195e-07],
-         'Diffusion Coefficient 4.003e-06 ± 8.72e-07 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.955)'
+         'Diffusion Coefficient 4.003e-06 ± 8.721e-07 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.955)'
          ),
         (FOUR_TRJ, HEX_RDR, [0, 1], 0.1, 0.2, [8.2679990e-06, 1.5476629e-06],
-         'Diffusion Coefficient 8.268e-06 ± 1.548e-06 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.966)'
+         'Diffusion Coefficient 8.263e-06 ± 1.546e-06 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.966)'
          ),
         (FOUR_TRJ, HEX_RDR, [0, 1], 0.4, 0.2, [1.09486298e-05, 0.00000e+00],
-         'Diffusion Coefficient 1.095e-05 ± 0 cm^2/s calculated by fitting MSD ∈ [1 2] ps. (R-squared: 1)'
+         'Diffusion Coefficient 1.094e-05 ± 0 cm^2/s calculated by fitting MSD ∈ [1 2] ps. (R-squared: 1)'
          )
     ])
     def testFit(self, msd, spct, epct, expected, msg):
