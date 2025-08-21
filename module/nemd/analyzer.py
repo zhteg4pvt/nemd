@@ -475,6 +475,7 @@ class Clash(Density):
                 clashes = dfrm.getClashes(self.grp, grps=self.grps)
                 data.append(len(clashes))
                 prog(idx)
+                del dfrm.cell
         self.data = pd.DataFrame(data={self.label: data}, index=self.trj.time)
 
 

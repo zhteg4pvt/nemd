@@ -1,0 +1,26 @@
+..........Options..........
+trj: /home/zhteg4/git/nemd/test/data/hexane_xtc/amorp_bldr_02.xtc
+task: clash
+data_file: /home/zhteg4/git/nemd/test/data/hexane_xtc/amorp_bldr.data
+last_pct: 0.2
+slice: None
+sel: None
+timestep: 1
+NAME: Clash_of_trajectory_(ns)
+JOBNAME: Clash_of_trajectory_(ns)_02
+INTERAC: False
+PYTHON: 2
+CPU: [9]
+DEBUG: None
+JobStart: 11:18:33 08/21/2025
+...........................
+600 atoms selected.
+2001 trajectory frames found.
+{'clash'} analyze all frames ∈ [1254.000, 3254.000] ps
+0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Clash data written into Clash_of_trajectory_(ns)_02_clash.csv
+Clash: 0 ± 0 count ∈ [2855.0000, 3254.0000] ps
+Clash figure saved as Clash_of_trajectory_(ns)_02_clash.png
+Peak memory usage: 1046.6017 MB
+Finished.
+11:19:36 08/21/2025
