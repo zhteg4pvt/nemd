@@ -48,8 +48,8 @@ class TestFrame:
         assert expected == len(list(frm.bonds))
 
     @pytest.mark.parametrize(
-        'rdr,expected', [(None, [[-6.2835197, 7.75492], [-4.307185, 9.731255],
-                                 [-5.86082, 8.17762]])])
+        'rdr,expected', [(None, [[-2.77391, 4.24531], [-0.797575, 6.221645],
+                                 [-2.3512099, 4.6680098]])])
     def testLims(self, frm, expected):
         np.testing.assert_almost_equal(frm.lims, expected, decimal=6)
 

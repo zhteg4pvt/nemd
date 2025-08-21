@@ -110,8 +110,8 @@ class Frame(pd.DataFrame):
         dmin = np.min([x.min(axis=0) for x in self.trj], axis=0)
         dmax = np.max([x.max(axis=0) for x in self.trj], axis=0)
         center = (dmin + dmax) / 2
-        span = (dmax - dmin).max()
-        return np.array([(center - span), (center + span)]).transpose()
+        half = (dmax - dmin).max() / 2
+        return np.array([(center - half), (center + half)]).transpose()
 
     def iter(self):
         """
