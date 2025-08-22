@@ -1,0 +1,21 @@
+..........Options..........
+log: lammps_lmp.log
+task: ('press',)
+data_file: None
+last_pct: 0.2
+slice: None
+NAME: lmp_log
+JOBNAME: lmp_log
+INTERAC: True
+PYTHON: 2
+CPU: [9]
+DEBUG: None
+JobStart: 10:50:24 08/22/2025
+...........................
+2979 steps of thermo data found.
+Averages results from 1805.000 ps to 2399.022 ps
+Thermodynamic information data written into lmp_log_press.csv
+Press: 210 ± 93.31 bar ∈ [1805.0000, 2399.0220] ps
+Press figure saved as lmp_log_press.png
+Finished.
+10:50:36 08/22/2025

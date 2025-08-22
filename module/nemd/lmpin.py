@@ -400,7 +400,8 @@ class RampUp(SinglePoint):
             return
         if stemp is None:
             stemp = temp
-        args = (stemp, temp, self.options.tdamp)
+
+        args = (stemp, temp, self.options.tdamp * self.getTimestep())
         with self.block() as blk:
             match style or self.options.stat:
                 case self.BERENDSEN:
@@ -453,7 +454,7 @@ class RampUp(SinglePoint):
             stemp = temp
         if spress is None:
             spress = press
-        args = ('iso', spress, press, self.options.pdamp)
+        args = ('iso', spress, press, self.options.pdamp * self.getTimestep())
         with self.block() as blk:
             match style or self.barostat:
                 case self.BERENDSEN:

@@ -1,0 +1,29 @@
+..........Options..........
+name: Si
+dimension: (4, 4, 4)
+scale_factor: (1, 1, 1)
+timestep: 1
+stemp: 10
+temp: 300.0
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 1
+prod_time: 1
+prod_ens: NVE
+stat: nose_hoover
+seed: 2041198044
+no_minimize: False
+NAME: xtal_bldr
+JOBNAME: xtal_bldr
+INTERAC: False
+PYTHON: 2
+CPU: [9]
+DEBUG: None
+force_field: SW
+JobStart: 10:20:11 08/22/2025
+...........................
+Data file written into xtal_bldr.data
+In script written into xtal_bldr.in
+Finished.
+10:20:11 08/22/2025

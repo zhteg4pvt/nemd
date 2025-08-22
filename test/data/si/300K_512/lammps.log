@@ -1,0 +1,14 @@
+..........Options..........
+inscript: xtal_bldr.in
+data_file: xtal_bldr.data
+NAME: lammps
+JOBNAME: lammps
+INTERAC: False
+PYTHON: 2
+CPU: [9]
+DEBUG: None
+JobStart: 10:04:26 08/22/2025
+...........................
+Running lammps simulations...
+Finished.
+10:11:06 08/22/2025
