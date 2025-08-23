@@ -1,0 +1,35 @@
+..........Options..........
+cru: *CC[*:1]
+cru_num: 50
+mol_num: 4000
+buffer: None
+density: 0.5
+method: grow
+substruct: None
+force_field: OPLSUA TIP3P
+timestep: 1
+stemp: 10
+temp: 300
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 1
+prod_time: 1
+prod_ens: NVE
+stat: nose_hoover
+seed: 1
+no_minimize: False
+NAME: Grown_[CC]50_Molecules
+JOBNAME: Grown_[CC]50_Molecules_4000
+INTERAC: False
+PYTHON: 2
+CPU: [1]
+DEBUG: None
+JobStart: 23:03:41 08/18/2025
+...........................
+Polymer SMILES: [C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C][C]
+Data file written into Grown_[CC]50_Molecules_4000.data
+In script written into Grown_[CC]50_Molecules_4000.in
+Peak memory usage: 4853.4815 MB
+Finished.
+23:43:11 08/18/2025
