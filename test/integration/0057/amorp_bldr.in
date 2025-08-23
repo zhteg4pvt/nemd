@@ -18,7 +18,7 @@ min_style fire
 minimize 1.0e-6 1.0e-6 1000000 10000000
 fix rigid all shake 0.0001 10 10000 b 1 a 1
 velocity all create 300 621781179
-fix 0a all temp/berendsen 300 300 100
+fix 0a all temp/berendsen 300 300 100.0
 fix 0b all nve
 run 1000000
 unfix 0a

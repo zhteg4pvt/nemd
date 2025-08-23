@@ -4,6 +4,7 @@
 Stillinger-Weber force field.
 """
 import functools
+import os
 
 from nemd import envutils
 
@@ -21,6 +22,11 @@ def get_file(*args):
     :return str: the force field pathname.
     """
     elements = set(args)
-    name = next((x for x, y in NAME_ELEMENTS.items() if y == elements), None)
-    if name:
-        return envutils.get_data('potentials', f'{name}.sw', module='lammps')
+    try:
+        name = next((x for x, y in NAME_ELEMENTS.items() if y == elements))
+    except StopIteration:
+        return
+    file = f'{name}.sw'
+    if os.path.exists(file):
+        return file
+    return envutils.get_data('potentials', file, module='lammps')

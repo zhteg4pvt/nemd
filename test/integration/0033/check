@@ -1,1 +1,2 @@
 nemd_check cmp crystal_builder.data crystal_builder.data
+nemd_check cmp crystal_builder.in crystal_builder.in

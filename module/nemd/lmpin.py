@@ -462,8 +462,8 @@ class RampUp(SinglePoint):
                                 modulus)
                     blk.nvt(nstep=nstep, stemp=stemp, temp=temp)
                 case self.NOSE_HOOVER:
-                    blk.fix_all('npt', 'temp', stemp, temp, self.options.tdamp,
-                                *args)
+                    blk.fix_all('npt', 'temp', stemp, temp,
+                                self.options.tdamp * self.getTimestep(), *args)
                     blk.run_step(nstep=nstep)
 
     def relaxation(self, modulus=10):
