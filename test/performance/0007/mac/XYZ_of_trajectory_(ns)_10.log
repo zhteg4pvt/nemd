@@ -1,0 +1,23 @@
+..........Options..........
+trj: /Users/tengzhang/git/nemd/test/data/hexane_xtc/amorp_bldr_10.xtc
+task: xyz
+data_file: /Users/tengzhang/git/nemd/test/data/hexane_xtc/amorp_bldr.data
+last_pct: 0.2
+slice: None
+sel: None
+timestep: 1
+NAME: XYZ_of_trajectory_(ns)
+JOBNAME: XYZ_of_trajectory_(ns)_10
+INTERAC: False
+PYTHON: 2
+CPU: [1]
+DEBUG: None
+JobStart: 15:28:33 08/23/2025
+...........................
+600 atoms selected.
+10001 trajectory frames found.
+{'xyz'} analyze all frames ∈ [8254.000, 18254.000] ps
+XYZ coordinates are written into XYZ_of_trajectory_(ns)_10_xyz.xyz
+Peak memory usage: 171.9337 MB
+Finished.
+15:28:49 08/23/2025
