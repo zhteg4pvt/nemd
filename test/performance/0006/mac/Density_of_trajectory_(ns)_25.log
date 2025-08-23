@@ -1,0 +1,25 @@
+..........Options..........
+trj: /Users/tengzhang/git/nemd/test/data/hexane_xtc/amorp_bldr_25.xtc
+task: density
+data_file: /Users/tengzhang/git/nemd/test/data/hexane_xtc/amorp_bldr.data
+last_pct: 0.2
+slice: None
+sel: None
+timestep: 1
+NAME: Density_of_trajectory_(ns)
+JOBNAME: Density_of_trajectory_(ns)_25
+INTERAC: False
+PYTHON: 2
+CPU: [1]
+DEBUG: None
+JobStart: 10:37:41 08/23/2025
+...........................
+600 atoms selected.
+25001 trajectory frames found.
+{'density'} analyze all frames ∈ [53264.000, 78264.000] ps
+Density data written into Density_of_trajectory_(ns)_25_density.csv
+Density: 0.6369 ± 1.11e-16 g/cm^3 ∈ [73265.0000, 78264.0000] ps
+Density figure saved as Density_of_trajectory_(ns)_25_density.png
+Peak memory usage: 316.2440 MB
+Finished.
+10:37:43 08/23/2025
