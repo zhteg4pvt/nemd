@@ -1,0 +1,34 @@
+..........Options..........
+traj: /Users/zhteg4/git/nemd/test/data/water/dump.custom.gz
+task: view rdf clash xyz msd
+data_file: None
+last_pct: 0.6
+slice: (0, 3, 1)
+sel: None
+NAME: lmp_traj
+JOBNAME: lmp_traj
+INTERAC: False
+PYTHON: 2
+CPU: None
+DEBUG: False
+JobStart: 10:54:23 04/08/2025
+...........................
+3 trajectory frames found.
+view, clash, xyz analyze all frames and save per frame results ∈ [0.000, 1.000] ps
+rdf, msd average results from last 60.0% frames ∈ [ 0.834,  1.000] ps
+Trajectory visualization data written into lmp_traj_view.html
+The volume fluctuates: [179.49 179.49] Å^3
+50%, [!n]
+100%
+Radial distribution function data written into lmp_traj_rdf.csv
+rdf peak (r): 86.10341311225868; rdf peak position (Å): 0.96
+Radial distribution function figure saved as lmp_traj_rdf.png
+Clash count data written into lmp_traj_clash.csv
+Clash: 6 ± 0 count ∈ [0.8340, 1.0000] ps
+Clash count figure saved as lmp_traj_clash.png
+XYZ coordinates are written into lmp_traj_xyz.xyz
+Mean squared displacement data written into lmp_traj_msd.csv
+4.115e-07 ± 0 cm^2/s (R-squared: 1.0000) linear fit of [0.0000 0.8340] ps
+Mean squared displacement figure saved as lmp_traj_msd.png
+Finished.
+10:54:25 04/08/2025

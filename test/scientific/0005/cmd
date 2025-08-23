@@ -1,0 +1,2 @@
+# Trajectory analyses on Si for RDF, Clash, and MSD
+nemd_run lmp_traj_driver.py $NEMD_SRC/test/data/si/300K_512/xtal_bldr_01.xtc -task rdf clash msd -last_pct 0.6
