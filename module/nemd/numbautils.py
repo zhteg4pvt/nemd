@@ -61,13 +61,15 @@ def msd(trj, gids, wt):
     :param trj np.ndarray: the trajectory.
     :param gids np.ndarray: the selected global atom ids.
     :param wt np.ndarray: the weight of each atom.
-    :return float: mean squared displacement of each tau.
+    :return np.ndarray: mean squared displacement of each tau.
     """
     wt /= sum(wt)
     for frm in trj:
         frm -= np.dot(wt, np.ascontiguousarray(frm))
     num = len(trj)
     wt = wt[gids] / wt[gids].sum()
-    for idx in range(1, num):
-        sq = np.square(trj[idx:, gids, :] - trj[:-idx, gids, :])
-        yield np.dot(wt, sq.sum(axis=2).sum(axis=0) / (num - idx))
+    data = np.zeros((num, ), dtype=np.float32)
+    for idx in range(num):
+        sq = np.square(trj[idx:, gids, :] - trj[:num - idx, gids, :])
+        data[idx] = np.dot(wt, sq.sum(axis=2).sum(axis=0) / (num - idx))
+    return data

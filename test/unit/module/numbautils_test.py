@@ -13,6 +13,11 @@ from nemd import pbc
 
 class TestFunc:
 
+    TRJ = np.array(
+        [[[1, 2, 3], [8, 9, 10], [6, 4, 1]], [[4, 5, 6], [6, 4, 1], [6, 4, 1]],
+         [[7, 8, 9], [6, 4, 1], [6, 4, 1]]],
+        dtype=np.float32)
+
     @pytest.fixture
     def cell(self, xyzs, span, cut):
         box = pbc.Box.fromParams(*span)
@@ -47,3 +52,12 @@ class TestFunc:
     def testNorms(self, dists, span, expected):
         norm = numbautils.norms(np.array(dists), np.array(span))
         np.testing.assert_almost_equal(norm, expected, decimal=4)
+
+    @pytest.mark.parametrize(
+        'gids,wt,expected', [([0, 1, 2], [1, 1, 1], [0., 23.555555, 69.77778]),
+                             ([0, 1], [1, 2, 1], [0., 29.9375, 92.25]),
+                             ([1], [1, 1, 1], [0., 38.11111, 103.55555])])
+    def testMsd(self, gids, wt, expected):
+        gids, wt = np.array(gids), np.array(wt, dtype=np.float32)
+        msd = numbautils.msd(self.TRJ, gids, wt)
+        np.testing.assert_almost_equal(msd, expected, 5)
