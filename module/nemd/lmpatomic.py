@@ -494,3 +494,12 @@ class Reader:
             match = rex.match(fh.readline())
         if match:
             return match.group(1)
+
+    @property
+    def weights(self):
+        """
+        The masses of every atom.
+
+        :return np.ndarray: the masses of every atom.
+        """
+        return self.masses.mass[self.atoms.type_id].to_numpy()

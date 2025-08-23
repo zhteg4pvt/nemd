@@ -54,22 +54,24 @@ def norms(vecs, span):
 
 
 @jit
-def msd(trj, gids, wt):
+def msd(trj, gids, wts):
     """
     Get the iterator of mean squared displacement.
 
     :param trj np.ndarray: the trajectory.
     :param gids np.ndarray: the selected global atom ids.
-    :param wt np.ndarray: the weight of each atom.
+    :param wts np.ndarray: the weight of each atom.
     :return np.ndarray: mean squared displacement of each tau.
     """
-    wt /= sum(wt)
+    wts = wts.astype(trj.dtype)
+    wts /= wts.sum()
     for frm in trj:
-        frm -= np.dot(wt, np.ascontiguousarray(frm))
+        frm -= np.dot(wts, np.ascontiguousarray(frm))
+    wts = wts[gids]
+    wts /= wts.sum()
     num = len(trj)
-    wt = wt[gids] / wt[gids].sum()
-    data = np.zeros((num, ), dtype=np.float32)
+    data = np.zeros(num, dtype=trj.dtype)
     for idx in range(num):
         sq = np.square(trj[idx:, gids, :] - trj[:num - idx, gids, :])
-        data[idx] = np.dot(wt, sq.sum(axis=2).sum(axis=0) / (num - idx))
+        data[idx] = np.dot(wts, sq.sum(axis=2).sum(axis=0) / (num - idx))
     return data

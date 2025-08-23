@@ -460,6 +460,7 @@ class Clash(Density):
             return
         self.data = pd.DataFrame()
         if self.jobs:
+            # Aggregating jobs that compute empty data without saving.
             return
 
         if len(self.gids) < 2:
@@ -604,7 +605,6 @@ class MSD(RDF):
         self.data = pd.DataFrame()
         if self.jobs:
             return
-
         if self.gids is None or not len(self.gids):
             self.warning("MSD requires least one atom selected.")
             return
@@ -613,14 +613,8 @@ class MSD(RDF):
             self.warning("Only one trajectory frame selected for MSD.")
             return
 
-        if self.rdr:
-            weights = self.rdr.masses.mass[
-                self.rdr.atoms.type_id].to_numpy().astype(np.float32)
-        else:
-            weights = np.ones((len(self.gids)), dtype=np.float32)
-
-        msd = numbautils.msd(np.array(self.trj.sel), self.gids, weights)
-        msd = np.fromiter(msd, np.float32, len(self.trj.sel))
+        wts = self.rdr.weights if self.rdr else np.ones(len(self.gids))
+        msd = numbautils.msd(np.array(self.trj.sel), self.gids, wts)
         num = len(msd)
         ps_time = self.trj.time[-num:]
         self.sidx = math.floor(num * spct)
@@ -745,7 +739,7 @@ class Agg(Base):
             return
 
         self.log(f"Aggregation Task: {self.Anlz.name}")
-        for parm, jobs in self.groups:
+        for idx, (parm, jobs) in enumerate(self.groups):
             if not parm.empty:
                 pstr = parm.to_csv(lineterminator=' ', sep='=', header=False)
                 self.log(f"Aggregation Parameters (num={len(jobs)}): {pstr}")
