@@ -1,0 +1,23 @@
+..........Options..........
+trj: /Users/tengzhang/git/nemd/test/data/hexane_xtc/amorp_bldr_05.xtc
+task: view
+data_file: /Users/tengzhang/git/nemd/test/data/hexane_xtc/amorp_bldr.data
+last_pct: 0.2
+slice: (None, 3000)
+sel: None
+timestep: 1
+NAME: View_of_frames_(n)
+JOBNAME: View_of_frames_(n)_3000
+INTERAC: False
+PYTHON: 2
+CPU: [1]
+DEBUG: None
+JobStart: 11:46:30 08/23/2025
+...........................
+600 atoms selected.
+3000 trajectory frames found.
+{'view'} analyze all frames ∈ [3254.000, 6253.000] ps
+Trajectory visualization are written into View_of_frames_(n)_3000_view.html
+Peak memory usage: 10651.4186 MB
+Finished.
+12:12:52 08/23/2025
