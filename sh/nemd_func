@@ -17,12 +17,14 @@ python() { python3.10 "$@"; }
 
 add_path()
 {
+  [ -z $1 ] && return
   echo $1 && [ -d "$1" ] && echo $PATH | grep -q "$1" && return
   export PATH="$1${PATH:+":$PATH"}"
 }
 
 add_pypath()
 {
+  [ -z $1 ] && return
   echo $1 && [ -d "$1" ] && echo $PYTHONPATH | grep -q "$1" && return
   export PYTHONPATH="$1${PYTHONPATH:+":$PYTHONPATH"}"
 }

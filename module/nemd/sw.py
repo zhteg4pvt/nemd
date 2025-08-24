@@ -29,4 +29,5 @@ def get_file(*args):
     file = f'{name}.sw'
     if os.path.exists(file):
         return file
-    return envutils.get_data('potentials', file, module='lammps')
+    if os.path.exists(envutils.get_data('potentials', file, module='lammps')):
+        return file
