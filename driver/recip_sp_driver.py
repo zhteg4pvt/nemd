@@ -355,8 +355,7 @@ class Parser(parserutils.Driver):
 
 
 if __name__ == "__main__":
-    parser = Parser(descr=__doc__)
-    options = parser.parse_args(sys.argv[1:])
+    options = Parser(descr=__doc__).parse_args(sys.argv[1:])
     with logutils.Script(options) as logger:
         recip_sp = RecipSp(options, logger=logger)
         recip_sp.run()

@@ -39,13 +39,8 @@ class Crystal(logutils.Base):
         jobutils.Job.reg(self.struct.script.outfile, file=True)
 
 
-def main(argv):
-    parser = parserutils.XtalBldr(descr=__doc__)
-    options = parser.parse_args(argv)
+if __name__ == "__main__":
+    options = parserutils.XtalBldr(descr=__doc__).parse_args(sys.argv[1:])
     with logutils.Script(options) as logger:
         crystal = Crystal(options, logger=logger)
         crystal.run()
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])

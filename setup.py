@@ -171,7 +171,6 @@ class Distribution(Installer):
     """
     Distribute the scripts, packages and data.
     """
-
     PARQUET = 'parquet'
     # Scripts to install under site-packages/bin
     SCRIPTS = ['sh', 'driver', 'workflow']
@@ -183,7 +182,7 @@ class Distribution(Installer):
         'matplotlib', 'plotly', 'crystals', 'numba', 'wurlitzer',
         'methodtools', 'fastparquet', 'lazy_import', 'tabulate', 'psutil',
         'mdtraj', 'yapf', 'isort', 'snakeviz', 'tuna', 'pytest',
-        'pytest-xdist', 'PyQt5'
+        'pytest-xdist', 'PyQt5', 'coverage'
     ]
     CLASSIFIERS = [
         'Development Status :: 5 - Production/Stable',

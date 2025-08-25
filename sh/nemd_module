@@ -14,7 +14,7 @@ dir=build
 case $1 in
   lmp)
     name=lammps
-    export LAMMPS_POTENTIALS=$(nemd_run -c "from nemd import envutils; print(envutils.get_data('potentials', module='lammps'))")
+    export LAMMPS_POTENTIALS=$(python -c "from nemd import envutils; print(envutils.get_data('potentials', module='lammps'))")
     ;;
   alm|anphon)
     name=alamode

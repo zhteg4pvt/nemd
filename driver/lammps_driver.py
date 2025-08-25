@@ -133,13 +133,8 @@ class Lammps(logutils.Base, process.Lmp):
         return args
 
 
-def main(argv):
-    parser = parserutils.Lammps(descr=__doc__)
-    options = parser.parse_args(argv)
+if __name__ == "__main__":
+    options = parserutils.Lammps(descr=__doc__).parse_args(sys.argv[1:])
     with logutils.Script(options) as logger:
         lmp = Lammps(options, logger=logger)
         lmp.run()
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])

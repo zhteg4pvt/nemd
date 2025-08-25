@@ -177,13 +177,8 @@ class Parser(parserutils.XtalBldr):
         parser.suppress(no_minimize=True, temp=0)
 
 
-def main(argv):
-    parser = Parser(descr=__doc__)
-    options = parser.parse_args(argv)
+if __name__ == "__main__":
+    options = Parser(descr=__doc__).parse_args(sys.argv[1:])
     with logutils.Script(options) as logger:
         dispersion = Dispersion(options, logger=logger)
         dispersion.run()
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])

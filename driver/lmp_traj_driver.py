@@ -95,13 +95,8 @@ class Traj(logutils.Base):
             anl.run()
 
 
-def main(argv):
-    parser = parserutils.LmpTraj(descr=__doc__)
-    options = parser.parse_args(argv)
+if __name__ == "__main__":
+    options = parserutils.LmpTraj(descr=__doc__).parse_args(sys.argv[1:])
     with logutils.Script(options, file=True) as logger:
         trj = Traj(options, logger=logger)
         trj.run()
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])

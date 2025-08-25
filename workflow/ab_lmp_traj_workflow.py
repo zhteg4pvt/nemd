@@ -42,13 +42,9 @@ class Parser(parserutils.Workflow):
         parserutils.LmpTraj.add(parser)
 
 
-def main(argv):
-    parser = Parser(descr=__doc__)
-    options = parser.parse_args(argv)
+if __name__ == "__main__":
+    argv = sys.argv[1:]
+    options = Parser(descr=__doc__).parse_args(argv)
     with logutils.Script(options, file=True) as logger:
         runner = Runner(options, argv, logger=logger)
         runner.run()
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])

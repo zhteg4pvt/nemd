@@ -96,13 +96,8 @@ class Amorphous(logutils.Base):
         jobutils.Job.reg(self.struct.script.outfile, file=True)
 
 
-def main(argv):
-    parser = parserutils.AmorpBldr(descr=__doc__)
-    options = parser.parse_args(argv)
+if __name__ == "__main__":
+    options = parserutils.AmorpBldr(descr=__doc__).parse_args(sys.argv[1:])
     with logutils.Script(options) as logger:
         cell = Amorphous(options, logger=logger)
         cell.run()
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
