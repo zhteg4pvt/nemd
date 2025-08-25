@@ -4,11 +4,18 @@
 Run coverage analysis and generate report.
 
 Usage:
-  nemd_cover source *_test.py
-  An empty argument runs module, driver, and workflow unittests.
+  nemd_cover
+  nemd_cover run --source=nemd.numbautils -m pytest $NEMD_SRC/test/unit/module/numbautils_test.py
+  nemd_cover html
 '
+. nemd_func
+[ -z $NEMD_SRC ] && add_pypath $(dirname $(which nemd_func))
+[ -z $NEMD_SRC ] || for SUB_DIR in 'driver' 'workflow'; do add_pypath $NEMD_SRC/$SUB_DIR/; done
+
 export PYTEST_ADDOPTS='-m ""'
 export COVERAGE_RCFILE=$NEMD_SRC/test/unit/.coveragerc
+
+[ $# != 0 ] && { coverage "$@"; exit $?; }
 
 [ -z "$NEMD_SRC" ] && echo "Please source premake" && return 1
 for NAME in "module" "driver" "workflow"
