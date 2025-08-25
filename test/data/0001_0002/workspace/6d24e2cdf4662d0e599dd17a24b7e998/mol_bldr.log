@@ -1,0 +1,32 @@
+..........Options..........
+cru: *CC[*:1]
+cru_num: 2
+mol_num: 1
+buffer: 44.0
+substruct: ('CCCC', 120.0)
+force_field: OPLSUA TIP3P
+timestep: 1
+stemp: 10
+temp: 0
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 0
+prod_time: 0
+prod_ens: NVE
+stat: nose_hoover
+seed: 12345
+no_minimize: False
+NAME: mol_bldr
+JOBNAME: mol_bldr
+INTERAC: False
+PYTHON: 2
+CPU: [3]
+DEBUG: None
+JobStart: 12:30:26 08/25/2025
+...........................
+Polymer SMILES: [C][C][C][C]
+Data file written into mol_bldr.data
+In script written into mol_bldr.in
+Finished.
+12:30:28 08/25/2025

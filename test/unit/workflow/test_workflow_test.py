@@ -1,3 +1,4 @@
+import glob
 import os
 
 import pytest
@@ -28,6 +29,17 @@ class TestRunner:
         runner.setJobs()
 
     @pytest.mark.parametrize('original,expected',
+                             [(['1'], (1, )),
+                              (['1', '2', '-copy'], (2, '0001', '0002'))])
+    def testOpenJobs(self, runner, expected, flow_opr):
+        runner.setProj()
+        runner.openJobs()
+        jobdirs = glob.glob('workspace/*')
+        copied = glob.glob('workspace/*/000*')
+        copied = sorted([os.path.basename(x) for x in copied])
+        assert expected == (len(jobdirs), *copied)
+
+    @pytest.mark.parametrize('original,expected',
                              [(['-name', 'integration'], 58),
                               (['-name', 'scientific'], 20),
                               (['-name', 'performance'], 11)])
@@ -44,14 +56,20 @@ class TestRunner:
         runner.run()
         runner.logger.log.assert_called_with(expected)
 
-    @pytest.mark.parametrize(
-        'original,expected',
-        [(['1', '-name', 'integration'], [True, 'test_agg', 0, 1]),
-         ([], [False, 'test_agg', 0, 1])])
-    def testSetAggs(self, runner, expected, check_flow):
+    @pytest.mark.parametrize('dirname', ['0001_0002'])
+    @pytest.mark.parametrize('original,expected',
+                             [(['1', '-name', 'integration', '-prj_path', '.'
+                                ], [True, 'test_agg', 0, 1]),
+                              (['-prj_path', '.'], [False, 'test_agg', 0, 1])])
+    def testSetAggs(self, runner, expected, check_flow, copied):
         runner.setAggs()
         assert expected[0] == bool(
             check_flow._OPERATION_FUNCTIONS[0][1]._flow_aggregate._select)
+        # This following runs the def select in the def setAggs. But signac
+        # cannot clear previous defined def select. (always run the fist filter)
+        runner.setAggProj()
+        runner.findJobs()
+        runner.runProj()
 
     @pytest.mark.parametrize('original', [[]])
     @pytest.mark.parametrize('dirname,expected', [('0001_cmd', 1),
@@ -72,17 +90,18 @@ class TestRunner:
 
 @pytest.mark.skipif(SRC is None, reason="test dir not found")
 class TestParser:
+    integration_SRC = envutils.get_src('test', 'integration')
 
     @pytest.fixture
     def parser(self):
         return workflow.Parser()
 
     @pytest.mark.parametrize('ekey', ['NEMD_SRC'])
-    @pytest.mark.parametrize('args,evalue,expected',
-                             [(['-name', 'integration'], SRC,
-                               envutils.get_src('test', 'integration')),
-                              (['-dirname', os.curdir], None, os.curdir),
-                              ([], None, SystemExit)])
+    @pytest.mark.parametrize(
+        'args,evalue,expected',
+        [(['-name', 'integration'], SRC, integration_SRC),
+         (['-dirname', os.curdir], None, os.curdir), ([], None, SystemExit),
+         (['9999', '-name', 'integration'], SRC, SystemExit)])
     def testParseArgs(self, parser, args, expected, env, raises):
         with raises:
             assert parser.parse_args(args).dirname.samefile(expected)

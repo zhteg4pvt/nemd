@@ -1,0 +1,24 @@
+..........Options..........
+id: 0001 0002
+name: integration
+dirname: /Users/zhteg4/git/nemd/test/integration
+slow: None
+label: None
+task: cmd
+copy: False
+NAME: test
+JOBNAME: test
+INTERAC: False
+PYTHON: 2
+CPU: [6]
+DEBUG: None
+jtype: task
+prj_path: None
+clean: False
+screen: off
+JobStart: 12:30:24 08/25/2025
+...........................
+2 / 2 completed jobs.
+2 / 2 succeed sub-jobs.
+Finished.
+12:30:28 08/25/2025
