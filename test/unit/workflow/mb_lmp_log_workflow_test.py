@@ -19,10 +19,10 @@ class TestRunner:
 
     @pytest.mark.parametrize(
         'original,expected',
-        [(['CCC', '-struct_rg', 'CC'], ['CC']),
+        [(['CCC'], None), (['CCC', '-struct_rg', 'CC'], ['CC']),
          (['CCC', '-struct_rg', 'CC', '1', '2', '0.5'], ['CC 1.0', 'CC 1.5'])])
     def testState(self, runner, expected):
-        assert expected == runner.state['-substruct']
+        assert expected == runner.state.get('-substruct')
 
     @pytest.mark.parametrize('original,expected',
                              [(['CCC'], ['lmp_log_agg', 'time_agg', 0, 2])])
@@ -40,7 +40,7 @@ class TestParser:
         'args,expected',
         [(['CCC', '-struct_rg', 'CC', '1', '2', '0.5'], ('CC', 1.0, 2.0, 0.5)),
          (['CCC', '-struct_rg', 'CC'], ('CC', )),
-         (['CCC', '-struct_rg', '0.9', '1.2'], SystemExit)])
+         (['CCC', '-struct_rg', 'CC', '1', '2'], SystemExit)])
     def testParseArgs(self, parser, args, expected, raises):
         with raises:
             options = parser.parse_args(args)

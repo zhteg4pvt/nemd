@@ -63,21 +63,20 @@ class Action(parserutils.StructAction):
     Customized for a smile string (followed by START END, and STEP).
     """
 
-    def doTyping(self, smiles, start=None, *args):
+    def doTyping(self, smiles, *args):
         """
         Check the validity of the smiles string and the range.
 
         :param smiles str: the smiles str to select a substructure.
-        :param start str: the start to define a range.
-        :param args tuple: the end to and step to define a range.
+        :param args tuple: the start, end, and step to define a range.
         :return tuple: the smiles str, (start, end, and step).
         """
-        typed = super().doTyping(smiles, start)
-        if start is None:
+        typed = super().doTyping(smiles, *args[:1])
+        if not args:
             return typed
-        if len(args) not in (1, 2):
+        if len(args) != 3:
             self.error('expected 4 arguments')
-        return (*typed, *[parserutils.type_float(x) for x in args])
+        return (*typed, *[parserutils.type_float(x) for x in args[1:]])
 
 
 class Parser(parserutils.Workflow):
