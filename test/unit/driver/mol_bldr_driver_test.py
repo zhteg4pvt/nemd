@@ -13,6 +13,12 @@ class TestSingle:
         options = parserutils.MolBldr().parse_args(argv)
         return driver.Single(options, logger=logger)
 
+    @pytest.mark.parametrize("argv", [(['*C*', '-cru_num', '4'])])
+    def testRun(self, single, argv, tmp_dir):
+        single.run()
+        assert os.path.exists(single.struct.script.outfile)
+        assert os.path.exists(single.struct.outfile)
+
     @pytest.mark.parametrize("argv,expected", [(['[Ar]'], 1),
                                                (['*C*', '-cru_num', '4'], 4)])
     def testSetMol(self, single, expected):
