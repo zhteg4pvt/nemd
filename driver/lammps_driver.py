@@ -30,8 +30,6 @@ class Lammps(logutils.Base, process.Lmp):
                              infile=os.path.basename(self.options.inscript),
                              jobname=f"{self.options.JOBNAME}_lmp")
         jobutils.Job.reg(self.logfile, file=True)
-        if self.options.CPU is None:
-            return
         self.env = {'OMP_NUM_THREADS': str(self.options.CPU[0]), **os.environ}
 
     def setUp(self, data=re.compile(rf"{lmpin.Script.READ_DATA}\s+(\S+)")):
@@ -93,8 +91,6 @@ class Lammps(logutils.Base, process.Lmp):
         if not match or os.path.isfile(match.group(1)):
             return
         pathname = self.parent / match.group(1)
-        if not pathname.is_file():
-            return
         sid, eid = match.span(1)
         self.cont = self.cont[:sid] + str(pathname) + self.cont[eid:]
 
@@ -113,12 +109,12 @@ class Lammps(logutils.Base, process.Lmp):
         """
         self.log('Running lammps simulations...')
         proc = super().run()
-        if not proc.returncode:
-            return proc
-        # FIXME: the message by error->one (src/input.cpp:666) not in either stdout or stderr
-        with open(self.logfile, 'r') as fh:
-            cont = rex.finditer(fh.read())
-            self.error('\n'.join(x.group(1) for x in cont))
+        if proc.returncode:
+            # FIXME: the message by error->one (src/input.cpp:666) not in either stdout or stderr
+            with open(self.logfile, 'r') as fh:
+                cont = rex.finditer(fh.read())
+                self.error('\n'.join(x.group(1) for x in cont))
+        return proc
 
     @functools.cached_property
     def args(self):

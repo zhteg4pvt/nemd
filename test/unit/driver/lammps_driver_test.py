@@ -15,6 +15,8 @@ class TestLammps:
     SI_DIR = envutils.test_data('si')
     SI_IN = os.path.join(SI_DIR, 'crystal_builder.in')
     AR_IN = envutils.test_data('ar', 'ar100.in')
+    EMPTY_IN = envutils.test_data('ar', 'empty.in')
+    WRONG_IN = envutils.test_data('ar', 'error.in')
 
     @pytest.fixture
     def raw(self, args, logger, tmp_dir):
@@ -65,12 +67,17 @@ class TestLammps:
     def testCont(self, raw, expected):
         assert expected == len(raw.cont.split('\n'))
 
+    @pytest.mark.parametrize('dirname', ['he'])
     @pytest.mark.parametrize('args,expected', [([SI_IN], True),
-                                               ([AR_IN], True)])
-    def testAddPath(self, raw, expected):
-        raw.addPath(re.compile(r"read_data\s+(\S+)"))
-        data_file = re.search(r"read_data\s+(\S+)", raw.cont).group(1)
-        assert expected == os.path.isabs(data_file)
+                                               ([AR_IN], True),
+                                               ([EMPTY_IN], None),
+                                               (['mol_bldr.in'], False)])
+    def testAddPath(self, args, expected, logger, copied):
+        options = parserutils.Lammps().parse_args(args)
+        lmp = driver.Lammps(options, logger=logger)
+        lmp.addPath(re.compile(r"read_data\s+(\S+)"))
+        match = re.search(r"read_data\s+(\S+)", lmp.cont)
+        assert expected == (match and os.path.isabs(match.group(1)))
 
     @pytest.mark.parametrize('args,expected',
                              [([SI_IN], 'crystal_builder.in')])
@@ -78,9 +85,14 @@ class TestLammps:
         raw.write()
         assert os.path.exists(expected)
 
-    @pytest.mark.parametrize('args,expected', [([SI_IN], 0)])
-    def testRun(self, raw, expected):
-        assert expected == raw.run().returncode
+    @pytest.mark.parametrize(
+        'args,expected',
+        [([SI_IN], None), ([EMPTY_IN], None),
+         ([WRONG_IN], 'Unknown command: error (src/input.cpp:314)')])
+    def testRun(self, raw, expected, called):
+        raw.error = called
+        proc = raw.run()
+        assert bool(expected) == bool(proc.returncode)
 
     @pytest.mark.parametrize('args', [[SI_IN]])
     @pytest.mark.parametrize('returncode,expected', [(0, 11), (1, 6)])

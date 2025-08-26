@@ -1,0 +1,32 @@
+..........Options..........
+cru: [He]
+cru_num: 1
+mol_num: 1
+buffer: 44.0
+substruct: None
+force_field: OPLSUA TIP3P
+timestep: 1
+stemp: 10
+temp: 0
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 0
+prod_time: 0
+prod_ens: NVE
+stat: nose_hoover
+seed: 334976314
+no_minimize: False
+NAME: mol_bldr
+JOBNAME: mol_bldr
+INTERAC: False
+PYTHON: 2
+CPU: [6]
+DEBUG: None
+JobStart: 11:25:40 08/26/2025
+...........................
+[11:25:41] UFFTYPER: Unrecognized atom type: He+4 (0)
+Data file written into mol_bldr.data
+In script written into mol_bldr.in
+Finished.
+11:25:42 08/26/2025

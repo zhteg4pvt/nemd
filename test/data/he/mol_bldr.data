@@ -18,7 +18,7 @@ LAMMPS Description # full
 
 Masses
 
-1 4.0030 # Helium Atom He 209 #
+1 4.0030 # He Helium Atom 209 #
 
 Pair Coeffs
 
@@ -26,5 +26,5 @@ Pair Coeffs
 
 Atoms
 
-1 1 1 0.0000 -0.8291 -1.5734 0.9904
+1 1 1 0.0000 0.0000 0.0000 0.0000
 
