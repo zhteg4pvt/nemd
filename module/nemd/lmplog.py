@@ -114,6 +114,8 @@ class Thermo(pd.DataFrame):
         """
         Set up.
         """
+        if self.empty:
+            return
         self.set_index('Step', inplace=True)
         self.index *= self.timestep
         self.index.name = f"{symbols.TIME_LB} ({self.idx})"

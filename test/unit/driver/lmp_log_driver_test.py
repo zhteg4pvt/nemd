@@ -12,6 +12,7 @@ from nemd import parserutils
 class TestLmpLog:
 
     LOG = envutils.test_data('ar', 'lammps.log')
+    EMPTY = envutils.test_data('ar', 'empty.log')
     DATA = envutils.test_data('ar', 'ar100.data')
     NO_VOL = envutils.test_data('0046_test', 'workspace',
                                 '67f59ab2eb89dab89c2f1b16e4fc1776',
@@ -19,9 +20,17 @@ class TestLmpLog:
 
     @pytest.fixture
     def lmplog(self, args, logger):
-        args = jobutils.Args(args).set('-JOBNAME', 'anme')
+        args = jobutils.Args(args).set('-JOBNAME', 'name')
         options = parserutils.LmpLog().parse_args(args)
         return driver.LmpLog(options, logger=logger)
+
+    @pytest.mark.parametrize("args,expected",
+                             [([LOG], 'name_toteng'),
+                              ([LOG, '-task', 'e_pair'], 'name_e_pair')])
+    def testRun(self, lmplog, expected, tmp_dir):
+        lmplog.run()
+        assert os.path.exists(f'{expected}.csv')
+        assert os.path.exists(f'{expected}.png')
 
     @pytest.mark.parametrize("args,expected",
                              [([LOG], None),
@@ -30,10 +39,12 @@ class TestLmpLog:
         lmplog.setStruct()
         assert expected == (lmplog.rdr.atoms.shape if expected else lmplog.rdr)
 
-    @pytest.mark.parametrize("args,expected", [([LOG], 264)])
-    def testSetThermo(self, lmplog, expected):
-        lmplog.setThermo()
-        assert expected == lmplog.thermo.shape[0]
+    @pytest.mark.parametrize("args,expected", [([LOG], 264),
+                                               ([EMPTY], SystemExit)])
+    def testSetThermo(self, lmplog, expected, raises):
+        with raises:
+            lmplog.setThermo()
+            assert expected == lmplog.thermo.shape[0]
 
     @mock.patch('nemd.logutils.Base.error', side_effect=ValueError)
     @mock.patch('nemd.logutils.Base.warning')
