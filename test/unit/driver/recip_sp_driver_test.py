@@ -18,6 +18,10 @@ class TestRecipSp:
         options = driver.Parser().parse_args(args)
         return driver.RecipSp(options, logger=logger)
 
+    def testRun(self, recip_sp):
+        recip_sp.run()
+        assert os.path.isfile(recip_sp.outfile)
+
     def testSetReal(self, recip_sp):
         recip_sp.setReal()
         np.testing.assert_almost_equal([[1.5, 0.8660254], [1.5, -0.8660254]],
@@ -35,8 +39,8 @@ class TestRecipSp:
         recip_sp.setRecip()
         recip_sp.product()
         recip_sp.logger.log.assert_called_with(
-            'The real and reciprocal vectors are parallel to each other with '
-            '2π being the dot product.')
+            'The real and reciprocal are parallel with 2π being the dot product.'
+        )
 
     def testPlot(self, recip_sp):
         recip_sp.setReal()
@@ -125,7 +129,10 @@ class TestRecip:
     def testLim(self, recip, expected):
         np.testing.assert_almost_equal(expected, recip.lim)
 
-    @pytest.mark.parametrize('args,expected', [([], (13, 13, 2))])
+    @pytest.mark.parametrize('args,expected',
+                             [([], (13, 13, 2)),
+                              (['-miller', '-5', '-5'], (23, 23, 2)),
+                              (['-miller', '5', '-5'], (23, 23, 2))])
     def testMeshed(self, recip, expected):
         assert expected == recip.meshed.shape
 

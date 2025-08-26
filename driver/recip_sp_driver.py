@@ -100,29 +100,27 @@ class Recip(logutils.Base):
         return pnts[(larger & smaller).all(axis=1)]
 
     @functools.cached_property
-    def lim(self):
+    def lim(self, indices=(-1, None)):
         """
         Return the rectangular limit.
 
         :return np.ndarray: left-bottom & right-upper rectangular vertices.
         """
-        line = self.meshed[-1, :]
-        dist = np.linalg.norm(line, axis=1).min()
-        if dist > np.linalg.norm(self.meshed[:, -1], axis=1).min():
-            line = self.meshed[:, -1]
+        line = np.concatenate([self.meshed[-1, :], self.meshed[:, -1]])
         point = np.abs(line[np.abs(line.prod(axis=1)).argmax()])
         return np.array([-point, point]).T
 
     @functools.cached_property
-    def meshed(self, num=5):
+    def meshed(self, num=5, func=lambda x: sum(map(abs, x))):
         """
         Return the meshed scaled lattice vectors.
 
         :param num int: the minimum number of duplicates along each lattice vec.
+        :param func func: the function to apply to lattice vecs.
         :return np.ndarray: meshed points.
         """
-        recip = sum([np.reciprocal(x) for x in self.options.miller if x])
-        num = math.ceil(max(recip, sum(self.options.miller), num)) + 1
+        recip = func([np.reciprocal(x) for x in self.options.miller if x])
+        num = math.ceil(max(recip, func(self.options.miller), num)) + 1
         xi = range(-num, num + 1)
         meshed = np.stack(np.meshgrid(xi, xi, indexing='ij'), axis=-1)
         # The last dimension of meshed (coefficients) and dots with self.lat.T
@@ -137,8 +135,6 @@ class Recip(logutils.Base):
         :param fmt 'str': the label text format.
         :param color 'r': the color of the quiver and annotation.
         """
-        if not any(vec) or np.isinf(vec).any():
-            return
         qv = self.ax.quiver(*self.origin,
                             *vec,
                             color=color,
@@ -300,13 +296,11 @@ class RecipSp(logutils.Base):
         """
         Log cross and doc product.
         """
-        cross = np.cross(self.real.vec, self.recip.vec)
+        crs = np.cross(self.real.vec, self.recip.vec) / np.pi
         dot = np.dot(self.real.vec, self.recip.vec) / np.pi
-        if np.isclose(cross, 0):
-            self.log(f"The real and reciprocal vectors are parallel to each "
-                     f"other with {dot:.4g}π being the dot product.")
-            return
-        self.log(f"The cross product: {cross}; The dot product: {dot}π")
+        self.log(f"The real and reciprocal are parallel with {dot:.4g}π being "
+                 f"the dot product." if np.isclose(crs, 0) else
+                 f"The cross product: {crs:.4g}π; The dot product: {dot:.4g}π")
 
     def plot(self):
         """
