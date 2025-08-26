@@ -39,6 +39,11 @@ class TestDispersion:
         options = driver.Parser().parse_args(args)
         return driver.Dispersion(options, logger=logger)
 
+    @pytest.mark.parametrize("args,expected", [(ARGS, 'dispersion.png')])
+    def testRun(self, disp, expected):
+        disp.run()
+        assert os.path.exists(expected)
+
     @pytest.mark.parametrize("args,expected",
                              [(ARGS, (160.16, 8)),
                               ([*ARGS, '-scale_factor', '1.1'], (213.18, 8)),
