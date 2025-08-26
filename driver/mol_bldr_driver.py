@@ -3,8 +3,6 @@
 """
 This driver builds a single molecule.
 """
-import sys
-
 from nemd import jobutils
 from nemd import logutils
 from nemd import parserutils
@@ -80,7 +78,4 @@ class Single(logutils.Base):
 
 
 if __name__ == "__main__":
-    options = parserutils.MolBldr(descr=__doc__).parse_args(sys.argv[1:])
-    with logutils.Script(options) as logger:
-        cell = Single(options, logger=logger)
-        cell.run()
+    logutils.Script.run(Single, parserutils.MolBldr(descr=__doc__))

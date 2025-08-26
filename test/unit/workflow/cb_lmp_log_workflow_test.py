@@ -6,25 +6,25 @@ import pytest
 class TestRunner:
 
     @pytest.fixture
-    def runner(self, original, logger):
-        options = workflow.Parser().parse_args(original)
+    def runner(self, args, logger):
+        options = workflow.Parser().parse_args(args)
         return workflow.Runner(options=options,
-                               original=original,
+                               args=args,
                                logger=logger)
 
     @pytest.mark.parametrize(
-        'original,expected',
+        'args,expected',
         [([], ['crystal_builder', 'lammps_runner', 'lmp_log', 2, 3])])
     def testSetJobs(self, runner, check_flow):
         runner.setJobs()
 
-    @pytest.mark.parametrize('original,expected', [
+    @pytest.mark.parametrize('args,expected', [
         (['-scale_range', '0.95', '1.05', '5'], [0.95, 0.975, 1., 1.025, 1.05])
     ])
     def testState(self, runner, expected):
         np.testing.assert_almost_equal(runner.state['-scale_factor'], expected)
 
-    @pytest.mark.parametrize('original,expected',
+    @pytest.mark.parametrize('args,expected',
                              [([], ['lmp_log_agg', 'time_agg', 0, 2])])
     def testSetAggs(self, runner, expected, check_flow):
         runner.setAggs()

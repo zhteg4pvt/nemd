@@ -4,7 +4,6 @@
 Runs molecule builder, lammps simulation, and log analyzer.
 """
 import functools
-import sys
 
 import numpy as np
 
@@ -105,8 +104,4 @@ class Parser(parserutils.Workflow):
 
 
 if __name__ == "__main__":
-    argv = sys.argv[1:]
-    options = Parser(descr=__doc__).parse_args(argv)
-    with logutils.Script(options, file=True) as logger:
-        runner = Runner(options, argv, logger=logger)
-        runner.run()
+    logutils.Script.run(Runner, Parser(descr=__doc__))

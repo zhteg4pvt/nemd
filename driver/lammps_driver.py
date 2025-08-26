@@ -7,7 +7,6 @@ import functools
 import os
 import pathlib
 import re
-import sys
 
 from nemd import jobutils
 from nemd import lmpin
@@ -130,7 +129,4 @@ class Lammps(logutils.Base, process.Lmp):
 
 
 if __name__ == "__main__":
-    options = parserutils.Lammps(descr=__doc__).parse_args(sys.argv[1:])
-    with logutils.Script(options) as logger:
-        lmp = Lammps(options, logger=logger)
-        lmp.run()
+    logutils.Script.run(Lammps, parserutils.Lammps(descr=__doc__))

@@ -11,6 +11,7 @@ This class handles jobs and aggregators:
     7) execute the operators
     8) log the status and message.
 """
+import sys
 import functools
 import itertools
 import math
@@ -38,19 +39,18 @@ class Runner(logutils.Base):
     PREREQ = taskbase.Agg.PREREQ
     FLAG_SEED = jobutils.FLAG_SEED
 
-    def __init__(self, options, original, **kwargs):
+    def __init__(self, options, args=None, **kwargs):
         """
         :param options 'argparse.Namespace': parsed commandline options
-        :param original list: list of commandline arguments
+        :param args list: list of commandline arguments
         """
         super().__init__(options=options, **kwargs)
-        self.original = original
         self.proj = None
         self.prereq = {}
         self.oprs = []
         self.jobs = []
         self.status = taskbase.Status(dict, name=self.options.JOBNAME)
-        self.args = jobutils.Args(self.original)
+        self.args = jobutils.Args(sys.argv[1:] if args is None else args)
         # flow/project.py gets logger from logging.getLogger(__name__)
         logutils.Logger.get('flow.project')
 

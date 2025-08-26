@@ -3,8 +3,6 @@
 """
 This driver analyzes a lammps log file.
 """
-import sys
-
 from nemd import analyzer
 from nemd import lmpfull
 from nemd import lmplog
@@ -83,7 +81,4 @@ class LmpLog(logutils.Base):
 
 
 if __name__ == "__main__":
-    options = parserutils.LmpLog(descr=__doc__).parse_args(sys.argv[1:])
-    with logutils.Script(options, file=True) as logger:
-        log = LmpLog(options, logger=logger)
-        log.run()
+    logutils.Script.run(LmpLog, parserutils.LmpLog(descr=__doc__))

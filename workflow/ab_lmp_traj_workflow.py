@@ -5,8 +5,6 @@
 """
 Run amorphous builder, lammps simulation, and trajectory analyser.
 """
-import sys
-
 from nemd import jobcontrol
 from nemd import logutils
 from nemd import parserutils
@@ -14,6 +12,9 @@ from nemd import task
 
 
 class Runner(jobcontrol.Runner):
+    """
+    Customized for amorphous builder, lammps runner, and trajector analyzer tasks.
+    """
 
     def setJobs(self):
         """
@@ -43,8 +44,4 @@ class Parser(parserutils.Workflow):
 
 
 if __name__ == "__main__":
-    argv = sys.argv[1:]
-    options = Parser(descr=__doc__).parse_args(argv)
-    with logutils.Script(options, file=True) as logger:
-        runner = Runner(options, argv, logger=logger)
-        runner.run()
+    logutils.Script.run(Runner, Parser(descr=__doc__))

@@ -3,8 +3,6 @@
 """
 This driver builds a crystal.
 """
-import sys
-
 from nemd import jobutils
 from nemd import lmpatomic
 from nemd import logutils
@@ -40,7 +38,4 @@ class Crystal(logutils.Base):
 
 
 if __name__ == "__main__":
-    options = parserutils.XtalBldr(descr=__doc__).parse_args(sys.argv[1:])
-    with logutils.Script(options) as logger:
-        crystal = Crystal(options, logger=logger)
-        crystal.run()
+    logutils.Script.run(Crystal, parserutils.XtalBldr(descr=__doc__))

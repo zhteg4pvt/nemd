@@ -5,7 +5,6 @@ Calculate and visualize 2D lattice in the real and reciprocal spaces.
 """
 import functools
 import math
-import sys
 
 import numpy as np
 import pandas as pd
@@ -349,7 +348,4 @@ class Parser(parserutils.Driver):
 
 
 if __name__ == "__main__":
-    options = Parser(descr=__doc__).parse_args(sys.argv[1:])
-    with logutils.Script(options) as logger:
-        recip_sp = RecipSp(options, logger=logger)
-        recip_sp.run()
+    logutils.Script.run(RecipSp, Parser(descr=__doc__))

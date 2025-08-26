@@ -6,8 +6,6 @@
 This amorphous builder driver builds polymers from constitutional repeat units,
 and packs molecules as an amorphous cell.
 """
-import sys
-
 from nemd import jobutils
 from nemd import logutils
 from nemd import parserutils
@@ -97,7 +95,4 @@ class Amorphous(logutils.Base):
 
 
 if __name__ == "__main__":
-    options = parserutils.AmorpBldr(descr=__doc__).parse_args(sys.argv[1:])
-    with logutils.Script(options) as logger:
-        cell = Amorphous(options, logger=logger)
-        cell.run()
+    logutils.Script.run(Amorphous,parserutils.AmorpBldr(descr=__doc__))

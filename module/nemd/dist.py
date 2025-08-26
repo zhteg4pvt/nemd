@@ -278,14 +278,12 @@ class Frame(frame.Base):
                  cut=None,
                  struct=None,
                  srch=None,
-                 delay=False,
                  **kwargs):
         """
         :param gids list: global atom ids to analyze
         :param cut float: the cutoff distance to search neighbors
         :param struct 'Struct' or 'Reader': radii and excluded pairs
         :param srch: whether to use distance cell to search neighbors
-        :param delay: delay the setup if True
         """
         super().__init__(*args, **kwargs)
         self.gids = numpyutils.IntArray(shape=self.shape[0], on=gids)
@@ -295,8 +293,6 @@ class Frame(frame.Base):
         self.cell = None
         self._radii = None
         self._excl = None
-        if delay:
-            return
         self.setUp()
 
     def setUp(self):

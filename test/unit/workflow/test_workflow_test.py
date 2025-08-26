@@ -13,14 +13,14 @@ SRC = envutils.get_src()
 class TestRunner:
 
     @pytest.fixture
-    def runner(self, original, logger, tmp_dir):
-        options = workflow.Parser().parse_args(original + ['-CPU', '1'])
+    def runner(self, args, logger, tmp_dir):
+        options = workflow.Parser().parse_args(args + ['-CPU', '1'])
         return workflow.Runner(options=options,
-                               original=original,
+                               args=args,
                                logger=logger)
 
     @pytest.mark.parametrize(
-        'original,expected',
+        'args,expected',
         [(['-task', 'cmd', 'check'], ['cmd', 'check', 1, 2]),
          (['-task', 'cmd'], ['cmd', 0, 1]),
          (['-task', 'check'], ['check', 0, 1]),
@@ -28,7 +28,7 @@ class TestRunner:
     def testSetJobs(self, runner, check_flow):
         runner.setJobs()
 
-    @pytest.mark.parametrize('original,expected',
+    @pytest.mark.parametrize('args,expected',
                              [(['1'], (1, )),
                               (['1', '2', '-copy'], (2, '0001', '0002'))])
     def testOpenJobs(self, runner, expected, flow_opr):
@@ -39,14 +39,14 @@ class TestRunner:
         copied = sorted([os.path.basename(x) for x in copied])
         assert expected == (len(jobdirs), *copied)
 
-    @pytest.mark.parametrize('original,expected',
+    @pytest.mark.parametrize('args,expected',
                              [(['-name', 'integration'], 58),
                               (['-name', 'scientific'], 20),
                               (['-name', 'performance'], 11)])
     def testNames(self, runner, expected):
         assert expected == len(runner.names)
 
-    @pytest.mark.parametrize('original,expected', [
+    @pytest.mark.parametrize('args,expected', [
         (['1', '-name', 'integration', '-jtype', 'task'
           ], '2 / 2 succeed sub-jobs.'),
         (['1', '-dirname',
@@ -57,7 +57,7 @@ class TestRunner:
         runner.logger.log.assert_called_with(expected)
 
     @pytest.mark.parametrize('dirname', ['0001_0002'])
-    @pytest.mark.parametrize('original,expected',
+    @pytest.mark.parametrize('args,expected',
                              [(['1', '-name', 'integration', '-prj_path', '.'
                                 ], [True, 'test_agg', 0, 1]),
                               (['-prj_path', '.'], [False, 'test_agg', 0, 1])])
@@ -71,7 +71,7 @@ class TestRunner:
         runner.findJobs()
         runner.runProj()
 
-    @pytest.mark.parametrize('original', [[]])
+    @pytest.mark.parametrize('args', [[]])
     @pytest.mark.parametrize('dirname,expected', [('0001_cmd', 1),
                                                   ('empty', SystemExit)])
     def testSetAggProj(self, runner, expected, copied, raises):
@@ -79,7 +79,7 @@ class TestRunner:
             runner.setAggProj()
             assert expected == len(runner.proj.find_jobs())
 
-    @pytest.mark.parametrize('original,dirname,expected',
+    @pytest.mark.parametrize('args,dirname,expected',
                              [(['1'], '0001_cmd', 1), (['2'], '0001_cmd', 0),
                               (['2', '1'], '0001_cmd', 1)])
     def testFindJobs(self, runner, expected, copied):

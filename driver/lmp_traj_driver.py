@@ -5,8 +5,6 @@
 """
 This driver analyzes a lammps trajectory.
 """
-import sys
-
 from nemd import analyzer
 from nemd import lmpfull
 from nemd import logutils
@@ -96,7 +94,4 @@ class Traj(logutils.Base):
 
 
 if __name__ == "__main__":
-    options = parserutils.LmpTraj(descr=__doc__).parse_args(sys.argv[1:])
-    with logutils.Script(options, file=True) as logger:
-        trj = Traj(options, logger=logger)
-        trj.run()
+    logutils.Script.run(Traj, parserutils.LmpTraj(descr=__doc__))

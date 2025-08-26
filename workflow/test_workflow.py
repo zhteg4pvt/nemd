@@ -16,7 +16,6 @@ import functools
 import os
 import pathlib
 import shutil
-import sys
 
 import flow
 
@@ -200,8 +199,4 @@ class Parser(parserutils.Workflow):
 
 
 if __name__ == "__main__":
-    argv = sys.argv[1:]
-    options = Parser(descr=__doc__).parse_args(argv)
-    with logutils.Script(options, file=True) as logger:
-        obj = Runner(options, argv, logger=logger)
-        obj.run()
+    logutils.Script.run(Runner, Parser(descr=__doc__))

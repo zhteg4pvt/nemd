@@ -5,8 +5,6 @@ This driver calculates dispersion by building crystal, searching symmetries,
 displacing atoms, deriving force constants, meshing the K-space, and calculating
 vibrational frequencies.
 """
-import sys
-
 import numpy as np
 import pandas as pd
 
@@ -178,7 +176,4 @@ class Parser(parserutils.XtalBldr):
 
 
 if __name__ == "__main__":
-    options = Parser(descr=__doc__).parse_args(sys.argv[1:])
-    with logutils.Script(options) as logger:
-        dispersion = Dispersion(options, logger=logger)
-        dispersion.run()
+    logutils.Script.run(Dispersion, Parser(descr=__doc__))

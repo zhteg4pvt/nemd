@@ -261,6 +261,19 @@ class Script:
         self.logger.log(traceback.format_exc(), timestamp=True)
         raise exc_val
 
+    @classmethod
+    def run(cls, Main, parser, **kwargs):
+        """
+        Parse the command line arguments and run the main class.
+
+        :param Main 'type': the main class to run.
+        :param parser nemd.parserutils.Parser: the parser to use.
+        """
+        options = parser.parse_args(sys.argv[1:])
+        with cls(options, **kwargs) as logger:
+            main = Main(options, logger=logger)
+            main.run()
+
 
 class Reader:
     """
