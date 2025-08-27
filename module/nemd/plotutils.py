@@ -7,6 +7,7 @@
 This module provides plot utilities.
 """
 import contextlib
+import platform
 
 
 @contextlib.contextmanager
@@ -20,21 +21,16 @@ def pyplot(inav=False, name='the plot'):
     """
     import matplotlib
     obackend = matplotlib.get_backend()
-    matplotlib.use('qt5agg' if inav else 'Agg')
+    match platform.system():
+        case 'Darwin':
+            backend = 'macosx'
+        case 'Linux':  # pragma: no darwin
+            backend = 'qt5agg'
+    matplotlib.use(backend)
     from matplotlib import pyplot as plt
-    try:
-        yield plt
-    except Exception as err:
-        raise err
-    else:
-        if inav:
-            print(f"Showing {name}. Click X to close and continue..")
-            plt.show(block=True)
-        plt.close('all')
-    finally:
-        try:
-            matplotlib.use(obackend)
-        except ImportError:
-            # Cannot load backend 'macosx' which requires the 'macosx'
-            # interactive framework, as 'qt' is currently running
-            pass
+    yield plt
+    if inav:
+        print(f"Showing {name}. Click X to close and continue..")
+        plt.show(block=True)
+    plt.close('all')
+    matplotlib.use(obackend)

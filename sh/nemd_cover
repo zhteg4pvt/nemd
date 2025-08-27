@@ -14,6 +14,7 @@ Usage:
 
 export PYTEST_ADDOPTS='-m ""'
 export COVERAGE_RCFILE=$NEMD_SRC/test/unit/.coveragerc
+export PLATFORM=$(python -c "import platform; print(platform.system().lower())")
 
 [ $# != 0 ] && { coverage "$@"; exit $?; }
 
