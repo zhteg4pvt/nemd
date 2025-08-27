@@ -148,9 +148,9 @@ class Traj(list):
         """
         if self.start is not None:
             return
+        self.start = 0
         if self.file.endswith(symbols.XTC_EXT) or self.options is None or \
                 self.options.slice:
-            self.start = 0
             return
         # No all-frame tasks found, only last frames are fully read.
         proc = subprocess.Popen(self.STEP_CMD.format(file=self.file),

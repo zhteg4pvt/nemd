@@ -61,30 +61,36 @@ class TestTraj:
     HEX = envutils.test_data('hexane_liquid')
     FRM = os.path.join(HEX, 'dump.custom')
     GZ = os.path.join(HEX, 'dump.custom.gz')
+    EMPTY = envutils.test_data('ar', 'empty.custom')
+    ONE = envutils.test_data('ar', 'one_frame.custom')
 
     @pytest.fixture
-    def trj(self, file, args, start):
+    def trj(self, file, args, start, delay):
         options = None if args is None else parserutils.LmpTraj().parse_args(
             [file] + args)
-        return traj.Traj(file, options=options, start=start, delay=True)
+        return traj.Traj(file, options=options, start=start, delay=delay)
 
+    @pytest.mark.parametrize('delay', [False])
     @pytest.mark.parametrize('file,args,start,expected',
                              [(FRM, ['-task', 'xyz'], 0, (1, 105.0)),
                               (GZ, ARGS, 0, (46, 105.0)),
                               (GZ, ARGS, None, (38, 105.0)),
                               (XTC, ARGS, None, (255, 254.0))])
     def testSetUp(self, trj, expected):
-        trj.setUp()
         num = len([x for x in trj if isinstance(x, frame.Frame)])
         assert expected == (num, trj.time[-1])
 
+    @pytest.mark.parametrize('delay', [True])
     @pytest.mark.parametrize('file,args,start,expected',
                              [(FRM, None, 0, 0), (FRM, None, None, 0),
+                              (EMPTY, ['-task', 'xyz'], None, 0),
+                              (ONE, ['-task', 'xyz'], None, 0),
                               (GZ, ARGS, None, 7000), (XTC, ARGS, None, 0)])
     def testSetStart(self, trj, expected):
         trj.setStart()
         assert expected == trj.start
 
+    @pytest.mark.parametrize('delay', [True])
     @pytest.mark.parametrize('file,args,start,expected',
                              [(FRM, None, 105000, True),
                               (FRM, None, 105001, False)])
@@ -92,8 +98,8 @@ class TestTraj:
         frm = next(trj.frame)
         assert expected == isinstance(frm, frame.Frame)
 
+    @pytest.mark.parametrize('delay', [False])
     @pytest.mark.parametrize('file,args,start,expected',
                              [(GZ, None, 0, 46), (GZ, ARGS, None, 37)])
     def testSel(self, trj, expected):
-        trj.setUp()
         assert expected == len(trj.sel)
