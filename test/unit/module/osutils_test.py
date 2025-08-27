@@ -21,6 +21,8 @@ class TestFunc:
         with open('link.txt', 'r') as fh:
             line = fh.read()
         assert 'second' == line
+        with pytest.raises(FileExistsError):
+            osutils.symlink('second.txt', 'link.txt', overwrite=False)
 
 
 class TestChdir:

@@ -12,6 +12,7 @@ FRM = envutils.test_data('water', 'three.custom')
 RDR = lmpfull.Reader(envutils.test_data('water', 'polymer_builder.data'))
 
 
+@pytest.mark.skipif(FRM is None, reason='Trajectory not available')
 @pytest.mark.parametrize('file', [FRM])
 class TestFrame:
 
@@ -59,6 +60,7 @@ class TestFrame:
         np.testing.assert_almost_equal(steps, expected)
 
 
+@pytest.mark.skipif(FRM is None, reason='Trajectory not available')
 @pytest.mark.parametrize('file', [FRM])
 class TestFigure:
 
@@ -67,8 +69,7 @@ class TestFigure:
         return molview.Figure(traj.Traj(file), rdr=rdr, delay=True)
 
     @pytest.mark.parametrize('ekey', ['INTERAC'])
-    @pytest.mark.parametrize('rdr,evalue,expected',
-                             [(None, None, 13)])  #, (RDR, '1', 26)])
+    @pytest.mark.parametrize('rdr,evalue,expected', [(None, None, 13), (RDR, '1', 26)])
     def testSetUp(self, fig, expected, evalue, env):
         with mock.patch.object(fig, 'show') as mocked:
             fig.setUp()

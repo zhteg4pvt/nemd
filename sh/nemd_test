@@ -15,6 +15,7 @@ Usage:
 set -- nemd_run -m pytest "$@"
 [ $# != 3 ] && { "$@"; exit $?; }
 
+[ -z "$NEMD_SRC" ] && echo "Please source premake" && exit 1
 for SUB_DIR in "module" 'driver' 'workflow'; do
   "$@" $NEMD_SRC/test/unit/$SUB_DIR/*_test.py -n auto
 done
