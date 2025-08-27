@@ -6,6 +6,7 @@ from nemd import parserutils
 
 HEX = envutils.test_data('hexane_liquid', 'lammps_runner_lammps.log')
 SI = envutils.test_data('0044', 'lammps1', 'lmp.log')
+EMPTY = envutils.test_data('ar', 'empty.log')
 
 
 @pytest.fixture
@@ -31,16 +32,19 @@ class TestLog:
                             log.unit)
 
     @pytest.mark.parametrize('args,expected', [([HEX], (126, 26, 151, 0))])
-    def testSetThermo(self, log, expected):
+    def testConcat(self, log, expected):
         log.read()
         assert expected[:2] == (log.thermo.shape[0], len(log))
-        log.setThermo()
+        log.concat()
         assert expected[2:] == (log.thermo.shape[0], len(log))
 
     @pytest.mark.parametrize('args,expected', [([HEX], (151, 6, 0, 0.001)),
-                                               ([SI], (1, 5, 0, 0.001))])
+                                               ([SI], (1, 5, 0, 0.001)),
+                                               ([HEX, '-slice', '1', '5', '2'],
+                                                (2, 6, 0, 0.001))])
     def testFinalize(self, log, expected):
         log.read()
+        log.concat()
         log.finalize()
         assert expected == (*log.thermo.shape, len(log), log.thermo.timestep)
 
@@ -66,7 +70,7 @@ class TestThermo:
          ([SI], [
              'Time (ps) (0)', 'Temp (K)', 'E_pair (eV)', 'E_mol (eV)',
              'TotEng (eV)', 'Press (bar)'
-         ])])
+         ]), ([EMPTY], [None])])
     def testSetUp(self, thermo, expected):
         assert expected == [thermo.index.name, *thermo.columns]
 

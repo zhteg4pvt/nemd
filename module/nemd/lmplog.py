@@ -35,6 +35,8 @@ class Log(lmpin.Base):
         Set up by reading and parsing the log file.
         """
         self.read()
+        # External interrupted thermo block doesn't have the ending marks
+        self.concat()
         self.finalize()
 
     def read(self, to_skip=('SHAKE', 'Bond', 'Angle', 'WARNING')):
@@ -47,7 +49,7 @@ class Log(lmpin.Base):
             while line := fh.readline():
                 if line.startswith('Loop time of'):
                     # Finishing up previous thermo block
-                    self.setThermo()
+                    self.concat()
                 elif self and not line.startswith(to_skip):
                     # Reading a thermo block
                     self.append(line)
@@ -62,23 +64,23 @@ class Log(lmpin.Base):
                     elif line.startswith((self.TIMESTEP, 'Time step')):
                         self.timestep = float(line.split()[-1])
 
-    def setThermo(self):
+    def concat(self):
         """
-        Concatenate and clear the current thermo block.
+        Concatenate the current thermo block.
         """
-        data = pd.read_csv(io.StringIO(''.join(self)), sep=r'\s+')
+        try:
+            data = pd.read_csv(io.StringIO(''.join(self)), sep=r'\s+')
+        except pd.errors.EmptyDataError:
+            return
         self.thermo = pd.concat((self.thermo, data))
-        if self.options.slice:
-            self.thermo = self.thermo[slice(*self.options.slice)]
         self.clear()
 
     def finalize(self):
         """
         Finalize.
         """
-        if self:
-            # External interrupted thermo block doesn't have the ending marks
-            self.setThermo()
+        if self.options.slice:
+            self.thermo = self.thermo[slice(*self.options.slice)]
         timestep = self.getTimestep(self.timestep, backend=True)
         self.thermo = Thermo(self.thermo,
                              timestep=timestep,
