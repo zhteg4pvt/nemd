@@ -22,10 +22,10 @@ def pyplot(inav=False, name='the plot'):
     import matplotlib
     obackend = matplotlib.get_backend()
     match platform.system():
-        case 'Darwin':
+        case 'Darwin': # pragma: no linux
             backend = 'macosx'
         case 'Linux':  # pragma: no darwin
-            backend = 'qt5agg'
+            backend = 'qtagg'
     matplotlib.use(backend)
     from matplotlib import pyplot as plt
     yield plt
