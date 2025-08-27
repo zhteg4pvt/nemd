@@ -53,21 +53,26 @@ class TestBase:
         assert int(index) == base.index[0]
 
     @pytest.mark.parametrize('TYPE_COL,ID_COLS', [('b', ['c'])])
-    @pytest.mark.parametrize('index_column,as_block,FMT,shape',
-                             [(None, True, None, (3, 3)),
-                              (None, True, ('%i %i %i %i'), (3, 3)),
-                              ('a', False, None, (3, 2)),
-                              ('a', False, ('%i %i %i'), (3, 2))])
-    def testWrite(self, base, index_column, as_block, shape, tmp_dir):
+    @pytest.mark.parametrize(
+        'join,index_column,as_block,FMT,shape',
+        [(None, None, True, None, (3, 3)),
+         (pd.DataFrame([[1], [2], [3]], columns=['j']), None, True, None,
+          (3, 4)), (None, None, True, ('%i %i %i %i'), (3, 3)),
+         (None, 'a', False, None, (3, 2)),
+         (None, 'a', False, ('%i %i %i'), (3, 2))])
+    def testWrite(self, base, join, index_column, as_block, shape, tmp_dir):
         with open('filename', 'w') as fh:
-            base.write(fh, index_column=index_column, as_block=as_block)
+            base.write(fh,
+                       join=join,
+                       index_column=index_column,
+                       as_block=as_block)
         with open('filename', 'r') as fh:
             data = fh.readlines()
         if as_block:
             assert 'Block\n' == data[0]
             data = data[2:]
         data = base.fromLines(data, index_col=index_column)
-        assert (0 == data).all().all()
+        assert (0 == data[['b', 'c']]).all().all()
         assert shape == data.shape
 
     @pytest.mark.parametrize('TYPE_COL,ID_COLS,FMT', [('b', ['c'], None)])
@@ -141,6 +146,14 @@ class TestBoxNumba:
     @pytest.mark.parametrize('params,expected',
                              [([1, 2, 3, 90, 90, 90], 1.41421356),
                               ([3, 3, 5, 90, 90, 90], 1.73205081)])
+    def testNorm(self, box, vec, expected):
+        vecs = np.array(vec)
+        np.testing.assert_almost_equal(box.norm(vecs), expected)
+
+    @pytest.mark.parametrize('tilted,vec', [(False, [1, 1, 1])])
+    @pytest.mark.parametrize('params,expected',
+                             [([1, 2, 3, 90, 90, 90], [1.41421356]),
+                              ([3, 3, 5, 90, 90, 90], [1.73205081])])
     def testNorms(self, box, vec, expected):
         vecs = np.array([vec])
         np.testing.assert_almost_equal(box.norms(vecs), expected)
