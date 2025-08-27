@@ -27,7 +27,6 @@ def get_file(*args):
     except StopIteration:
         return
     file = f'{name}.sw'
-    if os.path.exists(file):
-        return file
-    if os.path.exists(envutils.get_data('potentials', file, module='lammps')):
+    files = (file, envutils.get_data('potentials', file, module='lammps'))
+    if any(map(os.path.exists, files)):
         return file

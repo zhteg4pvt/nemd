@@ -45,12 +45,12 @@ class Runner(logutils.Base):
         :param args list: list of commandline arguments
         """
         super().__init__(options=options, **kwargs)
+        self.args = jobutils.Args(sys.argv[1:] if args is None else args)
         self.proj = None
         self.prereq = {}
         self.oprs = []
         self.jobs = []
         self.status = taskbase.Status(dict, name=self.options.JOBNAME)
-        self.args = jobutils.Args(sys.argv[1:] if args is None else args)
         # flow/project.py gets logger from logging.getLogger(__name__)
         logutils.Logger.get('flow.project')
 
