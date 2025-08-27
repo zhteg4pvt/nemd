@@ -1,6 +1,3 @@
-import sys
-import time
-
 import numpy as np
 import pytest
 
@@ -32,8 +29,5 @@ class TestMemory:
 
     @pytest.mark.parametrize('intvl', [(0.01)])
     def testResult(self, mem):
-        if sys.platform == symbols.DARWIN:
-            # DARWIN uss won't change for small increments
-            return
         mem.start()
         assert mem.result is not None

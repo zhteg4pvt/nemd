@@ -14,7 +14,7 @@ import scipy
 from nemd import symbols
 
 
-class ProcessLinux(psutil.Process):
+class ProcessLinux(psutil.Process):  # pragma: no darwin
     """
     This`psutil.Process` subclass adds a method to get the used memory of the
     process.
@@ -30,7 +30,7 @@ class ProcessLinux(psutil.Process):
         return self.memory_info().vms
 
 
-class ProcessDarwin(psutil.Process):
+class ProcessDarwin(psutil.Process):  # pragma: no linux
     """
     This psutil.Process subclass customizes the methods for the macOS.
     """
