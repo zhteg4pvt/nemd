@@ -198,14 +198,6 @@ class TestGrownMol:
                 grown.GetAtomWithIdx(idx).SetBoolProp('polym_ht', True)
         assert expected == len(grown.getDihes(sources, targets))
 
-    @pytest.mark.parametrize('smiles', ['CCCCC(CC)CC'])
-    @pytest.mark.parametrize('source,target,expected', [(None, None, 7),
-                                                        (None, 5, 6),
-                                                        (3, None, 4),
-                                                        (1, 5, 5)])
-    def testFindPath(self, grown, source, target, expected):
-        assert expected == len(grown.findPath(source=source, target=target))
-
 
 class TestStruct:
 

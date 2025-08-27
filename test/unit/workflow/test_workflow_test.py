@@ -15,9 +15,7 @@ class TestRunner:
     @pytest.fixture
     def runner(self, args, logger, tmp_dir):
         options = workflow.Parser().parse_args(args + ['-CPU', '1'])
-        return workflow.Runner(options=options,
-                               args=args,
-                               logger=logger)
+        return workflow.Runner(options=options, args=args, logger=logger)
 
     @pytest.mark.parametrize(
         'args,expected',
@@ -39,10 +37,9 @@ class TestRunner:
         copied = sorted([os.path.basename(x) for x in copied])
         assert expected == (len(jobdirs), *copied)
 
-    @pytest.mark.parametrize('args,expected',
-                             [(['-name', 'integration'], 58),
-                              (['-name', 'scientific'], 20),
-                              (['-name', 'performance'], 11)])
+    @pytest.mark.parametrize('args,expected', [(['-name', 'integration'], 58),
+                                               (['-name', 'scientific'], 20),
+                                               (['-name', 'performance'], 11)])
     def testNames(self, runner, expected):
         assert expected == len(runner.names)
 

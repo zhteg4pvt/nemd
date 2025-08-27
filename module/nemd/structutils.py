@@ -365,6 +365,17 @@ class GrownMol(PackedMol):
             aids[[y for x in self.frag.next() for y in x.ids]] = False
         return aids.on
 
+    def getDihes(self, sources=(None, ), targets=(None, )):
+        """
+        See parent.
+        """
+        if all([x is None for x in [*sources, *targets]]) and self.polym:
+            # FIXME: sources should be all initiator atoms; targets should be
+            #  the atoms of all terminators
+            polym_ht = [x for x in self.GetAtoms() if x.HasProp(self.POLYM_HT)]
+            sources = targets = [x.GetIdx() for x in polym_ht]
+        return super().getDihes(sources=sources, targets=targets)
+
 
 class Struct(lmpfull.Struct):
     """

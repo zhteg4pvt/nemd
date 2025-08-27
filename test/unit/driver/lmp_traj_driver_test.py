@@ -38,8 +38,7 @@ class TestTraj:
 
     @pytest.mark.parametrize("args,expected", [([*ARGS, '-sel', 'O'], 0),
                                                ([*ARGS, '-sel', 'Ar'], 100),
-                                               (ARGS, 100),
-                                               (XYZ, None)])
+                                               (ARGS, 100), (XYZ, None)])
     def testSetAtoms(self, trj, expected):
         trj.setStruct()
         trj.setAtoms()

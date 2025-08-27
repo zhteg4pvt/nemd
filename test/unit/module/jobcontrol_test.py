@@ -15,9 +15,7 @@ class TestRunner:
     @pytest.fixture
     def runner(self, args, logger, flow_opr, tmp_dir):
         options = parserutils.Workflow().parse_args(args)
-        return jobcontrol.Runner(options=options,
-                                 args=args,
-                                 logger=logger)
+        return jobcontrol.Runner(options=options, args=args, logger=logger)
 
     @pytest.fixture
     def ran(self, runner, Cmd, Job, pre):

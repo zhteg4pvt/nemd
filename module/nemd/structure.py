@@ -73,33 +73,23 @@ class Mol(Chem.rdchem.Mol):
     """
     Conf = Conf
 
-    def __init__(self,
-                 *args,
-                 struct=None,
-                 polym=None,
-                 vecs=None,
-                 delay=False,
-                 **kwargs):
+    def __init__(self, *args, struct=None, polym=None, vecs=None, **kwargs):
         """
         :param args[0] 'Chem.rdchem.Mol': the molecule instance
         :param struct 'Struct': owning structure
         :param polym bool: whether the molecule is built from moieties.
         :param vecs list: scaled lattice vectors
-        :param delay bool: customization is delayed for later setup or testing.
         """
         super().__init__(*args, **kwargs)
         self.struct = struct
         self.polym = polym
         self.vecs = vecs
-        self.delay = delay
         self.confs = []
         # FIXME: every aid maps to a gid, but some gids may not map back (e.g.
         #  the virtual in tip4p water https://docs.lammps.org/Howto_tip4p.html)
         #  coarse-grained may have multiple aids mapping to one single gid
         #  united atom may have hydrogen aid mapping to None
         self.aids = np.arange(self.GetNumAtoms(), dtype=np.uint32)
-        if self.delay:
-            return
         self.setUp(next(iter(args), None))
 
     def setUp(self, mol):
@@ -108,13 +98,12 @@ class Mol(Chem.rdchem.Mol):
 
         :param mol `Chem.rdchem.Mol`: the original molecule.
         """
-        if mol is None:
-            return
         if self.polym is None:
             self.polym = getattr(mol, 'polym', False)
         if self.vecs is None:
             self.vecs = getattr(mol, 'vecs', False)
-        self.extend(mol)
+        if mol:
+            self.extend(mol)
 
     def GetConformers(self):
         """
@@ -261,7 +250,6 @@ class Mol(Chem.rdchem.Mol):
                 continue
             atom.SetIntProp(symbols.IMPLICIT, atom.GetNumImplicitHs())
             atom.SetNoImplicit(True)
-
         # FIXME: support different chiralities for monomers
         for chiral in Chem.FindMolChiralCenters(mol, includeUnassigned=True):
             # CIP stereochemistry assignment for the molecule’s atoms (R/S)
@@ -278,12 +266,6 @@ class Mol(Chem.rdchem.Mol):
         :param targets list: target atom ids.
         :return list: each sublist has four atom ids.
         """
-        if all([x is None for x in [*sources, *targets]]) and self.polym:
-            # FIXME: sources should be all initiator atoms; targets should be
-            #  the atoms of all terminators
-            polym_ht = [x for x in self.GetAtoms() if x.HasProp(self.POLYM_HT)]
-            sources = targets = [x.GetIdx() for x in polym_ht]
-
         longest = []
         for source, target in itertools.product(sources, targets):
             dihes = self.findPath(source=source, target=target)

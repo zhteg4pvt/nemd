@@ -206,8 +206,7 @@ def mol(smiles):
     :param smiles str: the input smiles
     :return `structure.Mol`: the molecule
     """
-    if smiles is not None:
-        return structure.Mol.MolFromSmiles(smiles)
+    return None if smiles is None else structure.Mol.MolFromSmiles(smiles)
 
 
 @pytest.fixture

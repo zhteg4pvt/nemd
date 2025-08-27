@@ -11,10 +11,10 @@ This class handles jobs and aggregators:
     7) execute the operators
     8) log the status and message.
 """
-import sys
 import functools
 import itertools
 import math
+import sys
 
 import flow
 import networkx as nx

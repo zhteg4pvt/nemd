@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from nemd import numpyutils
 from nemd import structure
 
 
@@ -20,23 +21,27 @@ class TestConformer:
 
     @pytest.mark.parametrize('smiles,cnum,seed', [('CCCC', 1, 123)])
     @pytest.mark.parametrize('aids,expected',
-                             [([0], [-1.8139675, -0.2029386, -0.2367584]),
+                             [([], None),
+                              ([0], [-1.8139675, -0.2029386, -0.2367584]),
                               ([0, 1], 1.50384324), ((0, 1, 2), 107.78527533),
                               ((0, 1, 2, 3), 138.626372)])
     def testMeasure(self, emol, aids, expected, random_seed):
-
-        np.testing.assert_almost_equal(emol.GetConformer().measure(aids),
+        numpyutils.assert_almost_equal(emol.GetConformer().measure(aids),
                                        expected)
 
 
 class TestMol:
 
-    @pytest.mark.parametrize('smiles', ['O'])
-    @pytest.mark.parametrize('polym,vecs',
-                             [(None, None), (False, None),
-                              (True, (5.43, 5.43, 5.43, 90.0, 90.0, 90.0))])
-    def testSetUp(self, mol, polym, vecs):
-        np.testing.assert_equal(mol.aids, [0, 1, 2])
+    @pytest.mark.parametrize('smiles,aids,polym,vecs',
+                             [(None, [], None, None),
+                              ('O', [0, 1, 2], None, None),
+                              ('O', [0, 1, 2], False, None),
+                              ('O', [0, 1, 2], True,
+                               (5.43, 5.43, 5.43, 90.0, 90.0, 90.0))])
+    def testInit(self, mol, aids, polym, vecs):
+        if mol is None:
+            mol = structure.Mol()
+        np.testing.assert_equal(mol.aids, aids)
         assert (False, False) == (mol.polym, mol.vecs)
         mol = structure.Mol(mol, polym=polym, vecs=vecs)
         expected = tuple(False if x is None else x for x in [polym, vecs])
@@ -113,10 +118,25 @@ class TestMol:
 
     @pytest.mark.parametrize('smiles,united,expected', [('O', True, 3),
                                                         ('C', True, 1),
-                                                        ('C', False, 5)])
+                                                        ('C', False, 5),
+                                                        ('CCC(C)O', True, 6)])
     def testMolFromSmiles(sel, smiles, united, expected):
         mol = structure.Mol.MolFromSmiles(smiles, united=united)
         assert expected == mol.GetNumAtoms()
+
+    @pytest.mark.parametrize('smiles', ['CCCCC(CC)CC'])
+    @pytest.mark.parametrize('sources,targets,expected',
+                             [((None, ), (None, ), 4), ((0, 1), (4, 5), 3)])
+    def testGetDihes(self, mol, sources, targets, expected):
+        assert expected == len(mol.getDihes(sources, targets))
+
+    @pytest.mark.parametrize('smiles', ['CCCCC(CC)CC'])
+    @pytest.mark.parametrize('source,target,expected', [(None, None, 7),
+                                                        (None, 5, 6),
+                                                        (3, None, 4),
+                                                        (1, 5, 5)])
+    def testFindPath(self, mol, source, target, expected):
+        assert expected == len(mol.findPath(source=source, target=target))
 
     @pytest.mark.parametrize(
         'smiles,expected',
@@ -134,6 +154,14 @@ class TestMol:
                              [('CCCC', 1), ['C=C', 0], ['C1CCCCC1', 0]])
     def testRotatable(sel, mol, expected):
         assert expected == len(mol.rotatable)
+
+    @pytest.mark.parametrize('smiles,expected', [('CCCC', 1), ['C.C', 2]])
+    def testGetMolFrags(sel, mol, expected):
+        assert expected == len(mol.GetMolFrags())
+
+    @pytest.mark.parametrize('smiles', ['CCCC', 'C=C', 'C1CCCCC1'])
+    def testSmiles(sel, mol, smiles):
+        assert smiles == mol.smiles
 
 
 class TestStruct:

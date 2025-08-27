@@ -95,4 +95,4 @@ class Amorphous(logutils.Base):
 
 
 if __name__ == "__main__":
-    logutils.Script.run(Amorphous,parserutils.AmorpBldr(descr=__doc__))
+    logutils.Script.run(Amorphous, parserutils.AmorpBldr(descr=__doc__))

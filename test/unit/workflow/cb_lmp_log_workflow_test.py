@@ -8,9 +8,7 @@ class TestRunner:
     @pytest.fixture
     def runner(self, args, logger):
         options = workflow.Parser().parse_args(args)
-        return workflow.Runner(options=options,
-                               args=args,
-                               logger=logger)
+        return workflow.Runner(options=options, args=args, logger=logger)
 
     @pytest.mark.parametrize(
         'args,expected',

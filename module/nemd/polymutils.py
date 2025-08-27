@@ -592,7 +592,7 @@ class Mol(structure.Mol, logutils.Base):
         :param options 'argparse.Namespace': command-line options.
         :param delay bool: delay the initiation if True.
         """
-        super().__init__(mol, polym=bool(moieties.mers), delay=delay)
+        super().__init__(mol, polym=bool(moieties.mers))
         logutils.Base.__init__(self, **kwargs)
         self.moieties = moieties
         self.mol_num = mol_num

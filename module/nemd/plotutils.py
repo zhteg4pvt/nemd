@@ -22,7 +22,7 @@ def pyplot(inav=False, name='the plot'):
     import matplotlib
     obackend = matplotlib.get_backend()
     match platform.system():
-        case 'Darwin': # pragma: no linux
+        case 'Darwin':  # pragma: no linux
             backend = 'macosx'
         case 'Linux':  # pragma: no darwin
             backend = 'qtagg'

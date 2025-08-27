@@ -7,13 +7,10 @@ class TestRunner:
     @pytest.fixture
     def runner(self, args, logger):
         options = workflow.Parser().parse_args(args)
-        return workflow.Runner(options=options,
-                               args=args,
-                               logger=logger)
+        return workflow.Runner(options=options, args=args, logger=logger)
 
     @pytest.mark.parametrize(
-        'args,expected',
-        [(['C'], ['amorp_bldr', 'lammps', 'lmp_traj', 2, 3])])
+        'args,expected', [(['C'], ['amorp_bldr', 'lammps', 'lmp_traj', 2, 3])])
     def testSetJobs(self, runner, check_flow):
         runner.setJobs()
 
