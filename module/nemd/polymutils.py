@@ -296,12 +296,14 @@ class Moiety(cru.Moiety):
         if self.empty == mol.empty:
             return
         stars = self.tail + mol.head
+        # Cap with Hydrogen atoms
         for atom in stars:
             if atom.GetNeighbors()[0].HasProp(implicit):
                 atom = atom.GetNeighbors()[0]
                 atom.SetIntProp(implicit, atom.GetIntProp(implicit) + 1)
             else:
                 atom.SetAtomicNum(1)
+                atom.SetAtomMapNum(0)
             atom.SetBoolProp(structutils.GrownMol.POLYM_HT, True)
         stars = [x for x in stars if x.GetSymbol() == symbols.STAR]
         editable = EditableMol(self if self.GetNumAtoms() else mol)

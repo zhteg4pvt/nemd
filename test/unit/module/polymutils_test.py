@@ -163,7 +163,7 @@ class TestMoiety:
     @pytest.mark.parametrize('smiles,other,expected',
                              [('C[*:1]', '*C[*:1]', None),
                               ('', '*C[*:1]', 'C[*:1]'), ('*C[*:1]', '', '*C'),
-                              ('', '', None)])
+                              ('', '', None), ('CO[*:1]', '', '[H]OC')])
     def testCap(self, moiety, other_moiety, expected):
         capped = moiety.cap(other_moiety)
         assert expected == (capped.smiles if capped else None)
@@ -268,6 +268,9 @@ class TestRepeated:
 
     def testIter(self, repeated):
         assert repeated.repeat == len([x for x in repeated])
+
+    def testLen(self, repeated):
+        assert repeated.repeat == len(repeated)
 
 
 @pytest.mark.parametrize('args', [['[*:1]C[*:1].*CC*', '-cru_num', '2']])
