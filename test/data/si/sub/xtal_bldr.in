@@ -1,0 +1,12 @@
+units metal
+atom_style atomic
+pair_style sw
+read_data xtal_bldr.data
+pair_coeff * * Si.sw Si
+group sub id 1 6 3
+dump 1 sub custom 1 amorp_bldr.custom id xu yu zu
+dump_modify 1 sort id
+thermo 1000
+thermo_modify flush yes
+timestep 0.001
+run 1

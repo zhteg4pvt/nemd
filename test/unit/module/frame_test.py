@@ -36,6 +36,7 @@ class TestFrame:
     HEX = envutils.test_data('hexane_liquid')
     HEX_RDR = lmpfull.Reader(os.path.join(HEX, 'polymer_builder.data'))
     HEX_FRM = os.path.join(HEX, 'dump.custom')
+    SUB_FRM = envutils.test_data('si', 'sub', 'amorp_bldr.custom')
 
     @pytest.mark.parametrize('data,step,expected',
                              [(None, None, [(), None]),
@@ -46,20 +47,19 @@ class TestFrame:
         assert expected == [frm.shape, frm.step]
 
     @pytest.mark.parametrize('file,start,expected',
-                             [(TWO_FRMS, 0, True), (TWO_FRMS, 1, False),
+                             [(TWO_FRMS, 0, (1000, 100)),
+                              (TWO_FRMS, 1, (1000, 100)),
                               (BROKEN_HEADER, 0, EOFError),
-                              (BROKEN_ATOMS, 1, EOFError)])
+                              (BROKEN_ATOMS, 1, EOFError),
+                              (SUB_FRM, 0, (1, 6))])
     def testRead(self, file, start, expected, raises):
         with open(file) as fh:
-            frms = [frame.Frame.read(fh, start=start)]
+            frm = frame.Frame.read(fh, start=start)
+            assert 0 == frm.step
+            assert not start == isinstance(frm, frame.Frame)
             with raises:
-                frms.append(frame.Frame.read(fh, start=start))
-        assert 0 == frms[0].step
-        assert not start == isinstance(frms[0], frame.Frame)
-        if not isinstance(expected, bool):
-            return
-        assert 1000 == frms[1].step
-        assert 100 == frms[1].shape[0]
+                frm = frame.Frame.read(fh, start=start)
+                assert expected == (frm.step, frm.shape[0])
 
     @pytest.mark.parametrize('file', [TWO_FRMS])
     def testGetCopy(self, frm):

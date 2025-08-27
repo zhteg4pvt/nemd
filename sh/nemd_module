@@ -23,7 +23,7 @@ case $1 in
   *)
     echo "Unknown module binary: $1"
   esac
-
+echo $LAMMPS_POTENTIALS
 binary=$(python -c "import $name; print($name.__path__[0])")/$dir/$1
 shift
 set -- $binary "$@"
