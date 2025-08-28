@@ -1048,7 +1048,7 @@ class Reader(lmpatomic.Reader):
         """
         Returns a boolean where two arrays are equal within a tolerance
 
-        :param other float: the other data reader to compare against.
+        :param other 'Reader': the other data reader to compare against.
         :param atol float: The relative tolerance parameter.
         :param rtol float: The absolute tolerance parameter.
         :param equal_nan bool: If True, NaNs are considered close.

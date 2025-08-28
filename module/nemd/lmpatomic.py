@@ -462,14 +462,12 @@ class Reader:
         """
         Returns a boolean where two arrays are equal within a tolerance
 
-        :param other `float`: the other data reader to compare against.
+        :param other 'Reader': the other data reader to compare against.
         :param atol `float`: The relative tolerance parameter (see Notes).
         :param rtol `float`: The absolute tolerance parameter (see Notes).
         :param equal_nan `bool`: If True, NaNs are considered close.
         :return `bool`: whether two data are close.
         """
-        if not isinstance(other, Reader):
-            return False
         kwargs = dict(atol=atol, rtol=rtol, equal_nan=equal_nan)
         if not self.box.allClose(other.box, **kwargs):
             return False

@@ -1,5 +1,4 @@
 import copy
-import types
 
 import numpy as np
 import pytest
@@ -160,16 +159,17 @@ class TestStruct:
         assert expected == struct.masses.shape
 
     @pytest.mark.parametrize('cnum', [1])
-    def testBox(self, struct):
-        assert struct.box is not None
+    @pytest.mark.parametrize('vecs,expected', [(False, True), ([1], False)])
+    def testBox(self, struct, vecs, expected):
+        struct.mols[0].vecs = vecs
+        assert expected == struct.box.empty
 
     @pytest.mark.parametrize('cnum,expected', [(0, str)])
     def testFf(self, struct, expected):
         assert isinstance(struct.ff, expected)
 
 
-@pytest.mark.parametrize(
-    'data_file', [envutils.test_data('0033_test', 'crystal_builder.data')])
+@pytest.mark.parametrize('data_file', [envutils.test_data('0033_test', 'crystal_builder.data')])
 class TestReader:
 
     @pytest.fixture
@@ -219,5 +219,16 @@ class TestReader:
         other.box.lo = 1e-07
         assert expected == rdr.allClose(other, atol=atol, rtol=rtol)
 
+    @pytest.mark.parametrize('other,expected', [('crystal_builder.data', True),
+                                                ('box.data', False),
+                                                ('mass.data', False),
+                                                ('atom.data', False)])
+    def testAllClose(self, rdr, other, expected):
+        other = lmpatomic.Reader(envutils.test_data('0033_test', other))
+        assert expected == rdr.allClose(other)
+
     def testGetStyle(self, rdr):
         assert 'atomic' == rdr.getStyle(rdr.data_file)
+
+    def testWeights(self, rdr):
+        np.testing.assert_almost_equal(rdr.weights.sum(), 1348.128)

@@ -85,12 +85,14 @@ class TestSinglePoint:
         single.traj()
         assert expected == single
 
-    @pytest.mark.parametrize('args', [(1, 'all', 'custom', 10, 'name')])
-    @pytest.mark.parametrize(
-        'xyz,force,expected',
-        [(True, False, 'dump 1 all custom 10 name xu yu zu'),
-         (False, True, 'dump 1 all custom 10 name fx fy fz'),
-         (True, True, 'dump 1 all custom 10 name xu yu zu fx fy fz')])
+    @pytest.mark.parametrize('args,xyz,force,expected',
+                             [((1, ), False, False, False),
+                              ((1, 'all', 'custom', 10, 'name'), True, False,
+                               'dump 1 all custom 10 name xu yu zu'),
+                              ((1, 'all', 'custom', 10, 'name'), False, True,
+                               'dump 1 all custom 10 name fx fy fz'),
+                              ((1, 'all', 'custom', 10, 'name'), True, True,
+                               'dump 1 all custom 10 name xu yu zu fx fy fz')])
     def testDump(self, single, args, xyz, force, expected):
         single.dump(*args, xyz=xyz, force=force)
         assert (expected in single) if expected else (not single)
@@ -116,13 +118,13 @@ class TestSinglePoint:
         'no_minimize,geo,val,expected',
         [(False, None, None, 'minimize 1.0e-6 1.0e-6 1000 10000'),
          (True, None, None, None),
-         (True, 'dihedral 1 2 3 4', 120,
+         (False, 'dihedral 1 2 3 4', 120,
           'fix rest all restrain dihedral 1 2 3 4 -2000 -2000 120')])
     def testMinimize(self, single, no_minimize, geo, val, expected):
-        single.no_minimize = no_minimize
+        single.options.no_minimize = no_minimize
         single.options.substruct = [None, val]
         single.minimize(geo=geo)
-        assert (expected in single) if expected else (2 == len(single))
+        assert (expected in single) if expected else (not single)
 
     def testSimulation(self, single):
         single.simulation()

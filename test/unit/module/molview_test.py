@@ -69,7 +69,8 @@ class TestFigure:
         return molview.Figure(traj.Traj(file), rdr=rdr, delay=True)
 
     @pytest.mark.parametrize('ekey', ['INTERAC'])
-    @pytest.mark.parametrize('rdr,evalue,expected', [(None, None, 13), (RDR, '1', 26)])
+    @pytest.mark.parametrize('rdr,evalue,expected', [(None, None, 13),
+                                                     (RDR, '1', 26)])
     def testSetUp(self, fig, expected, evalue, env):
         with mock.patch.object(fig, 'show') as mocked:
             fig.setUp()

@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import pytest
 
@@ -30,4 +32,5 @@ class TestMemory:
     @pytest.mark.parametrize('intvl', [(0.01)])
     def testResult(self, mem):
         mem.start()
+        time.sleep(0.02)
         assert mem.result is not None
