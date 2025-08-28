@@ -46,8 +46,8 @@ class Args(list):
         Get the value after the flag in command arg list.
 
         :param flag str: set the value after this flag
-        :param default str: the default if the flag doesn't exist or not followed by
-            value(s)
+        :param default str: the default if the flag doesn't exist or not
+            followed by value(s)
         :param first bool: only return the first value after the flag
         :return str or list: the value(s) after the flag
         """

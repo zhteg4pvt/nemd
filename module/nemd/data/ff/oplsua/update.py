@@ -308,17 +308,12 @@ class Dihedral(Bond):
         :return list of float: opls coefficients K1, K2, K3, K4
         """
         splitted = line.split()
-        contants = splitted[5:]
-        params = [0., 0., 0., 0.]
-        constants = zip(contants[::3], contants[1::3], contants[2::3])
-        for ene, deg, n_parm in constants:
-            ene, deg, n_parm = float(ene), float(deg), int(n_parm)
-            params[n_parm - 1] = ene * 2
-            if not params[n_parm]:
-                continue
-            if (deg == 180.) ^ (not n_parm % 2):
-                params[n_parm] *= -1
-        return ' '.join(splitted[:5] + list(map(str, params)))
+        conts = splitted[5:]
+        ks = [0., 0., 0., 0.]
+        for ene, deg, num in zip(conts[:-2:3], conts[1:-1:3], conts[2::3]):
+            ene, deg, num = float(ene), float(deg), int(num)
+            ks[num - 1] = (2 if sum([deg == 180., num % 2]) % 2 else -2) * ene
+        return ' '.join(splitted[:5] + list(map(str, ks)))
 
 
 class Raw(builtinsutils.Object):

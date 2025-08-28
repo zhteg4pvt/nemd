@@ -108,8 +108,10 @@ class TestDihedral:
          'torsion 6 66 69 46 0.0 0.0 0.0 0.0'),
         ('torsion      51   53   54   56            1.700  180.0  2',
          'torsion 51 53 54 56 0.0 3.4 0.0 0.0'),
+        ('torsion       2    1   70   20            0.100  180.0  3',
+         'torsion 2 1 70 20 0.0 0.0 -0.2 0.0'),
         ('torsion      10   61   62   63            0.100    0.0  2      0.725    0.0  3',
-         'torsion 10 61 62 63 0.0 0.2 1.45 0.0')
+         'torsion 10 61 62 63 0.0 -0.2 1.45 0.0')
     ])
     def testFormat(self, line, expected):
         assert expected == update.Dihedral.format(line)

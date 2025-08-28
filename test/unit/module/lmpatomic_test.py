@@ -169,7 +169,8 @@ class TestStruct:
         assert isinstance(struct.ff, expected)
 
 
-@pytest.mark.parametrize('data_file', [envutils.test_data('0033_test', 'crystal_builder.data')])
+@pytest.mark.parametrize(
+    'data_file', [envutils.test_data('0033_test', 'crystal_builder.data')])
 class TestReader:
 
     @pytest.fixture
