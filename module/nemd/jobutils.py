@@ -57,10 +57,15 @@ class Args(list):
             # Flag not found
             return default
 
-        val = self[idx + 1]
+        try:
+            val = self[idx + 1]
+        except IndexError:
+            # No followed value
+            return default
+
         if val.startswith('-'):
             # Flag followed by another flag
-            return
+            return default
 
         if first:
             return val
@@ -222,8 +227,6 @@ class Job(builtinsutils.Dict, builtinsutils.Object):
         :param file bool: set this file as the single output file
         :param log bool: set this file as the log file
         """
-        if outfile is None:
-            return
         job = cls(jobname)
         if outfile not in job._outfiles:
             job._outfiles.append(outfile)

@@ -16,16 +16,16 @@ class TestArgs:
         return jobutils.Args(cmd)
 
     @pytest.mark.parametrize(
-        'cmd,first,all_args',
+        'cmd,first,expected',
         [(['[Ar]', '-cru_num', '1', '2', '-DEBUG'], '1', ['1', '2']),
-         ([], None, None)])
-    def testGet(self, args, first, all_args):
+         (['[Ar]', '-cru_num', '-CPU'], None, None),
+         (['[Ar]', '-cru_num'], None, None), ([], None, None)])
+    def testGet(self, args, first, expected):
         assert first == args.get('-cru_num')
-        val = first if first else 'val'
-        assert val == args.get('-cru_num', default='val')
-        assert all_args == args.get('-cru_num', first=False)
-        vals = all_args if all_args else ['val']
-        assert vals == args.get('-cru_num', default=['val'], first=False)
+        assert (first or 'val') == args.get('-cru_num', default='val')
+        assert expected == args.get('-cru_num', first=False)
+        argv = args.get('-cru_num', default=['val'], first=False)
+        assert (expected or ['val']) == argv
 
     @pytest.mark.parametrize(
         'cmd,popped,num',
