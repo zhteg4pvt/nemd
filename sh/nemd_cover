@@ -5,25 +5,30 @@ Run coverage analysis and generate report.
 
 Usage:
   nemd_cover
+  nemd_cover driver
+  nemd_cover workflow test_workflow_test.py
+  nemd_cover module cru_test.py osutils_test.py
   nemd_cover run --source=nemd.numbautils -m pytest $NEMD_SRC/test/unit/module/numbautils_test.py
   nemd_cover html
 '
 . nemd_func
-[ -z $NEMD_SRC ] && add_pypath $(dirname $(which nemd_func))
-[ -z $NEMD_SRC ] || for SUB_DIR in 'driver' 'workflow'; do add_pypath $NEMD_SRC/$SUB_DIR/; done
+[ -z "$NEMD_SRC" ] && add_pypath $(dirname $(which nemd_func))
+[ -z "$NEMD_SRC" ] || for SUB_DIR in 'driver' 'workflow'; do add_pypath $NEMD_SRC/$SUB_DIR/; done
 
 export PYTEST_ADDOPTS='-m ""'
 export COVERAGE_RCFILE=$NEMD_SRC/test/unit/.coveragerc
 export PLATFORM=$(python -c "import platform; print(platform.system().lower())")
 
-[ $# != 0 ] && { coverage "$@"; exit $?; }
-
+[ $# != 0 ] && case $1 in module|driver|workflow) INAME=$1; shift; NUM=$#;; *) { coverage "$@"; exit $?; };; esac
 [ -z "$NEMD_SRC" ] && echo "Please source premake" && return 1
-for NAME in "module" "driver" "workflow"
+[ ! -z "$INAME" ] && for val in "$@"; do shift; set -- "$@" $NEMD_SRC/test/unit/$INAME/$val; done
+
+for NAME in "workflow" "driver" "module"
   do
-    [ $NAME = "module" ] && SUB_DIR=$NAME/nemd || SUB_DIR=$NAME
-    set -- coverage run --source=$NEMD_SRC/$SUB_DIR --data-file $NAME -m pytest $NEMD_SRC/test/unit/$NAME/*_test.py
-    OUTDIR="$NAME"_out
-    "$@" && coverage html --data-file=$NAME -d $OUTDIR && open $OUTDIR/index.html &
+    [ ! -z "$INAME" ] && [ "$NAME" != "$INAME" ] && continue
+    SOURCE=$NEMD_SRC/$NAME
+    [ $NAME = "module" ] && SOURCE=$SOURCE/nemd
+    [ ! -z "$NUM" ] && [ $NUM != 0 ] || set -- $NEMD_SRC/test/unit/$NAME/*_test.py
+    coverage run --source=$SOURCE --data-file $NAME -m pytest "$@" && coverage html --data-file=$NAME -d "$NAME"_out && open "$NAME"_out/index.html
   done
 wait
