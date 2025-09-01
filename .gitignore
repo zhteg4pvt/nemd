@@ -17,3 +17,4 @@ _deps
 venv/
 ~*.pptx
 .coverage
+.coverage_*

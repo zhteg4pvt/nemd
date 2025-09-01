@@ -29,6 +29,9 @@ for NAME in "workflow" "driver" "module"
     SOURCE=$NEMD_SRC/$NAME
     [ $NAME = "module" ] && SOURCE=$SOURCE/nemd
     [ ! -z "$NUM" ] && [ $NUM != 0 ] || set -- $NEMD_SRC/test/unit/$NAME/*_test.py
-    coverage run --source=$SOURCE --data-file $NAME -m pytest "$@" && coverage html --data-file=$NAME -d "$NAME"_out && open "$NAME"_out/index.html
+    DIR=.coverage_"$NAME"
+    coverage run --source=$SOURCE --data-file $DIR/.coverage -m pytest "$@"
+    coverage html --data-file=$DIR/.coverage -d $DIR
+    open $DIR/index.html
   done
 wait
