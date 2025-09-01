@@ -356,7 +356,7 @@ class ForceFieldAction(Action):
         """
         match name:
             case symbols.SW:
-                if args and not sw.get_file(args):
+                if args and not sw.get_file(*args):
                     self.error(f"Choose from {sw.NAME_ELEMENTS} sub-lists")
             case symbols.OPLSUA:
                 if not args:
@@ -577,22 +577,17 @@ class Driver(argparse.ArgumentParser, builtinsutils.Object):
                  formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                  descr=None,
                  valids=None,
-                 delay=False,
                  **kwargs):
         """
         :param formatter_class 'ArgumentDefaultsHelpFormatter': the formatter
             class to display the customized help message
         :param descr str: the script description displayed as the help message.
         :param valids set: across-argument valids after parse_args()
-        :param delay bool: delay the setup.
         """
         if descr is not None:
             kwargs.update(description=descr)
         super().__init__(formatter_class=formatter_class, **kwargs)
-        self.delay = delay
         self.valids = set() if valids is None else valids
-        if self.delay:
-            return
         self.setUp()
         self.add(self, positional=True)
         self.addJob()
@@ -1089,8 +1084,6 @@ class Workflow(Driver):
             option string
         """
         super().__init__(*args, conflict_handler=conflict_handler, **kwargs)
-        if self.delay:
-            return
         self.addWorkflow()
 
     def addWorkflow(self):

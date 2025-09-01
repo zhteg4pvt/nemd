@@ -194,11 +194,13 @@ class TestAction:
     @pytest.mark.parametrize('action,dtype',
                              [(parserutils.ForceFieldAction, str)])
     @pytest.mark.parametrize('args,expected',
-                             [(['SW'], ('SW', )),
+                             [(['SW'], ('SW', )), (['SW', 'Si'], ('SW', 'Si')),
+                              (['SW', 'Ar'], RAISED),
                               (['OPLSUA'], ('OPLSUA', 'TIP3P')),
                               (['OPLSUA', 'SPCE'], ('OPLSUA', 'SPCE')),
-                              (['OPLSUA', 'NOT_VALID'], RAISED)])
-    def testForceField(self, parser, args, expected):
+                              (['OPLSUA', 'NOT_VALID'], RAISED),
+                              (['UNKNOWN'], RAISED)])
+    def testForceField(self, parser, args, expected, raises):
         assert expected == parser.parse_args(args).dest
 
     @pytest.mark.parametrize(
@@ -250,6 +252,10 @@ class TestValid:
         fvals = [[x, y] for x, y in zip(flags, values) if y is not None]
         fvals = [[x, *y] if isinstance(y, list) else [x, y] for x, y in fvals]
         return [y for x in fvals for y in x]
+
+    @pytest.mark.parametrize('descr,expected', [('hi', 'hi'), (None, None)])
+    def testInit(self, descr, expected):
+        assert expected == parserutils.Driver(descr=descr).description
 
     @mock.patch('os.cpu_count', return_value=8)
     @pytest.mark.parametrize('flags', [(['-CPU', '-DEBUG'])])
