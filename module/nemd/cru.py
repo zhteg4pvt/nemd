@@ -164,7 +164,7 @@ class Mol(structure.Mol):
 
         :raise MoietyError: The monomer does not have a head marked.
         """
-        if not self.moieties:
+        if not any(self.moieties.values()):
             raise MoietyError(f'No moieties found.')
         for mol in self.moieties[MONOMER]:
             map_nums = [x.GetAtomMapNum() for x in mol.stars]
