@@ -13,19 +13,22 @@ import pytest
 from nemd import envutils
 from nemd import jobutils
 from nemd import logutils
+from nemd import parserutils
 
 
 class TestFunc:
 
     @pytest.mark.parametrize('mtype', ['stdout', 'stderr'])
-    def testRedirect(self, mtype, capsys):
-        logger = mock.Mock()
+    @pytest.mark.parametrize('logger', [mock.Mock(), None])
+    def testRedirect(self, mtype, logger, capsys):
         with capsys.disabled():
             with logutils.redirect(logger=logger) as redirected:
                 getattr(sys, mtype).write('msg\nmsg2\n')
         assert {mtype: 'msg\nmsg2\n'} == redirected
         calls = ['The following stderr is found:'] if mtype == 'stderr' else []
         calls += ['msg\nmsg2\n']
+        if logger is None:
+            return
         logger.info.assert_has_calls([mock.call(x) for x in calls])
 
 
@@ -107,17 +110,19 @@ class TestLogger:
         previous = logutils.Logger.get('jobname')
         assert created is previous
 
-    @pytest.mark.parametrize('logger_lvl, lvl',
-                             [(logging.WARNING, logging.WARNING),
-                              (logging.DEBUG, logging.INFO),
-                              (logging.CRITICAL, logging.INFO)])
-    def testOneLine(self, logger_lvl, lvl, logger):
-        logger.setLevel(logger_lvl)
-        with logger.progress(3, level=lvl) as prog:
-            prog(1)
-            prog(2)
-            prog(3)
-        assert ('' if lvl < logger_lvl else '33% 66% 100%\n') == logger.data
+    @pytest.mark.parametrize(
+        'orig,lvl,num,expected',
+        [(logging.WARNING, logging.WARNING, 3, '33% 66% 100%\n'),
+         (logging.DEBUG, logging.INFO, 3, '33% 66% 100%\n'),
+         (logging.CRITICAL, logging.INFO, 3, ''),
+         (logging.INFO, logging.INFO, 12,
+          '8% 16% 25% 33% 41% 50% 66% 75% 83% 91% 100%\n')])
+    def testProgress(self, orig, lvl, num, expected, logger):
+        logger.setLevel(orig)
+        with logger.progress(num, level=lvl) as prog:
+            for idx in range(num):
+                prog(idx + 1)
+        assert expected == logger.data
 
 
 @mock.patch('nemd.logutils.Logger', Logger)
@@ -160,6 +165,16 @@ class TestScript:
         assert bool(evalue) == ('Peak memory usage:' in logger.data)
         assert msg in logger.data
 
+    @pytest.mark.parametrize(
+        'parser',
+        [parserutils.Driver(), parserutils.Workflow()])
+    def testRun(self, parser, options, func=lambda self, x, **y: None):
+        mocked = mock.Mock()
+        Main = type('Main', (object, ), dict(__init__=func, run=mocked))
+        with mock.patch('sys.argv', []):
+            logutils.Script.run(Main, parser)
+        assert mocked.called
+
 
 @pytest.mark.skipif(envutils.get_src() is None,
                     reason="cannot locate test dir")
@@ -169,8 +184,11 @@ class TestReader:
                                    'amorp_bldr.log')
     MB_LMP_LOG = envutils.test_data('0046_test', 'mb_lmp_log.log')
     TEST001_LOG = envutils.test_data('0001_fail', 'test.log')
+    EMPTY_LOG = envutils.test_data('ar', 'empty.log')
     TEST0049 = os.path.join('0049_test', 'workspace',
                             '3ec5394f589c9363bd15af35d45a7c44')
+    TEST0035 = os.path.join('0035_test', 'workspace',
+                            'a080ae2cf5e6ba8233bd80fc4cfde5d3')
 
     @pytest.fixture
     def raw(self, data):
@@ -195,7 +213,8 @@ class TestReader:
         assert isinstance(raw.options.NAME, str)
 
     @pytest.mark.parametrize('data,onum,num', [(AMORP_LOG, 26, 6),
-                                               (MB_LMP_LOG, 35, 22)])
+                                               (MB_LMP_LOG, 35, 22),
+                                               (EMPTY_LOG, 0, 0)])
     def testCropOptions(self, onum, num, raw):
         assert onum == len(raw.cropOptions())
         assert num == len(raw.lines)
@@ -236,6 +255,7 @@ class TestReader:
                                (2, 1, np.int64)),
                               ('0049_ubuntu', ['task_time', 'memory'],
                                (2, 2, np.int64)),
+                              (TEST0035, ['task_time'], (2, 1, np.object_)),
                               ('0049_ubuntu', ['memory'], (2, 1, np.int64))])
     def testCollect(self, columns, expected, copied):
         collected = logutils.Reader.collect(*columns)

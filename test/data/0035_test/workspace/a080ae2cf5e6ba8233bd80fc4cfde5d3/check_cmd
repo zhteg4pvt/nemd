@@ -1,0 +1,1 @@
+nemd_check cmp /Users/zhteg4/git/nemd/test/integration/0035/lmp_log_toteng.csv lmp_log_toteng.csv rtol=1e-6 && ( grep 'CPU 2' cmd_cmd ) && ( nemd_check has lammps_lmp.log '2 OpenMP thread' )

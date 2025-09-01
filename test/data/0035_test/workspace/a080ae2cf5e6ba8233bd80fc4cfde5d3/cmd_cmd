@@ -1,0 +1,4 @@
+echo "0035: Driver jobs in serial: molecular dynamics, log analyzer"
+nemd_run lammps_driver.py $NEMD_SRC/test/data/si/crystal_builder.in -CPU 2 > /dev/null
+nemd_run lmp_log_driver.py lammps_lmp.log -task TotEng -CPU 1 -JOBNAME lmp_log > /dev/null
+exit 0

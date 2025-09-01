@@ -1,0 +1,1 @@
+nemd_module lmp -in crystal_builder.in -screen lammps_lmp.screen -log lammps_lmp.log

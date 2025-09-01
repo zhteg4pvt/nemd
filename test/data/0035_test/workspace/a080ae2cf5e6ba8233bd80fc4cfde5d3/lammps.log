@@ -1,0 +1,14 @@
+..........Options..........
+inscript: /Users/zhteg4/git/nemd/test/data/si/crystal_builder.in
+data_file: /Users/zhteg4/git/nemd/test/data/si/crystal_builder.data
+NAME: lammps
+JOBNAME: lammps
+INTERAC: False
+PYTHON: 2
+CPU: [2]
+DEBUG: None
+JobStart: 11:22:11 09/01/2025
+...........................
+Running lammps simulations...
+Finished.
+11:22:12 09/01/2025

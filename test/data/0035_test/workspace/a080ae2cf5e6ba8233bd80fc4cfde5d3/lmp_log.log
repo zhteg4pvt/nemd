@@ -1,0 +1,21 @@
+..........Options..........
+log: lammps_lmp.log
+task: ('toteng',)
+data_file: None
+last_pct: 0.2
+slice: None
+NAME: lmp_log
+JOBNAME: lmp_log
+INTERAC: False
+PYTHON: 2
+CPU: [1]
+DEBUG: None
+JobStart: 11:22:12 09/01/2025
+...........................
+1 steps of thermo data found.
+Averages results from 0.000 ps to 0.000 ps
+Thermodynamic information data written into lmp_log_toteng.csv
+TotEng: -34.69 ± nan eV ∈ [0.0000, 0.0000] ps
+Toteng figure saved as lmp_log_toteng.png
+Finished.
+11:22:13 09/01/2025

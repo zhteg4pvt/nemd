@@ -1,0 +1,1 @@
+nemd_run lammps_driver.py $NEMD_SRC/test/data/si/crystal_builder.in -CPU 2 > /dev/null
