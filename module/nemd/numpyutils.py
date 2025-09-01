@@ -65,9 +65,9 @@ class IntArray(np.ndarray):
         """
         Get the values that are on and not off.
 
-        :param zeros np.ndarray: the zeros array
-        :param other np.ndarray: another other array
-        :param on np.ndarray: the values to compute difference with
+        :param zeros np.ndarray: array stays as zeros before and after.
+        :param on np.ndarray: compute the difference from this to the off.
+        :param off np.ndarray: compute the difference from the on to this one.
         :return list of int: the difference
         """
         zeros[on] = True
