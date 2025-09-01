@@ -59,16 +59,13 @@ class Lammps(taskbase.Cmd):
     """
     FILE = 'lammps_driver.py'
     ParserClass = parserutils.Lammps
-    TMPL = [None]
 
 
 class LmpLog(taskbase.Cmd):
     """
     Class to run lammps log driver.
     """
-
     FILE = 'lmp_log_driver.py'
-    TMPL = [None]
     ParserClass = parserutils.LmpLog
 
     def addfiles(self):

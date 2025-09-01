@@ -1,0 +1,1 @@
+nemd_module lmp -in dispersion.in -screen dispersion.screen -log dispersion.log

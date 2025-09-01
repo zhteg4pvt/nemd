@@ -1,0 +1,1 @@
+nemd_check cmp 0044/dispersion.data dispersion.data && nemd_check cmp 0044/dispersion.pattern_HARMONIC suggest/dispersion.pattern_HARMONIC && nemd_check cmp 0044/dispersion.bands phonons/dispersion.bands

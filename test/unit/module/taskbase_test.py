@@ -172,20 +172,18 @@ class TestAgg:
 
 class TestCmd:
 
-    THREE = (None, None, None)
-
     @pytest.fixture
-    def cmd(self, name, file, parser, tmpl, jobs, logger):
-        attrs = dict(FILE=file, ParserClass=parser, TMPL=tmpl)
+    def cmd(self, name, file, parser, jobs, logger):
+        attrs = dict(FILE=file, ParserClass=parser)
         Name = type(name, (taskbase.Cmd, ), attrs)
         return Name(*jobs, options=OPTIONS, logger=logger)
 
-    @pytest.mark.parametrize('dirname,file,parser,tmpl', [('empty', *THREE)])
+    @pytest.mark.parametrize('dirname,file,parser', [('empty', None, None)])
     @pytest.mark.parametrize('name', ['MolBldr'])
     def testAgg(self, cmd):
         assert False == cmd.agg
 
-    @pytest.mark.parametrize('dirname,file,parser,tmpl', [('empty', *THREE)])
+    @pytest.mark.parametrize('dirname,file,parser', [('empty', None, None)])
     @pytest.mark.parametrize('name,jobname,expected',
                              [('MolBldr', None, 'mol_bldr'),
                               ('TrajLmp', 'myname', 'myname')])
@@ -197,7 +195,7 @@ class TestCmd:
         assert True == opr.opr._flow_aggregate._is_default_aggregator
         assert issubclass(opr.cls, taskbase.Cmd)
 
-    @pytest.mark.parametrize('dirname,file,parser,tmpl', [('empty', *THREE)])
+    @pytest.mark.parametrize('dirname,file,parser', [('empty', None, None)])
     @pytest.mark.parametrize(
         "name,jobname,expected",
         [('Job', None, 'nemd_run -JOBNAME job -CPU 1'),
@@ -206,16 +204,16 @@ class TestCmd:
         assert expected == cmd.runOpr(jobname=jobname, options=cmd.options)
         assert not glob.glob('.*_document.json')
 
-    @pytest.mark.parametrize('dirname,file,parser,tmpl',
-                             [('0037_test', *THREE)])
+    @pytest.mark.parametrize('dirname,file,parser',
+                             [('0037_test', None, None)])
     @pytest.mark.parametrize('name,jobname,expected',
                              [('AmorpBldr', 'amorp_bldr', False),
                               ('LmpTraj', 'lmp_traj', True)])
     def testPostOpr(self, jobs, name, jobname, cmd, expected):
         assert expected == cmd.postOpr(*jobs, jobname=jobname, options=OPTIONS)
 
-    @pytest.mark.parametrize('dirname,file,parser,tmpl,',
-                             [('0037_test', *THREE)])
+    @pytest.mark.parametrize('dirname,file,parser',
+                             [('0037_test', None, None)])
     @pytest.mark.parametrize('name,expected',
                              [('AmorpBldr', (False, None)),
                               ('LmpTraj', (True, 'lmp_traj.log'))])
@@ -225,27 +223,27 @@ class TestCmd:
         assert not cmd.logger.log.called
 
     @pytest.mark.parametrize('dirname', ['0045_test'])
-    @pytest.mark.parametrize('name,file,parser,tmpl,expected',
+    @pytest.mark.parametrize('name,file,parser,expected',
                              [('AmorpBldr', 'amorp_bldr_driver.py',
-                               parserutils.AmorpBldr, None, '[Ar]'),
+                               parserutils.AmorpBldr, '[Ar]'),
                               ('Lammps', 'lammps_driver.py',
-                               parserutils.Lammps, [None], 'amorp_bldr.in')])
+                               parserutils.Lammps, 'amorp_bldr.in')])
     def testAddfiles(self, cmd, expected):
         cmd.addfiles()
         assert cmd.args[0].endswith(expected)
 
-    @pytest.mark.parametrize('dirname', ['0045_test'])
-    @pytest.mark.parametrize('name,file,parser,tmpl,expected', [
-        ('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, None, 17),
-        ('Lammps', 'lammps_driver.py', parserutils.Lammps, [None], 5)
+    @pytest.mark.parametrize('dirname,name,file,parser,expected', [
+        ('0045_test', 'AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, 17),
+        ('0045_test', 'Lammps', 'lammps_driver.py', parserutils.Lammps, 5),
+        ('0044_test', 'Cmd', 'dispersion_driver.py', parserutils.Driver, 0)
     ])
     def testRmUnknown(self, cmd, expected):
         cmd.addfiles()
         cmd.rmUnknown()
         assert expected == len(cmd.args)
 
-    @pytest.mark.parametrize('name,dirname,file,parser,tmpl',
-                             [('MolBldr', 'empty', *THREE)])
+    @pytest.mark.parametrize('name,dirname,file,parser',
+                             [('MolBldr', 'empty', None, None)])
     @pytest.mark.parametrize('word,expected', [('Ar', ['Ar']),
                                                ('[Ar]', ['"[Ar]"']),
                                                ('"[Ar]"', ['"[Ar]"']),
@@ -255,8 +253,8 @@ class TestCmd:
         cmd.addQuot()
         assert expected == cmd.args
 
-    @pytest.mark.parametrize('name,dirname,file,parser,tmpl',
-                             [('MolBldr', 'empty', *THREE)])
+    @pytest.mark.parametrize('name,dirname,file,parser',
+                             [('MolBldr', 'empty', None, None)])
     @pytest.mark.parametrize('word,expected', [('Ar', 'Ar'), ('@', '"@"'),
                                                ('[Ar]', '"[Ar]"'),
                                                ('"[Ar]"', '"[Ar]"'),
@@ -264,14 +262,14 @@ class TestCmd:
     def testQuote(self, cmd, word, expected):
         assert expected == cmd.quote(word)
 
-    @pytest.mark.parametrize('name,dirname,file,parser,tmpl',
-                             [('MolBldr', 'empty', *THREE)])
+    @pytest.mark.parametrize('name,dirname,file,parser',
+                             [('MolBldr', 'empty', None, None)])
     def testSetName(self, cmd):
         cmd.setName()
         assert ['-JOBNAME', 'mol_bldr'] == cmd.args
 
-    @pytest.mark.parametrize('name,dirname,file,parser,tmpl',
-                             [('MolBldr', 'empty', *THREE)])
+    @pytest.mark.parametrize('name,dirname,file,parser',
+                             [('MolBldr', 'empty', None, None)])
     @pytest.mark.parametrize('cpu,expected', [(['1', '2'], '2'),
                                               (['2', '3'], '3')])
     def testSetCpu(self, cmd, cpu, expected):
@@ -280,9 +278,9 @@ class TestCmd:
         assert expected == cmd.args[-1]
 
     @pytest.mark.parametrize('dirname', ['0045_test'])
-    @pytest.mark.parametrize('name,file,parser,tmpl,expected', [
-        ('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, None, 21),
-        ('Lammps', 'lammps_driver.py', parserutils.Lammps, [None], 9)
+    @pytest.mark.parametrize('name,file,parser,expected', [
+        ('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, 21),
+        ('Lammps', 'lammps_driver.py', parserutils.Lammps, 9)
     ])
     def testGetCmd(self, cmd, expected):
         cmd.run()

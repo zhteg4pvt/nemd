@@ -1,0 +1,11 @@
+units metal
+atom_style atomic
+pair_style sw
+read_data dispersion.data
+pair_coeff * * Si.sw Si
+dump 1 all custom 1000 dispersion.custom id xu yu zu fx fy fz
+dump_modify 1 sort id format float '%20.15f'
+thermo 1000
+thermo_modify flush yes
+run 0
+write_restart dispersion.rst

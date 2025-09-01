@@ -2,8 +2,8 @@
 [report]
 exclude_lines =
     pragma: no cover
-    if __name__ == .__main__.:
+    pragma: no ${PLATFORM}
     @jit
     @numbautils.jit
     @numba.experimental.jitclass
-    pragma: no ${PLATFORM}
+    if __name__ == .__main__.:

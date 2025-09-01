@@ -26,8 +26,7 @@ export PLATFORM=$(python -c "import platform; print(platform.system().lower())")
 for NAME in "workflow" "driver" "module"
   do
     [ ! -z "$INAME" ] && [ "$NAME" != "$INAME" ] && continue
-    SOURCE=$NEMD_SRC/$NAME
-    [ $NAME = "module" ] && SOURCE=$SOURCE/nemd
+    SOURCE=$NEMD_SRC/$NAME && [ $NAME = "module" ] && SOURCE=$SOURCE/nemd
     [ ! -z "$NUM" ] && [ $NUM != 0 ] || set -- $NEMD_SRC/test/unit/$NAME/*_test.py
     DIR=.coverage_"$NAME"
     coverage run --source=$SOURCE --data-file $DIR/.coverage -m pytest "$@"

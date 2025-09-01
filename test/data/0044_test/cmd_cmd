@@ -1,0 +1,3 @@
+echo "0044: Phonon dispersion on Silicon with 3x3x3 supercell"
+nemd_run dispersion_driver.py -dimension 3 3 3 -scale_factor 1.0002200000000012 -CPU 6 > /dev/null
+exit 0

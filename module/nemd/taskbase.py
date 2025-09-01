@@ -312,7 +312,6 @@ class Cmd(Job):
     ParserClass = None
     RUN = jobutils.NEMD_RUN
     SEP = symbols.SPACE
-    TMPL = None
     OUT = '_outfile'
 
     def __init__(self, *args, **kwargs):
@@ -337,11 +336,9 @@ class Cmd(Job):
         """
         Add the outfiles from previous jobs to the input arguments of this job.
         """
-        if self.TMPL is None:
-            return
         try:
             jobnames = self.doc[self.PREREQ][self.jobname]
-        except KeyError:
+        except (TypeError, KeyError):
             return
         # Pass the outfiles of the prerequisite jobs to the current via cmd args
         # Please rearrange or modify the prerequisite jobs' input by subclassing
