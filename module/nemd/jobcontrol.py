@@ -207,11 +207,11 @@ class Runner(logutils.Base):
         if not failed:
             return
         id_ops = []
-        for completed, op, stat, in zip(completed, ops, status):
-            if completed:
+        for compl, op, stat, in zip(completed, ops, status):
+            if compl:
                 continue
-            failed_ops = [x for x, y in op.items() if not y[self.COMPLETED]]
-            id_ops.append([stat[self.JOB_ID], ', '.join(reversed(failed_ops))])
+            failed = [x for x, y in op.items() if not y[self.COMPLETED]]
+            id_ops.append([stat[self.JOB_ID], ', '.join(reversed(failed))])
         id_ops = pd.DataFrame(id_ops, columns=[self.JOB_ID, 'operations'])
         id_ops.set_index(self.JOB_ID, inplace=True)
         self.log(id_ops.to_markdown())

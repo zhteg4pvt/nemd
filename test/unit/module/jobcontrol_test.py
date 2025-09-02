@@ -1,7 +1,9 @@
+import io
 import os
 from unittest import mock
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from nemd import jobcontrol
@@ -58,9 +60,35 @@ class TestRunner:
         class Job(taskbase.Job):
 
             def run(self, *args, **kwargs):
-                self.out = status
+                self.out = self.jobs[0].statepoint['-seed'] == '1' and status
 
         return Job
+
+    @pytest.mark.parametrize('file', [True])
+    @pytest.mark.parametrize(
+        'args,expected',
+        [([], ['1 / 1 completed jobs.', 'Task Total Timing: nan\n']),
+         (['-jtype', 'task'], ['1 / 1 completed jobs.']),
+         (['-jtype', 'aggregator'], SystemExit)])
+    def testRun(self, args, expected, Cmd, logger, raises, flow_opr, tmp_dir):
+
+        class Runner(jobcontrol.Runner):
+
+            def setJobs(self, *args, **kwargs):
+                self.add(Cmd)
+
+        options = parserutils.Workflow().parse_args(args)
+        runner = Runner(options=options, args=args, logger=logger)
+        with raises:
+            runner.run()
+            runner.logger.log.assert_has_calls(
+                [mock.call(x) for x in expected])
+            assert len(expected) == len(runner.logger.log.call_args_list)
+
+    @pytest.mark.parametrize('args,expected', [([], 0)])
+    def testSetJobs(self, runner, expected):
+        runner.setJobs()
+        assert expected == len(runner.jobs)
 
     @pytest.mark.parametrize('args', [[]])
     @pytest.mark.parametrize(
@@ -123,15 +151,24 @@ class TestRunner:
     @pytest.mark.parametrize('args', [(['-DEBUG'])])
     @pytest.mark.parametrize('file', [True, False])
     @pytest.mark.parametrize('status', [True, False])
-    @pytest.mark.parametrize('pre', [(None), (False)])
+    @pytest.mark.parametrize('pre', [None, False])
     def testRunProj(self, pre, file, status, ran):
         dirname = ran.jobs[0].fn('')
         outfile = jobutils.Job('cmd', dirname=dirname).outfile
-        assert outfile.endswith('job') if outfile else (outfile is None)
+        assert outfile is None or outfile.endswith('job')
         stat = jobutils.Job('job', dirname=dirname).get('status')
         assert (status if pre is False or file else None) == stat
 
-    @pytest.mark.parametrize('args', [(['-JOBNAME', 'name', '-DEBUG'])])
+    @pytest.mark.parametrize('args,file,status,pre',
+                             [(['-DEBUG'], True, True, None)])
+    def testRunAgg(self, agg):
+        assert jobutils.Job('agg', dirname=agg.proj.fn(''))['status']
+        agg.jobs = []
+        with pytest.raises(SystemExit):
+            agg.runProj()
+
+    @pytest.mark.parametrize(
+        'args', [(['-JOBNAME', 'name', '-DEBUG', '-state_num', '2'])])
     @pytest.mark.parametrize('file', [True, False])
     @pytest.mark.parametrize('status', [True, False])
     @pytest.mark.parametrize('pre', [False])
@@ -139,11 +176,17 @@ class TestRunner:
         ran.logStatus()
         num = int(file and status)
         calls = ran.logger.log.call_args_list
-        assert mock.call(f'{num} / 1 completed jobs.') == calls[0]
+        assert mock.call(f'{num} / 2 completed jobs.') == calls[0]
         if num:
-            assert 1 == len(calls)
+            assert 2 == len(calls)
             return
-        oprs = calls[1][0][0].split('|')[-2]
+        markdown = io.StringIO(calls[1].args[0])
+        markdown = pd.read_csv(markdown, sep='|').dropna(axis=1)
+        markdown.columns = markdown.columns.str.strip()
+        markdown = markdown.map(lambda x: x.strip())
+        markdown.set_index('job_id', inplace=True)
+        oprs = markdown.loc['82f4bd71824e609f5befdeb485c55f4d'].operations
+        oprs = [x.strip() for x in oprs.split(',')]
         assert not file == ('cmd' in oprs)
         assert not status == ('job' in oprs)
 
@@ -164,10 +207,7 @@ class TestRunner:
 
     @pytest.mark.parametrize('args,file,status,pre',
                              [(['-DEBUG'], True, True, None)])
-    @pytest.mark.parametrize('clear,expected', [
-        (False, 1),
-        (True, 1),
-    ])
+    @pytest.mark.parametrize('clear,expected', [(False, 1), (True, 1)])
     def testFindJobs(self, ran, clear, expected):
         if clear:
             ran.jobs = []
@@ -182,8 +222,3 @@ class TestRunner:
         assert os.path.exists(file)
         agg.clean(agg=True)
         assert not os.path.exists(file)
-
-    @pytest.mark.parametrize('args,file,status,pre',
-                             [(['-DEBUG'], True, True, None)])
-    def testRunProj(self, agg):
-        assert jobutils.Job('agg', dirname=agg.proj.fn(''))['status']
