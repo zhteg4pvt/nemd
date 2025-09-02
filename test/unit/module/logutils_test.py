@@ -168,9 +168,10 @@ class TestScript:
     @pytest.mark.parametrize(
         'parser',
         [parserutils.Driver(), parserutils.Workflow()])
-    def testRun(self, parser, options, func=lambda self, x, **y: None):
+    def testRun(self, parser, options, tmp_dir):
         mocked = mock.Mock()
-        Main = type('Main', (object, ), dict(__init__=func, run=mocked))
+        Main = type('Main', (object, ),
+                    dict(__init__=lambda self, x, **y: None, run=mocked))
         with mock.patch('sys.argv', []):
             logutils.Script.run(Main, parser)
         assert mocked.called
@@ -292,6 +293,10 @@ class TestBase:
         base.debug('msg')
         (base.logger.debug if has_logger else mocked).assert_called_with('msg')
 
+    def testWarning(self, base):
+        base.warning('msg')
+        base.logger.log.assert_called_with("WARNING: msg")
+
     @mock.patch('nemd.logutils.print')
     @pytest.mark.parametrize('has_logger', [False, True])
     def testLog(self, mocked, has_logger):
@@ -299,12 +304,15 @@ class TestBase:
         base.log('msg')
         (base.logger.log if has_logger else mocked).assert_called_with('msg')
 
-    def testWarning(self, base):
-        base.warning('msg')
-        base.logger.log.assert_called_with("WARNING: msg")
-
     @mock.patch('nemd.logutils.sys')
-    def testError(self, mocked, base):
+    @pytest.mark.parametrize(
+        'has_logger,expected',
+        [(False, ['msg', {}]),
+         (True, ["Aborting...", dict(timestamp=True)])])
+    def testError(self, mocked, base, has_logger, expected):
+        if not has_logger:
+            base.logger = None
+        base.log = mock.Mock()
         base.error('msg')
-        base.logger.log.assert_called_with("msg\nAborting...", timestamp=True)
         mocked.exit.assert_called_with(1)
+        base.log.assert_called_with(expected[0], **expected[1])

@@ -70,6 +70,14 @@ class TestCmp:
         cmp.errorDiff = called
         return cmp
 
+    @pytest.mark.parametrize('kwargs', [{}])
+    @pytest.mark.parametrize('args,expected',
+                             [(['cmd', 'check'], 'check'),
+                              (['original.csv', 'close.csv'], 'close.csv'),
+                              (['original.data', 'close.data'], 'close.data')])
+    def testRun(self, cmp, expected):
+        cmp.run()
+
     @pytest.mark.parametrize(
         'args,kwargs,expected',
         [(['cmd', 'cmd_same'], {}, None), (['cmd', 'check'], {}, 'check'),
@@ -89,6 +97,14 @@ class TestCmp:
            ], dict(atol='1e-06'), 'different.csv')])
     def testCsv(self, cmp, expected):
         cmp.csv()
+
+    @pytest.mark.parametrize(
+        'args,target,expected',
+        [(['cmd', 'check'], 'check', 'cmd is different from check.')])
+    def testErrorDiff(self, args, target, called, dirname):
+        cmp = check.Cmp(*args)
+        cmp.error = called
+        cmp.errorDiff(target)
 
     @pytest.mark.parametrize(
         'args,kwargs,expected',
@@ -122,6 +138,20 @@ class TestCollect:
         collect.error = mock.Mock(side_effect=ValueError)
         return collect
 
+    @pytest.mark.parametrize('dirname,args,kwargs,expected',
+                             [('empty', [], {}, ['task_time'])])
+    def testInit(self, collect, expected):
+        assert expected == collect.args
+
+    @pytest.mark.parametrize('dirname,args,kwargs,expected',
+                             [('0000', ['task_time', 'memory', 'finished'], {},
+                               (0, 3))])
+    def testRun(self, collect, expected, raises):
+        with raises:
+            collect.run()
+            assert expected == collect.data.shape
+            assert os.path.isfile('collect.csv')
+
     @pytest.mark.parametrize(
         'dirname,args,kwargs,expected',
         [('0049', ['task_time'], {}, (0, 1)),
@@ -154,3 +184,25 @@ class TestCollect:
         assert expected == [len(x.axes) for x in collect.figs]
         for outfile in outfiles:
             assert os.path.exists(outfile)
+
+
+class TestMain:
+
+    @pytest.mark.parametrize('args,expected', [(['cmp'], check.Cmp),
+                                               (['cmp2'], None)])
+    def testInit(self, args, expected, tmp_dir):
+        assert expected == check.Main(args).Class
+
+    @pytest.mark.parametrize(
+        'dirname,args,expected,msg',
+        [('0000', ('exist', 'wa'), SystemExit, 'wa not found.'),
+         ('0000', ('exist2', 'cmd'), SystemExit,
+          'exist2 found. Please select from exist, glob, has, cmp, collect.'),
+         ('0000', ('exist', 'cmd'), None, None)])
+    def testRun(self, args, expected, copied, msg, raises):
+        with mock.patch('nemd.logutils.Base.log') as mocked:
+            main = check.Main(args)
+            with raises:
+                main.run()
+            if msg is not None:
+                mocked.assert_called_once_with(msg)

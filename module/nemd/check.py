@@ -44,15 +44,6 @@ class Exist(logutils.Base):
                 continue
             self.error(f"{target} not found.")
 
-    def error(self, msg):
-        """
-        Print this message and exit the program.
-
-        :param msg str: the msg to be printed
-        """
-        self.log(msg)
-        sys.exit(1)
-
 
 class Glob(Exist):
     """
@@ -270,17 +261,35 @@ class Collect(Exist):
                 self.figs.append(fig)
 
 
+class Main(logutils.Base):
+    """
+    Main class to run the check module as a script.
+    """
+    CLASSES = (Exist, Glob, Has, Cmp, Collect)
+
+    def __init__(self, args, **kwargs):
+        """
+        :param args list: command line arguments without the script name.
+        """
+        super().__init__(**kwargs)
+        self.args = args
+        self.Class = (x for x in self.CLASSES if x.name == self.args[0])
+        self.Class = next(self.Class, None)
+
+    def run(self, rex=re.compile(r'(\w*)=(.*)')):
+        """
+        Run the check.
+
+        :param rex `re.compile`: regular expression to match keyword arguments.
+        """
+        if not self.Class:
+            self.error(f"{self.args[0]} found. Please select from "
+                       f"{', '.join([x.name for x in self.CLASSES])}.")
+        matches = [rex.match(x) for x in self.args[1:]]
+        args = [x.strip() for x, y in zip(self.args[1:], matches) if y is None]
+        kwargs = dict([[y.strip() for y in x.groups()] for x in matches if x])
+        self.Class(*args, **kwargs).run()
+
+
 if __name__ == "__main__":
-    """
-    Run module as a script.
-    """
-    Classes = [Exist, Glob, Has, Cmp, Collect]
-    try:
-        Class = next(x for x in Classes if x.name == sys.argv[1])
-    except StopIteration:
-        sys.exit(f'{sys.argv[1]} found. ({[x.name for x in Classes]})')
-    kwargs_re = re.compile(r'(\w*)=(.*)')
-    matches = [kwargs_re.match(x) for x in sys.argv[2:]]
-    args = [x.strip() for x, y in zip(sys.argv[2:], matches) if y is None]
-    kwargs = [[y.strip() for y in x.groups()] for x in matches if x]
-    Class(*args, **dict(kwargs)).run()
+    Main(sys.argv[1:]).run()

@@ -491,6 +491,14 @@ class Base(builtinsutils.Object):
         else:
             print(msg)
 
+    def warning(self, msg):
+        """
+        Print this warning message into log file.
+
+        :param msg str: the msg to be printed
+        """
+        self.log(f"WARNING: {msg}")
+
     def log(self, msg, **kwargs):
         """
         Print this message into the log file as information.
@@ -502,19 +510,13 @@ class Base(builtinsutils.Object):
         else:
             print(msg)
 
-    def warning(self, msg):
-        """
-        Print this warning message into log file.
-
-        :param msg str: the msg to be printed
-        """
-        self.log(f"WARNING: {msg}")
-
     def error(self, msg):
         """
         Print this message and exit the program.
 
         :param msg str: the msg to be printed
         """
-        self.log(msg + '\nAborting...', timestamp=True)
+        self.log(msg)
+        if self.logger:
+            self.log('Aborting...', timestamp=True)
         sys.exit(1)
