@@ -258,6 +258,23 @@ class Mol(Chem.rdchem.Mol):
 
         return cls(Chem.AddHs(mol), **kwargs)
 
+    @property
+    def name(self):
+        """
+        Get the name of the measurement.
+
+        :return str: measurement name.
+        """
+        match self.GetNumAtoms():
+            case 1:
+                return 'coordinates (angstrom)'
+            case 2:
+                return 'bond (angstrom)'
+            case 3:
+                return 'angle (degree)'
+            case 4:
+                return 'dihedral (degree)'
+
     def getDihes(self, sources=(None, ), targets=(None, )):
         """
         Get a list of dihedral angles.

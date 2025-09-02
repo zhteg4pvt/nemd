@@ -124,6 +124,14 @@ class TestMol:
         mol = structure.Mol.MolFromSmiles(smiles, united=united)
         assert expected == mol.GetNumAtoms()
 
+    @pytest.mark.parametrize('smiles,expected',
+                             [('C', 'coordinates (angstrom)'),
+                              ('CC', 'bond (angstrom)'),
+                              ('CCC', 'angle (degree)'),
+                              ('CCCC', 'dihedral (degree)'), ('CCCCC', None)])
+    def testName(self, mol, expected):
+        assert expected == mol.name
+
     @pytest.mark.parametrize('smiles', ['CCCCC(CC)CC'])
     @pytest.mark.parametrize('sources,targets,expected',
                              [((None, ), (None, ), 4), ((0, 1), (4, 5), 3)])

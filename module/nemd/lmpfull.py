@@ -19,6 +19,7 @@ from nemd import lmpatomic
 from nemd import lmpin
 from nemd import numpyutils
 from nemd import oplsua
+from nemd import structure
 from nemd import symbols
 
 TYPE_ID = lmpatomic.TYPE_ID
@@ -391,24 +392,13 @@ class Mol(lmpatomic.Mol):
             struct = self.struct.options.substruct[0]
         except (TypeError, AttributeError):
             return pd.Series([])
-        struct = Chem.MolFromSmiles(struct)
-        if not self.HasSubstructMatch(struct):
+        mol = structure.Mol.MolFromSmiles(struct)
+        if not self.HasSubstructMatch(mol):
             return pd.Series([])
-        ids = self.GetSubstructMatch(struct)
+        ids = self.GetSubstructMatch(mol)
         if gid:
             ids = self.GetConformer().gids[list(ids)]
-        match len(ids):
-            case 1:
-                name = 'coordinates (angstrom)'
-            case 2:
-                name = 'bond (angstrom)'
-            case 3:
-                name = 'angle (degree)'
-            case 4:
-                name = 'dihedral (degree)'
-            case _:
-                name = None
-        return pd.Series(ids, name=name)
+        return pd.Series(ids, name=mol.name)
 
     def updateAll(self):
         """

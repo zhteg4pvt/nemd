@@ -46,7 +46,8 @@ class TestCmd:
 
     @pytest.fixture
     def cmd(self, jobs):
-        options = test_workflow.Parser().parse_args([])
+        options = test_workflow.Parser().parse_args(
+            ['-CPU', '7', '-DEBUG', '-name', 'performance', '-screen', 'off'])
         return task.Cmd(*jobs, options=options)
 
     @pytest.fixture
@@ -55,6 +56,16 @@ class TestCmd:
         cmd = task.Cmd(options=options)
         cmd.args = args
         return cmd
+
+    @pytest.mark.parametrize('dirname,expected', [('0001_test', [
+        "MEM_INTVL=1 nemd_run amorp_bldr_driver.py 'CC(C)O' -mol_num 1 "
+        "-force_field OPLSUA TIP3P -method grid -seed 4321 -CPU 4 -DEBUG True",
+        'exit 0'
+    ])])
+    def testRun(self, cmd, expected):
+        cmd.options.CPU.set([1, 2])
+        cmd.run()
+        assert expected == cmd.args
 
     @pytest.mark.parametrize('dirname,expected', [('0001_test', 1)])
     def testSetArgs(self, cmd, expected):
@@ -89,7 +100,8 @@ class TestCmd:
 
     @pytest.mark.parametrize(
         'args,options,expected',
-        [(["echo hi"], None, ['echo hi']), (["nemd_run"], None, ['nemd_run']),
+        [(["echo hi"], None, ['echo hi']), (["echo hi"], True, ['echo hi']),
+         (["nemd_run"], None, ['nemd_run']),
          (["nemd_run -DEBUG"], None, ['nemd_run -DEBUG']),
          (["nemd_run -DEBUG False"], None, ['nemd_run -DEBUG False']),
          (["nemd_run"], True, ['nemd_run -DEBUG True']),
@@ -140,6 +152,10 @@ class TestCmd:
         cmd.clean()
         assert not cmd.post()
         assert not glob.glob('workspace/*/workspace')
+        try:
+            cmd.clean()
+        except FileNotFoundError:
+            pytest.fail('Job cleaning failed.')
 
     @pytest.mark.parametrize('dirname,expected', [('0049_test', 332),
                                                   ('0001_cmd', 154)])
@@ -228,6 +244,14 @@ class TestTestAgg:
         return task.TestAgg(*jobs, options=options)
 
     @pytest.mark.parametrize('dirname', ['0001_test'])
+    @pytest.mark.parametrize('args,expected', [([], 1), (['1'], 1),
+                                               (['2'], 0)])
+    def testRun(self, test_agg, expected):
+        test_agg.run()
+        assert expected == len(test_agg.jobs)
+        assert test_agg.out
+
+    @pytest.mark.parametrize('dirname', ['0001_test'])
     @pytest.mark.parametrize('args,expected', [([], 1), (['1'], 1), (['2'], 0),
                                                (['-label', 'amorp_b'], 1),
                                                (['-label', 'xtal'], 0),
@@ -236,3 +260,36 @@ class TestTestAgg:
     def testFilter(self, test_agg, expected):
         test_agg.filter()
         assert expected == len(test_agg.jobs)
+
+
+class TestRead:
+
+    @pytest.fixture
+    def rdr(self, file):
+        return task.Reader(file)
+
+    @pytest.mark.parametrize(
+        'file,smiles,expected',
+        [(envutils.test_data('0003_test', 'mol_bldr.log'), 'CCC', '112.40')])
+    def testGetSubstruct(self, rdr, smiles, expected, tmp_dir):
+        assert expected == rdr.getSubstruct(smiles)
+
+
+class TestAnalyzerAgg:
+    TEST0047 = os.path.join('0047_test', 'workspace',
+                            'ecd6407852986c68a9fcc4390d67f50c')
+
+    @pytest.fixture
+    def anal_agg(self, tsk, jobs, args):
+        options = test_workflow.Parser().parse_args(args)
+        groups = task.LmpAgg(*jobs).groups
+        return task.AnalyzerAgg(tsk, groups=groups, options=options)
+
+    @pytest.mark.parametrize('args', [['-NAME', 'lmp_log']])
+    @pytest.mark.parametrize(
+        'dirname,tsk,expected',
+        [('0046_test', 'toteng', 'CCCC dihedral (degree)'),
+         (TEST0047, 'toteng', 'CCCC dihedral (degree)')])
+    def testRun(self, tsk, anal_agg, expected):
+        anal_agg.run()
+        assert expected == anal_agg.data.index.name

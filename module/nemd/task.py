@@ -21,6 +21,7 @@ from nemd import lmpin
 from nemd import logutils
 from nemd import parserutils
 from nemd import rdkitutils
+from nemd import structure
 from nemd import symbols
 from nemd import taskbase
 from nemd import test
@@ -123,7 +124,6 @@ class Cmd(taskbase.Cmd):
         Get arguments that form command lines.
         """
         self.setArgs()
-        self.addfiles()
         self.addQuot()
         self.numCpu()
         self.setDebug()
@@ -343,8 +343,6 @@ class TimeAgg(taskbase.Agg):
         """
         Report the total task timing and timing details grouped by name.
         """
-        if not self.jobs:
-            return
         jobs = [x for x in self.getJobs() if x.logfile]
         rdrs = [logutils.Reader(x.logfile) for x in jobs]
         info = [[x.options.NAME[:9], x.task_time] for x in rdrs]
@@ -413,7 +411,7 @@ class TestAgg(TimeAgg):
 
 class Reader(logutils.Reader):
     """
-    A LAMMPS log reader customized for substructure.
+    A builder log reader customized for substructure.
     """
 
     def getSubstruct(self, smiles):
@@ -441,19 +439,11 @@ class AnalyzerAgg(analyzer.Agg):
         structure smiles and geometry type.
         """
         super().set()
-        if len(self.groups) == 1 and self.groups[0][0].empty:
-            return
         substruct = self.data.index.str.split(expand=True)
         has_value = self.data.index[0] != substruct[0]
         smiles = substruct[0][0] if has_value else substruct[0]
         # Set the name of the substructure column (e.g. CC Bond (Angstrom))
-        match rdkitutils.MolFromSmiles(smiles).GetNumAtoms():
-            case 2:
-                name = f"{smiles} Bond (Angstrom)"
-            case 3:
-                name = f"{smiles} Angle (Degree)"
-            case 4:
-                name = f"{smiles} Dihedral Angle (Degree)"
+        name = f"{smiles} {structure.Mol.MolFromSmiles(smiles).name}"
         if has_value:
             # result.substruct contains the values  (e.g. CC: 2)
             self.data.index = pd.Index([x[1] for x in substruct], name=name)
@@ -467,5 +457,3 @@ class AnalyzerAgg(analyzer.Agg):
                 continue
             values = reader.getSubstruct(smiles)
             self.data.index = pd.Index([values], name=name)
-            return
-        raise ValueError("Cannot extract the smiles from the log file.")
