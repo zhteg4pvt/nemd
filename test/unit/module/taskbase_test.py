@@ -223,20 +223,20 @@ class TestCmd:
         assert not cmd.logger.log.called
 
     @pytest.mark.parametrize('dirname', ['0045_test'])
-    @pytest.mark.parametrize('name,file,parser,expected',
-                             [('AmorpBldr', 'amorp_bldr_driver.py',
-                               parserutils.AmorpBldr, '[Ar]'),
-                              ('Lammps', 'lammps_driver.py',
-                               parserutils.Lammps, 'amorp_bldr.in')])
+    @pytest.mark.parametrize(
+        'name,file,parser,expected',
+        [('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, '[Ar]'),
+         ('Lammps', 'lammps_driver.py', parserutils.Lammps, 'amorp_bldr.in')])
     def testAddfiles(self, cmd, expected):
         cmd.addfiles()
         assert cmd.args[0].endswith(expected)
 
-    @pytest.mark.parametrize('dirname,name,file,parser,expected', [
-        ('0045_test', 'AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, 17),
-        ('0045_test', 'Lammps', 'lammps_driver.py', parserutils.Lammps, 5),
-        ('0044_test', 'Cmd', 'dispersion_driver.py', parserutils.Driver, 0)
-    ])
+    @pytest.mark.parametrize(
+        'dirname,name,file,parser,expected',
+        [('0045_test', 'AmorpBldr', 'amorp_bldr_driver.py',
+          parserutils.AmorpBldr, 17),
+         ('0045_test', 'Lammps', 'lammps_driver.py', parserutils.Lammps, 5),
+         ('0044_test', 'Cmd', 'dispersion_driver.py', parserutils.Driver, 0)])
     def testRmUnknown(self, cmd, expected):
         cmd.addfiles()
         cmd.rmUnknown()
@@ -278,10 +278,10 @@ class TestCmd:
         assert expected == cmd.args[-1]
 
     @pytest.mark.parametrize('dirname', ['0045_test'])
-    @pytest.mark.parametrize('name,file,parser,expected', [
-        ('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, 21),
-        ('Lammps', 'lammps_driver.py', parserutils.Lammps, 9)
-    ])
+    @pytest.mark.parametrize(
+        'name,file,parser,expected',
+        [('AmorpBldr', 'amorp_bldr_driver.py', parserutils.AmorpBldr, 21),
+         ('Lammps', 'lammps_driver.py', parserutils.Lammps, 9)])
     def testGetCmd(self, cmd, expected):
         cmd.run()
         assert expected == len(cmd.getCmd().split())

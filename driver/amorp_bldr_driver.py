@@ -82,7 +82,7 @@ class Amorphous(logutils.Base):
 
     def write(self):
         """
-        Write amorphous cell into data file.
+        Write the data file.
         """
         self.struct.write()
         for warning in self.struct.getWarnings():

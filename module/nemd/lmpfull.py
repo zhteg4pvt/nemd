@@ -296,11 +296,9 @@ class Conf(lmpatomic.Conf):
         """
         Set the bond length, angle degree, or dihedral angle.
 
-        :param aids list: atom ids
+        :param aids list: atom ids.
         :param val float: the value to set.
         """
-        if val is None:
-            return
         match len(aids):
             case 2:
                 Chem.rdMolTransforms.SetBondLength(self, *aids, val)
@@ -313,7 +311,7 @@ class Conf(lmpatomic.Conf):
         """
         Measure the bond length, angle degree, or dihedral angle.
 
-        :param aids list: atom ids
+        :param aids list: atom ids.
         :param name str: the measurement name.
         :return np.ndarray or float: the measurement.
         """
@@ -391,10 +389,10 @@ class Mol(lmpatomic.Mol):
         try:
             struct = self.struct.options.substruct[0]
         except (TypeError, AttributeError):
-            return pd.Series([])
+            return pd.Series()
         mol = structure.Mol.MolFromSmiles(struct)
         if not self.HasSubstructMatch(mol):
-            return pd.Series([])
+            return pd.Series()
         ids = self.GetSubstructMatch(mol)
         if gid:
             ids = self.GetConformer().gids[list(ids)]
@@ -404,8 +402,6 @@ class Mol(lmpatomic.Mol):
         """
         Update all conformers.
         """
-        if not self.GetNumConformers():
-            return
         xyz = self.GetConformer().GetPositions()
         for conf in self.GetConformers():
             conf.SetPositions(xyz)
@@ -537,7 +533,8 @@ class Mol(lmpatomic.Mol):
         # and 180 deg imply in plane. The chosen center defines the plane. The
         # third as center uses 120 deg as the equilibrium improper angle, which
         # the first as center uses 45 deg. We take the third as the center, and
-        # there is no special treatment to the order of other atoms.
+        # there is no special treatment to the atom order at this stage.
+        # oplsua.Improper.match sorts the atom order.
         for atom in self.GetAtoms():
             if atom.GetTotalDegree() != 3:
                 continue
@@ -550,9 +547,7 @@ class Mol(lmpatomic.Mol):
                     if atom.GetHybridization(
                     ) != Chem.rdchem.HybridizationType.SP2:
                         continue
-                    # Sp2 N in Amino Acid or Dimethylformamide
-                case _:
-                    continue
+                    # FIXME: Sp2 N in Amino Acid or Dimethylformamide
             atoms = list(atom.GetNeighbors())
             atoms.insert(2, atom)
             yield atoms

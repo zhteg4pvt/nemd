@@ -1,8 +1,11 @@
+import copy
+
 import numpy as np
 import pytest
 from rdkit import Chem
 
 from nemd import envutils
+from nemd import lmpatomic
 from nemd import lmpfull
 from nemd import numpyutils
 from nemd import oplsua
@@ -177,7 +180,8 @@ class TestMol:
         numpyutils.assert_almost_equal(next(struct.conf).measure(), expected)
 
     @pytest.mark.parametrize('smiles,cnum', [('CCC(C)C', 1)])
-    @pytest.mark.parametrize('args,expected', [([], []), (['CC'], [0, 1]),
+    @pytest.mark.parametrize('args,expected', [([], []), (['O'], []),
+                                               (['CC'], [0, 1]),
                                                (['CCC'], [0, 1, 2]),
                                                (['CCCC'], [0, 1, 2, 3])])
     def testGetSubstructMatch(self, fmol, smiles, args, expected):
@@ -237,6 +241,7 @@ class TestMol:
 
     @pytest.mark.parametrize('cnum', [0])
     @pytest.mark.parametrize('smiles,expected', [('CC(C)C', (4, 1)),
+                                                 ('OC(C)CC', (6, 1)),
                                                  ('[C]N([C])[C]=O', (5, 1))])
     def testNbrCharge(self, fmol, expected):
         assert expected == fmol.nbr_charge.shape
@@ -258,6 +263,12 @@ class TestScript:
     @pytest.mark.parametrize('smiles,expected', [('O', 3), ('C', 2)])
     def testPair(self, script, expected):
         script.pair()
+        assert expected == len(script)
+
+    @pytest.mark.parametrize('cnum', [1])
+    @pytest.mark.parametrize('smiles,expected', [('O', 0)])
+    def testCoeff(self, script, expected):
+        script.coeff()
         assert expected == len(script)
 
     @pytest.mark.parametrize('smiles', ['CCCC'])
@@ -496,16 +507,22 @@ class TestReader:
         np.testing.assert_almost_equal(rdr.molecular_weight, expected)
 
     @pytest.mark.parametrize('args', [(['0022_test', 'amorp_bldr.data'])])
-    @pytest.mark.parametrize('other,expected',
-                             [(['0022_test', 'amorp_bldr.data'], True),
-                              (['0000', 'original.data'], False)])
-    def testAllClose(self, rdr, other, expected):
-        pathname = envutils.test_data(*other)
-        assert expected == rdr.allClose(lmpfull.Reader(pathname))
+    @pytest.mark.parametrize('attr', [
+        None, 'pair_coeffs', 'bond_coeffs', 'angle_coeffs', 'dihedral_coeffs',
+        'improper_coeffs', 'atoms', 'bonds', 'angles', 'dihedrals', 'impropers'
+    ])
+    def testAllClose(self, rdr, attr):
+        other = copy.deepcopy(rdr)
+        if attr:
+            attr = getattr(rdr, attr)
+            attr += 1
+        assert (attr is None) == rdr.allClose(other)
 
-    @pytest.mark.parametrize('args,expected',
-                             [(['0022_test', 'amorp_bldr.data'], (6, 7)),
-                              (['0044', 'dispersion.data'], (216, 7))])
-    def testRead(self, args, expected):
-        rdr = lmpfull.Reader(envutils.test_data(*args))
-        assert expected == rdr.atoms.shape
+    @pytest.mark.parametrize(
+        'args,expected', [(['0022_test', 'amorp_bldr.data'], lmpfull.Reader),
+                          (['si', 'crystal_builder.data'], lmpatomic.Reader),
+                          (['0000', 'check'], ValueError)])
+    def testRead(self, args, expected, raises):
+        with raises:
+            rdr = lmpfull.Reader.read(envutils.test_data(*args))
+            assert isinstance(rdr, expected)

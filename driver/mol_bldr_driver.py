@@ -70,6 +70,8 @@ class Single(logutils.Base):
         Write the data file.
         """
         self.struct.write()
+        for warning in self.struct.getWarnings():
+            self.warning(f'{warning}')
         self.log(f'Data file written into {self.struct.outfile}')
         jobutils.Job.reg(self.struct.outfile)
         self.struct.script.write()
