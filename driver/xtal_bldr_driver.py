@@ -28,13 +28,9 @@ class Crystal(logutils.Base):
         """
         crystal = xtal.Crystal.fromDatabase(options=self.options)
         self.struct = lmpatomic.Struct.fromMols([crystal.mol],
-                                                options=self.options)
+                                                options=self.options,
+                                                logger=self.logger)
         self.struct.write()
-        self.log(f'Data file written into {self.struct.outfile}')
-        jobutils.Job.reg(self.struct.outfile)
-        self.struct.script.write()
-        self.log(f'In script written into {self.struct.script.outfile}')
-        jobutils.Job.reg(self.struct.script.outfile, file=True)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import copy
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -306,12 +307,13 @@ class TestScript:
 class TestStruct:
 
     @pytest.fixture
-    def struct(self, smiless):
-        options = parserutils.AmorpBldr().parse_args(smiless)
+    def struct(self, smiless, logger):
+        options = parserutils.AmorpBldr().parse_args(
+            [*smiless, '-JOBNAME', 'name'])
         mols = [lmpfull.Mol.MolFromSmiles(x) for x in smiless]
         for cnum, mol in enumerate(mols):
             mol.EmbedMultipleConfs(numConfs=cnum)
-        return lmpfull.Struct.fromMols(mols, options=options)
+        return lmpfull.Struct.fromMols(mols, options=options, logger=logger)
 
     @pytest.mark.parametrize('smiless,expected',
                              [(['O'], [216, 151, 310, 631, 76])])
@@ -332,10 +334,18 @@ class TestStruct:
         ]
         assert expected == [len(x) for x in ons]
 
-    @pytest.mark.parametrize('smiless,expected', [(['O', 'O'], 47),
-                                                  (['[Ar]', 'O'], 49)])
+    @pytest.mark.parametrize('smiless,expected', [(['O', '[Na+]'], [
+        'WARNING: The system has a net charge of 1.0000',
+        'Data file written into name.data', 'In script written into name.in'
+    ])])
     def testWrite(self, struct, expected, tmp_dir):
         struct.write()
+        struct.logger.log.assert_has_calls([mock.call(x) for x in expected])
+
+    @pytest.mark.parametrize('smiless,expected', [(['O', 'O'], 47),
+                                                  (['[Ar]', 'O'], 49)])
+    def testWriteData(self, struct, expected, tmp_dir):
+        struct.writeData()
         with open(struct.outfile) as fh:
             assert expected == len(fh.readlines())
 

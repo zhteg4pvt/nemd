@@ -1,4 +1,5 @@
 import copy
+import os
 
 import numpy as np
 import pytest
@@ -138,6 +139,12 @@ class TestStruct:
     @pytest.mark.parametrize('cnum,expected', [(1, 14)])
     def testWrite(self, struct, expected, tmp_dir):
         struct.write()
+        assert os.path.exists(struct.outfile)
+        assert os.path.exists(struct.script.outfile)
+
+    @pytest.mark.parametrize('cnum,expected', [(1, 14)])
+    def testWriteData(self, struct, expected, tmp_dir):
+        struct.writeData()
         with open(struct.outfile, 'r') as fh:
             assert expected == len(fh.readlines())
 

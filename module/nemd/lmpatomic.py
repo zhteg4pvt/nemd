@@ -12,6 +12,7 @@ import methodtools
 import numpy as np
 import pandas as pd
 
+from nemd import jobutils
 from nemd import lmpin
 from nemd import numpyutils
 from nemd import pbc
@@ -225,12 +226,8 @@ class Struct(structure.Struct):
     Script = lmpin.Script
     DESCR = 'LAMMPS Description # {style}\n'
 
-    def __init__(self, *args, options=None, **kwargs):
-        """
-        :param options 'argparse.Namespace': parsed command line options.
-        """
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.options = options
         # Atomic number of Og element
         self.atm_types = numpyutils.IntArray(shape=119)
         self.outfile = f"{self.options.JOBNAME}.data" if self.options else None
@@ -250,6 +247,17 @@ class Struct(structure.Struct):
         self.atm_types[[x.GetAtomicNum() for x in mol.GetAtoms()]] = True
 
     def write(self):
+        """
+        Write out the LAMMPS datafile and script.
+        """
+        self.writeData()
+        self.log(f'Data file written into {self.outfile}')
+        jobutils.Job.reg(self.outfile)
+        self.script.write()
+        self.log(f'In script written into {self.script.outfile}')
+        jobutils.Job.reg(self.script.outfile, file=True)
+
+    def writeData(self):
         """
         Write out a LAMMPS datafile.
         """
@@ -313,15 +321,6 @@ class Struct(structure.Struct):
         return pbc.Box()
 
     @functools.cached_property
-    def ff(self):
-        """
-        Force field object.
-
-        :return str: the force field file or parser.
-        """
-        return sw.get_file(*self.masses.element.tolist())
-
-    @functools.cached_property
     def script(self):
         """
         Get the LAMMPS in-script writer.
@@ -329,6 +328,15 @@ class Struct(structure.Struct):
         :return `Script`: the in-script.
         """
         return self.Script(struct=self)
+
+    @functools.cached_property
+    def ff(self):
+        """
+        Force field object.
+
+        :return str: the force field file or parser.
+        """
+        return sw.get_file(*self.masses.element.tolist())
 
 
 class Reader:

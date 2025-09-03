@@ -694,7 +694,15 @@ class Struct(lmpatomic.Struct):
 
     def write(self):
         """
-        Write out a LAMMPS datafile or return the content.
+        See parent.
+        """
+        for warning in self.getWarnings():
+            self.warning(f'{warning}')
+        super().write()
+
+    def writeData(self):
+        """
+        Write out a LAMMPS datafile.
         """
         with open(self.outfile, 'w') as self.hdl:
             self.hdl.write(self.DESCR.format(style=self.script.V_ATOM_STYLE))

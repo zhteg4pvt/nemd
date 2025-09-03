@@ -27,10 +27,12 @@ class TestSingle:
 
     @pytest.mark.parametrize("argv,expected", [(['[Ar]'], 1),
                                                (['*C*', '-cru_num', '4'], 4)])
-    def testSetStruct(self, single, expected):
+    def testSetStruct(self, single, expected, tmp_dir):
         single.setMol()
         single.setStruct()
         assert expected == single.struct.atoms.shape[0]
+        assert os.path.exists(single.struct.script.outfile)
+        assert os.path.exists(single.struct.outfile)
 
     @pytest.mark.parametrize('argv', [['*C*', '-cru_num', '4', '-seed', '1']])
     @pytest.mark.parametrize("substruct,expected",
@@ -38,17 +40,9 @@ class TestSingle:
                               (['CCCC'], 'CCCC dihedral (degree): -0.00'),
                               (['CCCCC'], 'CCCCC matches no substructure.'),
                               (None, False)])
-    def testLogSubstruct(self, single, substruct, called):
+    def testLogSubstruct(self, single, substruct, called, tmp_dir):
         single.options.substruct = substruct
         single.setMol()
         single.setStruct()
         single.log = called
         single.logSubstruct()
-
-    @pytest.mark.parametrize("argv", [(['*C*', '-cru_num', '4'])])
-    def testWrite(self, single, argv, tmp_dir):
-        single.setMol()
-        single.setStruct()
-        single.write()
-        assert os.path.exists(single.struct.script.outfile)
-        assert os.path.exists(single.struct.outfile)

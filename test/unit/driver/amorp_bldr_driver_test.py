@@ -68,19 +68,14 @@ class TestAmorphous:
                              [(2.65, 2.63, 2.55), (2.5, 0.25, 0.2),
                               (0.4, 0.25, 0.24), (0.2, 0.05, 0.04),
                               (0.005, 0.0019, 0.001), (0.0005, 0., False)])
-    def testbuild(self, err_mock, run_mock, amorp, density, success, expected):
+    def testbuild(self, err_mock, run_mock, amorp, density, success, expected,
+                  tmp_dir):
         amorp.options.density = density
         amorp.setMols()
         amorp.setStruct()
         run_mock.side_effect = lambda: amorp.struct.density <= success
         amorp.build()
         np.testing.assert_almost_equal(amorp.struct.density, expected)
-        assert bool(expected) == (not err_mock.called)
-
-    @pytest.mark.parametrize('argv', [['[Ar]']])
-    def testWrite(self, argv, amorp, tmp_dir):
-        amorp.setMols()
-        amorp.setStruct()
-        amorp.write()
-        assert os.path.exists(amorp.struct.script.outfile)
-        assert os.path.exists(amorp.struct.outfile)
+        assert bool(expected) == (not err_mock.called) == os.path.exists(
+            amorp.struct.script.outfile) == os.path.exists(
+                amorp.struct.outfile)

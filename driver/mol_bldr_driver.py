@@ -30,11 +30,10 @@ class Single(logutils.Base):
         self.setMol()
         self.setStruct()
         self.logSubstruct()
-        self.write()
 
     def setMol(self):
         """
-        Build the molecule.
+        Set the molecule.
         """
         for cru, cru_num, mol_num in zip(self.options.cru,
                                          self.options.cru_num,
@@ -49,11 +48,13 @@ class Single(logutils.Base):
 
     def setStruct(self):
         """
-        Build the structure.
+        Set the structure.
         """
         self.struct = structutils.GriddedStruct.fromMols([self.mol],
-                                                         options=self.options)
+                                                         options=self.options,
+                                                         logger=self.logger)
         self.struct.run()
+        self.struct.write()
 
     def logSubstruct(self):
         """
@@ -64,19 +65,6 @@ class Single(logutils.Base):
             if measured is None:
                 measured = 'matches no substructure.'
             self.log(f"{self.options.substruct[0]} {measured}")
-
-    def write(self):
-        """
-        Write the data file.
-        """
-        self.struct.write()
-        for warning in self.struct.getWarnings():
-            self.warning(f'{warning}')
-        self.log(f'Data file written into {self.struct.outfile}')
-        jobutils.Job.reg(self.struct.outfile)
-        self.struct.script.write()
-        self.log(f'In script written into {self.struct.script.outfile}')
-        jobutils.Job.reg(self.struct.script.outfile, file=True)
 
 
 if __name__ == "__main__":

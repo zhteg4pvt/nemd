@@ -33,7 +33,6 @@ class Amorphous(logutils.Base):
         self.setMols()
         self.setStruct()
         self.build()
-        self.write()
 
     def setMols(self):
         """
@@ -62,7 +61,9 @@ class Amorphous(logutils.Base):
                 Struct = structutils.PackedStruct
             case parserutils.AmorpBldr.GROW:
                 Struct = structutils.GrownStruct
-        self.struct = Struct.fromMols(self.mols, options=self.options)
+        self.struct = Struct.fromMols(self.mols,
+                                      options=self.options,
+                                      logger=self.logger)
 
     def build(self, mini=1E-10, num=5):
         """
@@ -74,24 +75,12 @@ class Amorphous(logutils.Base):
         step = min([0.1, self.options.density / num])
         while self.struct.density >= min([mini, step]):
             if self.struct.run():
+                self.struct.write()
                 return
             self.struct.density -= step
             self.log(f'Density is reduced to {self.struct.density:.4f} g/cm^3')
         self.error(f"Amorphous structure cannot be built with density as low "
                    f"as {self.struct.density} g/cm^3")
-
-    def write(self):
-        """
-        Write the data file.
-        """
-        self.struct.write()
-        for warning in self.struct.getWarnings():
-            self.warning(f'{warning}')
-        self.log(f'Data file written into {self.struct.outfile}')
-        jobutils.Job.reg(self.struct.outfile)
-        self.struct.script.write()
-        self.log(f'In script written into {self.struct.script.outfile}')
-        jobutils.Job.reg(self.struct.script.outfile, file=True)
 
 
 if __name__ == "__main__":

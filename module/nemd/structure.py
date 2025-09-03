@@ -12,6 +12,7 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
+from nemd import logutils
 from nemd import symbols
 
 
@@ -376,16 +377,17 @@ class Mol(Chem.rdchem.Mol):
         return Chem.MolToSmiles(self)
 
 
-class Struct:
+class Struct(logutils.Base):
     """
     A class to handle multiple molecules and their conformers.
     """
     Mol = Mol
 
-    def __init__(self, struct=None):
+    def __init__(self, struct=None, **kwargs):
         """
         :param struct 'Struct': the structure with molecules.
         """
+        super().__init__(**kwargs)
         self.mols = []
         self.setUp(struct.mols if struct else [])
 
