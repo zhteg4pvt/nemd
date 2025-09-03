@@ -162,9 +162,11 @@ class TestBond:
         assert (3, 151) == bonds.row.shape
 
     @pytest.mark.parametrize('smiles,idx,tids,expected',
-                             [('CC(C)O', 1, (107, 84), 143)])
-    def testGetPartial(self, bonds, atoms, tids, expected):
-        assert expected == bonds.getPartial(tids, atoms)
+                             [('CC(C)O', 1, (107, 84), 143),
+                              ('OO', 0, (128, 128), IndexError)])
+    def testGetPartial(self, bonds, atoms, tids, expected, raises):
+        with raises:
+            assert expected == bonds.getPartial(tids, atoms)
 
     @pytest.mark.parametrize('smiles', ['CC(C)O'])
     @pytest.mark.parametrize('idx,expected', [(0, 4), (2, 4)])
@@ -288,20 +290,21 @@ class TestTyper:
         assert expected == typer.mx
 
     @pytest.mark.parametrize('smiles,expected',
-                             [('C', 81), ('O', 78), ('CO', 106), ('CCO', 107),
-                              ('CC(C)', 86), ('CCCO', 107), ('CC(C)O', 108),
-                              ('CC(=O)C', 129), ('CCC(=O)CC', 130),
-                              ('CC(C)(C)', 88), ('CC(=O)C(C)(C)', 129),
-                              ('[Li+].[F-]', 206), ('[K+].[Br-]', 208),
-                              ('[Na+].[Cl-]', 207),
+                             [('Cl', KeyError), ('C', 81), ('O', 78),
+                              ('CO', 106), ('CCO', 107), ('CC(C)', 86),
+                              ('CCCO', 107), ('CC(C)O', 108), ('CC(=O)C', 129),
+                              ('CCC(=O)CC', 130), ('CC(C)(C)', 88),
+                              ('CC(=O)C(C)(C)', 129), ('[Li+].[F-]', 206),
+                              ('[K+].[Br-]', 208), ('[Na+].[Cl-]', 207),
                               ('[Br-].[Mg+2].[Br-]', 208),
                               ('[Rb+].[Cl-].[Cs+].[Br-]', 208),
                               ('[Ca+2].[Sr+2].[Ba+2].[Cl-]', 207),
                               ('[He].[Ne].[Ar].[Kr].[Xe]', 213)])
-    def testDoTyping(self, typer, expected):
-        typer.doTyping()
-        atoms = typer.mol.GetAtoms()
-        assert expected == max(x.GetIntProp('type_id') for x in atoms)
+    def testDoTyping(self, typer, expected, raises):
+        with raises:
+            typer.doTyping()
+            atoms = typer.mol.GetAtoms()
+            assert expected == max(x.GetIntProp('type_id') for x in atoms)
 
     def testSmiles(self):
         assert (33, 6) == oplsua.Typer().smiles.shape

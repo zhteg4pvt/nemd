@@ -401,10 +401,7 @@ class Bond(Charge):
         :raise IndexError: failed to find any matches.
         """
         logger.debug(f"No exact match for {self.name} between atom {tids}.")
-        try:
-            indexes, head_tail = self.row.getFlipped(tids)
-        except IndexError:
-            raise IndexError(f"No partial match for {self.name} ({tids}).")
+        indexes, head_tail = self.row.getFlipped(tids)
         # Check atomic number
         atomic = self.atoms.atomic_number[head_tail]
         atom_zs = [atoms[0].GetAtomicNum(), atoms[-1].GetAtomicNum()]
@@ -746,8 +743,8 @@ class Typer:
         logger.debug(f"{res_num} residues found.")
         if not unmarked:
             return
-        atoms = self.mol.GetAtoms()
-        atom = next(x for x in atoms if not x.HasProp(self.RES_NUM))
+        atom = next(x for x in self.mol.GetAtoms()
+                    if not x.HasProp(self.RES_NUM))
         raise KeyError(f'Typing missed {atom.GetSymbol()} {atom.GetIdx()}')
 
     @functools.cached_property
