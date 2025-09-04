@@ -1,2 +1,2 @@
 nemd_check cmp amorp_bldr.data amorp_bldr.data
-[ -f structutils.debug ] && nemd_check has structutils.debug 'Initiator 2 is relocated 1.99 Å away from other atoms and 2.12 Å away from other initiators.'
+[ -f structutils.debug ] && nemd_check has structutils.debug 'Initiator 3 is relocated 2.08 Å away from other atoms and 2.12 Å away from other initiators.'

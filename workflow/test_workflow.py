@@ -79,7 +79,8 @@ class Runner(jobcontrol.Runner):
         Log the number of the succeed check jobs.
         """
         super().logStatus()
-        status = [bool(y) for x in self.status.values() for y in x.values()]
+        # cmd: True; check: True | failure message
+        status = [y is True for x in self.status.values() for y in x.values()]
         self.log(f"{sum(status)} / {len(status)} succeed sub-jobs.")
 
     def setAggs(self):

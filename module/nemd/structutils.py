@@ -147,7 +147,7 @@ class GrownConf(PackedConf):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.init = self.gids
+        self.inr = self.gids
         self.failed = 0
         self.frag = None
         self.frags = []
@@ -158,7 +158,7 @@ class GrownConf(PackedConf):
         """
         if not self.mol.frag:
             return
-        self.init = self.gids[self.mol.init]
+        self.inr = self.gids[self.mol.inr]
         self.frag = self.mol.frag.new(self)
         self.frags = [self.frag]
 
@@ -167,7 +167,7 @@ class GrownConf(PackedConf):
         Grow the conformer by bond rotation, back move, and relocation.
 
         :param max_trial int: the max number of trials for one conformer.
-        :raise ConfError: 1) max_trial reached; 2) init cannot be placed.
+        :raise ConfError: 1) max_trial reached; 2) inr cannot be placed.
         """
         frag = self.frags.pop(0)
         while frag.vals:
@@ -195,15 +195,15 @@ class GrownConf(PackedConf):
             raise ConfError
 
         self.frag.reset()
-        self.mol.struct.dist.set(self.init, state=False)
+        self.mol.struct.dist.set(self.inr, state=False)
         self.setConformer()
         if self.mol.struct.conf_total > 1 and self.mol.struct.options.DEBUG:
             logger.debug(
                 f"Initiator {self.gid} is relocated "
-                f"{self.mol.struct.dist.getDists(self.init).min():.2f} "
+                f"{self.mol.struct.dist.getDists(self.inr).min():.2f} "
                 f"{symbols.ANGSTROM} away from other atoms and "
-                f"{self.mol.struct.dist.getDists().min():.2f} "
-                f"{symbols.ANGSTROM} away from other initiators.")
+                f"{self.mol.struct.dist.getDists(self.inr, inr=True).min():.2f}"
+                f" {symbols.ANGSTROM} away from other initiators.")
 
     def setConformer(self, **kwargs):
         """
@@ -211,13 +211,13 @@ class GrownConf(PackedConf):
         """
         # FIXME: the largest void center should have higher priority
         #  especially importantly when relocating a dead molecule.
-        super().setConformer(self.init)
+        super().setConformer(self.inr)
 
     def centroid(self, **kwargs):
         """
         See parent.
         """
-        return super().centroid(aids=self.mol.init, **kwargs)
+        return super().centroid(aids=self.mol.inr, **kwargs)
 
     def getSwingAtoms(self, dihe):
         """
@@ -338,7 +338,7 @@ class GrownMol(PackedMol):
             return
         start = pre.gids.max() + 1
         for conf in self.confs:
-            conf.init += start
+            conf.inr += start
             for frag in conf.frag.next():
                 frag.ids += start
 
@@ -354,7 +354,7 @@ class GrownMol(PackedMol):
             return First(self.confs[0], dihes[0])
 
     @functools.cached_property
-    def init(self):
+    def inr(self):
         """
         Return the initiator atom aids.
 
@@ -502,25 +502,33 @@ class GrownFrame(PackFrame):
     Customized for fragments.
     """
 
-    def getDists(self, grp=None):
+    def getDists(self, grp=None, inr=False):
         """
         Get the distances to the initiator.
 
-        :param grp 'np.ndarray': the initiator global atom ids.
+        :param grp 'np.ndarray': global atom ids.
+        :param inr 'bool': grps take into account only initiators.
         :return 'np.ndarray': the pair distances between gid groups.
         """
-        if grp is not None:
-            other = list(self.gids.diff(grp))
-            return super().getDists(grp, grps=[other for _ in grp])
+        if grp is None and not inr:
+            # Pair distance between all existing atom pairs
+            return super().getDists(self.gids.on)
 
-        grps = [y.init for x in self.struct.mols for y in x.confs]
-        grps = [x for x in grps if self.gids[x].all()]
-        pairs = ([grps[i], grps[:i]] for i in range(1, len(grps)))
-        dists = [
-            super(GrownFrame, self).getDists(x, grps=[np.concatenate(y)])
-            for x, y in pairs
-        ]
-        return np.concatenate(dists if dists else [[]])
+        if inr:
+            grps = [x.inr for x in self.struct.conf if self.gids[x.inr].all()]
+
+        if grp is None:
+            # Pair distance between all existing initiator pairs
+            pairs = ([grps[i], grps[:i]] for i in range(1, len(grps)))
+            pairs = ((x, np.repeat([np.concatenate(y)], len(x), axis=0))
+                     for x, y in pairs)
+            dists = [super(GrownFrame, self).getDists(*x) for x in pairs]
+            return np.concatenate(dists if dists else [[]])
+
+        # Distance between grp with all existing (initiator) atoms
+        other = np.setdiff1d(np.concatenate(grps), grp) if inr \
+            else self.gids.diff(grp)
+        return super().getDists(grp, grps=[other for _ in grp])
 
 
 class PackedStruct(Struct):
@@ -639,7 +647,8 @@ class GrownStruct(PackedStruct):
             return
         logger.debug(f'{self.conf_total} initiators have been placed.')
         if self.conf_total != 1 and self.options.DEBUG:
-            logger.debug(f'Closest contact: {self.dist.getDists().min():.2f}')
+            dists = self.dist.getDists(inr=True)
+            logger.debug(f'Closest initiator contact: {dists.min():.2f}')
         confs = collections.deque([x for x in self.conf if x.frag])
         while confs:
             try:

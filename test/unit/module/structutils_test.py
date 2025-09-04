@@ -55,10 +55,18 @@ class TestPackedConf:
         struct.dist.set([0, 1, 2])
         return next(itertools.islice(struct.conf, 1, 2))
 
-    def testSetConformer(self, conf):
-        conf.setConformer()
-        assert conf.mol.struct.dist.gids.all()
-        np.testing.assert_almost_equal(conf.GetPositions().mean(), 3.0663129)
+    @pytest.mark.parametrize('fac,expected',
+                             [(0.5, [2.43839928, 2.44043914, 2.46387]),
+                              (0, structutils.ConfError)])
+    def testSetConformer(self, conf, fac, expected, raises):
+        st = conf.mol.struct
+        xyz = conf.mol.confs[0].GetPositions().mean(axis=0) + st.box.span * fac
+        with mock.patch.object(st.dist, 'getPoints', return_value=[xyz]):
+            with raises:
+                conf.setConformer()
+                assert conf.mol.struct.dist.gids.all()
+                centroid = conf.GetPositions().mean(axis=0)
+                np.testing.assert_almost_equal(centroid, expected)
 
     @pytest.mark.parametrize('gids', [([2])])
     def testCheckClash(self, conf, gids):
@@ -88,26 +96,38 @@ class TestGrownConf:
     @pytest.fixture
     def conf(self, smiles, smol, random_seed):
         parser = parserutils.AmorpBldr()
-        options = parser.parse_args([smiles, '-density', '0.5'])
+        options = parser.parse_args([smiles, '-density', '0.5', '-DEBUG'])
         struct = structutils.GrownStruct.fromMols([smol], options=options)
         struct.setFrame()
-        struct.dist.set([0, 1, 2])
         return next(itertools.islice(struct.conf, 1, 2))
 
     def testSetUp(self, conf):
-        np.testing.assert_almost_equal(conf.init, [9, 10, 11])
+        np.testing.assert_almost_equal(conf.inr, [9, 10, 11])
         assert 5 == len(list(conf.frag.next()))
         assert 1 == len(conf.frags)
 
-    def testGrow(self, conf):
-        while conf.frags:
-            conf.grow()
-        assert 1 == conf.failed
-        assert conf.mol.struct.dist.gids[conf.gids].all()
+    @pytest.mark.parametrize(
+        'ids,expected',
+        [
+            (None, (1, 12, [12])),
+            #  ([14, 16], (0, 14, [14, 16]))
+        ])
+    def testGrow(self, conf, ids, expected):
+        # [9, 10, 11], [12], [13], [14 16], [17], [15]
+        conf.mol.struct.dist.set(list(range(9)))
+        conf.mol.struct.dist.set(conf.inr)
+        for frag in conf.frags[0].next():
+            frag.vals = frag.vals[1:] if (frag.ids == ids).all() else []
+            conf.mol.struct.dist.set(frag.ids)
+        conf.frags = [frag]
+        conf.mol.struct.dist.set(frag.ids, state=False)
+        conf.grow()
+        assert expected[:2] == (conf.failed, conf.mol.struct.dist.gids.on.size)
+        np.testing.assert_equal(expected[-1], conf.frags[0].ids)
 
     def testSetConformer(self, conf):
         conf.setConformer()
-        assert 6 == conf.mol.struct.dist.gids.on.size
+        np.testing.assert_equal(conf.mol.struct.dist.gids.on, [9, 10, 11])
 
     def testCentroid(self, conf):
         np.testing.assert_almost_equal(conf.centroid(),
@@ -172,7 +192,7 @@ class TestGrownMol:
     @pytest.mark.parametrize('smiles,expected', [('CCCCC(CC)CC', 18)])
     def testShift(self, grown, expected):
         grown.shift(grown.confs[0])
-        gids = [y for x in grown.confs for y in x.init]
+        gids = [y for x in grown.confs for y in x.inr]
         gids += [z for x in grown.confs for y in x.frag.next() for z in y.ids]
         assert set(range(expected, expected * 2)) == set(gids)
 
@@ -183,8 +203,8 @@ class TestGrownMol:
 
     @pytest.mark.parametrize('smiles,expected', [('CCCCC(CC)CC', [0, 1, 2]),
                                                  ('C', [0])])
-    def testInit(self, grown, expected):
-        np.testing.assert_equal(grown.init, expected)
+    def testInr(self, grown, expected):
+        np.testing.assert_equal(grown.inr, expected)
 
     @pytest.mark.parametrize('smiles', ['CCCCC(CC)CC'])
     @pytest.mark.parametrize('sources,targets,polym_ht,expected',
@@ -268,11 +288,14 @@ class TestGrownFrame:
         struct.run()
         return struct.dist
 
-    @pytest.mark.parametrize('grp,expected', [(None, 16), ([0, 1], 36)])
-    def testGetDists(self, dist, grp, expected):
+    @pytest.mark.parametrize('grp,inr,expected', [(None, False, 190),
+                                                  (None, True, 22),
+                                                  ([0, 1, 2], False, 51),
+                                                  ([0, 1, 2], True, 15)])
+    def testGetDists(self, dist, grp, inr, expected):
         if grp is not None:
             grp = np.array(grp)
-        assert expected == dist.getDists(grp=grp).shape[0]
+        assert expected == dist.getDists(grp=grp, inr=inr).shape[0]
 
 
 @pytest.mark.parametrize('smiles,cnum,seed', [(('CCCCC(CC)CC', 'C'), 2, 0)])
