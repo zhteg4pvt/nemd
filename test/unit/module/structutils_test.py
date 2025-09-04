@@ -106,13 +106,12 @@ class TestGrownConf:
         assert 5 == len(list(conf.frag.next()))
         assert 1 == len(conf.frags)
 
-    @pytest.mark.parametrize(
-        'ids,expected',
-        [
-            (None, (1, 12, [12])),
-            #  ([14, 16], (0, 14, [14, 16]))
-        ])
-    def testGrow(self, conf, ids, expected):
+    @pytest.mark.parametrize('ids,failed,expected',
+                             [(None, 0, (1, 12, [12])),
+                              (None, 4, structutils.ConfError),
+                              ([14, 16], 0, (0, 14, [14, 16]))])
+    def testGrow(self, conf, ids, failed, expected, raises):
+        conf.failed = failed
         # [9, 10, 11], [12], [13], [14 16], [17], [15]
         conf.mol.struct.dist.set(list(range(9)))
         conf.mol.struct.dist.set(conf.inr)
@@ -121,9 +120,11 @@ class TestGrownConf:
             conf.mol.struct.dist.set(frag.ids)
         conf.frags = [frag]
         conf.mol.struct.dist.set(frag.ids, state=False)
-        conf.grow()
-        assert expected[:2] == (conf.failed, conf.mol.struct.dist.gids.on.size)
-        np.testing.assert_equal(expected[-1], conf.frags[0].ids)
+        with raises:
+            conf.grow()
+            assert expected[:2] == (conf.failed,
+                                    conf.mol.struct.dist.gids.on.size)
+            np.testing.assert_equal(expected[-1], conf.frags[0].ids)
 
     def testSetConformer(self, conf):
         conf.setConformer()
@@ -153,6 +154,13 @@ class TestGriddedMol:
     @pytest.fixture
     def grid(self, smol):
         return structutils.GriddedMol(smol)
+
+    @pytest.mark.parametrize('args,expected', [([], 4), (['-buffer', '7'], 7)])
+    def testInit(self, smol, smiles, args, expected):
+        options = parserutils.AmorpBldr().parse_args([smiles] + args)
+        struct = structutils.GriddedStruct(options=options)
+        mol = structutils.GriddedMol(smol, struct=struct)
+        np.testing.assert_equal(mol.buffer, expected)
 
     @pytest.mark.parametrize('size,expected', [([10, 10, 10], 4)])
     def testSetBox(self, grid, size, expected):
@@ -235,6 +243,18 @@ class TestGriddedStruct:
     def struct(self, mols, random_seed):
         return structutils.GriddedStruct.fromMols(mols)
 
+    @pytest.mark.parametrize('expected', [0.023421534518535802])
+    def testRun(self, struct, expected):
+        struct.run()
+        np.testing.assert_almost_equal(struct.density, expected)
+
+    @pytest.mark.parametrize('expected',
+                             [[3.74465398, 2.43400078, 0.45998894]])
+    def testSetConformers(self, struct, expected):
+        struct.setConformers()
+        xyz = np.concatenate([x.GetPositions() for x in struct.conf])
+        np.testing.assert_almost_equal(xyz.max(axis=0), expected)
+
     @pytest.mark.parametrize('expected',
                              [[20.90512401, 15.86235891, 11.18889986]])
     def testSetBox(self, struct, expected):
@@ -243,13 +263,6 @@ class TestGriddedStruct:
     @pytest.mark.parametrize('expected', [[10.452562, 7.93117945, 5.59444993]])
     def testSize(self, struct, expected):
         np.testing.assert_almost_equal(struct.size, expected)
-
-    @pytest.mark.parametrize('expected',
-                             [[3.74465398, 2.43400078, 0.45998894]])
-    def testSetConformers(self, struct, expected):
-        struct.setConformers()
-        xyz = np.concatenate([x.GetPositions() for x in struct.conf])
-        np.testing.assert_almost_equal(xyz.max(axis=0), expected)
 
     @pytest.mark.parametrize('expected', [0.023421534518535802])
     def testSetDensity(self, struct, expected):
@@ -324,6 +337,13 @@ class TestPackedStruct:
             assert expected[0] == struct.setConformers()
         assert expected[1] == struct.placed
 
+    @pytest.mark.parametrize('density,expected', [(0.5, [4]), (2, [1, 4])])
+    def testSetConformers(self, struct, density, expected):
+        struct.density = density
+        struct.setFrame()
+        struct.setConformers()
+        assert expected == struct.placed
+
     @pytest.mark.parametrize('idx,expected', [(None, (4, 20)), (2, (2, 0))])
     def testAttempt(self, struct, idx, expected):
         if idx is not None:
@@ -355,7 +375,7 @@ class TestGrownStruct:
 
     @pytest.fixture
     def struct(self, smiles, mols, random_seed):
-        options = parserutils.AmorpBldr().parse_args(smiles)
+        options = parserutils.AmorpBldr().parse_args([*smiles, '-DEBUG'])
         return structutils.GrownStruct.fromMols(mols, options=options)
 
     @pytest.mark.parametrize('pidx,gidx,expected', [(None, None, 4),

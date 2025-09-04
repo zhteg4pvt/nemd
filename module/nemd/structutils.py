@@ -252,17 +252,18 @@ class GriddedMol(lmpfull.Mol):
     """
     Conf = Conf
 
-    def __init__(self, *args, buffer=4, **kwargs):
+    def __init__(self, *args, buffer=None, **kwargs):
         """
         :param buffer float: the buffer between conformers.
         """
         super().__init__(*args, **kwargs)
+        self.buffer = buffer
         self.num = np.array([1, 1, 1])  # Conformer number per box edge
         self.vecs = []  # Translational vectors with in the box
         self.vectors = None  # Translational vectors with in the pbc
-        self.buffer = np.array([buffer, buffer, buffer])
-        if self.struct and self.struct.options and self.struct.options.buffer:
-            self.buffer[:] = self.struct.options.buffer
+        if self.buffer is None and self.struct and self.struct.options:
+            self.buffer = self.struct.options.buffer
+        self.buffer = np.full(3, 4 if self.buffer is None else self.buffer)
 
     def setBox(self, size):
         """
@@ -403,6 +404,21 @@ class GriddedStruct(Struct):
         self.setDensity()
         return True
 
+    def setConformers(self):
+        """
+        Set coordinates.
+        """
+        nums = (self.box.span / self.size).round().astype(int)
+        grids = [
+            np.linspace(0, x, y, endpoint=False)
+            for x, y in zip(self.box.span, nums)
+        ]
+        meshgrid = np.meshgrid(*grids, indexing='ij')
+        vectors = np.stack(meshgrid, axis=-1).reshape(-1, 3)
+        np.random.shuffle(vectors)
+        for mol in self.mols:
+            vectors = mol.setConformers(vectors)
+
     @functools.cached_property
     def box(self):
         """
@@ -425,21 +441,6 @@ class GriddedStruct(Struct):
         :return `np.ndarray`: the maximum size.
         """
         return np.array([x.size for x in self.mols]).max(axis=0)
-
-    def setConformers(self):
-        """
-        Set coordinates.
-        """
-        nums = (self.box.span / self.size).round().astype(int)
-        grids = [
-            np.linspace(0, x, y, endpoint=False)
-            for x, y in zip(self.box.span, nums)
-        ]
-        meshgrid = np.meshgrid(*grids, indexing='ij')
-        vectors = np.stack(meshgrid, axis=-1).reshape(-1, 3)
-        np.random.shuffle(vectors)
-        for mol in self.mols:
-            vectors = mol.setConformers(vectors)
 
     def setDensity(self):
         """
