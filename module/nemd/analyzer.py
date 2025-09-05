@@ -32,8 +32,12 @@ class Base(logutils.Base):
     ST_ERR = 'St Err'
     FLOAT_FMT = '%.4g'
 
-    def __init__(self, **kwargs):
+    def __init__(self, parm=None, **kwargs):
+        """
+        :param parm `types.SimpleNamespace`: one parameter set.
+        """
         super().__init__(**kwargs)
+        self.parm = parm
         self.data = None
         self.fig = None
         self.fitted = None
@@ -42,44 +46,63 @@ class Base(logutils.Base):
         """
         Main method.
         """
-        self.read()
-        self.set()
+        self.merge()
         self.save()
+        if self.skip:
+            return
         self.fit()
         self.plot()
 
-    def read(self):
+    def merge(self):
         """
-        Read the data.
+        Merge data from previous calculations.
         """
-        pass
+        if self.parm is None:
+            return
+        name = f"{self.options.NAME}_{self.name}{self.DATA_EXT}"
+        files = [x.fn(name) for x in self.parm.jobs]
+        files = [x for x in files if os.path.exists(x)]
+        if not files:
+            return
 
-    def set(self):
-        """
-        Set the data.
-        """
-        pass
+        datas = [pd.read_csv(x, index_col=0) for x in files]
+        # 'Time (ps)': None; 'Time (ps) (0)': '0'; 'Time (ps) (0, 1)': '0, 1'
+        names = [self.parseIndex(x.index.name) for x in datas]
+        label, unit, sidx, eidx = names[0]
+        if len(datas) == 1:
+            # One single run
+            self.data = datas[0]
+            self.sidx, self.eidx = sidx, eidx
+            return
+
+        # Backwardly truncate the runs with different randomized seeds
+        num = min([x.shape[0] for x in datas])
+        datas = [x.iloc[-num:] for x in datas]
+        # Averaged index
+        indexes = [x.index.to_numpy().reshape(-1, 1) for x in datas]
+        index_ave = np.concatenate(indexes, axis=1).mean(axis=1)
+        _, _, self.sidx, self.eidx = pd.DataFrame(names).min()
+        name = f"{label} ({unit}) ({self.sidx} {self.eidx})"
+        index = pd.Index(index_ave, name=name)
+        # Averaged value and standard deviation
+        vals = [x.iloc[:, 0].to_numpy().reshape(-1, 1) for x in datas]
+        vals = np.concatenate(vals, axis=1)
+        data = np.array((vals.mean(axis=1), vals.std(axis=1))).transpose()
+        name = f'{datas[0].columns[0]} (num={vals.shape[-1]})'
+        columns = [name, f"{self.ST_DEV} of {name}"]
+        self.data = pd.DataFrame(data, columns=columns, index=index)
 
     def save(self):
         """
         Save the data.
         """
-        if self.data.empty:
-            self.warning(f"Empty Result for {self.name}")
+        if self.data is None:
+            if self.parm is None:
+                self.warning(f"No data saved for {self.name}")
             return
-
         self.data.to_csv(self.outfile, float_format=self.FLOAT_FMT)
         jobutils.Job.reg(self.outfile)
         self.log(f'{self.full.capitalize()} data written into {self.outfile}')
-
-    @property
-    def full(self):
-        """
-        The full name of the analyzer.
-
-        :return str: analyzer full name.
-        """
-        return self.name
 
     @classmethod
     @property
@@ -92,40 +115,55 @@ class Base(logutils.Base):
         return cls.__name__.lower()
 
     @property
-    def outfile(self):
+    def full(self):
+        """
+        The full name of the analyzer.
+
+        :return str: analyzer full name.
+        """
+        return self.name
+
+    @property
+    def outfile(self, workspace=jobutils.WORKSPACE):
         """
         The outfile to save data.
 
-        :return str: the outfile
+        :param workspace str: the dirname to save merged results.
+        :return str: the outfile.
         """
-        return f"{self.options.JOBNAME}_{self.name}{self.DATA_EXT}"
+        root = f"{self.options.JOBNAME}_{self.name}"
+        if self.parm is not None:
+            root = os.path.join(workspace,
+                                f"{root}_{self.parm.parm.index.name}")
+        return f"{root}{self.DATA_EXT}"
+
+    @property
+    def skip(self):
+        """
+        Whether to skip the fit and plot.
+
+        :return bool:skip the fit and plot if True
+        """
+        return self.data is None
 
     def fit(self):
         """
         Fit the data and report.
         """
-        if self.data.index.name is None:
-            return
-
         row = self.data.iloc[self.data.iloc[:, 0].argmin()]
         label, unit, _ = self.parse(self.data.columns[0])
-        value = f"The minimum {label} of {row.iloc[0]:.4g}"
-        if unit:
-            value += f' {unit}'
+        value = f"The minimum {label} of {row.iloc[0]:.4g} {unit}"
         label, unit, _ = self.parse(self.data.index.name)
         pos = f'{row.name} {unit}' if unit else f"{label} {row.name}"
         self.log(f"{value} found at {pos}.")
 
-    def plot(self, line=None, marker=None, selected=None):
+    def plot(self, marker=None, selected=None):
         """
-        Plot and save the data (interactively).
+        Plot and save the data.
 
-        :param line str: the line style
         :param marker str: the marker symbol
         :param selected pd.DataFrame: the selected data
         """
-        if self.data.index.name is None:
-            return
         shape = self.data.shape
         err = shape[0] > 1 and shape[1] == 2 and self.data.iloc[:, 1].any()
         with plotutils.pyplot(inav=self.options.INTERAC,
@@ -197,70 +235,23 @@ class Job(Base):
     UNIT = 'a.u.'
     PROP = None
 
-    def __init__(self, rdr=None, parm=None, jobs=None, **kwargs):
+    def __init__(self, rdr=None, **kwargs):
         """
         :param rdr `oplsua.Reader`: data file reader
-        :param parm `pd.Dataframe`: the group parameters
-        :param jobs list: a group of signac jobs
         """
         super().__init__(**kwargs)
         self.rdr = rdr
-        self.parm = parm
-        self.jobs = jobs
         self.sidx = 0
         self.eidx = None
         self.result = None
 
-    @property
-    def outfile(self):
+    def run(self):
         """
         See parent.
         """
         if self.parm is None:
-            return super().outfile
-        # LmpAgg.groups -> tuple(parm, jobs) with parm.index.name being index
-        name = f"{self.options.JOBNAME}_{self.name}_{self.parm.index.name}{self.DATA_EXT}"
-        return os.path.join(jobutils.WORKSPACE, name)
-
-    def read(self):
-        """
-        Read the output files from independent runs to set the data.
-        """
-        if self.jobs is None:
-            return
-
-        name = f"{self.options.NAME}_{self.name}{self.DATA_EXT}"
-        files = [x.fn(name) for x in self.jobs]
-        files = [x for x in files if os.path.exists(x)]
-        if not files:
-            return
-
-        datas = [pd.read_csv(x, index_col=0) for x in files]
-        # 'Time (ps)': None; 'Time (ps) (0)': '0'; 'Time (ps) (0, 1)': '0, 1'
-        names = [self.parseIndex(x.index.name) for x in datas]
-        label, unit, sidx, eidx = names[0]
-        if len(datas) == 1:
-            # One single run
-            self.data = datas[0]
-            self.sidx, self.eidx = sidx, eidx
-            return
-
-        # Backwardly truncate the runs with different randomized seeds
-        num = min([x.shape[0] for x in datas])
-        datas = [x.iloc[-num:] for x in datas]
-        # Averaged index
-        indexes = [x.index.to_numpy().reshape(-1, 1) for x in datas]
-        index_ave = np.concatenate(indexes, axis=1).mean(axis=1)
-        _, _, self.sidx, self.eidx = pd.DataFrame(names).min()
-        name = f"{label} ({unit}) ({self.sidx} {self.eidx})"
-        index = pd.Index(index_ave, name=name)
-        # Averaged value and standard deviation
-        vals = [x.iloc[:, 0].to_numpy().reshape(-1, 1) for x in datas]
-        vals = np.concatenate(vals, axis=1)
-        data = np.array((vals.mean(axis=1), vals.std(axis=1))).transpose()
-        name = f'{datas[0].columns[0]} (num={vals.shape[-1]})'
-        columns = [name, f"{self.ST_DEV} of {name}"]
-        self.data = pd.DataFrame(data, columns=columns, index=index)
+            self.calculate()
+        super().run()
 
     def parseIndex(self, name, sidx=0, eidx=None):
         """
@@ -292,9 +283,6 @@ class Job(Base):
 
         :return np.ndarray: index and the fit.
         """
-        if self.data.empty:
-            return
-
         sel = self.data.iloc[self.sidx:self.eidx]
         name, ave = sel.columns[0], sel.iloc[:, 0].mean()
         self.fitted = np.array((sel.index, np.full(sel.index.shape, ave))).T
@@ -325,7 +313,6 @@ class Job(Base):
         :param names str: the available names to choose from.
         :param err bool: search the error name if True
         :return str: the property name
-        :raise ValueError: if name cannot be determined.
         """
         if name is None:
             name = cls.PROP if cls.PROP else cls.name
@@ -334,16 +321,12 @@ class Job(Base):
 
         if names is None:
             # Build name from name, unit, and num
-            name = f"{name} ({unit})" if unit else name
+            name = f"{name} ({unit})"
             num = cls.parse(label)[2] if label else None
             return name if num is None else f"{name} ({num})"
 
         rex = f'St (Dev|Err) of {name}' if err else name
-        # Get name from names
-        try:
-            return next(x for x in names if re.match(rex, x, re.I))
-        except StopIteration:
-            raise ValueError(f"{name} not in {names}.")
+        return next((x for x in names if re.match(rex, x, re.I)), None)
 
 
 class Density(Job):
@@ -367,16 +350,16 @@ class Density(Job):
             frm = next(x for x in self.trj if isinstance(x, frame.Frame))
             self.gids = np.array(list(range(frm.shape[0])))
 
-    def set(self):
+    def calculate(self):
         """
         Set the time vs density data.
         """
-        if self.data is not None:
-            return
-        mass = self.rdr.molecular_weight / scipy.constants.Avogadro
-        data = np.fromiter((x.box.volume for x in self.trj), dtype=float)
-        data[:] = mass / data / constants.ANG_TO_CM**3
-        self.data = pd.DataFrame({self.label: data}, index=self.trj.time)
+        vol = (x.box.volume for x in self.trj)
+        data = np.fromiter(vol, dtype=float) * constants.ANG_TO_CM**3
+        data = self.rdr.molecular_weight / scipy.constants.Avogadro / data
+        self.data = pd.DataFrame(data,
+                                 columns=[self.label],
+                                 index=self.trj.time)
 
 
 class XYZ(Density):
@@ -452,17 +435,10 @@ class Clash(Density):
             self.grp = self.gids[1:]
             self.grps = [self.gids[:i] for i in range(1, len(self.gids))]
 
-    def set(self):
+    def calculate(self):
         """
         Set the time vs clash number.
         """
-        if self.data is not None:
-            return
-        self.data = pd.DataFrame()
-        if self.jobs:
-            # Aggregating jobs that compute empty data without saving.
-            return
-
         if len(self.gids) < 2:
             self.warning("Clash requires least two atoms selected.")
             return
@@ -493,18 +469,12 @@ class RDF(Clash):
         """
         super().__init__(*args, cut=cut, **kwargs)
 
-    def set(self, res=0.02):
+    def calculate(self, res=0.02):
         """
         Set the radial distribution function.
 
         :param res float: the rdf minimum step size.
         """
-        if self.data is not None:
-            return
-        self.data = pd.DataFrame()
-        if self.jobs:
-            return
-
         if len(self.gids) < 2:
             self.warning("RDF requires least two atoms selected.")
             return
@@ -550,8 +520,6 @@ class RDF(Clash):
         :param window_length int: the window length when smoothing
         :return np.ndarray: coordinates and the smoothed rdf.
         """
-        if self.data.empty:
-            return
         raveled = np.ravel(self.data.iloc[:, 0])
         smoothed = scipy.signal.savgol_filter(raveled,
                                               window_length=window_length,
@@ -593,18 +561,13 @@ class MSD(RDF):
     UNIT = f'{symbols.ANGSTROM}^2'
     PROP = 'Diffusion Coefficient'
 
-    def set(self, spct=0.1, epct=0.2):
+    def calculate(self, spct=0.1, epct=0.2):
         """
         Set the mean squared displacement and diffusion coefficient.
 
         :param spct float: exclude the frames of this percentage at head
         :param epct float: exclude the frames of this percentage at tail
         """
-        if self.data is not None:
-            return
-        self.data = pd.DataFrame()
-        if self.jobs:
-            return
         if self.gids is None or not len(self.gids):
             self.warning("MSD requires least one atom selected.")
             return
@@ -630,8 +593,6 @@ class MSD(RDF):
 
         :return np.ndarray: Tau and the MSD linear fit.
         """
-        if self.data.empty:
-            return
         sel = self.data.iloc[self.sidx:self.eidx]
         # Standard error of the slope, under the assumption of residual normality
         xvals = sel.index * scipy.constants.pico
@@ -689,12 +650,10 @@ class TotEng(Job):
             return
         self.sidx = self.parseIndex(self.thermo.index.name)[2]
 
-    def set(self):
+    def calculate(self):
         """
         Select data by the thermo task name.
         """
-        if self.data is not None:
-            return
         column_re = re.compile(rf"{self.name} +\((.*)\)", re.IGNORECASE)
         column = [x for x in self.thermo.columns if column_re.match(x)][0]
         self.data = self.thermo[column].to_frame()
@@ -719,7 +678,7 @@ class Agg(Base):
     """
     ANLZ = [Density, RDF, MSD, Clash] + THERMO
 
-    def __init__(self, task, groups=None, **kwargs):
+    def __init__(self, Anlz, groups=None, **kwargs):
         """
         :param task str: the task name to analyze
         :param groups list of tuples: each tuple contains parameters
@@ -727,54 +686,50 @@ class Agg(Base):
         :type jobs: list of (pandas.Series, 'signac.job.Job') tuples
         """
         super().__init__(**kwargs)
-        self.task = task
+        self.Anlz = Anlz
         self.groups = groups
-        self.Anlz = next((x for x in self.ANLZ if x.name == self.task), None)
 
-    def read(self):
+    def merge(self):
         """
         Set the result for the given task over grouped jobs.
         """
-        if self.Anlz is None:
-            return
-
         self.log(f"Aggregation Task: {self.Anlz.name}")
-        for idx, (parm, jobs) in enumerate(self.groups):
-            if not parm.empty:
-                pstr = parm.to_csv(lineterminator=' ', sep='=', header=False)
-                self.log(f"Aggregation Parameters (num={len(jobs)}): {pstr}")
+        for idx, parm in enumerate(self.groups):
+            if not parm.parm.empty:
+                pstr = parm.parm.to_csv(lineterminator=' ',
+                                        sep='=',
+                                        header=False)
+                self.log(f"Parameters (num={len(parm.jobs)}): {pstr}")
             # Read, combine, and fit
             anlz = self.Anlz(options=self.options,
                              logger=self.logger,
-                             parm=parm,
-                             jobs=jobs)
+                             parm=parm)
             anlz.run()
             if anlz.result is None:
                 continue
-            result = [anlz.result] if parm.empty else [parm, anlz.result]
+            result = [x for x in [parm.parm, anlz.result] if not x.empty]
             result = pd.concat(result).to_frame().transpose()
             self.data = pd.concat([self.data, result])
 
-    def set(self):
-        """
-        Set the x, y, and y standard deviation from the results.
-        """
-        if self.data is None:
-            self.data = pd.DataFrame()
+        if self.skip:
             return
-
         val = self.Anlz.getName(names=self.data.columns)
         err = self.Anlz.getName(names=self.data.columns, err=True)
         parm = self.data[list(set(self.data.columns).difference([val, err]))]
-        if parm.empty:
-            return
         self.data.set_index(parm.columns[0], inplace=True)
-        self.data.index.name = ' '.join(
-            [y.capitalize() for y in self.data.index.name.split('_')])
+        words = [y.capitalize() for y in self.data.index.name.split('_')]
+        self.data.index.name = ' '.join(words)
+
+    @property
+    def skip(self):
+        """
+        See parent.
+        """
+        return super().skip or all([x.parm.empty for x in self.groups])
 
     @property
     def name(self):
         """
         See parent.
         """
-        return self.task
+        return self.Anlz.name

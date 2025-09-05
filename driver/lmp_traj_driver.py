@@ -94,4 +94,4 @@ class Traj(logutils.Base):
 
 
 if __name__ == "__main__":
-    logutils.Script.run(Traj, parserutils.LmpTraj(descr=__doc__))
+    logutils.Script.run(Traj, parserutils.LmpTraj(descr=__doc__), file=True)

@@ -89,8 +89,9 @@ class Runner(logutils.Base):
         :param pre 'types.SimpleNamespace': the prerequisite operator container
         :return 'types.SimpleNamespace': the oprs operator container
         """
-        if pre is None and not TaskClass.agg:
-            oprs = (x for x in reversed(self.oprs) if not x.cls.agg)
+        if pre is None:
+            oprs = (x for x in reversed(self.oprs)
+                    if x.cls.agg == TaskClass.agg)
             pre = next(oprs, None)
         opr = TaskClass.getOpr(**kwargs,
                                status=self.status,

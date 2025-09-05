@@ -296,7 +296,11 @@ class LmpAgg(taskbase.Agg):
         options = dict(NAME=self.jobname.removesuffix('_agg'))
         options = types.SimpleNamespace(**{**vars(self.options), **options})
         for task in self.options.task:
-            anlz = self.AnalyzerAgg(task=task,
+            try:
+                Anlz = next(x for x in self.AnalyzerAgg.ANLZ if x.name == task)
+            except StopIteration:
+                continue
+            anlz = self.AnalyzerAgg(Anlz,
                                     groups=self.groups,
                                     options=options,
                                     logger=self)
@@ -322,7 +326,7 @@ class LmpAgg(taskbase.Agg):
             }
             params = pd.Series(params).sort_index()
             if params.empty:
-                return [tuple([params, self.jobs])]
+                return [types.SimpleNamespace(parm=params, jobs=self.jobs)]
             values = params.str.split(symbols.COLON, expand=True).iloc[:, -1]
             key = tuple(float(x) if x.isdigit() else x for x in values)
             series[key] = params
@@ -330,7 +334,9 @@ class LmpAgg(taskbase.Agg):
         keys = sorted(series.keys())
         for idx, key in enumerate(keys):
             series[key].index.name = idx
-        return [tuple([series[x], jobs[x]]) for x in keys]
+        return [
+            types.SimpleNamespace(parm=series[x], jobs=jobs[x]) for x in keys
+        ]
 
 
 class TimeAgg(taskbase.Agg):
@@ -433,12 +439,12 @@ class AnalyzerAgg(analyzer.Agg):
     Customized for substructures.
     """
 
-    def set(self):
+    def merge(self):
         """
         Modify the result substructure column so that the name includes the
         structure smiles and geometry type.
         """
-        super().set()
+        super().merge()
         substruct = self.data.index.str.split(expand=True)
         has_value = self.data.index[0] != substruct[0]
         smiles = substruct[0][0] if has_value else substruct[0]
@@ -451,7 +457,7 @@ class AnalyzerAgg(analyzer.Agg):
             return
         # result.substruct contains the smiles (e.g. CCCC)
         # Read the reported value from the log (e.g. dihedral angle: 73.50 deg)
-        for job in jobutils.Job.search(self.groups[0][1][0].fn('')):
+        for job in jobutils.Job.search(self.groups[0].jobs[0].fn('')):
             reader = Reader(job.logfile)
             if reader.options.NAME != MolBldr.name:
                 continue

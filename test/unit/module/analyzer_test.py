@@ -36,10 +36,14 @@ FOUR_TRJ = os.path.join(HEX, 'four_frames.custom')
 class TestBase:
 
     EMPTY = pd.DataFrame()
-    DATA = pd.DataFrame({'density': [1, 0, 2]})
+    DATA = pd.DataFrame({'density (g/cm^3)': [1, 0, 2]})
     DATA.index = pd.Index([5, 2, 6], name='time (ps)')
     TWO_COLS = DATA.copy()
     TWO_COLS['std'] = 1
+
+    @pytest.fixture
+    def raw(self):
+        return analyzer.Base()
 
     @pytest.fixture
     def base(self, args, data):
@@ -47,6 +51,14 @@ class TestBase:
         base = analyzer.Base(options=options, logger=mock.Mock())
         base.data = data
         return base
+
+    def testRead(self, raw):
+        raw.read()
+        assert raw.data is None
+
+    def testSet(self, raw):
+        raw.set()
+        assert raw.data.empty
 
     @pytest.mark.parametrize('args', [(['-JOBNAME', 'name'])])
     @pytest.mark.parametrize(
@@ -58,8 +70,8 @@ class TestBase:
         base.logger.log.assert_called_with(expected)
         assert exist == os.path.exists('name_base.csv')
 
-    def testFull(self):
-        assert 'base' == analyzer.Base().full
+    def testFull(self, raw):
+        assert 'base' == raw.full
 
     def testName(self):
         assert 'base' == analyzer.Base.name
@@ -73,8 +85,9 @@ class TestBase:
 
     @pytest.mark.parametrize('args', [None])
     @pytest.mark.parametrize(
-        'data,expected', [(EMPTY, False),
-                          (DATA, 'The minimum density of 0 found at 2 ps.')])
+        'data,expected',
+        [(EMPTY, False),
+         (DATA, 'The minimum density of 0 g/cm^3 found at 2 ps.')])
     def testFit(self, base, expected):
         base.fit()
         assert bool(expected) == base.logger.log.called
@@ -128,9 +141,10 @@ class TestJob:
         assert expected == job.outfile
 
     @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
-    @pytest.mark.parametrize('dirname,expected',
-                             [(TEST0027, None), (TEST0037, (3, 1, 1, None)),
-                              (TEST0045, (23, 2, 9, None))])
+    @pytest.mark.parametrize('dirname,expected', [(TEST0027, None),
+                                                  (TEST0037, (3, 1, 1, None)),
+                                                  (TEST0045, (23, 2, 9, None)),
+                                                  ('empty', None)])
     def testRead(self, density, expected):
         density.read()
         assert expected == (None if density.data is None else
@@ -152,11 +166,13 @@ class TestJob:
     @pytest.mark.parametrize(
         'dirname,expected',
         [(TEST0045,
-          'Density: 0.001799 ± 2.255e-05 g/cm^3 ∈ [10.0000, 23.0000] ps')])
-    def testFit(self, density, expected):
+          'Density: 0.001799 ± 2.255e-05 g/cm^3 ∈ [10.0000, 23.0000] ps'),
+         ('empty', None)])
+    def testFit(self, density, called):
+        density.logger.log = called
         density.read()
+        density.set()
         density.fit()
-        density.logger.log.assert_called_with(expected)
 
     @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
     @pytest.mark.parametrize('dirname,expected', [(TEST0045, 2)])
@@ -171,7 +187,8 @@ class TestJob:
          ('name', 'm', 'r (g/m^3) (num=3)', None, False, 'name (m) (num=3)'),
          ('r', None, None, ['r', 'St Dev of r'], False, 'r'),
          ('r', None, None, ['r', 'St Dev of r'], True, 'St Dev of r'),
-         ('r', None, None, ['r', 'St Err of r'], True, 'St Err of r')])
+         ('r', None, None, ['r', 'St Err of r'], True, 'St Err of r'),
+         ('rho', None, None, ['r', 'St Err of r'], True, None)])
     def testGetName(self, name, unit, label, names, err, expected):
         assert expected == analyzer.Job.getName(name=name,
                                                 unit=unit,

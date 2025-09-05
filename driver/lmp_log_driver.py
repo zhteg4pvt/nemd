@@ -81,4 +81,4 @@ class LmpLog(logutils.Base):
 
 
 if __name__ == "__main__":
-    logutils.Script.run(LmpLog, parserutils.LmpLog(descr=__doc__))
+    logutils.Script.run(LmpLog, parserutils.LmpLog(descr=__doc__), file=True)
