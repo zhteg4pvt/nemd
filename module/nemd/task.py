@@ -301,7 +301,7 @@ class LmpAgg(taskbase.Agg):
     """
     Analyzer aggregator.
     """
-    Merge = analyzer.Merge
+    Merger = analyzer.Merger
 
     def run(self):
         """
@@ -311,10 +311,10 @@ class LmpAgg(taskbase.Agg):
         options = dict(NAME=self.jobname.removesuffix('_agg'))
         options = types.SimpleNamespace(**{**vars(self.options), **options})
         for task in self.options.task:
-            self.Merge.main(task,
-                            groups=self.groups,
-                            options=options,
-                            logger=self)
+            self.Merger.main(task,
+                             groups=self.groups,
+                             options=options,
+                             logger=self)
 
     @functools.cached_property
     def groups(self):
@@ -322,8 +322,7 @@ class LmpAgg(taskbase.Agg):
         Group jobs by the statepoint so that the jobs within one group only
         differ by the FLAG_SEED.
 
-        return list of tuples: each tuple contains parameters (pandas.Series),
-        grouped jobs (signac.job.Job)
+        return list of `Group`: job group of each parameter set.
         """
         jobs = collections.defaultdict(list)
         series = {}

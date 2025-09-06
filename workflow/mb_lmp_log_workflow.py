@@ -39,7 +39,7 @@ class Reader(logutils.Reader):
             return line.split(symbols.COLON)[-1].split()[0]
 
 
-class Merge(analyzer.Merge):
+class Merger(analyzer.Merger):
     """
     Customized for substructures.
     """
@@ -79,7 +79,7 @@ class LmpAgg(task.LmpAgg):
     """
     Customized for substructures.
     """
-    Merge = Merge
+    Merger = Merger
 
 
 class Runner(jobcontrol.Runner):

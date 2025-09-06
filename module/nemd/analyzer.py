@@ -24,7 +24,7 @@ from nemd import symbols
 
 class Base(logutils.Base):
     """
-    Base class for job and aggregator.
+    Base class for job and merger.
     """
     DATA_EXT = '.csv'
     FIG_EXT = '.png'
@@ -60,8 +60,8 @@ class Base(logutils.Base):
         Save the data.
         """
         self.data.to_csv(self.outfile, float_format=self.FLOAT_FMT)
-        jobutils.Job.reg(self.outfile)
         self.log(f'{self.full.capitalize()} data written into {self.outfile}')
+        jobutils.Job.reg(self.outfile)
 
     @classmethod
     @property
@@ -99,20 +99,17 @@ class Base(logutils.Base):
             return
         row = self.data.iloc[self.data.iloc[:, 0].argmin()]
         label, unit, _ = self.parse(self.data.columns[0])
-        value = f"The minimum {label} of {row.iloc[0]:.4g} {unit}"
-        label, unit, _ = self.parse(self.data.index.name)
-        pos = f'{row.name} {unit}' if unit else f"{label} {row.name}"
-        self.log(f"{value} found at {pos}.")
+        self.log(f"The minimum {label} of {row.iloc[0]:.4g} {unit} is found at"
+                 f" {row.name} {self.parse(self.data.index.name)[1]}.")
 
     def plot(self, marker=None, selected=None):
         """
-        Plot and save the data.
+        Plot and save the data: index (time|param|default), data (original|ave),
+        standard deviation (optional).
 
         :param marker str: the marker symbol
         :param selected pd.DataFrame: the selected data
         """
-        shape = self.data.shape
-        fill = shape[1] == 2
         with plotutils.pyplot(inav=self.options.INTERAC,
                               name=self.name) as plt:
             self.fig = plt.figure(figsize=(10, 6))
@@ -123,14 +120,13 @@ class Base(logutils.Base):
                     self.data.iloc[:, 0],
                     '-' if selected is None else '--',
                     marker=marker,
-                    label='average' if fill else 'data')
+                    label='average' if self.with_err else 'data')
             if selected is not None:
                 ax.plot(selected.index,
                         selected.iloc[:, 0],
                         '.-g',
                         label='selected')
-            if fill:
-                # Data has non-zero standard deviation column
+            if self.with_err:
                 vals = self.data.iloc[:, 0].astype(float)
                 errs = self.data.iloc[:, 1].astype(float)
                 ax.fill_between(self.data.index,
@@ -145,15 +141,25 @@ class Base(logutils.Base):
                         '--r',
                         label='fit')
             ax.legend()
-            if self.data.index.name is not None:
-                label, unit, _ = self.parse(self.data.index.name)
-                ax.set_xlabel(f"{label} ({unit})" if unit else label)
-            ax.set_ylabel(self.data.columns.values.tolist()[0])
-            pathname = self.outfile[:-len(self.DATA_EXT)] + self.FIG_EXT
-            self.fig.savefig(pathname)
-            jobutils.Job.reg(pathname)
 
-        self.log(f'{self.name.capitalize()} figure saved as {pathname}')
+            if self.data.index.name is not None:
+                ax.set_xlabel(f"%s (%s)" %
+                              self.parse(self.data.index.name)[:2])
+            ax.set_ylabel(self.data.columns.values.tolist()[0])
+
+            outfile = self.outfile[:-len(self.DATA_EXT)] + self.FIG_EXT
+            self.fig.savefig(outfile)
+            self.log(f'{self.name.capitalize()} figure saved as {outfile}')
+            jobutils.Job.reg(outfile)
+
+    @property
+    def with_err(self):
+        """
+        Whether the data come with an error column.
+
+        :return bool: True if the data come with an error column.
+        """
+        return self.data.shape[1] == 2
 
     @classmethod
     def parse(cls, name, rex=re.compile(r'(.*) +\((.*)\)')):
@@ -302,10 +308,8 @@ class Job(Base):
         sel = self.data.iloc[self.sidx:self.eidx]
         name, ave = sel.columns[0], sel.iloc[:, 0].mean()
         self.fitted = np.array((sel.index, np.full(sel.index.shape, ave))).T
-        err = sel.iloc[:, 1].mean() if len(
-            sel.shape) == 2 and sel.shape[1] == 2 else sel.iloc[:, 0].std()
+        err = sel.iloc[:, 1].mean() if self.with_err else sel.iloc[:, 0].std()
         self._result = pd.Series({name: ave, f"{self.ST_DEV} of {name}": err})
-        self._result.index.name = sel.index.name
         label, unit, _ = self.parse(self.data.columns[0])
         stime, etime = sel.index[0], sel.index[-1]
         self.log(f'{label}: {ave:.4g} {symbols.PLUS_MIN} {err:.4g} {unit} '
@@ -693,7 +697,7 @@ THERMO = [
 ]
 
 
-class Merge(Base):
+class Merger(Base):
     """
     The analyzer aggregator.
     """
@@ -733,8 +737,8 @@ class Merge(Base):
         if parm.empty:
             return
         self.data.set_index(parm.columns[0], inplace=True)
-        self.data.index.name = ' '.join(
-            [y.capitalize() for y in self.data.index.name.split('_')])
+        words = [y.capitalize() for y in self.data.index.name.split('_')]
+        self.data.index.name = ' '.join(words)
 
     @property
     def name(self):

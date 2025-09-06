@@ -62,22 +62,22 @@ class TestRead:
         assert expected == rdr.getSubstruct(smiles)
 
 
-class TestMerge:
+class TestMerger:
     TEST0047 = os.path.join('0047_test', 'workspace',
                             'ecd6407852986c68a9fcc4390d67f50c')
 
     @pytest.fixture
-    def merge(self, tsk, jobs, args):
+    def merger(self, tsk, jobs, args):
         options = workflow.Parser().parse_args(args)
         groups = workflow.LmpAgg(*jobs).groups
         Anlz = next(x for x in analyzer.THERMO if x.name == tsk)
-        return workflow.Merge(Anlz, groups=groups, options=options)
+        return workflow.Merger(Anlz, groups=groups, options=options)
 
     @pytest.mark.parametrize('args,tsk',
                              [(['CCCC', '-NAME', 'lmp_log'], 'toteng')])
     @pytest.mark.parametrize('dirname,expected',
                              [('0046_test', 'CCCC dihedral (degree)'),
                               (TEST0047, 'CCCC dihedral (degree)')])
-    def testRun(self, tsk, merge, expected):
-        merge.run()
-        assert expected == merge.data.index.name
+    def testRun(self, tsk, merger, expected):
+        merger.run()
+        assert expected == merger.data.index.name

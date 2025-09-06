@@ -52,23 +52,24 @@ class TestBase:
         base.data = data
         return base
 
-    def testRead(self, raw):
-        raw.read()
+    @pytest.mark.parametrize('args', [(['-JOBNAME', 'name'])])
+    @pytest.mark.parametrize('data,expected', [(DATA, True), (TWO_COLS, True),
+                                               (None, False)])
+    def testRun(self, base, expected, tmp_dir):
+        base.run()
+        assert expected == os.path.exists(base.outfile)
+
+    def testMerge(self, raw):
+        raw.merge()
         assert raw.data is None
 
-    def testSet(self, raw):
-        raw.set()
-        assert raw.data.empty
-
     @pytest.mark.parametrize('args', [(['-JOBNAME', 'name'])])
-    @pytest.mark.parametrize(
-        'data,expected,exist',
-        [(EMPTY, 'WARNING: Empty Result for base', False),
-         (DATA, 'Base data written into name_base.csv', True)])
-    def testSave(self, base, expected, exist, tmp_dir):
+    @pytest.mark.parametrize('data', [EMPTY, DATA])
+    def testSave(self, base, tmp_dir):
         base.save()
-        base.logger.log.assert_called_with(expected)
-        assert exist == os.path.exists('name_base.csv')
+        base.logger.log.assert_called_with(
+            'Base data written into name_base.csv')
+        assert os.path.exists('name_base.csv')
 
     def testFull(self, raw):
         assert 'base' == raw.full
@@ -78,34 +79,38 @@ class TestBase:
 
     @pytest.mark.parametrize('data', [None])
     @pytest.mark.parametrize('args,expected',
-                             [(['-JOBNAME', 'name'], 'name_base.csv'),
-                              (['-JOBNAME', 'job'], 'job_base.csv')])
+                             [(['-JOBNAME', 'name'], 'name_base.csv')])
     def testOutfile(self, base, expected):
         assert expected == base.outfile
 
     @pytest.mark.parametrize('args', [None])
     @pytest.mark.parametrize(
         'data,expected',
-        [(EMPTY, False),
-         (DATA, 'The minimum density of 0 g/cm^3 found at 2 ps.')])
-    def testFit(self, base, expected):
+        [(EMPTY, None),
+         (DATA, 'The minimum density of 0 g/cm^3 is found at 2 ps.')])
+    def testFit(self, base, called, expected):
+        base.log = called
         base.fit()
-        assert bool(expected) == base.logger.log.called
-        if expected:
-            base.logger.log.assert_called_with(expected)
 
     @pytest.mark.parametrize('args', [(['-JOBNAME', 'name'])])
-    @pytest.mark.parametrize('data,line,marker,selected,expected',
-                             [(EMPTY, None, None, None, (0, 0, False)),
-                              (DATA, '-', '*', None, (1, 0, True)),
-                              (TWO_COLS, '-', '*', None, (1, 1, True)),
-                              (DATA, '--', '*', pd.DataFrame([[1], [2]]),
+    @pytest.mark.parametrize('data,marker,selected,fitted,expected',
+                             [(DATA, '*', None, None, (1, 0, True)),
+                              (TWO_COLS, '*', None, np.array([[3, 7], [4, 8]]),
+                               (2, 1, True)),
+                              (DATA, '*', pd.DataFrame([[1], [2]]), None,
                                (2, 0, True))])
-    def testPlot(self, base, line, marker, selected, expected, tmp_dir):
-        base.plot(line=line, marker=marker, selected=selected)
+    def testPlot(self, base, marker, selected, fitted, expected, tmp_dir):
+        base.fitted = fitted
+        base.plot(marker=marker, selected=selected)
         line_num = len(base.fig.axes[0].lines) if base.fig else 0
         col_num = len(base.fig.axes[0].collections) if base.fig else 0
         assert expected == (line_num, col_num, os.path.exists('name_base.png'))
+
+    @pytest.mark.parametrize('args', [(['-JOBNAME', 'name'])])
+    @pytest.mark.parametrize('data,expected', [(DATA, False),
+                                               (TWO_COLS, True)])
+    def testWithErr(self, base, expected):
+        assert expected == base.with_err
 
     @pytest.mark.parametrize('name,expected',
                              [('r', ('r', None, None)),
