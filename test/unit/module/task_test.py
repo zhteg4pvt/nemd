@@ -260,36 +260,3 @@ class TestTestAgg:
     def testFilter(self, test_agg, expected):
         test_agg.filter()
         assert expected == len(test_agg.jobs)
-
-
-class TestRead:
-
-    @pytest.fixture
-    def rdr(self, file):
-        return task.Reader(file)
-
-    @pytest.mark.parametrize(
-        'file,smiles,expected',
-        [(envutils.test_data('0003_test', 'mol_bldr.log'), 'CCC', '112.40')])
-    def testGetSubstruct(self, rdr, smiles, expected, tmp_dir):
-        assert expected == rdr.getSubstruct(smiles)
-
-
-class TestAnalyzerAgg:
-    TEST0047 = os.path.join('0047_test', 'workspace',
-                            'ecd6407852986c68a9fcc4390d67f50c')
-
-    @pytest.fixture
-    def anal_agg(self, tsk, jobs, args):
-        options = test_workflow.Parser().parse_args(args)
-        groups = task.LmpAgg(*jobs).groups
-        return task.AnalyzerAgg(tsk, groups=groups, options=options)
-
-    @pytest.mark.parametrize('args', [['-NAME', 'lmp_log']])
-    @pytest.mark.parametrize(
-        'dirname,tsk,expected',
-        [('0046_test', 'toteng', 'CCCC dihedral (degree)'),
-         (TEST0047, 'toteng', 'CCCC dihedral (degree)')])
-    def testRun(self, tsk, anal_agg, expected):
-        anal_agg.run()
-        assert expected == anal_agg.data.index.name

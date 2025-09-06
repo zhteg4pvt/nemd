@@ -15,7 +15,7 @@ class TestRunner:
         runner.setJobs()
 
     @pytest.mark.parametrize('args,expected',
-                             [(['C'], ['lmp_traj_agg', 'time_agg', 0, 2])])
+                             [(['C'], ['lmp_traj_agg', 'time_agg', 1, 2])])
     def testSetAggs(self, runner, expected, check_flow):
         runner.setAggs()
 

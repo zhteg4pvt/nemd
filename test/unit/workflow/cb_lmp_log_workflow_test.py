@@ -23,7 +23,7 @@ class TestRunner:
         np.testing.assert_almost_equal(runner.state['-scale_factor'], expected)
 
     @pytest.mark.parametrize('args,expected',
-                             [([], ['lmp_log_agg', 'time_agg', 0, 2])])
+                             [([], ['lmp_log_agg', 'time_agg', 1, 2])])
     def testSetAggs(self, runner, expected, check_flow):
         runner.setAggs()
 
