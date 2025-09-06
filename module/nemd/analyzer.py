@@ -693,7 +693,7 @@ THERMO = [
 ]
 
 
-class Agg(Base):
+class Merge(Base):
     """
     The analyzer aggregator.
     """

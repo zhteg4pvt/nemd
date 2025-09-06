@@ -283,6 +283,9 @@ class Tag(Check):
 
 
 class Group(types.SimpleNamespace):
+    """
+    Job group with parameter set.
+    """
 
     def to_str(self):
         """
@@ -298,7 +301,7 @@ class LmpAgg(taskbase.Agg):
     """
     Analyzer aggregator.
     """
-    Agg = analyzer.Agg
+    Merge = analyzer.Merge
 
     def run(self):
         """
@@ -308,10 +311,10 @@ class LmpAgg(taskbase.Agg):
         options = dict(NAME=self.jobname.removesuffix('_agg'))
         options = types.SimpleNamespace(**{**vars(self.options), **options})
         for task in self.options.task:
-            self.Agg.main(task,
-                          groups=self.groups,
-                          options=options,
-                          logger=self)
+            self.Merge.main(task,
+                            groups=self.groups,
+                            options=options,
+                            logger=self)
 
     @functools.cached_property
     def groups(self):
@@ -418,53 +421,3 @@ class TestAgg(TimeAgg):
                 if test.Tag(y.fn(x), options=self.options).selected
             }
         self.jobs = list(jobs.values())
-
-
-class Reader(logutils.Reader):
-    """
-    A builder log reader customized for substructure.
-    """
-
-    def getSubstruct(self, smiles):
-        """
-        Get the value of a substructure from the log file.
-
-        :param smiles str: the substructure smiles
-        :return str: the value of the substructure
-        """
-        for line in self.lines:
-            if not line.startswith(smiles):
-                continue
-            # e.g. 'CCCC dihedral angle: 73.50 deg'
-            return line.split(symbols.COLON)[-1].split()[0]
-
-
-class AnalyzerAgg(analyzer.Agg):
-    """
-    Customized for substructures.
-    """
-
-    def merge(self):
-        """
-        Modify the result substructure column so that the name includes the
-        structure smiles and geometry type.
-        """
-        super().merge()
-        substruct = self.data.index.str.split(expand=True)
-        has_value = self.data.index[0] != substruct[0]
-        smiles = substruct[0][0] if has_value else substruct[0]
-        # Set the name of the substructure column (e.g. CC Bond (Angstrom))
-        name = f"{smiles} {structure.Mol.MolFromSmiles(smiles).name}"
-        if has_value:
-            # result.substruct contains the values  (e.g. CC: 2)
-            self.data.index = pd.Index([x[1] for x in substruct], name=name)
-            logutils.Reader.sort(self.data)
-            return
-        # result.substruct contains the smiles (e.g. CCCC)
-        # Read the reported value from the log (e.g. dihedral angle: 73.50 deg)
-        for job in jobutils.Job.search(self.groups[0].jobs[0].fn('')):
-            reader = Reader(job.logfile)
-            if reader.options.NAME != MolBldr.name:
-                continue
-            values = reader.getSubstruct(smiles)
-            self.data.index = pd.Index([values], name=name)
