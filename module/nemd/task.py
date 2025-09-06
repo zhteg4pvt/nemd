@@ -282,11 +282,23 @@ class Tag(Check):
     TestClass = test.Tag
 
 
+class Group(types.SimpleNamespace):
+
+    def to_str(self):
+        """
+        Get the parameters in str.
+
+        :return str: parameter string representation.
+        """
+        parm = self.parm.to_csv(lineterminator=' ', sep='=', header=False)
+        return f"Parameters (num={len(self.jobs)}): {parm}"
+
+
 class LmpAgg(taskbase.Agg):
     """
     Analyzer aggregator.
     """
-    AnalyzerAgg = analyzer.Agg
+    Agg = analyzer.Agg
 
     def run(self):
         """
@@ -296,15 +308,10 @@ class LmpAgg(taskbase.Agg):
         options = dict(NAME=self.jobname.removesuffix('_agg'))
         options = types.SimpleNamespace(**{**vars(self.options), **options})
         for task in self.options.task:
-            try:
-                Anlz = next(x for x in self.AnalyzerAgg.ANLZ if x.name == task)
-            except StopIteration:
-                continue
-            anlz = self.AnalyzerAgg(Anlz,
-                                    groups=self.groups,
-                                    options=options,
-                                    logger=self)
-            anlz.run()
+            self.Agg.main(task,
+                          groups=self.groups,
+                          options=options,
+                          logger=self)
 
     @functools.cached_property
     def groups(self):
@@ -326,7 +333,7 @@ class LmpAgg(taskbase.Agg):
             }
             params = pd.Series(params).sort_index()
             if params.empty:
-                return [types.SimpleNamespace(parm=params, jobs=self.jobs)]
+                return [Group(parm=params, jobs=self.jobs)]
             values = params.str.split(symbols.COLON, expand=True).iloc[:, -1]
             key = tuple(float(x) if x.isdigit() else x for x in values)
             series[key] = params
@@ -334,9 +341,7 @@ class LmpAgg(taskbase.Agg):
         keys = sorted(series.keys())
         for idx, key in enumerate(keys):
             series[key].index.name = idx
-        return [
-            types.SimpleNamespace(parm=series[x], jobs=jobs[x]) for x in keys
-        ]
+        return [Group(parm=series[x], jobs=jobs[x]) for x in keys]
 
 
 class TimeAgg(taskbase.Agg):

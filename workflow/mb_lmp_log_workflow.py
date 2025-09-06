@@ -19,8 +19,7 @@ class LmpAgg(task.LmpAgg):
     """
     Customized for substructures.
     """
-
-    AnalyzerAgg = task.AnalyzerAgg
+    Agg = task.AnalyzerAgg
 
 
 class Runner(jobcontrol.Runner):
