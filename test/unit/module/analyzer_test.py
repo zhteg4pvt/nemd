@@ -122,36 +122,47 @@ class TestBase:
 
 class TestJob:
 
+    EMPTY = pd.Series()
     PARM = pd.Series(['CCCC 5.0'], index=pd.Index(['substruct'], name=1))
 
     @pytest.fixture
     def job(self, args, parm, jobs):
         options = parserutils.Driver().parse_args(args)
-        return analyzer.Job(options=options, parm=parm, jobs=jobs)
+        if parm is not None:
+            parm = task.Group(parm=parm, jobs=jobs)
+        return analyzer.Job(options=options, parm=parm)
 
     @pytest.fixture
-    def density(self, args, parm, jobs):
-        options = parserutils.Driver().parse_args(args)
+    def density(self, args, parm, jobs, logger):
         Density = type('density', (analyzer.Job, ), {})
-        return Density(options=options,
-                       parm=parm,
-                       jobs=jobs,
-                       logger=mock.Mock())
+        options = parserutils.Driver().parse_args(args)
+        if parm is not None:
+            parm = task.Group(parm=parm, jobs=jobs)
+        return Density(options=options, parm=parm, logger=logger)
 
-    @pytest.mark.parametrize('args,dirname', [(['-JOBNAME', 'name'], None)])
-    @pytest.mark.parametrize('parm,expected',
-                             [(None, 'name_job.csv'),
-                              (PARM, 'workspace/name_job_1.csv')])
-    def testOutfile(self, job, expected):
-        assert expected == job.outfile
+    @pytest.mark.parametrize('args,dirname', [([], None)])
+    @pytest.mark.parametrize(
+        'parm,data,expected',
+        [(None, None, 'WARNING: No data calculated for job'),
+         (PARM, None, None), (None, pd.DataFrame([1]), None)])
+    def testSet(self, job, data, called):
+        job.log = called
+        job.data = data
+        job.set()
 
-    @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
-    @pytest.mark.parametrize('dirname,expected', [(TEST0027, None),
-                                                  (TEST0037, (3, 1, 1, None)),
-                                                  (TEST0045, (23, 2, 9, None)),
-                                                  ('empty', None)])
-    def testRead(self, density, expected):
-        density.read()
+    @pytest.mark.parametrize('args,parm,dirname', [([], None, None)])
+    def testCalculate(self, job):
+        job.calculate()
+        assert job.data is None
+
+    @pytest.mark.parametrize('args', [(['-NAME', 'lmp_traj'])])
+    @pytest.mark.parametrize('dirname,parm,expected',
+                             [(TEST0037, PARM, (3, 1, 1, None)),
+                              (TEST0045, PARM, (23, 2, 9, None)),
+                              ('empty', PARM, None), (TEST0027, PARM, None),
+                              (TEST0027, None, None)])
+    def testMerge(self, density, expected):
+        density.merge()
         assert expected == (None if density.data is None else
                             (*density.data.shape, density.sidx, density.eidx))
 
@@ -167,24 +178,27 @@ class TestJob:
     def testLabel(self, job):
         assert 'Job (a.u.)' == job.label
 
-    @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
-    @pytest.mark.parametrize(
-        'dirname,expected',
-        [(TEST0045,
-          'Density: 0.001799 ± 2.255e-05 g/cm^3 ∈ [10.0000, 23.0000] ps'),
-         ('empty', None)])
-    def testFit(self, density, called):
-        density.logger.log = called
-        density.read()
-        density.set()
-        density.fit()
+    @pytest.mark.parametrize('args,dirname', [(['-JOBNAME', 'name'], None)])
+    @pytest.mark.parametrize('parm,expected',
+                             [(None, 'name_job.csv'),
+                              (EMPTY, 'workspace/name_job_None.csv'),
+                              (PARM, 'workspace/name_job_1.csv')])
+    def testOutfile(self, job, expected):
+        assert expected == job.outfile
 
-    @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], None)])
-    @pytest.mark.parametrize('dirname,expected', [(TEST0045, 2)])
-    def testPlot(self, density, expected, tmp_dir):
-        density.read()
-        density.plot()
-        assert expected == len(density.fig.axes[0].lines)
+    @pytest.mark.parametrize('args,dirname,parm',
+                             [(['-NAME', 'lmp_traj'], TEST0045, PARM)])
+    @pytest.mark.parametrize(
+        'drop,expected',
+        [(None, 'Density: 0.001799 ± 4.5e-06 g/cm^3 ∈ [10.0000, 23.0000] ps'),
+         ('St Dev of Density (g/cm^3) (num=2)',
+          'Density: 0.001799 ± 2.255e-05 g/cm^3 ∈ [10.0000, 23.0000] ps')])
+    def testFit(self, density, drop, called):
+        density.merge()
+        if drop:
+            density.data.drop(columns=[drop], inplace=True)
+        density.logger.log = called
+        density.fit()
 
     @pytest.mark.parametrize(
         'name,unit,label,names,err,expected',
@@ -200,6 +214,19 @@ class TestJob:
                                                 label=label,
                                                 names=names,
                                                 err=err)
+
+    @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], PARM)])
+    @pytest.mark.parametrize('dirname,expected', [(TEST0045, 2)])
+    def testPlot(self, density, expected, tmp_dir):
+        density.merge()
+        density.plot()
+        assert expected == len(density.fig.axes[0].lines)
+
+    @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], PARM)])
+    @pytest.mark.parametrize('dirname,expected', [(TEST0045, (1, 3))])
+    def testResult(self, density, expected, tmp_dir):
+        density.run()
+        assert expected == density.result.shape
 
 
 class TestDensity:

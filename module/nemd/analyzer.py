@@ -298,8 +298,8 @@ class Job(Base):
         if self.parm is None:
             return super().outfile
         root, ext = os.path.splitext(super().outfile)
-        root = os.path.join(jobutils.WORKSPACE, root)
-        return f"{root}{ext}"
+        root = os.path.join(jobutils.WORKSPACE, f"{root}")
+        return f"{root}_{self.parm.parm.index.name}{ext}"
 
     def fit(self):
         """
