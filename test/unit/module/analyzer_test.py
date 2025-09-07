@@ -24,14 +24,10 @@ AR_DIR = os.path.join(TEST0045, 'workspace',
 AR_TRJ = os.path.join(AR_DIR, 'amorp_bldr.xtc')
 AR_DAT = os.path.join(AR_DIR, 'amorp_bldr.data')
 AR_RDR = lmpfull.Reader(AR_DAT)
-AR_LOG = os.path.join(AR_DIR, 'lammps_lmp.log')
 HEX = envutils.test_data('hexane_liquid')
 HEX_TRJ = os.path.join(HEX, 'dump.custom')
 HEX_DAT = os.path.join(HEX, 'polymer_builder.data')
 HEX_RDR = lmpfull.Reader(HEX_DAT)
-MODIFIED = copy.deepcopy(HEX_RDR)
-MODIFIED.pair_coeffs.dist = 18
-FOUR_TRJ = os.path.join(HEX, 'four_frames.custom')
 
 
 class TestBase:
@@ -300,6 +296,9 @@ class TestView:
 
 class TestClash:
 
+    MODIFIED = copy.deepcopy(HEX_RDR)
+    MODIFIED.pair_coeffs.dist = 18
+
     @pytest.fixture
     def clash(self, trj, gids, rdr, logger):
         options = parserutils.LmpTraj().parse_args(
@@ -393,6 +392,8 @@ class TestRDF:
 
 class TestMSD:
 
+    FOUR = os.path.join(HEX, 'four_frames.custom')
+
     @pytest.fixture
     def msd(self, trj, gids, rdr, logger):
         if gids is not None:
@@ -406,50 +407,59 @@ class TestMSD:
                             logger=logger)
 
     @pytest.mark.parametrize(
-        'trj,rdr,gids,spct,epct,expected,name',
-        [(FOUR_TRJ, HEX_RDR, None, 0.1, 0.2, 0.4820897, 'Tau (ps) (0 3)'),
-         (FOUR_TRJ, None, None, 0.1, 0.2, 0.48032087, 'Tau (ps) (0 3)'),
-         (FOUR_TRJ, HEX_RDR, [0, 1], 0.1, 0.2, 0.99159753, 'Tau (ps) (0 3)'),
-         (FOUR_TRJ, HEX_RDR, [0, 1], 0.4, 0.2, 0.99159753, 'Tau (ps) (1 3)'),
-         (AR_TRJ, None, [], 0.1, 0.2, np.nan, None),
-         (HEX_TRJ, None, None, 0.1, 0.2, np.nan, None)])
-    def testSet(self, msd, spct, epct, expected, name):
-        msd.set(spct=spct, epct=epct)
-        mad_max = msd.data.max().max()
-        np.testing.assert_almost_equal(mad_max, expected, decimal=4)
+        'trj,rdr,gids,spct,epct,expected,mdata,name',
+        [(FOUR, HEX_RDR, None, 0.1, 0.2, None, 0.4820897, 'Tau (ps) (0 3)'),
+         (FOUR, None, None, 0.1, 0.2, None, 0.48032087, 'Tau (ps) (0 3)'),
+         (FOUR, HEX_RDR, [0, 1], 0.1, 0.2, None, 0.99159753, 'Tau (ps) (0 3)'),
+         (FOUR, HEX_RDR, [0, 1], 0.4, 0.2, None, 0.99159753, 'Tau (ps) (1 3)'),
+         (AR_TRJ, None, [], 0.1, 0.2, "MSD requires least one atom selected.",
+          None, None),
+         (HEX_TRJ, None, None, 0.1, 0.2,
+          "Only one trajectory frame selected for MSD.", None, None)])
+    def testCalculate(self, msd, spct, epct, expected, mdata, name, called):
+        msd.warning = called
+        msd.calculate(spct=spct, epct=epct)
+        if mdata is None:
+            return
+        np.testing.assert_almost_equal(msd.data.max().max(), mdata, decimal=4)
         assert name == msd.data.index.name
-
-    @pytest.mark.parametrize('trj,rdr,gids,spct,epct,expected,msg', [
-        (FOUR_TRJ, HEX_RDR, None, 0.1, 0.2, [4.01749017e-06, 8.75353197e-07],
-         'Diffusion Coefficient 4.018e-06 ± 8.754e-07 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.955)'
-         ),
-        (FOUR_TRJ, None, None, 0.1, 0.2, [4.00255214e-06, 8.72030195e-07],
-         'Diffusion Coefficient 4.003e-06 ± 8.721e-07 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.955)'
-         ),
-        (FOUR_TRJ, HEX_RDR, [0, 1], 0.1, 0.2, [8.2679990e-06, 1.5476629e-06],
-         'Diffusion Coefficient 8.263e-06 ± 1.546e-06 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.966)'
-         ),
-        (FOUR_TRJ, HEX_RDR, [0, 1], 0.4, 0.2, [1.09486298e-05, 0.00000e+00],
-         'Diffusion Coefficient 1.094e-05 ± 0 cm^2/s calculated by fitting MSD ∈ [1 2] ps. (R-squared: 1)'
-         )
-    ])
-    def testFit(self, msd, spct, epct, expected, msg):
-        msd.set(spct=spct, epct=epct)
-        msd.fit()
-        np.testing.assert_almost_equal(msd.result.values, expected, 4)
-        msd.logger.log.assert_called_with(msg)
 
     def testLabel(self):
         assert 'MSD (Å^2)' == analyzer.MSD().label
 
+    @pytest.mark.parametrize('trj,rdr,gids,spct,epct,expected,msg', [
+        (FOUR, HEX_RDR, None, 0.1, 0.2, [[4.01749017e-06, 8.75353197e-07]],
+         'Diffusion Coefficient 4.018e-06 ± 8.754e-07 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.955)'
+         ),
+        (FOUR, None, None, 0.1, 0.2, [[4.00255214e-06, 8.72030195e-07]],
+         'Diffusion Coefficient 4.003e-06 ± 8.721e-07 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.955)'
+         ),
+        (FOUR, HEX_RDR, [0, 1], 0.1, 0.2, [[8.2679990e-06, 1.5476629e-06]],
+         'Diffusion Coefficient 8.263e-06 ± 1.546e-06 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.966)'
+         ),
+        (FOUR, HEX_RDR, [0, 1], 0.4, 0.2, [[1.09486298e-05, 0.00000e+00]],
+         'Diffusion Coefficient 1.094e-05 ± 0 cm^2/s calculated by fitting MSD ∈ [1 2] ps. (R-squared: 1)'
+         )
+    ])
+    def testFit(self, msd, spct, epct, expected, msg):
+        msd.calculate(spct=spct, epct=epct)
+        msd.fit()
+        np.testing.assert_almost_equal(msd.result.values, expected, 4)
+        msd.logger.log.assert_called_with(msg)
+
+    def testFull(self):
+        assert 'mean squared displacement' == analyzer.MSD().full
+
 
 class TestTotEng:
+
+    AR_LOG = os.path.join(AR_DIR, 'lammps_lmp.log')
 
     @pytest.fixture
     def tot_eng(self, logfile):
         if logfile is None:
             return analyzer.TotEng()
-        options = parserutils.LmpLog().parse_args([AR_LOG])
+        options = parserutils.LmpLog().parse_args([logfile])
         lmp_log = lmplog.Log(logfile, options=options)
         return analyzer.TotEng(thermo=lmp_log.thermo)
 
@@ -461,6 +471,9 @@ class TestTotEng:
     def testSet(self, tot_eng, expected):
         tot_eng.set()
         np.testing.assert_almost_equal(tot_eng.data.max().max(), expected)
+
+    def testFull(self):
+        assert 'thermodynamic information' == analyzer.TotEng().full
 
 
 class TestAgg:
