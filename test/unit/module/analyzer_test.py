@@ -1,4 +1,5 @@
 import copy
+import glob
 import os
 from unittest import mock
 
@@ -476,38 +477,43 @@ class TestTotEng:
         assert 'thermodynamic information' == analyzer.TotEng().full
 
 
-class TestAgg:
+class TestMerger:
 
     @pytest.fixture
-    def agg(self, jobs, tsk, args):
-        options = parserutils.Workflow().parse_args(args) if args else None
+    def merger(self, jobs, tsk, args, logger):
+        Anlz = analyzer.Merger.getAnlz(tsk)
+        options = parserutils.Workflow().parse_args(args)
         groups = None if jobs is None else task.LmpAgg(*jobs).groups
-        return analyzer.Agg(task=tsk,
-                            options=options,
-                            groups=groups,
-                            logger=mock.Mock())
+        return analyzer.Merger(Anlz,
+                               options=options,
+                               groups=groups,
+                               logger=logger)
 
     @pytest.mark.parametrize('args,dirname,tsk,expected',
                              [(['-NAME', 'lmp_traj'], TEST0045, 'rdf', (1, 2)),
+                              ([], 'empty', 'toteng', None),
+                              (['-NAME', 'lmp_log'], TEST0046, 'rdf', None),
                               (['-NAME', 'lmp_log'], TEST0046, 'toteng',
-                               (2, 3))])
-    def testRead(self, agg, expected):
-        agg.read()
-        assert expected == agg.data.shape
+                               (2, 2))])
+    def testMerge(self, merger, expected):
+        merger.merge()
+        assert expected == (None if merger.data is None else merger.data.shape)
 
-    @pytest.mark.parametrize(
-        'args,dirname,tsk,expected',
-        [(['-NAME', 'lmp_log'], TEST0046, 'toteng', [[10.624343, 0],
-                                                     [10.522627, 0]]),
-         (['-NAME', 'lmp_traj'], TEST0045, 'rdf', [[92.65, 92.65]])])
-    def testSet(self, agg, expected):
-        agg.read()
-        agg.set()
-        filled = agg.data.astype(float).fillna(0)
-        np.testing.assert_almost_equal(filled, expected)
+    @pytest.mark.parametrize('tsk,expected', [('rdf', 'rdf'), ('msd', 'msd')])
+    def testName(self, tsk, expected):
+        assert expected == analyzer.Merger.getAnlz(tsk).name
 
-    @pytest.mark.parametrize('args,dirname', [(None, None)])
-    @pytest.mark.parametrize('tsk,expected', [('rdf', 'rdf'),
-                                              ('toteng', 'toteng')])
-    def testName(self, agg, expected):
-        assert expected == agg.name
+    @pytest.mark.parametrize('args,dirname,tsk,expected',
+                             [(['-NAME', 'lmp_log'], TEST0046, 'toteng', 2),
+                              (['-NAME', 'lmp_traj'], TEST0045, 'rdf', 1),
+                              (['-NAME', 'lmp_traj'], TEST0045, 'xyz', 0)])
+    def testMain(self, tsk, args, jobs, expected):
+        options = parserutils.Workflow().parse_args(['-JOBNAME', 'nm', *args])
+        groups = None if jobs is None else task.LmpAgg(*jobs).groups
+        analyzer.Merger.main(tsk, options=options, groups=groups)
+        assert expected == len(glob.glob('*.csv'))
+
+    @pytest.mark.parametrize('tsk,expected', [('rdf', analyzer.RDF),
+                                              ('xyz', None)])
+    def testGetAnlz(self, tsk, expected):
+        assert expected == analyzer.Merger.getAnlz(tsk)

@@ -745,16 +745,25 @@ class Merger(Base):
         return self.Anlz.name
 
     @classmethod
-    def main(cls, task, ANLZS=(Density, RDF, MSD, Clash, *THERMO), **kwargs):
+    def main(cls, task, **kwargs):
         """
         Maim method to initialize and run.
 
         :param task str: the task name.
-        :param ANLZS tuple: analyzers that support aggregation.
         """
-        try:
-            Anlz = next(x for x in ANLZS if x.name == task)
-        except StopIteration:
+        Anlz = cls.getAnlz(task)
+        if Anlz is None:
             return
         anlz = cls(Anlz, **kwargs)
         anlz.run()
+
+    @staticmethod
+    def getAnlz(task, ANLZS=(Density, RDF, MSD, Clash, *THERMO)):
+        """
+        Get analyzer class.
+
+        :param task: selected analyzer name.
+        :param ANLZS tuple: analyzers that support aggregation.
+        :return `type`: analyzer class.
+        """
+        return next((x for x in ANLZS if x.name == task), None)
