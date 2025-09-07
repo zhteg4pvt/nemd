@@ -555,18 +555,15 @@ class RDF(Clash):
         """
         Smooth the rdf data and report peaks.
 
-        :param window_length int: the window length when smoothing
+        :param window_length int: the window length when smoothing.
         """
         raveled = np.ravel(self.data.iloc[:, 0])
         smoothed = scipy.signal.savgol_filter(raveled,
                                               window_length=window_length,
                                               polyorder=2)
         idx = smoothed.argmax()
-        idxs = [y for x in range(1, window_length) for y in [idx - x, idx + x]]
-        try:
-            idx = next(x for x in [idx] + idxs if self.data.iloc[x, 0])
-        except StopIteration:
-            pass
+        idxs = [y for x in range(window_length) for y in [idx - x, idx + x]]
+        idx = next((x for x in idxs[1:] if self.data.iloc[x, 0]), idx)
         row = self.data.iloc[idx]
         peak = row.values[0]
         err = row.values[1] if len(row.values) > 1 else np.nan

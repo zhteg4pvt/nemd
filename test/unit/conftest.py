@@ -21,6 +21,7 @@ from nemd import oplsua
 from nemd import osutils
 from nemd import pytestutils
 from nemd import structure
+from nemd import task
 
 
 @contextlib.contextmanager
@@ -132,6 +133,17 @@ def copied(dirname, tmp_dir):
     test_dir = envutils.test_data(dirname)
     shutil.copytree(test_dir, os.curdir, dirs_exist_ok=True)
     return test_dir
+
+
+@pytest.fixture
+def group(parm, jobs):
+    """
+    Return the grouped jobs.
+
+    :return `Group`: the grouped jobs.
+    """
+    if parm is not None:
+        return task.Group(parm=parm, jobs=jobs)
 
 
 @pytest.fixture

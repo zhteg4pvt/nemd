@@ -10,6 +10,7 @@ from nemd import analyzer
 from nemd import envutils
 from nemd import lmpfull
 from nemd import lmplog
+from nemd import numpyutils
 from nemd import parserutils
 from nemd import task
 from nemd import traj
@@ -126,11 +127,9 @@ class TestJob:
     PARM = pd.Series(['CCCC 5.0'], index=pd.Index(['substruct'], name=1))
 
     @pytest.fixture
-    def job(self, args, parm, jobs):
+    def job(self, args, group, jobs):
         options = parserutils.Driver().parse_args(args)
-        if parm is not None:
-            parm = task.Group(parm=parm, jobs=jobs)
-        return analyzer.Job(options=options, parm=parm)
+        return analyzer.Job(options=options, parm=group)
 
     @pytest.fixture
     def density(self, args, parm, jobs, logger):
@@ -245,12 +244,12 @@ class TestDensity:
 
     @pytest.mark.parametrize('trj,data_file,expected',
                              [(AR_TRJ, AR_DAT, 0.0018261)])
-    def testSet(self, trj, data_file, expected):
+    def testCalculate(self, trj, data_file, expected):
         args = [trj, '-data_file', data_file]
         options = parserutils.LmpTraj().parse_args(args)
         job = analyzer.Density(trj=traj.Traj(trj, options=options),
                                rdr=lmpfull.Reader(data_file))
-        job.set()
+        job.calculate()
         np.testing.assert_almost_equal(job.data.max(), [expected])
 
 
@@ -332,59 +331,64 @@ class TestClash:
         assert expected[2] == (None if clash.grps is None else len(clash.grps))
 
     @pytest.mark.parametrize('trj,rdr', [(HEX_TRJ, MODIFIED)])
-    @pytest.mark.parametrize('gids,expected', [([1], None), ([5, 0, 1], 2),
-                                               ([5, 0], 1)])
-    def testSet(self, clash, expected):
-        clash.set()
-        if expected is None:
-            clash.logger.log.assert_called_with(
-                'WARNING: Clash requires least two atoms selected.')
-            return
-        assert not clash.logger.log.called
-        assert expected == clash.data.max().max()
+    @pytest.mark.parametrize(
+        'gids,expected,data',
+        [([1], 'WARNING: Clash requires least two atoms selected.', None),
+         ([5, 0, 1], None, [[2]]), ([5, 0], None, [[1]])])
+    def testCalculate(self, clash, expected, data, called):
+        clash.log = called
+        clash.calculate()
+        numpyutils.assert_almost_equal(clash.data, data)
 
 
 class TestRDF:
 
     @pytest.fixture
-    def rdf(self, trj, gids, rdr, jobs, logger):
+    def rdf(self, trj, gids, rdr, group, logger):
         options = parserutils.LmpTraj().parse_args(
             [trj, '-last_pct', '0.8', '-task', 'rdf', '-NAME', 'lmp_traj'])
         return analyzer.RDF(trj=traj.Traj(trj, options=options),
                             options=options,
                             gids=gids,
                             rdr=rdr,
-                            jobs=jobs,
+                            parm=group,
                             logger=logger)
 
-    @pytest.mark.parametrize('trj,rdr,jobs', [(HEX_TRJ, HEX_RDR, None)])
-    @pytest.mark.parametrize('gids,expected', [([1], None),
-                                               ([5, 0, 1], 41913.204277),
-                                               ([5, 0], 5559.9628738)])
-    def testSet(self, rdf, expected):
-        rdf.set()
-        if expected is None:
-            rdf.logger.log.assert_called_with(
-                'WARNING: RDF requires least two atoms selected.')
-            return
-        np.testing.assert_almost_equal(rdf.data.max().max(), expected)
-
-    @pytest.mark.parametrize('trj,rdr,gids,dirname,msg,expected',
-                             [(HEX_TRJ, HEX_RDR, [5, 0, 1], None,
-                               'RDF peak 4.191e+04 ± nan found at 1.52 Å',
-                               (41913.204277, np.nan)),
-                              (HEX_TRJ, None, None, TEST0045,
-                               'RDF peak 92.65 ± 92.65 found at 3.46 Å',
-                               (92.65, 92.65))])
-    def testFit(self, rdf, msg, expected):
-        rdf.read()
-        rdf.set()
-        rdf.fit()
-        rdf.logger.log.assert_called_with(msg)
-        np.testing.assert_almost_equal(rdf.result, expected)
+    @pytest.mark.parametrize('trj,rdr,parm,dirname',
+                             [(HEX_TRJ, HEX_RDR, None, None)])
+    @pytest.mark.parametrize('gids,expected,mdata', [
+        ([1], 'WARNING: RDF requires least two atoms selected.', None),
+        ([5, 0, 1
+          ], 'The volume fluctuates: [109519.24 109519.24] Å^3', 41913.204277),
+        ([5, 0
+          ], 'The volume fluctuates: [109519.24 109519.24] Å^3', 5559.9628738)
+    ])
+    def testCalculate(self, rdf, expected, mdata, called):
+        rdf.log = called
+        rdf.calculate()
+        numpyutils.assert_almost_equal(
+            None if rdf.data is None else rdf.data.max().max(), mdata)
 
     def testLabel(self):
         assert 'g (r)' == analyzer.RDF().label
+
+    @pytest.mark.parametrize('trj', [(HEX_TRJ)])
+    @pytest.mark.parametrize(
+        'rdr,gids,dirname,parm,expected,result',
+        [(HEX_RDR, [5, 0, 1], None, None,
+          'RDF peak 4.191e+04 ± nan found at 1.52 Å', [[41913.2042769, np.nan]
+                                                       ]),
+         (None, None, TEST0045, pd.Series(index=pd.Index([], name='rdf')),
+          'RDF peak 92.65 ± 92.65 found at 3.46 Å', [[92.65, 92.65]])])
+    def testFit(self, rdf, result, called):
+        rdf.log = called
+        rdf.set()
+        rdf.merge()
+        rdf.fit()
+        np.testing.assert_almost_equal(rdf.result, result)
+
+    def testFull(self):
+        assert 'radial distribution function' == analyzer.RDF().full
 
 
 class TestMSD:
