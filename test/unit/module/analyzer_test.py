@@ -507,10 +507,13 @@ class TestMerger:
                              [(['-NAME', 'lmp_log'], TEST0046, 'toteng', 2),
                               (['-NAME', 'lmp_traj'], TEST0045, 'rdf', 1),
                               (['-NAME', 'lmp_traj'], TEST0045, 'xyz', 0)])
-    def testMain(self, tsk, args, jobs, expected):
+    def testMain(self, tsk, args, jobs, expected, logger):
         options = parserutils.Workflow().parse_args(['-JOBNAME', 'nm', *args])
         groups = None if jobs is None else task.LmpAgg(*jobs).groups
-        analyzer.Merger.main(tsk, options=options, groups=groups)
+        analyzer.Merger.main(tsk,
+                             options=options,
+                             groups=groups,
+                             logger=logger)
         assert expected == len(glob.glob('*.csv'))
 
     @pytest.mark.parametrize('tsk,expected', [('rdf', analyzer.RDF),

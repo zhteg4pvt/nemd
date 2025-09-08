@@ -25,7 +25,9 @@ class TestRunner:
         runner.add(Job, pre=pre)
         runner.setProj()
         runner.openJobs()
-        runner.runJobs()
+        with mock.patch('flow.project.tqdm', side_effect=lambda x, **y: x):
+            # flow.project.FlowProject_run_operations_in_parallel tqdm on screen
+            runner.runJobs()
         return runner
 
     @pytest.fixture
@@ -132,7 +134,7 @@ class TestRunner:
         np.testing.assert_equal(runner.state.get('-seed'), expected)
 
     @pytest.mark.parametrize('args,file,status,pre',
-                             [(['-clean', '-DEBUG'], True, True, None)])
+                             [(['-clean'], True, True, None)])
     def testRunJobs(self, ran):
         assert 2 == len(ran.options.CPU)
         assert 'args' in ran.proj.document
@@ -140,7 +142,7 @@ class TestRunner:
         assert 2 == len([y for x in ran.status.values() for y in x.values()])
 
     @pytest.mark.parametrize('args,file,status,pre',
-                             [(['-clean', '-DEBUG'], True, True, None)])
+                             [(['-clean'], True, True, None)])
     def testClean(self, ran):
         dirname = ran.jobs[0].fn('')
         files = [jobutils.Job(x, dirname=dirname).file for x in ['cmd', 'job']]
@@ -148,7 +150,7 @@ class TestRunner:
         ran.clean()
         assert not any([os.path.exists(x) for x in files])
 
-    @pytest.mark.parametrize('args', [(['-DEBUG'])])
+    @pytest.mark.parametrize('args', [([])])
     @pytest.mark.parametrize('file', [True, False])
     @pytest.mark.parametrize('status', [True, False])
     @pytest.mark.parametrize('pre', [None, False])
@@ -159,16 +161,15 @@ class TestRunner:
         stat = jobutils.Job('job', dirname=dirname).get('status')
         assert (status if pre is False or file else None) == stat
 
-    @pytest.mark.parametrize('args,file,status,pre',
-                             [(['-DEBUG'], True, True, None)])
+    @pytest.mark.parametrize('args,file,status,pre', [([], True, True, None)])
     def testRunAgg(self, agg):
         assert jobutils.Job('agg', dirname=agg.proj.fn(''))['status']
         agg.jobs = []
         with pytest.raises(SystemExit):
             agg.runProj()
 
-    @pytest.mark.parametrize(
-        'args', [(['-JOBNAME', 'name', '-DEBUG', '-state_num', '2'])])
+    @pytest.mark.parametrize('args',
+                             [(['-JOBNAME', 'name', '-state_num', '2'])])
     @pytest.mark.parametrize('file', [True, False])
     @pytest.mark.parametrize('status', [True, False])
     @pytest.mark.parametrize('pre', [False])
@@ -194,19 +195,17 @@ class TestRunner:
     def testSetAgg(self, runner, check_flow):
         runner.setAggs()
 
-    @pytest.mark.parametrize('args,file,status,pre',
-                             [(['-DEBUG'], True, True, None)])
+    @pytest.mark.parametrize('args,file,status,pre', [([], True, True, None)])
     def testSetAggProj(self, ran):
         ran.setAggProj()
         assert ran.proj
 
-    @pytest.mark.parametrize('args', [(['-DEBUG'])])
+    @pytest.mark.parametrize('args', [([])])
     def testSetAggProjClean(self, runner):
         with pytest.raises(SystemExit):
             runner.setAggProj()
 
-    @pytest.mark.parametrize('args,file,status,pre',
-                             [(['-DEBUG'], True, True, None)])
+    @pytest.mark.parametrize('args,file,status,pre', [([], True, True, None)])
     @pytest.mark.parametrize('clear,expected', [(False, 1), (True, 1)])
     def testFindJobs(self, ran, clear, expected):
         if clear:
@@ -216,7 +215,7 @@ class TestRunner:
         assert expected == len(ran.jobs)
 
     @pytest.mark.parametrize('args,file,status,pre',
-                             [(['-clean', '-DEBUG'], True, True, None)])
+                             [(['-clean'], True, True, None)])
     def testCleanAgg(self, agg):
         file = jobutils.Job('agg', dirname=agg.proj.fn('')).file
         assert os.path.exists(file)

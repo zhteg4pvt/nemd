@@ -168,13 +168,13 @@ class TestCmd:
 class TestCheck:
 
     @pytest.fixture
-    def check(self, jobs):
-        return task.Check(*jobs)
+    def check(self, jobs, logger):
+        return task.Check(*jobs, logger=logger)
 
     @pytest.mark.parametrize('dirname,expected',
                              [('0001_test', True),
                               ('0001_fail', 'is different from')])
-    def testRun(self, check, expected):
+    def testRun(self, check, expected, logger):
         with osutils.chdir(check.job.dirname):
             check.run()
             assert (expected in check.out) if isinstance(expected, str) \
@@ -184,8 +184,8 @@ class TestCheck:
 class TestTag:
 
     @pytest.fixture
-    def tag(self, jobs):
-        return task.Tag(*jobs)
+    def tag(self, jobs, logger):
+        return task.Tag(*jobs, logger=logger)
 
     @pytest.mark.parametrize('dirname,expected', [('0001_test', True)])
     def testRun(self, tag, expected):

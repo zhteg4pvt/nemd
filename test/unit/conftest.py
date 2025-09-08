@@ -20,6 +20,7 @@ from nemd import jobutils
 from nemd import oplsua
 from nemd import osutils
 from nemd import pytestutils
+from nemd import rdkitutils
 from nemd import structure
 from nemd import task
 
@@ -206,7 +207,8 @@ def emol(mol, cnum):
     :param cnum `int`: the number of conformers.
     :return `structure.Mol`: the molecule
     """
-    mol.EmbedMultipleConfs(numConfs=cnum)
+    with rdkitutils.capture_logging():
+        mol.EmbedMultipleConfs(numConfs=cnum)
     return mol
 
 

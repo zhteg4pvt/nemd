@@ -12,6 +12,7 @@ from nemd import numpyutils
 from nemd import oplsua
 from nemd import parserutils
 from nemd import pbc
+from nemd import rdkitutils
 
 PARSER = oplsua.Parser.get()
 
@@ -312,7 +313,8 @@ class TestStruct:
             [*smiless, '-JOBNAME', 'name'])
         mols = [lmpfull.Mol.MolFromSmiles(x) for x in smiless]
         for cnum, mol in enumerate(mols):
-            mol.EmbedMultipleConfs(numConfs=cnum)
+            with rdkitutils.capture_logging():
+                mol.EmbedMultipleConfs(numConfs=cnum)
         return lmpfull.Struct.fromMols(mols, options=options, logger=logger)
 
     @pytest.mark.parametrize('smiless,expected',

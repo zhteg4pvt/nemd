@@ -271,7 +271,8 @@ class Check(taskbase.Job):
         Main method to execute.
         """
         dirname = self.jobs[0].statepoint[FLAG_DIRNAME]
-        self.out = self.TestClass(dirname, options=self.options).run() or True
+        kwargs = dict(options=self.options, logger=self.logger)
+        self.out = self.TestClass(dirname, **kwargs).run() or True
 
 
 class Tag(Check):

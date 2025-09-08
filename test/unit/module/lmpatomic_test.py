@@ -128,9 +128,12 @@ class TestMol:
 class TestStruct:
 
     @pytest.fixture
-    def struct(self, emol):
+    def struct(self, emol, logger):
         options = parserutils.XtalBldr().parse_args(['-JOBNAME', 'name'])
-        return lmpatomic.Struct.fromMols([emol], options=options)
+
+        return lmpatomic.Struct.fromMols([emol],
+                                         options=options,
+                                         logger=logger)
 
     @pytest.mark.parametrize('cnum,expected', [(1, [14])])
     def testSetTypeMap(self, struct, expected):
