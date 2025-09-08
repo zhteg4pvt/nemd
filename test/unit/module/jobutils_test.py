@@ -1,6 +1,7 @@
 import json
 import os
 
+import conftest
 import pytest
 
 from nemd import envutils
@@ -45,7 +46,7 @@ class TestArgs:
         assert expected == args.set('-cru_num', '5')
 
 
-@pytest.mark.skipif(NEMD_SRC is None, reason="cannot locate test dir")
+@conftest.require_src
 class TestJob:
 
     @pytest.fixture

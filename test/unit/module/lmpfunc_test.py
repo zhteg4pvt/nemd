@@ -1,5 +1,6 @@
-import os.path
+import os
 
+import conftest
 import numpy as np
 import pytest
 
@@ -7,11 +8,11 @@ from nemd import envutils
 from nemd import lmpfunc
 from nemd import plotutils
 
-BASE_DIR = envutils.test_data('water')
-PRESS_DATA = os.path.join(BASE_DIR, 'defm_00', 'press_vol.data')
-XYZL_DATA = os.path.join(BASE_DIR, 'xyzl.data')
+PRESS_DATA = envutils.test_data('water', 'defm_00', 'press_vol.data')
+XYZL_DATA = envutils.test_data('water', 'xyzl.data')
 
 
+@conftest.require_src
 class TestBase:
 
     @pytest.fixture
@@ -35,6 +36,7 @@ class TestBase:
         assert 'Thermo Press' == base.getLabel('c_thermo_press')
 
 
+@conftest.require_src
 class TestLength:
 
     @pytest.fixture
@@ -66,6 +68,7 @@ class TestLength:
         os.path.isfile(expected)
 
 
+@conftest.require_src
 class TestPress:
 
     @pytest.fixture
@@ -78,6 +81,7 @@ class TestPress:
         np.testing.assert_almost_equal(press.ave, -2937.6461839464882)
 
 
+@conftest.require_src
 class TestModulus:
 
     @pytest.fixture
@@ -120,6 +124,7 @@ class TestModulus:
             assert 1 == len(ax.collections)
 
 
+@conftest.require_src
 class TestFactor:
 
     @pytest.fixture
@@ -132,6 +137,7 @@ class TestFactor:
         np.testing.assert_almost_equal(fac.run(), expected)
 
 
+@conftest.require_src
 class TestFunc:
 
     def testGetL(self, tmp_dir):

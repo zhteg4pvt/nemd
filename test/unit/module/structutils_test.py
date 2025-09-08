@@ -1,6 +1,7 @@
 import itertools
 from unittest import mock
 
+import conftest
 import numpy as np
 import pytest
 import scipy
@@ -276,6 +277,7 @@ class TestGriddedStruct:
         np.testing.assert_almost_equal(xyz.max(axis=0), expected)
 
 
+@conftest.require_src
 @pytest.mark.parametrize('smiles,cnum,seed', [(('CCCCCC'), 2, 0)])
 class TestPackFrame:
 

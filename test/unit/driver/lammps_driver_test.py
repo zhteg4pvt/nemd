@@ -3,6 +3,7 @@ import re
 import shutil
 from unittest import mock
 
+import conftest
 import lammps_driver as driver
 import pytest
 
@@ -10,7 +11,7 @@ from nemd import envutils
 from nemd import parserutils
 
 
-@pytest.mark.skipif(envutils.get_src() is None, reason="test dir not found")
+@conftest.require_src
 class TestLammps:
 
     SI_DIR = envutils.test_data('si')

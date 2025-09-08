@@ -1,5 +1,6 @@
 import os
 
+import conftest
 import pytest
 
 from nemd import envutils
@@ -54,7 +55,7 @@ class TestFunc:
     def testGetMemIntvl(self, expected, env):
         assert expected == envutils.get_mem_intvl()
 
-    @pytest.mark.skipif(NEMD_SRC is None, reason="NEMD_SRC not found")
+    @conftest.require_src
     @pytest.mark.parametrize("ekey", ['NEMD_SRC'])
     @pytest.mark.parametrize("evalue,args,expected",
                              [(NEMD_SRC, (), NEMD_SRC),
@@ -65,14 +66,16 @@ class TestFunc:
             expected = os.path.join(evalue, expected)
         assert expected == envutils.get_src(*args)
 
-    @pytest.mark.skipif(NEMD_SRC is None, reason="NEMD_SRC not found")
+    @conftest.require_src
     @pytest.mark.parametrize('ekey', ['NEMD_SRC'])
     @pytest.mark.parametrize("evalue,args,expected",
                              [(NEMD_SRC, ('water', 'xyzl.data'), 'data'),
-                              (NEMD_SRC, ('water', 'defm_39'), 'data')])
+                              (NEMD_SRC, ('water', 'defm_39'), 'data'),
+                              (None, ('water', 'defm_39'), None)])
     def testTestData(self, args, expected, env):
         data = envutils.test_data(*args)
-        assert data.endswith(os.path.join(expected, *args))
+        assert data.endswith(os.path.join(
+            expected, *args)) if expected else (data is None)
 
     @pytest.mark.parametrize("ekey", ['NEMD_SRC'])
     @pytest.mark.parametrize("evalue,name,expected",

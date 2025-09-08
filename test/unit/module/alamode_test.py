@@ -1,7 +1,8 @@
-import os.path
+import os
 import types
 from unittest import mock
 
+import conftest
 import pytest
 
 from nemd import alamode
@@ -34,6 +35,7 @@ class TestSinglePoint:
         assert "format float '%20.15f'" in single[0]
 
 
+@conftest.require_src
 @pytest.mark.parametrize('jobname,files', [('dispersion', [DISPLACE_DAT])])
 class TestLmp:
 
@@ -54,7 +56,9 @@ class TestLmp:
         assert os.path.isfile(lmp.struct.script.outfile)
 
 
+@conftest.require_src
 class TestFunc:
+
     DAT = envutils.test_data('0044', 'dispersion.data')
     PATT = envutils.test_data('0044', 'suggest', 'dispersion.pattern_HARMONIC')
     STRUCT = alamode.Struct.fromMols(

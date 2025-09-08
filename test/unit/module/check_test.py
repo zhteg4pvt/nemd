@@ -1,6 +1,7 @@
-import os.path
+import os
 from unittest import mock
 
+import conftest
 import pytest
 
 from nemd import check

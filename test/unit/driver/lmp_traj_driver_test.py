@@ -1,5 +1,6 @@
 import os
 
+import conftest
 import lmp_traj_driver as driver
 import pytest
 
@@ -8,7 +9,7 @@ from nemd import frame
 from nemd import parserutils
 
 
-@pytest.mark.skipif(envutils.get_src() is None, reason="test dir not found")
+@conftest.require_src
 class TestTraj:
 
     AR_IN = envutils.test_data('ar', 'ar100.in')

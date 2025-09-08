@@ -24,6 +24,9 @@ from nemd import rdkitutils
 from nemd import structure
 from nemd import task
 
+require_src = pytest.mark.skipif(envutils.get_src() is None,
+                                 reason="Test dir not found")
+
 
 @contextlib.contextmanager
 def lines(filename='filename'):

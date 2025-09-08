@@ -1,6 +1,7 @@
 import os
 from unittest import mock
 
+import conftest
 import lmp_log_driver as driver
 import pytest
 
@@ -9,7 +10,7 @@ from nemd import jobutils
 from nemd import parserutils
 
 
-@pytest.mark.skipif(envutils.get_src() is None, reason="test dir not found")
+@conftest.require_src
 class TestLmpLog:
 
     LOG = envutils.test_data('ar', 'lammps.log')

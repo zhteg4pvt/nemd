@@ -1,8 +1,8 @@
-import copy
 import glob
 import os
 from unittest import mock
 
+import conftest
 import numpy as np
 import pandas as pd
 import pytest
@@ -16,19 +16,12 @@ from nemd import parserutils
 from nemd import task
 from nemd import traj
 
-TEST0027 = envutils.test_data('0027_test')
-TEST0037 = envutils.test_data('0037_test')
 TEST0045 = envutils.test_data('0045_test')
-TEST0046 = envutils.test_data('0046_test')
-AR_DIR = os.path.join(TEST0045, 'workspace',
-                      '6fd1b87409fbb60c6612569e187f59fc')
-AR_TRJ = os.path.join(AR_DIR, 'amorp_bldr.xtc')
-AR_DAT = os.path.join(AR_DIR, 'amorp_bldr.data')
-AR_RDR = lmpfull.Reader(AR_DAT)
-HEX = envutils.test_data('hexane_liquid')
-HEX_TRJ = os.path.join(HEX, 'dump.custom')
-HEX_DAT = os.path.join(HEX, 'polymer_builder.data')
-HEX_RDR = lmpfull.Reader(HEX_DAT)
+AR_ARGS = ('0045_test', 'workspace', '6fd1b87409fbb60c6612569e187f59fc')
+AR_TRJ = envutils.test_data(*AR_ARGS, 'amorp_bldr.xtc')
+HEX_TRJ = envutils.test_data('hexane_liquid', 'dump.custom')
+HEX_RDR = lmpfull.Reader(
+    envutils.test_data('hexane_liquid', 'polymer_builder.data'))
 
 
 class TestBase:
@@ -120,6 +113,8 @@ class TestBase:
 
 class TestJob:
 
+    TEST0027 = envutils.test_data('0027_test')
+    TEST0037 = envutils.test_data('0037_test')
     EMPTY = pd.Series()
     PARM = pd.Series(['CCCC 5.0'], index=pd.Index(['substruct'], name=1))
 
@@ -151,6 +146,7 @@ class TestJob:
         job.calculate()
         assert job.data is None
 
+    @conftest.require_src
     @pytest.mark.parametrize('args', [(['-NAME', 'lmp_traj'])])
     @pytest.mark.parametrize('dirname,parm,expected',
                              [(TEST0037, PARM, (3, 1, 1, None)),
@@ -182,6 +178,7 @@ class TestJob:
     def testOutfile(self, job, expected):
         assert expected == job.outfile
 
+    @conftest.require_src
     @pytest.mark.parametrize('args,dirname,parm',
                              [(['-NAME', 'lmp_traj'], TEST0045, PARM)])
     @pytest.mark.parametrize(
@@ -211,6 +208,7 @@ class TestJob:
                                                 names=names,
                                                 err=err)
 
+    @conftest.require_src
     @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], PARM)])
     @pytest.mark.parametrize('dirname,expected', [(TEST0045, 2)])
     def testPlot(self, density, expected, tmp_dir):
@@ -218,6 +216,7 @@ class TestJob:
         density.plot()
         assert expected == len(density.fig.axes[0].lines)
 
+    @conftest.require_src
     @pytest.mark.parametrize('args,parm', [(['-NAME', 'lmp_traj'], PARM)])
     @pytest.mark.parametrize('dirname,expected', [(TEST0045, (1, 3))])
     def testResult(self, density, expected, tmp_dir):
@@ -225,7 +224,9 @@ class TestJob:
         assert expected == density.result.shape
 
 
+@conftest.require_src
 class TestDensity:
+    AR_DAT = envutils.test_data(*AR_ARGS, 'amorp_bldr.data')
 
     @pytest.mark.parametrize('trj,gids,expected', [(None, None, (0, None)),
                                                    (AR_TRJ, None, (5, 10)),
@@ -250,6 +251,7 @@ class TestDensity:
         np.testing.assert_almost_equal(job.data.max(), [expected])
 
 
+@conftest.require_src
 class TestXYZ:
 
     @pytest.mark.parametrize('trj', [HEX_TRJ])
@@ -273,6 +275,7 @@ class TestXYZ:
             'XYZ coordinates are written into xyz_xyz.xyz')
 
 
+@conftest.require_src
 class TestView:
 
     TRJ = envutils.test_data('water', 'three.custom')
@@ -295,10 +298,11 @@ class TestView:
             'Trajectory visualization are written into view_view.html')
 
 
+@conftest.require_src
 class TestClash:
 
-    MODIFIED = copy.deepcopy(HEX_RDR)
-    MODIFIED.pair_coeffs.dist = 18
+    MODIFIED = lmpfull.Reader(
+        envutils.test_data('hexane_liquid', 'modified.data'))
 
     @pytest.fixture
     def clash(self, trj, gids, rdr, logger):
@@ -354,6 +358,7 @@ class TestRDF:
                             parm=group,
                             logger=logger)
 
+    @conftest.require_src
     @pytest.mark.parametrize('trj,rdr,parm,dirname',
                              [(HEX_TRJ, HEX_RDR, None, None)])
     @pytest.mark.parametrize('gids,expected,mdata', [
@@ -372,6 +377,7 @@ class TestRDF:
     def testLabel(self):
         assert 'g (r)' == analyzer.RDF().label
 
+    @conftest.require_src
     @pytest.mark.parametrize('trj', [(HEX_TRJ)])
     @pytest.mark.parametrize(
         'rdr,gids,dirname,parm,expected,result',
@@ -393,7 +399,7 @@ class TestRDF:
 
 class TestMSD:
 
-    FOUR = os.path.join(HEX, 'four_frames.custom')
+    FOUR = envutils.test_data('hexane_liquid', 'four_frames.custom')
 
     @pytest.fixture
     def msd(self, trj, gids, rdr, logger):
@@ -407,6 +413,7 @@ class TestMSD:
                             rdr=rdr,
                             logger=logger)
 
+    @conftest.require_src
     @pytest.mark.parametrize(
         'trj,rdr,gids,spct,epct,expected,mdata,name',
         [(FOUR, HEX_RDR, None, 0.1, 0.2, None, 0.4820897, 'Tau (ps) (0 3)'),
@@ -428,6 +435,7 @@ class TestMSD:
     def testLabel(self):
         assert 'MSD (Å^2)' == analyzer.MSD().label
 
+    @conftest.require_src
     @pytest.mark.parametrize('trj,rdr,gids,spct,epct,expected,msg', [
         (FOUR, HEX_RDR, None, 0.1, 0.2, [[4.01749017e-06, 8.75353197e-07]],
          'Diffusion Coefficient 4.018e-06 ± 8.754e-07 cm^2/s calculated by fitting MSD ∈ [0 2] ps. (R-squared: 0.955)'
@@ -452,9 +460,10 @@ class TestMSD:
         assert 'mean squared displacement' == analyzer.MSD().full
 
 
+@conftest.require_src
 class TestTotEng:
 
-    AR_LOG = os.path.join(AR_DIR, 'lammps_lmp.log')
+    AR_LOG = envutils.test_data(*AR_ARGS, 'lammps_lmp.log')
 
     @pytest.fixture
     def tot_eng(self, logfile):
@@ -478,6 +487,7 @@ class TestTotEng:
 
 
 class TestMerger:
+    TEST0046 = envutils.test_data('0046_test')
 
     @pytest.fixture
     def merger(self, jobs, tsk, args, logger):
@@ -489,6 +499,7 @@ class TestMerger:
                                groups=groups,
                                logger=logger)
 
+    @conftest.require_src
     @pytest.mark.parametrize('args,dirname,tsk,expected',
                              [(['-NAME', 'lmp_traj'], TEST0045, 'rdf', (1, 2)),
                               ([], 'empty', 'toteng', None),
@@ -503,6 +514,7 @@ class TestMerger:
     def testName(self, tsk, expected):
         assert expected == analyzer.Merger.getAnlz(tsk).name
 
+    @conftest.require_src
     @pytest.mark.parametrize('args,dirname,tsk,expected',
                              [(['-NAME', 'lmp_log'], TEST0046, 'toteng', 2),
                               (['-NAME', 'lmp_traj'], TEST0045, 'rdf', 1),
