@@ -7,6 +7,7 @@ Usage:
   nemd_test [file1 file2...]
   nemd_test -s -v [file1 file2...]
   An empty argument runs all tests inside $NEMD_SRC/test/unit/
+  PYTEST_ADDOPTS="-m slow" selects tests marked with slow
 '
 . nemd_func
 [ -z $NEMD_SRC ] && add_pypath $(dirname $(which nemd_func))

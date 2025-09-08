@@ -122,7 +122,8 @@ class Dispersion(logutils.Base):
         params += [f'{x:.1f}' for x in self.crystal.lattice_parameters[3:]]
         self.log(f"Supercell lattice parameters: {' '.join(params)}")
         self.struct = alamode.Struct.fromMols([self.crystal.mol],
-                                              options=self.options)
+                                              options=self.options,
+                                              logger=self.logger)
         self.struct.write()
         self.log(f"Data file written into {self.struct.outfile}")
 

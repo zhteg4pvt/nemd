@@ -129,14 +129,14 @@ class TestTag:
                             '3ec5394f589c9363bd15af35d45a7c44')
 
     @pytest.fixture
-    def tag(self, dirname, args):
+    def tag(self, dirname, args, logger):
         dirname = envutils.test_data(dirname)
         options = test_workflow.Parser().parse_args(args)
-        return test.Tag(dirname, options=options)
+        return test.Tag(dirname, options=options, logger=logger)
 
     @pytest.fixture
-    def ntag(self, copied, tmp_dir):
-        return test.Tag(os.curdir)
+    def ntag(self, copied, tmp_dir, logger):
+        return test.Tag(os.curdir, logger=logger)
 
     @pytest.mark.parametrize(
         'dirname,expected', [('empty', None),

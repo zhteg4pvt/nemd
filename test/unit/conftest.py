@@ -284,3 +284,13 @@ def logger():
     :return `mock.Mock`: the mocked logger.
     """
     return mock.MagicMock(hasHandlers=mock.MagicMock(return_value=False))
+
+
+@pytest.fixture
+def error():
+    """
+    Return mocked error object.
+
+    :return `mock.Mock`: the mocked error.
+    """
+    return mock.MagicMock(side_effect=SystemExit)

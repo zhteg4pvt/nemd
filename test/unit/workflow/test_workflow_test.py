@@ -5,6 +5,7 @@ import pytest
 import test_workflow as workflow
 
 from nemd import envutils
+from nemd import logutils
 
 SRC = envutils.get_src()
 
@@ -14,7 +15,8 @@ class TestRunner:
 
     @pytest.fixture
     def runner(self, args, logger, tmp_dir):
-        options = workflow.Parser().parse_args(args + ['-CPU', '1'])
+        options = workflow.Parser().parse_args(args +
+                                               ['-CPU', '1', '-screen', 'off'])
         return workflow.Runner(options=options, args=args, logger=logger)
 
     @pytest.mark.parametrize(
@@ -50,7 +52,8 @@ class TestRunner:
           envutils.test_data(), '-jtype', 'task'], '0 / 1 succeed sub-jobs.')
     ])
     def testLogStatus(self, runner, expected, tmp_dir, flow_opr):
-        runner.run()
+        with logutils.redirect():
+            runner.run()
         runner.logger.log.assert_called_with(expected)
 
     @pytest.mark.parametrize('dirname', ['0001_0002'])
@@ -90,8 +93,10 @@ class TestParser:
     integration_SRC = envutils.get_src('test', 'integration')
 
     @pytest.fixture
-    def parser(self):
-        return workflow.Parser()
+    def parser(self, error):
+        parser = workflow.Parser()
+        parser.error = error
+        return parser
 
     @pytest.mark.parametrize('ekey', ['NEMD_SRC'])
     @pytest.mark.parametrize(

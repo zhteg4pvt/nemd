@@ -31,8 +31,10 @@ class TestRunner:
 class TestParser:
 
     @pytest.fixture
-    def parser(self):
-        return workflow.Parser()
+    def parser(self, error):
+        parser = workflow.Parser()
+        parser.error = error
+        return parser
 
     @pytest.mark.parametrize('args,expected',
                              [(['-scale_range', '0.9', '1.2', '4'],

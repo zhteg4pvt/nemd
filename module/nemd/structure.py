@@ -252,10 +252,11 @@ class Mol(Chem.rdchem.Mol):
             atom.SetIntProp(symbols.IMPLICIT, atom.GetNumImplicitHs())
             atom.SetNoImplicit(True)
         # FIXME: support different chiralities for monomers
-        for chiral in Chem.FindMolChiralCenters(mol, includeUnassigned=True):
-            # CIP stereochemistry assignment for the molecule’s atoms (R/S)
-            # and double bonds (Z/E)
-            mol.GetAtomWithIdx(chiral[0]).SetProp('_CIPCode', 'R')
+        # The includeUnassigned atoms fixed by rdkit from '2024.9.4' to '2025.03.3'
+        # for chiral in Chem.FindMolChiralCenters(mol, includeUnassigned=True):
+        #     # CIP stereochemistry assignment for the molecule’s atoms (R/S)
+        #     # and double bonds (Z/E)
+        #     mol.GetAtomWithIdx(chiral[0]).SetProp('_CIPCode', 'R')
 
         return cls(Chem.AddHs(mol), **kwargs)
 

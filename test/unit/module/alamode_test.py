@@ -1,5 +1,6 @@
 import os.path
 import types
+from unittest import mock
 
 import pytest
 
@@ -57,7 +58,9 @@ class TestFunc:
     DAT = envutils.test_data('0044', 'dispersion.data')
     PATT = envutils.test_data('0044', 'suggest', 'dispersion.pattern_HARMONIC')
     STRUCT = alamode.Struct.fromMols(
-        [alamode.Crystal.fromDatabase(OPTIONS).mol], options=OPTIONS)
+        [alamode.Crystal.fromDatabase(OPTIONS).mol],
+        options=OPTIONS,
+        logger=mock.MagicMock())
 
     @pytest.mark.parametrize(
         'obj,kwargs,expected',

@@ -35,8 +35,10 @@ class TestRunner:
 class TestParser:
 
     @pytest.fixture
-    def parser(self):
-        return workflow.Parser()
+    def parser(self, error):
+        parser = workflow.Parser()
+        parser.error = error
+        return parser
 
     @pytest.mark.parametrize(
         'args,expected',
@@ -67,11 +69,14 @@ class TestMerger:
                             'ecd6407852986c68a9fcc4390d67f50c')
 
     @pytest.fixture
-    def merger(self, tsk, jobs, args):
+    def merger(self, tsk, jobs, args, logger):
         options = workflow.Parser().parse_args(args)
         groups = workflow.LmpAgg(*jobs).groups
         Anlz = next(x for x in analyzer.THERMO if x.name == tsk)
-        return workflow.Merger(Anlz, groups=groups, options=options)
+        return workflow.Merger(Anlz,
+                               groups=groups,
+                               options=options,
+                               logger=logger)
 
     @pytest.mark.parametrize('args,tsk',
                              [(['CCCC', '-NAME', 'lmp_log'], 'toteng')])
