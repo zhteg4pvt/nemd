@@ -10,10 +10,11 @@ from nemd import envutils
 from nemd import parserutils
 
 
+@pytest.mark.skipif(envutils.get_src() is None, reason="test dir not found")
 class TestLammps:
 
     SI_DIR = envutils.test_data('si')
-    SI_IN = os.path.join(SI_DIR, 'crystal_builder.in')
+    SI_IN = envutils.test_data('si', 'crystal_builder.in')
     AR_IN = envutils.test_data('ar', 'ar100.in')
     EMPTY_IN = envutils.test_data('ar', 'empty.in')
     WRONG_IN = envutils.test_data('ar', 'error.in')

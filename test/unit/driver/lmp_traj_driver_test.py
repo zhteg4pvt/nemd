@@ -8,6 +8,7 @@ from nemd import frame
 from nemd import parserutils
 
 
+@pytest.mark.skipif(envutils.get_src() is None, reason="test dir not found")
 class TestTraj:
 
     AR_IN = envutils.test_data('ar', 'ar100.in')

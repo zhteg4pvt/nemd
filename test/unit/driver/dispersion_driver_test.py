@@ -10,6 +10,7 @@ ARGS = ['-name', 'Si', '-JOBNAME', 'dispersion']
 BANDS = envutils.test_data('0044', 'phonons', 'dispersion.bands')
 
 
+@pytest.mark.skipif(BANDS is None, reason="test data not found")
 @pytest.mark.parametrize('args,infile', [(ARGS, BANDS)])
 class TestPlotter:
 
