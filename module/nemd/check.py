@@ -118,7 +118,7 @@ class Cmp(Exist):
         if self.kwargs:
             return
         for target in self.args[1:]:
-            if filecmp.cmp(self.args[0], target):
+            if filecmp.cmp(self.args[0], target, shallow=False):
                 continue
             self.errorDiff(target)
 
