@@ -2,6 +2,7 @@ import os
 import shutil
 from unittest import mock
 
+import conftest
 import numpy as np
 import pytest
 import test_workflow
@@ -10,6 +11,7 @@ from nemd import envutils
 from nemd import test
 
 
+@conftest.require_src
 class TestBase:
 
     @pytest.fixture
@@ -43,6 +45,7 @@ class TestBase:
         assert expected == len(list(base.cmts))
 
 
+@conftest.require_src
 class TestCmd:
 
     @pytest.fixture
@@ -56,6 +59,7 @@ class TestCmd:
         assert expected == cmd.prefix
 
 
+@conftest.require_src
 class TestParam:
 
     @pytest.fixture
@@ -90,6 +94,7 @@ class TestParam:
         assert expected == param.label
 
 
+@conftest.require_src
 class TestCheck:
 
     @pytest.fixture
@@ -121,6 +126,7 @@ class TestCheck:
         assert expected == check.raw
 
 
+@conftest.require_src
 class TestTag:
 
     TEST0001 = os.path.join('0001_test', 'workspace',

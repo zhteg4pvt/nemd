@@ -4,6 +4,7 @@ import types
 from unittest import mock
 
 import ab_lmp_traj_workflow
+import conftest
 import pytest
 import test_workflow
 
@@ -13,9 +14,8 @@ from nemd import parserutils
 from nemd import task
 from nemd import timeutils
 
-TEST0001 = envutils.test_data('0001')
 
-
+@conftest.require_src
 class TestLmpLog:
 
     @pytest.fixture
@@ -29,6 +29,7 @@ class TestLmpLog:
         assert expected == lmp_log.args[-1]
 
 
+@conftest.require_src
 class TestLmpTraj:
 
     @pytest.fixture
@@ -42,6 +43,7 @@ class TestLmpTraj:
         assert expected == lmp_traj.args[0]
 
 
+@conftest.require_src
 class TestCmd:
 
     @pytest.fixture
@@ -165,6 +167,7 @@ class TestCmd:
             assert expected == len(cmd.getCmd())
 
 
+@conftest.require_src
 class TestCheck:
 
     @pytest.fixture
@@ -181,6 +184,7 @@ class TestCheck:
                 else (expected == check.out)
 
 
+@conftest.require_src
 class TestTag:
 
     @pytest.fixture
@@ -195,6 +199,7 @@ class TestTag:
         assert os.path.exists('tag')
 
 
+@conftest.require_src
 class TestLmpAgg:
 
     @pytest.fixture
@@ -218,6 +223,7 @@ class TestLmpAgg:
         assert expected == len(lmp_agg.groups)
 
 
+@conftest.require_src
 class TestTimeAgg:
 
     @pytest.fixture
@@ -236,6 +242,7 @@ class TestTimeAgg:
         assert expected == task.TimeAgg.delta2str(delta)
 
 
+@conftest.require_src
 class TestTestAgg:
 
     @pytest.fixture

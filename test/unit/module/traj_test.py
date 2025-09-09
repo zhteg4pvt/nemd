@@ -1,5 +1,6 @@
 import os
 
+import conftest
 import numpy as np
 import pytest
 
@@ -8,8 +9,8 @@ from nemd import frame
 from nemd import parserutils
 from nemd import traj
 
-XTC = envutils.test_data('hexane_xtc', 'amorp_bldr.xtc')
 ARGS = ['-last_pct', '0.8', '-task', 'xyz']
+XTC = envutils.test_data('hexane_xtc', 'amorp_bldr.xtc')
 
 
 class TestBox:
@@ -44,6 +45,7 @@ class TestBox:
         assert expected == box.edges.shape
 
 
+@conftest.require_src
 class TestTime:
 
     @pytest.mark.parametrize('time,args,expected',
@@ -56,11 +58,11 @@ class TestTime:
         assert expected == time.start
 
 
+@conftest.require_src
 class TestTraj:
 
-    HEX = envutils.test_data('hexane_liquid')
-    FRM = os.path.join(HEX, 'dump.custom')
-    GZ = os.path.join(HEX, 'dump.custom.gz')
+    FRM = envutils.test_data('hexane_liquid', 'dump.custom')
+    GZ = envutils.test_data('hexane_liquid', 'dump.custom.gz')
     EMPTY = envutils.test_data('ar', 'empty.custom')
     ONE = envutils.test_data('ar', 'one_frame.custom')
 

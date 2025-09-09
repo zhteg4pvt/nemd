@@ -1,5 +1,6 @@
-import os.path
+import os
 
+import conftest
 import pytest
 
 from nemd import alamode
@@ -97,6 +98,7 @@ class TestSubmodules:
         assert expected == Sub(mode).ext
 
 
+@conftest.require_src
 class TestTools:
     DATA = envutils.test_data('0044', 'dispersion.data')
     PATTERN = envutils.test_data('0044', 'suggest',
@@ -114,23 +116,23 @@ class TestTools:
 @pytest.mark.parametrize('jobname', ['dispersion'])
 class TestAlamode:
 
-    EXTRACT_LOG = envutils.test_data('0044', 'extract', 'dispersion.log')
-
     @pytest.fixture
-    def ala(self, jobname, mode, files, tmp_dir):
+    def ala(self, jobname, mode, file, tmp_dir):
         options = parserutils.XtalBldr().parse_args(['-JOBNAME', 'dispersion'])
         crystal = alamode.Crystal.fromDatabase(options, mode=mode)
-        return process.Alamode(crystal, jobname=jobname, files=files)
+        return process.Alamode(crystal, jobname=jobname, files=[file])
 
+    @conftest.require_src
     @pytest.mark.parametrize(
-        'files,mode,expected',
-        [([None], 'suggest', ['dispersion.in']),
-         ([EXTRACT_LOG], 'optimize', ['dispersion.in', 'dispersion.dfset'])])
+        'file,mode,expected',
+        [(None, 'suggest', ['dispersion.in']),
+         (envutils.test_data('0044', 'extract', 'dispersion.log'), 'optimize',
+          ['dispersion.in', 'dispersion.dfset'])])
     def testSetUp(self, ala, expected, tmp_dir):
         ala.setUp()
         for file in expected:
             assert os.path.isfile(file)
 
-    @pytest.mark.parametrize('files,mode,expected', [([None], 'suggest', 2)])
+    @pytest.mark.parametrize('file,mode,expected', [(None, 'suggest', 2)])
     def testArg(self, ala, expected):
         assert expected == len(ala.args)

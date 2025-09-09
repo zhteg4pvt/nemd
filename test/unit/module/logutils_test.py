@@ -6,6 +6,7 @@ import sys
 import types
 from unittest import mock
 
+import conftest
 import numpy as np
 import pandas as pd
 import pytest
@@ -177,8 +178,7 @@ class TestScript:
         assert mocked.called
 
 
-@pytest.mark.skipif(envutils.get_src() is None,
-                    reason="cannot locate test dir")
+@conftest.require_src
 class TestReader:
     AMORP_LOG = envutils.test_data('0001_test', 'workspace',
                                    '0aee44e791ffa72655abcc90e25355d8',

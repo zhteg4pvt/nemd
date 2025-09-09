@@ -1,3 +1,4 @@
+import conftest
 import pytest
 
 from nemd import envutils
@@ -6,7 +7,6 @@ from nemd import parserutils
 
 HEX = envutils.test_data('hexane_liquid', 'lammps_runner_lammps.log')
 SI = envutils.test_data('0044', 'lammps1', 'lmp.log')
-EMPTY = envutils.test_data('ar', 'empty.log')
 
 
 @pytest.fixture
@@ -15,6 +15,7 @@ def log(args):
     return lmplog.Log(infile=options.log, options=options, delay=True)
 
 
+@conftest.require_src
 class TestLog:
 
     @pytest.mark.parametrize('args,expected', [([HEX], (151, 6, 1.0, 'real')),
@@ -49,7 +50,10 @@ class TestLog:
         assert expected == (*log.thermo.shape, len(log), log.thermo.timestep)
 
 
+@conftest.require_src
 class TestThermo:
+
+    EMPTY = envutils.test_data('ar', 'empty.log')
 
     @pytest.fixture
     def thermo(self, log):

@@ -2,6 +2,7 @@ import argparse
 import os
 from unittest import mock
 
+import conftest
 import pytest
 
 from nemd import envutils
@@ -23,13 +24,13 @@ RAISED = argparse.ArgumentTypeError
 @pytestutils.Raises
 class TestType:
 
-    @pytest.mark.skipif(AR_DIR is None, reason="cannot locate test dir")
+    @conftest.require_src
     @pytest.mark.parametrize('arg,expected', [('not_existing', RAISED),
                                               (TRAJ_FILE, TRAJ_FILE)])
     def testFile(self, arg, expected):
         assert expected == parserutils.type_file(arg)
 
-    @pytest.mark.skipif(AR_DIR is None, reason="cannot locate test dir")
+    @conftest.require_src
     @pytest.mark.parametrize('arg,expected', [(AR_DIR, None),
                                               ('not_existing', RAISED),
                                               (TRAJ_FILE, RAISED)])
@@ -297,7 +298,7 @@ class TestValid:
         options = parser.parse_args(args)
         assert expected == (options.tdamp, options.pdamp)
 
-    @pytest.mark.skipif(AR_DIR is None, reason="cannot locate test dir")
+    @conftest.require_src
     @pytest.mark.parametrize('valid', [parserutils.LmpValid])
     @pytest.mark.parametrize('flags', [('-inscript', '-data_file')])
     @pytest.mark.parametrize('kwargss', [None])
@@ -496,7 +497,7 @@ class TestAdd:
             options.force_field
         ]
 
-    @pytest.mark.skipif(AR_DIR is None, reason="cannot locate test dir")
+    @conftest.require_src
     @pytest.mark.parametrize(
         'args,expected',
         [([EMPTY_IN], [EMPTY_IN, None]),
@@ -506,7 +507,7 @@ class TestAdd:
         options = parser.parse_args(args)
         assert expected == [options.inscript, options.data_file]
 
-    @pytest.mark.skipif(AR_DIR is None, reason="cannot locate test dir")
+    @conftest.require_src
     @pytest.mark.parametrize(
         'args,positional,expected',
         [([], False, [['toteng'], None,
@@ -523,7 +524,7 @@ class TestAdd:
             options.task, options.data_file, options.last_pct, options.slice
         ]
 
-    @pytest.mark.skipif(AR_DIR is None, reason="cannot locate test dir")
+    @conftest.require_src
     @pytest.mark.parametrize(
         'args,positional,expected',
         [([], False, [['density'], None,

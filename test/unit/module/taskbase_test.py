@@ -4,6 +4,7 @@ import pathlib
 import types
 from unittest import mock
 
+import conftest
 import pytest
 
 from nemd import envutils
@@ -39,7 +40,9 @@ class TestStatus:
         assert jobname in status.view[expected].loc[dirname]
 
 
+@conftest.require_src
 class TestJob:
+
     TEST_0001 = envutils.test_data('0001_test')
     FAIL_0001 = envutils.test_data('0001_fail')
 
@@ -128,6 +131,7 @@ class TestJob:
         assert not os.path.isfile(job.job.file)
 
 
+@conftest.require_src
 class TestAgg:
 
     @pytest.fixture
@@ -170,6 +174,7 @@ class TestAgg:
         assert agg.status
 
 
+@conftest.require_src
 class TestCmd:
 
     @pytest.fixture
