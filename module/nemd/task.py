@@ -271,8 +271,8 @@ class Check(taskbase.Job):
         Main method to execute.
         """
         dirname = self.jobs[0].statepoint[FLAG_DIRNAME]
-        kwargs = dict(options=self.options, logger=self.logger)
-        self.out = self.TestClass(dirname, **kwargs).run() or True
+        # self.logger not passed so that the def log method prints.
+        self.out = self.TestClass(dirname, options=self.options).run() or True
 
 
 class Tag(Check):
@@ -296,6 +296,17 @@ class Group(types.SimpleNamespace):
         """
         parm = self.parm.to_csv(lineterminator=' ', sep='=', header=False)
         return f"Parameters (num={len(self.jobs)}): {parm}"
+
+    def concat(self, result):
+        """
+        Concatenate result.
+
+        :param result pd.Series: the result.
+        :return pd.Series: the result with parameters.
+        """
+        if self.parm.empty:
+            return result
+        return pd.concat([self.parm, result])
 
 
 class LmpAgg(taskbase.Agg):

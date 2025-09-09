@@ -5,6 +5,7 @@ from unittest import mock
 
 import ab_lmp_traj_workflow
 import conftest
+import pandas as pd
 import pytest
 import test_workflow
 
@@ -171,16 +172,17 @@ class TestCmd:
 class TestCheck:
 
     @pytest.fixture
-    def check(self, jobs, logger):
-        return task.Check(*jobs, logger=logger)
+    def check(self, jobs):
+        return task.Check(*jobs)
 
+    @mock.patch('nemd.test.Check.log')
     @pytest.mark.parametrize('dirname,expected',
                              [('0001_test', True),
                               ('0001_fail', 'is different from')])
-    def testRun(self, check, expected, logger):
+    def testRun(self, mocked, check, expected):
         with osutils.chdir(check.job.dirname):
             check.run()
-            assert (expected in check.out) if isinstance(expected, str) \
+        assert (expected in check.out) if isinstance(expected, str) \
                 else (expected == check.out)
 
 
@@ -189,14 +191,30 @@ class TestTag:
 
     @pytest.fixture
     def tag(self, jobs, logger):
-        return task.Tag(*jobs, logger=logger)
+        return task.Tag(*jobs)
 
+    @mock.patch('nemd.test.Tag.log')
     @pytest.mark.parametrize('dirname,expected', [('0001_test', True)])
-    def testRun(self, tag, expected):
+    def testRun(self, mocked, tag, expected):
         job = types.SimpleNamespace(statepoint={'-dirname': os.getcwd()})
         tag.jobs = [job]
         tag.run()
         assert os.path.exists('tag')
+
+
+class TestGroup:
+
+    @pytest.fixture
+    def group(self, parm, jobs):
+        return task.Group(parm=parm, jobs=jobs)
+
+    @pytest.mark.parametrize(
+        'parm,jobs,expected',
+        [(pd.Series(), (mock.Mock(), ), 'Parameters (num=1): '),
+         (pd.Series("CCCC 5.0", index=['substruct']),
+          (), 'Parameters (num=0): substruct="CCCC 5.0" ')])
+    def testToStr(self, group, expected):
+        assert expected == group.to_str()
 
 
 @conftest.require_src
