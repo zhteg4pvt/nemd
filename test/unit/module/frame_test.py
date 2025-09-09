@@ -1,5 +1,4 @@
-import os.path
-
+import conftest
 import numpy as np
 import pytest
 
@@ -27,6 +26,7 @@ class TestBase:
         assert expected == base.large(cut)
 
 
+@conftest.require_src
 class TestFrame:
 
     AR_RDR = lmpfull.Reader.fromTest('ar', 'ar100.data')

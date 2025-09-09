@@ -1,6 +1,7 @@
 import copy
 import os
 
+import conftest
 import numpy as np
 import pytest
 
@@ -179,13 +180,10 @@ class TestStruct:
         assert isinstance(struct.ff, expected)
 
 
+@conftest.require_src
 @pytest.mark.parametrize(
-    'data_file', [envutils.test_data('0033_test', 'crystal_builder.data')])
+    'rdr', [lmpatomic.Reader.fromTest('0033_test', 'crystal_builder.data')])
 class TestReader:
-
-    @pytest.fixture
-    def rdr(self, data_file):
-        return lmpatomic.Reader(data_file)
 
     def testLines(self, rdr):
         assert 3 == len(rdr.lines)
@@ -247,6 +245,6 @@ class TestReader:
     @pytest.mark.parametrize(
         'ekey,args', [('NEMD_SRC', ['0033_test', 'crystal_builder.data'])])
     @pytest.mark.parametrize('evalue', [envutils.get_src(), None])
-    def testFromTest(self, args, data_file, evalue, env):
-        assert (evalue
-                and data_file) == lmpatomic.Reader.fromTest(*args).data_file
+    def testFromTest(self, args, rdr, evalue, env):
+        assert (evalue and rdr.data_file) == lmpatomic.Reader.fromTest(
+            *args).data_file

@@ -1,6 +1,6 @@
 import copy
-import os
 
+import conftest
 import numba as nb
 import numpy as np
 import pytest
@@ -9,10 +9,10 @@ from nemd import dist
 from nemd import envutils
 from nemd import lmpfull
 
-HEX = envutils.test_data('hexane_liquid')
-HEX_FRM = os.path.join(HEX, 'dump.custom')
+HEX_FRM = envutils.test_data('hexane_liquid', 'dump.custom')
 
 
+@conftest.require_src
 class TestRadius:
 
     NACL = lmpfull.Reader.fromTest('0027_test', 'workspace',
@@ -46,6 +46,7 @@ class TestRadius:
         isinstance(radii.ravel(), dist.Radius)
 
 
+@conftest.require_src
 class TestCellOrig:
 
     @pytest.fixture
@@ -110,6 +111,7 @@ class TestCellOrig:
         assert (norm < np.linalg.norm(cell.grids / 2)).all()
 
 
+@conftest.require_src
 class TestCellNumba:
 
     @pytest.fixture
@@ -156,11 +158,11 @@ class TestCellNumba:
         assert expected == dist.CellOrig.getNbrs(*dims).shape
 
 
+@conftest.require_src
 class TestFrame:
 
-    HEX_RDR = lmpfull.Reader(os.path.join(HEX, 'polymer_builder.data'))
-    MODIFIED = copy.deepcopy(HEX_RDR)
-    MODIFIED.pair_coeffs.dist = 18
+    HEX_RDR = lmpfull.Reader.fromTest('hexane_liquid', 'polymer_builder.data')
+    MODIFIED = lmpfull.Reader.fromTest('hexane_liquid', 'modified.data')
 
     @pytest.fixture
     def fr(self, frm, gids, cut, struct, srch):

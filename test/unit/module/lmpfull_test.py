@@ -1,6 +1,7 @@
 import copy
 from unittest import mock
 
+import conftest
 import numpy as np
 import pytest
 from rdkit import Chem
@@ -447,6 +448,7 @@ class TestStruct:
         assert expected == struct.ff.wmodel
 
 
+@conftest.require_src
 class TestReader:
 
     @pytest.fixture
