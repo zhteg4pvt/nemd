@@ -451,7 +451,7 @@ class TestReader:
 
     @pytest.fixture
     def rdr(self, args):
-        return lmpfull.Reader(envutils.test_data(*args))
+        return lmpfull.Reader.fromTest(*args)
 
     @pytest.mark.parametrize('args,expected',
                              [(['0022_test', 'amorp_bldr.data'], (4, 2))])

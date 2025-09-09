@@ -7,6 +7,7 @@ import pytest
 from nemd import check
 
 
+@conftest.require_src
 class TestExist:
 
     @pytest.fixture
@@ -22,6 +23,7 @@ class TestExist:
         exist.run()
 
 
+@conftest.require_src
 @pytest.mark.parametrize('dirname', ['0000'])
 class TestGlob:
 
@@ -41,6 +43,7 @@ class TestGlob:
         glob.run()
 
 
+@conftest.require_src
 @pytest.mark.parametrize('dirname', ['0000'])
 class TestHas:
 
@@ -62,6 +65,7 @@ class TestHas:
             pass
 
 
+@conftest.require_src
 @pytest.mark.parametrize('dirname', ['0000'])
 class TestCmp:
 
@@ -129,6 +133,7 @@ class TestCmp:
         cmp.data()
 
 
+@conftest.require_src
 class TestCollect:
     TEST0049 = os.path.join('0049_test', 'workspace',
                             '3ec5394f589c9363bd15af35d45a7c44')
@@ -194,6 +199,7 @@ class TestMain:
     def testInit(self, args, expected, tmp_dir):
         assert expected == check.Main(args).Class
 
+    @conftest.require_src
     @pytest.mark.parametrize(
         'dirname,args,expected,msg',
         [('0000', ('exist', 'wa'), SystemExit, 'wa not found.'),

@@ -15,11 +15,10 @@ HEX_FRM = os.path.join(HEX, 'dump.custom')
 
 class TestRadius:
 
-    NACL = lmpfull.Reader(
-        envutils.test_data('0027_test', 'workspace',
-                           '062200efd143bd63bc59842f7ffb56d5',
-                           'amorp_bldr.data'))
-    HE = lmpfull.Reader(envutils.test_data('he', 'mol_bldr.data'))
+    NACL = lmpfull.Reader.fromTest('0027_test', 'workspace',
+                                   '062200efd143bd63bc59842f7ffb56d5',
+                                   'amorp_bldr.data')
+    HE = lmpfull.Reader.fromTest('he', 'mol_bldr.data')
 
     @pytest.mark.parametrize('struct,num,expected', [(None, 3, [1, 3]),
                                                      (NACL, 1, [2, 20]),

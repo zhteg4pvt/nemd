@@ -12,6 +12,7 @@ import methodtools
 import numpy as np
 import pandas as pd
 
+from nemd import envutils
 from nemd import jobutils
 from nemd import lmpin
 from nemd import numpyutils
@@ -509,3 +510,12 @@ class Reader:
         :return np.ndarray: the masses of every atom.
         """
         return self.masses.mass[self.atoms.type_id].to_numpy()
+
+    @classmethod
+    def fromTest(cls, *args):
+        """
+        Return a reader instance from test data.
+
+        :return reader: the reader objet.
+        """
+        return cls(envutils.test_data(*args))

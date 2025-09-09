@@ -20,8 +20,7 @@ TEST0045 = envutils.test_data('0045_test')
 AR_ARGS = ('0045_test', 'workspace', '6fd1b87409fbb60c6612569e187f59fc')
 AR_TRJ = envutils.test_data(*AR_ARGS, 'amorp_bldr.xtc')
 HEX_TRJ = envutils.test_data('hexane_liquid', 'dump.custom')
-HEX_RDR = lmpfull.Reader(
-    envutils.test_data('hexane_liquid', 'polymer_builder.data'))
+HEX_RDR = lmpfull.Reader.fromTest('hexane_liquid', 'polymer_builder.data')
 
 
 class TestBase:
@@ -301,8 +300,7 @@ class TestView:
 @conftest.require_src
 class TestClash:
 
-    MODIFIED = lmpfull.Reader(
-        envutils.test_data('hexane_liquid', 'modified.data'))
+    MODIFIED = lmpfull.Reader.fromTest('hexane_liquid', 'modified.data')
 
     @pytest.fixture
     def clash(self, trj, gids, rdr, logger):

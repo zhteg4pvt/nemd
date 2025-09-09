@@ -235,7 +235,7 @@ class TestReader:
                                                 ('mass.data', False),
                                                 ('atom.data', False)])
     def testAllClose(self, rdr, other, expected):
-        other = lmpatomic.Reader(envutils.test_data('0033_test', other))
+        other = lmpatomic.Reader.fromTest('0033_test', other)
         assert expected == rdr.allClose(other)
 
     def testGetStyle(self, rdr):
@@ -243,3 +243,10 @@ class TestReader:
 
     def testWeights(self, rdr):
         np.testing.assert_almost_equal(rdr.weights.sum(), 1348.128)
+
+    @pytest.mark.parametrize(
+        'ekey,args', [('NEMD_SRC', ['0033_test', 'crystal_builder.data'])])
+    @pytest.mark.parametrize('evalue', [envutils.get_src(), None])
+    def testFromTest(self, args, data_file, evalue, env):
+        assert (evalue
+                and data_file) == lmpatomic.Reader.fromTest(*args).data_file

@@ -2,7 +2,10 @@ import os.path
 
 import pytest
 
-from nemd.data.table import update
+try:
+    from nemd.data.table import update
+except ImportError:
+    pytest.skip('table not available', allow_module_level=True)
 
 
 @pytest.mark.slow

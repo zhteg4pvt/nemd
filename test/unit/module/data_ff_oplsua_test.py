@@ -1,11 +1,16 @@
 import glob
-import os.path
+import os
 from unittest import mock
 
+import conftest
 import pytest
 
 from nemd import oplsua
-from nemd.data.ff.oplsua import update
+
+try:
+    from nemd.data.ff.oplsua import update
+except ImportError:
+    pytest.skip('oplsua not available', allow_module_level=True)
 
 
 @pytest.fixture

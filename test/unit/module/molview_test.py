@@ -9,7 +9,7 @@ from nemd import molview
 from nemd import traj
 
 FRM = envutils.test_data('water', 'three.custom')
-RDR = lmpfull.Reader(envutils.test_data('water', 'polymer_builder.data'))
+RDR = lmpfull.Reader.fromTest('water', 'polymer_builder.data')
 
 
 @pytest.mark.skipif(FRM is None, reason='Trajectory not available')
