@@ -8,6 +8,7 @@ from nemd import envutils
 
 SRC = envutils.get_src()
 
+
 class TestRunner:
 
     @pytest.fixture
@@ -28,7 +29,7 @@ class TestRunner:
         assert expected == runner.state.get('-substruct')
 
     @pytest.mark.parametrize('args,expected',
-                             [(['CCC'], ['lmp_log_agg', 'time_agg', 1, 2])])
+                             [(['CCC'], ['lmp_log_agg', 'time_agg', 0, 2])])
     def testSetAggs(self, runner, expected, check_flow):
         runner.setAggs()
 

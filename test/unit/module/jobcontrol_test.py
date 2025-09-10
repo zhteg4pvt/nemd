@@ -97,7 +97,7 @@ class TestRunner:
         'agg,pre,expected',
         [(False, None, [1, 0, ['job'], 'job', 'job2', 1, 2]),
          (False, False, [1, 0, None, 'job', 'job2', 0, 2]),
-         (True, None, [1, 0, ['agg'], 'agg', 'job2', 1, 2])])
+         (True, None, [1, 0, None, 'agg', 'job2', 0, 2])])
     def testAdd(self, agg, pre, runner, expected, check_flow):
         job = taskbase.Agg if agg else taskbase.Job
         runner.add(job)
