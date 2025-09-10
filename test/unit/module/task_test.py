@@ -216,6 +216,14 @@ class TestGroup:
     def testToStr(self, group, expected):
         assert expected == group.to_str()
 
+    @pytest.mark.parametrize('parm,jobs,result,expected',
+                             [(pd.Series(), (mock.Mock(), ), pd.Series(),
+                               (0, )),
+                              (pd.Series("CCCC 5.0", index=['substruct']),
+                               (), pd.Series([1, 2]), (3, ))])
+    def testConcat(self, group, result, expected):
+        assert expected == group.concat(result).shape
+
 
 @conftest.require_src
 class TestLmpAgg:

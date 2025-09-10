@@ -120,15 +120,14 @@ class TestJob:
     @pytest.fixture
     def job(self, args, group, jobs):
         options = parserutils.Driver().parse_args(args)
-        return analyzer.Job(options=options, parm=group)
+        return analyzer.Job(options=options, group=group)
 
     @pytest.fixture
     def density(self, args, parm, jobs, logger):
         Density = type('density', (analyzer.Job, ), {})
         options = parserutils.Driver().parse_args(args)
-        if parm is not None:
-            parm = task.Group(parm=parm, jobs=jobs)
-        return Density(options=options, parm=parm, logger=logger)
+        group = None if parm is None else task.Group(parm=parm, jobs=jobs)
+        return Density(options=options, group=group, logger=logger)
 
     @pytest.mark.parametrize('args,dirname', [([], None)])
     @pytest.mark.parametrize(
@@ -353,7 +352,7 @@ class TestRDF:
                             options=options,
                             gids=gids,
                             rdr=rdr,
-                            parm=group,
+                            group=group,
                             logger=logger)
 
     @conftest.require_src

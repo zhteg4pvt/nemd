@@ -189,13 +189,13 @@ class Job(Base):
     UNIT = 'a.u.'
     PROP = None
 
-    def __init__(self, parm=None, rdr=None, **kwargs):
+    def __init__(self, group=None, rdr=None, **kwargs):
         """
-        :param parm `types.SimpleNamespace`: aggregation parameter set.
+        :param group `task.Group`: job group.
         :param rdr `oplsua.Reader`: data file reader
         """
         super().__init__(**kwargs)
-        self.parm = parm
+        self.group = group
         self.rdr = rdr
         self.sidx = 0
         self.eidx = None
@@ -212,7 +212,7 @@ class Job(Base):
         """
         Set the data from new calculation.
         """
-        if self.parm is not None:
+        if self.group is not None:
             return
         self.calculate()
         if self.data is not None:
@@ -229,12 +229,12 @@ class Job(Base):
         """
         Merge data from previous calculations.
         """
-        if self.parm is None:
+        if self.group is None:
             return
-        if not self.parm.parm.empty:
-            self.log(self.parm.to_str())
+        if not self.group.parm.empty:
+            self.log(self.group.to_str())
         name = f"{self.options.NAME}_{self.name}{self.DATA_EXT}"
-        files = [x.fn(name) for x in self.parm.jobs]
+        files = [x.fn(name) for x in self.group.jobs]
         files = [x for x in files if os.path.exists(x)]
         if not files:
             return
@@ -295,11 +295,11 @@ class Job(Base):
         """
         See parent.
         """
-        if self.parm is None:
+        if self.group is None:
             return super().outfile
         root, ext = os.path.splitext(super().outfile)
         root = os.path.join(jobutils.WORKSPACE, f"{root}")
-        return f"{root}_{self.parm.parm.index.name}{ext}"
+        return f"{root}_{self.group.parm.index.name}{ext}"
 
     def fit(self):
         """
@@ -356,8 +356,8 @@ class Job(Base):
 
         :return pd.DataFrame: the result.
         """
-        result = self._result if self.parm is None or self.parm.parm.empty \
-            else pd.concat([self.parm.parm, self._result])
+        result = self._result if self.group is None or self.group.parm.empty \
+            else pd.concat([self.group.parm, self._result])
         result.index.name = None
         return result.to_frame().transpose()
 
@@ -715,10 +715,10 @@ class Merger(Base):
         Merge data over parameter sets.
         """
         self.log(f"Task: {self.Anlz.name}")
-        for idx, parm in enumerate(self.groups):
+        for group in self.groups:
             anlz = self.Anlz(options=self.options,
                              logger=self.logger,
-                             parm=parm)
+                             group=group)
             anlz.run()
             if anlz._result is None:
                 continue

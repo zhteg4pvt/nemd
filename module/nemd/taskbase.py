@@ -288,7 +288,7 @@ class Job(builtinsutils.Object):
 
         :param msg str: the msg to be saved
         """
-        self.out = msg if self.out is None else '\n'.join([self.out, msg])
+        self.out = msg if self.out is None else '\n'.join([self.out, str(msg)])
 
     def clean(self):
         """
