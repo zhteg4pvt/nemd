@@ -14,18 +14,18 @@ Usage:
 . nemd_func
 [ -z "$NEMD_SRC" ] && add_pypath $(dirname $(which nemd_func))
 [ -z "$NEMD_SRC" ] || for SUB_DIR in 'driver' 'workflow'; do add_pypath $NEMD_SRC/$SUB_DIR/; done
+[ ! -z "$NEMD_SRC" ] && export COVERAGE_RCFILE=$NEMD_SRC/test/unit/.coveragerc
+[ ! -z "$PYTEST_ADDOPTS" ] && export PYTEST_ADDOPTS='-m ""'
+[ ! -z "$PLATFORM" ] && export PLATFORM=$(python -c "import platform; print(platform.system().lower())")
 
-export PYTEST_ADDOPTS='-m ""'
-export COVERAGE_RCFILE=$NEMD_SRC/test/unit/.coveragerc
-export PLATFORM=$(python -c "import platform; print(platform.system().lower())")
+[ $# != 0 ] && case $1 in module|driver|workflow) DIRNAME=$1; shift; NUM=$#;; *) { coverage "$@"; exit $?; };; esac
 
-[ $# != 0 ] && case $1 in module|driver|workflow) INAME=$1; shift; NUM=$#;; *) { coverage "$@"; exit $?; };; esac
-[ -z "$NEMD_SRC" ] && echo "Please source premake" && return 1
-[ ! -z "$INAME" ] && for val in "$@"; do shift; set -- "$@" $NEMD_SRC/test/unit/$INAME/$val; done
+[ -z "$NEMD_SRC" ] && echo "Please source premake" && exit 1
+[ ! -z "$DIRNAME" ] && for val in "$@"; do shift; set -- "$@" $NEMD_SRC/test/unit/$DIRNAME/$val; done
 
 for NAME in "workflow" "driver" "module"
   do
-    [ ! -z "$INAME" ] && [ "$NAME" != "$INAME" ] && continue
+    [ ! -z "$DIRNAME" ] && [ "$NAME" != "$DIRNAME" ] && continue
     SOURCE=$NEMD_SRC/$NAME && [ $NAME = "module" ] && SOURCE=$SOURCE/nemd
     [ ! -z "$NUM" ] && [ $NUM != 0 ] || set -- $NEMD_SRC/test/unit/$NAME/*_test.py
     DIR=.coverage_"$NAME"
