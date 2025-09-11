@@ -1,2 +1,2 @@
 # XYZ from XTC trajectory
-nemd_run lmp_traj_driver.py $NEMD_SRC/test/data/hexane_xtc/amorp_bldr_$param.xtc -data_file $NEMD_SRC/test/data/hexane_xtc/amorp_bldr.data -task xyz
+[ ! -z $NEMD_SRC ] && nemd_run lmp_traj_driver.py $NEMD_SRC/test/data/hexane_xtc/amorp_bldr_$param.xtc -data_file $NEMD_SRC/test/data/hexane_xtc/amorp_bldr.data -task xyz

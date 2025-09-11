@@ -1,3 +1,4 @@
 # Driver jobs in serial: molecular dynamics, log analyzer
+[ -z $NEMD_SRC ] && exit 0
 nemd_run lammps_driver.py $NEMD_SRC/test/data/si/crystal_builder.in -CPU 2
 nemd_run lmp_log_driver.py lammps_lmp.log -task TotEng -CPU 1 -JOBNAME lmp_log

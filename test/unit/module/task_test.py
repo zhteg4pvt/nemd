@@ -83,9 +83,11 @@ class TestCmd:
     def testCmd(self, cmd, expected):
         assert expected == len(cmd.cmd.args)
 
-    @pytest.mark.parametrize(
-        'args,expected',
-        [(["echo hi; CC(C)O -mol_num 1"], ['echo hi; "CC(C)O" -mol_num 1'])])
+    @pytest.mark.parametrize('args,expected', [
+        (["[ -z $NEMD_SRC] && echo hello"], ['[ -z $NEMD_SRC] && echo hello']),
+        (["echo hi; nemd_run CC(C)O -mol_num 1"
+          ], ['echo hi; nemd_run "CC(C)O" -mol_num 1'])
+    ])
     def testAddQuot(self, manual, expected):
         manual.addQuot()
         assert expected == manual.args

@@ -15,8 +15,8 @@ Usage:
 [ -z "$NEMD_SRC" ] && add_pypath $(dirname $(which nemd_func))
 [ -z "$NEMD_SRC" ] || for SUB_DIR in 'driver' 'workflow'; do add_pypath $NEMD_SRC/$SUB_DIR/; done
 [ ! -z "$NEMD_SRC" ] && export COVERAGE_RCFILE=$NEMD_SRC/test/unit/.coveragerc
-[ ! -z "$PYTEST_ADDOPTS" ] && export PYTEST_ADDOPTS='-m ""'
-[ ! -z "$PLATFORM" ] && export PLATFORM=$(python -c "import platform; print(platform.system().lower())")
+[ -z "$PYTEST_ADDOPTS" ] && export PYTEST_ADDOPTS='-m ""'
+[ -z "$PLATFORM" ] && export PLATFORM=$(python -c "import platform; print(platform.system().lower())")
 
 [ $# != 0 ] && case $1 in module|driver|workflow) DIRNAME=$1; shift; NUM=$#;; *) { coverage "$@"; exit $?; };; esac
 

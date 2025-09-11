@@ -1,2 +1,2 @@
 # Molecular dynamics: single point energy
-nemd_run lammps_driver.py $NEMD_SRC/test/data/si/crystal_builder.in -CPU 2
+[ ! -z $NEMD_SRC ] && nemd_run lammps_driver.py $NEMD_SRC/test/data/si/crystal_builder.in -CPU 2

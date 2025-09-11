@@ -1,2 +1,2 @@
 # Trajectory analysis on Argon for radial distribution function via neighbour search (uncompiled numba)
-env PYTHON=-1 nemd_run lmp_traj_driver.py $NEMD_SRC/test/data/ar/ar100.custom.gz -data_file $NEMD_SRC/test/data/ar/ar100.data -task rdf -last_pct 0.8
+[ ! -z $NEMD_SRC ] && env PYTHON=-1 nemd_run lmp_traj_driver.py $NEMD_SRC/test/data/ar/ar100.custom.gz -data_file $NEMD_SRC/test/data/ar/ar100.data -task rdf -last_pct 0.8

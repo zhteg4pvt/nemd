@@ -162,8 +162,12 @@ class Cmd(taskbase.Cmd):
         for idx, cmd in enumerate(self.args):
             # shlex.split("echo 'h(i)';echo wa", posix=False) splits by ;
             words = shlex.split(cmd, posix=False)
-            quoted = [self.quote(x) for x in words]
-            self.args[idx] = symbols.SPACE.join(quoted)
+            try:
+                index = words.index(jobutils.NEMD_RUN)
+            except ValueError:
+                continue
+            words[index:] = [self.quote(x) for x in words[index:]]
+            self.args[idx] = symbols.SPACE.join(words)
 
     def numCpu(self, rex=re.compile(fr"{jobutils.FLAG_CPU} +\d*")):
         """
