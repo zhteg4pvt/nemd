@@ -1,3 +1,2 @@
 # Crystal builder on Si with scaled lattice parameters
-nemd_run -c "from nemd import envutils; import shutil; shutil.copy(envutils.get_data('potentials', 'Si.sw', module='lammps'), '.')"
 nemd_run xtal_bldr_driver.py -dimension 1 2 3 -JOBNAME crystal_builder -seed 0 -scale_factor 0.95
