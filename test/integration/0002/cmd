@@ -1,2 +1,2 @@
-# Amorphous builder with the internal coordinates set by -substruct
+# Molecule builder with the internal coordinates set by -substruct
 nemd_run mol_bldr_driver.py *CC* -cru_num 2 -substruct CCCC 120 -seed 12345

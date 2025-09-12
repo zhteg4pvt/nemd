@@ -644,6 +644,7 @@ class GrownStruct(PackedStruct):
         super().attempt()
         if self.placed[-1] != self.conf_total:
             confs = itertools.islice(self.conf, self.placed[-1])
+            logger.debug(f'{self.placed[-1]} initiation failed.')
             self.placed[-1] -= len([x for x in confs if x.frag is not None])
             return
         logger.debug(f'{self.conf_total} initiators have been placed.')
