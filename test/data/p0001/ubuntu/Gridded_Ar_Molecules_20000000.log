@@ -1,0 +1,30 @@
+..........Options..........
+cru: [Ar]
+cru_num: 1
+mol_num: 20000000
+buffer: None
+density: 0.5
+method: grid
+substruct: None
+force_field: OPLSUA TIP3P
+timestep: 1
+stemp: 10
+temp: 300
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 1
+prod_time: 1
+prod_ens: NVE
+stat: nose_hoover
+seed: 1
+no_minimize: False
+NAME: Gridded_Ar_Molecules
+JOBNAME: Gridded_Ar_Molecules_20000000
+INTERAC: False
+PYTHON: 2
+CPU: [1]
+DEBUG: None
+JobStart: 16:59:46 08/17/2025
+...........................
+[16:59:47] UFFTYPER: Unrecognized atom type: Ar3+4 (0)

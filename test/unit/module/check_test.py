@@ -139,9 +139,9 @@ class TestCollect:
                             '3ec5394f589c9363bd15af35d45a7c44')
 
     @pytest.fixture
-    def collect(self, args, kwargs, copied):
+    def collect(self, args, kwargs, error, copied):
         collect = check.Collect(*args, **kwargs)
-        collect.error = mock.Mock(side_effect=ValueError)
+        collect.error = error
         return collect
 
     @pytest.mark.parametrize('dirname,args,kwargs,expected',
@@ -149,9 +149,10 @@ class TestCollect:
     def testInit(self, collect, expected):
         assert expected == collect.args
 
-    @pytest.mark.parametrize('dirname,args,kwargs,expected',
-                             [('0000', ['task_time', 'memory', 'finished'], {},
-                               (0, 3))])
+    @pytest.mark.parametrize('kwargs', [{}])
+    @pytest.mark.parametrize('dirname,args,expected',
+                             [('0000', ['memory', 'finished'], SystemExit),
+                              ('0049_ubuntu', ['task_time'], (2, 1))])
     def testRun(self, collect, expected, raises):
         with raises:
             collect.run()
@@ -160,13 +161,13 @@ class TestCollect:
 
     @pytest.mark.parametrize(
         'dirname,args,kwargs,expected',
-        [('0049', ['task_time'], {}, (0, 1)),
-         ('0049', ['task_time'], dict(dropna='False'), ValueError),
+        [('0049', ['task_time'], {}, SystemExit),
+         ('0049', ['task_time'], dict(dropna='False'), SystemExit),
          ('0049_ubuntu', ['task_time', 'memory'], {}, (2, 2)),
          ('0049_ubuntu', ['task_time', 'memory', 'finished'], {}, (2, 3)),
-         ('0000', ['task_time', 'memory', 'finished'], {}, (0, 3)),
+         ('0000', ['task_time', 'memory', 'finished'], {}, SystemExit),
          ('0001_fail', ['task_time', 'finished'], {}, (1, 1)),
-         ('0001_fail', ['finished'], dict(dropna='False'), ValueError)])
+         ('0001_fail', ['finished'], dict(dropna='False'), SystemExit)])
     def testSet(self, collect, expected, raises):
         with raises:
             collect.set()
@@ -176,8 +177,7 @@ class TestCollect:
     @pytest.mark.parametrize('kwargs', [{}])
     @pytest.mark.parametrize(
         'dirname,args,expected,outfiles',
-        [('0049', ['task_time'], [], []),
-         (TEST0049, ['task_time'], [1], ['collect_task.png']),
+        [(TEST0049, ['task_time'], [1], ['collect_task.png']),
          (TEST0049, ['task_time', 'memory'], [1], ['collect_task.png']),
          ('0049_ubuntu', ['task_time', 'memory'], [2], ['collect.png']),
          ('0049_ubuntu', ['task_time', 'finished'], [2], ['collect.png']),
@@ -190,6 +190,48 @@ class TestCollect:
         assert expected == [len(x.axes) for x in collect.figs]
         for outfile in outfiles:
             assert os.path.exists(outfile)
+
+
+class TestMerge:
+
+    @pytest.fixture
+    def merge(self, args, kwargs, error, copied):
+        merge = check.Merge(*args, **kwargs)
+        merge.error = error
+        return merge
+
+    @pytest.mark.parametrize('dirname,args,kwargs,expected',
+                             [('empty', [], {}, SystemExit),
+                              ('p0001', [], {}, (11, 3))])
+    def testSet(self, merge, expected, raises):
+        with raises:
+            merge.set()
+            assert expected == merge.data.shape
+
+    @pytest.mark.parametrize(
+        'dirname,args,kwargs,expected',
+        [('p0001', [], {}, ['Task Time (min)', 'Memory (MB)'])])
+    def testCols(self, merge, expected):
+        merge.set()
+        assert expected == merge.cols
+
+    @pytest.mark.parametrize('dirname,args,kwargs', [('p0001', [], {})])
+    @pytest.mark.parametrize('col,expected', [('Task Time (min)', 2),
+                                              ('Memory (MB)', 1)])
+    def testAxPlot(self, merge, col, expected, ax):
+        merge.set()
+        merge.axPlot(ax, col)
+        assert expected == len(ax.lines)
+
+    @pytest.mark.parametrize(
+        'dirname,args,kwargs,col,expected',
+        [('p0001', [], {}, 'Task Time (min)', 'merge.png')])
+    def testSave(self, merge, col, expected, fig, tmp_dir):
+        merge.set()
+        ax = fig.add_subplot(1, 1, 1)
+        merge.axPlot(ax, col)
+        merge.save(fig)
+        assert os.path.exists(expected)
 
 
 class TestMain:

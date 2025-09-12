@@ -19,6 +19,7 @@ from nemd import frame
 from nemd import jobutils
 from nemd import oplsua
 from nemd import osutils
+from nemd import plotutils
 from nemd import pytestutils
 from nemd import rdkitutils
 from nemd import structure
@@ -299,3 +300,24 @@ def error():
     :return `mock.Mock`: the mocked error.
     """
     return mock.MagicMock(side_effect=SystemExit)
+
+
+@pytest.fixture
+def fig():
+    """
+    Return a figure.
+
+    :return fig matplotlib.figure.Figure: the figure.
+    """
+    with plotutils.pyplot(inav=envutils.is_interac()) as plt:
+        return plt.figure(figsize=(10, 6))
+
+
+@pytest.fixture
+def ax(fig):
+    """
+    Return an axis.
+
+    :return matplotlib.axes.Axes: the ax to plot on.
+    """
+    return fig.add_subplot(1, 1, 1)

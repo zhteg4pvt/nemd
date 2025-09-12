@@ -192,16 +192,24 @@ class CollBase(Exist):
 
     def set(self):
         """
-        Set the data.
+        Set the data from the collected csv files.
         """
-        pass
+        files = [os.path.join(x, self.file) for x in self.args]
+        datas = [
+            pd.read_csv(x, index_col=0) for x in files if os.path.exists(x)
+        ]
+        if not datas or all([x.empty for x in datas]):
+            self.error(f"{files} not found or empty.")
+        self.data = pd.concat(datas, axis=1, keys=self.args)
+        self.data.columns = self.data.columns.swaplevel(0, 1)
+        self.data.drop(columns=[('Memory (MB)', 'mac')], inplace=True)
+        self.data.to_csv(self.outfile)
+        jobutils.Job.reg(self.outfile)
 
     def plot(self):
         """
         Plot the data.
         """
-        if self.data.empty:
-            return
         twinx = self.cols[1] if len(self.cols) == 2 else None
         for col in self.cols[:1] if twinx else self.cols:
             with plotutils.pyplot(inav=envutils.is_interac()) as plt:
@@ -225,7 +233,7 @@ class CollBase(Exist):
                     ax2.tick_params(axis='y', colors='b')
                     ax2.spines['right'].set_color('b')
                 fig.tight_layout()
-                self.save(fig, task=not twinx and col.split()[0].lower())
+                self.save(fig, col=not twinx and col)
 
     @property
     def cols(self):
@@ -244,6 +252,16 @@ class CollBase(Exist):
                linestyle='--',
                markerfacecolor=None,
                **kwargs):
+        """
+        Plot on ax.
+
+        :param ax matplotlib.axes.Axes: the ax to plot on.
+        :param col str: the column name of y-axis data.
+        :param color str: the color of the scatter, line, and marker.
+        :param marker str: scatter marker.
+        :param linestyle str: the linestyle.
+        :param markerfacecolor str: the markerfacecolor.
+        """
         ax.plot(self.data.index,
                 self.data[col],
                 color=color,
@@ -252,14 +270,14 @@ class CollBase(Exist):
                 markerfacecolor=markerfacecolor,
                 **kwargs)
 
-    def save(self, fig, task=None):
+    def save(self, fig, col=None):
         """
         Save the figure.
 
-        :param fig:
-        :param task:
+        :param fig matplotlib.figure.Figure: the figure to save.
+        :param col str: the column name of y-axis data.
         """
-        outfile = f"{self.name}{f'_{task}' if task else ''}.png"
+        outfile = f"{self.name}{f'_{col.split()[0].lower()}' if col else ''}.png"
         fig.savefig(outfile)
         jobutils.Job.reg(outfile)
         self.figs.append(fig)
@@ -283,13 +301,14 @@ class Collect(CollBase):
 
     def set(self, finished='finished', func=lambda x: x.total_seconds() / 60):
         """
-        Set the time and memory data from the log files.
+        Set the data from the log files.
 
         :param func 'func': map the task time from seconds to minutes.
         """
         self.data = logutils.Reader.collect(*self.args, **self.kwargs)
-        if not self.kwargs[self.DROPNA] and (self.data.empty
-                                             or self.data.isna().any().any()):
+        if self.data.empty:
+            self.error(f"Empty data collected ({' '.join(self.args)}).")
+        if not self.kwargs[self.DROPNA] and self.data.isna().any().any():
             self.error(self.data[self.data.isna().any(axis=1)].to_markdown())
         self.data.rename(columns={'memory': 'Memory (MB)'}, inplace=True)
         if self.TASK_TIME in self.data.columns:
@@ -308,24 +327,14 @@ class Collect(CollBase):
 
 class Merge(CollBase):
     """
-    The class to combine collected files.
+    The class to merge collected files.
     """
 
     def __init__(self, *args, file=f"{Collect.name}.csv", **kwargs):
         super().__init__(*args, **kwargs)
         self.file = file
-
-    def set(self):
-        """
-        Set the data from the collected csv files.
-        """
-        files = [os.path.join(x, self.file) for x in self.args]
-        datas = [pd.read_csv(x, index_col=0) for x in files]
-        self.data = pd.concat(datas, axis=1, keys=self.args)
-        self.data.columns = self.data.columns.swaplevel(0, 1)
-        self.data.drop(columns=[('Memory (MB)', 'mac')], inplace=True)
-        self.data.to_csv(self.outfile)
-        jobutils.Job.reg(self.outfile)
+        if not self.args:
+            self.args = ['mac', 'ubuntu']
 
     @property
     def cols(self):
