@@ -200,12 +200,12 @@ class TestMain:
         assert expected == check.Main(args).Class
 
     @conftest.require_src
-    @pytest.mark.parametrize(
-        'dirname,args,expected,msg',
-        [('0000', ('exist', 'wa'), SystemExit, 'wa not found.'),
-         ('0000', ('exist2', 'cmd'), SystemExit,
-          'exist2 found. Please select from exist, glob, has, cmp, collect.'),
-         ('0000', ('exist', 'cmd'), None, None)])
+    @pytest.mark.parametrize('dirname,args,expected,msg', [
+        ('0000', ('exist', 'wa'), SystemExit, 'wa not found.'),
+        ('0000', ('exist2', 'cmd'), SystemExit,
+         'exist2 found. Please select from exist, glob, has, cmp, collect, merge.'
+         ), ('0000', ('exist', 'cmd'), None, None)
+    ])
     def testRun(self, args, expected, copied, msg, raises):
         with mock.patch('nemd.logutils.Base.log') as mocked:
             main = check.Main(args)

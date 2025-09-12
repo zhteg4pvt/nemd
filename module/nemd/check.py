@@ -172,7 +172,100 @@ class Cmp(Exist):
             self.errorDiff(target)
 
 
-class Collect(Exist):
+class CollBase(Exist):
+    """
+    The collection base class.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.data = None
+        self.outfile = f"{self.name}.csv"
+        self.figs = []
+
+    def run(self):
+        """
+        Main method to run.
+        """
+        self.set()
+        self.plot()
+
+    def set(self):
+        """
+        Set the data.
+        """
+        pass
+
+    def plot(self):
+        """
+        Plot the data.
+        """
+        if self.data.empty:
+            return
+        twinx = self.cols[1] if len(self.cols) == 2 else None
+        for col in self.cols[:1] if twinx else self.cols:
+            with plotutils.pyplot(inav=envutils.is_interac()) as plt:
+                fig = plt.figure(figsize=(10, 6))
+                ax1 = fig.add_subplot(1, 1, 1)
+                ax1.set_xlabel(self.data.index.name)
+                color = 'g' if twinx else 'k'
+                ax1.set_ylabel(col, color=color)
+                self.axPlot(ax1, col, color=color)
+                if twinx:
+                    ax1.tick_params(axis='y', colors='g')
+                    ax2 = ax1.twinx()
+                    ax2.spines['left'].set_color('g')
+                    self.axPlot(ax2,
+                                twinx,
+                                color='b',
+                                marker='o',
+                                markerfacecolor='none',
+                                alpha=0.9)
+                    ax2.set_ylabel(twinx, color='b')
+                    ax2.tick_params(axis='y', colors='b')
+                    ax2.spines['right'].set_color('b')
+                fig.tight_layout()
+                self.save(fig, task=not twinx and col.split()[0].lower())
+
+    @property
+    def cols(self):
+        """
+        Get the task columns.
+
+        :return list: task columns.
+        """
+        return self.data.columns
+
+    def axPlot(self,
+               ax,
+               col,
+               color='k',
+               marker='*',
+               linestyle='--',
+               markerfacecolor=None,
+               **kwargs):
+        ax.plot(self.data.index,
+                self.data[col],
+                color=color,
+                linestyle=linestyle,
+                marker=marker,
+                markerfacecolor=markerfacecolor,
+                **kwargs)
+
+    def save(self, fig, task=None):
+        """
+        Save the figure.
+
+        :param fig:
+        :param task:
+        """
+        outfile = f"{self.name}{f'_{task}' if task else ''}.png"
+        fig.savefig(outfile)
+        jobutils.Job.reg(outfile)
+        self.figs.append(fig)
+
+
+class Collect(CollBase):
     """
     The class to collect the log files and plot the requested data.
     """
@@ -184,19 +277,9 @@ class Collect(Exist):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.data = None
-        self.figs = []
-        self.outfile = f"{self.name}.csv"
         if not self.args:
             self.args = [self.TASK_TIME]
         self.kwargs.setdefault(self.DROPNA, True)
-
-    def run(self):
-        """
-        Main method to run.
-        """
-        self.set()
-        self.plot()
 
     def set(self, finished='finished', func=lambda x: x.total_seconds() / 60):
         """
@@ -222,50 +305,61 @@ class Collect(Exist):
         self.data.to_csv(self.outfile)
         jobutils.Job.reg(self.outfile)
 
-    def plot(self):
+
+class Merge(CollBase):
+    """
+    The class to combine collected files.
+    """
+
+    def __init__(self, *args, file=f"{Collect.name}.csv", **kwargs):
+        super().__init__(*args, **kwargs)
+        self.file = file
+
+    def set(self):
         """
-        Plot the data. Time and memory are plotted together if possible.
+        Set the data from the collected csv files.
         """
-        if self.data.empty:
-            return
-        columns, twinx = self.data.columns, None
-        if len(columns) == 2:
-            columns, twinx = columns[:1], columns[1]
-        for col in columns:
-            with plotutils.pyplot(inav=envutils.is_interac()) as plt:
-                fig = plt.figure(figsize=(10, 6))
-                ax1 = fig.add_subplot(1, 1, 1)
-                color = 'g' if twinx else 'k'
-                ax1.plot(self.data.index, self.data[col], f'{color}-.*')
-                ax1.set_xlabel(self.data.index.name)
-                ax1.set_ylabel(col, color=color)
-                if twinx:
-                    ax1.tick_params(axis='y', colors='g')
-                    ax2 = ax1.twinx()
-                    ax2.spines['left'].set_color('g')
-                    ax2.plot(self.data.index,
-                             self.data[twinx],
-                             'b--o',
-                             markerfacecolor='none',
-                             alpha=0.9)
-                    ax2.set_ylabel(twinx, color='b')
-                    ax2.tick_params(axis='y', colors='b')
-                    ax2.spines['right'].set_color('b')
-                fig.tight_layout()
-                outfile = self.name
-                if not twinx:
-                    outfile += f'_{col.split()[0].lower()}'
-                outfile += '.png'
-                fig.savefig(outfile)
-                jobutils.Job.reg(outfile)
-                self.figs.append(fig)
+        files = [os.path.join(x, self.file) for x in self.args]
+        datas = [pd.read_csv(x, index_col=0) for x in files]
+        self.data = pd.concat(datas, axis=1, keys=self.args)
+        self.data.columns = self.data.columns.swaplevel(0, 1)
+        self.data.drop(columns=[('Memory (MB)', 'mac')], inplace=True)
+        self.data.to_csv(self.outfile)
+        jobutils.Job.reg(self.outfile)
+
+    @property
+    def cols(self):
+        """
+        See parent.
+        """
+        columns = [x[0] for x in self.data.columns]
+        return sorted(set(columns), key=lambda x: columns.index(x))
+
+    def axPlot(self, ax1, col, markers="*osv^<>12348pP*hH+xXDd|_", **kwargs):
+        """
+        See parent.
+
+        :param excluded tuple: the column to exclude.
+        """
+        for column, marker in zip(self.data.columns, markers):
+            if column[0] != col:
+                continue
+            kwargs = {**kwargs, **dict(marker=marker, label=column[1])}
+            super().axPlot(ax1, column, **kwargs)
+
+    def save(self, fig, **kwargs):
+        """
+        See parent.
+        """
+        fig.legend(loc='lower right', bbox_to_anchor=(0.91, 0.1))
+        super().save(fig, **kwargs)
 
 
 class Main(logutils.Base):
     """
     Main class to run the check module as a script.
     """
-    CLASSES = (Exist, Glob, Has, Cmp, Collect)
+    CLASSES = (Exist, Glob, Has, Cmp, Collect, Merge)
 
     def __init__(self, args, **kwargs):
         """
