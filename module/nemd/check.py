@@ -213,7 +213,7 @@ class CollBase(Exist):
         twinx = self.cols[1] if len(self.cols) == 2 else None
         for col in self.cols[:1] if twinx else self.cols:
             with plotutils.pyplot(inav=envutils.is_interac()) as plt:
-                fig = plt.figure(figsize=(10, 6))
+                fig = plt.figure(figsize=(6, 4.5))
                 ax1 = fig.add_subplot(1, 1, 1)
                 ax1.set_xlabel(self.data.index.name)
                 color = 'g' if twinx else 'k'
@@ -277,7 +277,7 @@ class CollBase(Exist):
         :param fig matplotlib.figure.Figure: the figure to save.
         :param col str: the column name of y-axis data.
         """
-        outfile = f"{self.name}{f'_{col.split()[0].lower()}' if col else ''}.png"
+        outfile = f"{self.name}{f'_{col.split()[0].lower()}' if col else ''}.svg"
         fig.savefig(outfile)
         jobutils.Job.reg(outfile)
         self.figs.append(fig)
@@ -360,7 +360,7 @@ class Merge(CollBase):
         """
         See parent.
         """
-        fig.legend(loc='lower right', bbox_to_anchor=(0.91, 0.1))
+        fig.legend(loc='lower right', bbox_to_anchor=(0.85, 0.15))
         super().save(fig, **kwargs)
 
 

@@ -21,7 +21,7 @@ case $1 in
     dir=$dir/$1
     ;;
   *)
-    echo "Unknown module binary: $1"
+    echo "Unknown module binary: $1" && exit 1
   esac
 echo $LAMMPS_POTENTIALS
 binary=$(python -c "import $name; print($name.__path__[0])")/$dir/$1
