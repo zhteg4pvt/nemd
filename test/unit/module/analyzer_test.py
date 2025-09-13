@@ -94,7 +94,7 @@ class TestBase:
         base.plot(marker=marker, selected=selected)
         line_num = len(base.fig.axes[0].lines) if base.fig else 0
         col_num = len(base.fig.axes[0].collections) if base.fig else 0
-        assert expected == (line_num, col_num, os.path.exists('name_base.png'))
+        assert expected == (line_num, col_num, os.path.exists('name_base.svg'))
 
     @pytest.mark.parametrize('args', [(['-JOBNAME', 'name'])])
     @pytest.mark.parametrize('data,expected', [(DATA, False),

@@ -1,2 +1,2 @@
 nemd_check cmp mb_lmp_log_toteng.csv "amorp lmp log_toteng.csv" rtol=1e-3 equal_nan=True
-nemd_check exist "amorp lmp log_toteng.png"
+nemd_check exist "amorp lmp log_toteng.svg"

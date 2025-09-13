@@ -1,2 +1,2 @@
 nemd_check collect task_time memory
-nemd_check exist collect.csv collect.png
+nemd_check exist collect.csv collect.svg

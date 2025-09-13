@@ -32,7 +32,7 @@ class TestLmpLog:
     def testRun(self, lmplog, expected, tmp_dir):
         lmplog.run()
         assert os.path.exists(f'{expected}.csv')
-        assert os.path.exists(f'{expected}.png')
+        assert os.path.exists(f'{expected}.svg')
 
     @pytest.mark.parametrize("args,expected",
                              [([LOG], None),
@@ -72,4 +72,4 @@ class TestLmpLog:
         lmplog.analyze()
         for basename in expected:
             assert os.path.exists(f'{lmplog.options.JOBNAME}_{basename}.csv')
-            assert os.path.exists(f'{lmplog.options.JOBNAME}_{basename}.png')
+            assert os.path.exists(f'{lmplog.options.JOBNAME}_{basename}.svg')

@@ -27,7 +27,7 @@ class Base(logutils.Base):
     Base class for job and merger.
     """
     DATA_EXT = '.csv'
-    FIG_EXT = '.png'
+    FIG_EXT = '.svg'
     ST_DEV = 'St Dev'
     ST_ERR = 'St Err'
     FLOAT_FMT = '%.4g'
@@ -112,7 +112,7 @@ class Base(logutils.Base):
         """
         with plotutils.pyplot(inav=self.options.INTERAC,
                               name=self.name) as plt:
-            self.fig = plt.figure(figsize=(10, 6))
+            self.fig = plt.figure(figsize=(6, 4.5))
             ax = self.fig.add_axes([0.13, 0.1, 0.8, 0.8])
             if marker is None and len(self.data) < 10:
                 marker = '*'

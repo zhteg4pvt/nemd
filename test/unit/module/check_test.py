@@ -177,13 +177,13 @@ class TestCollect:
     @pytest.mark.parametrize('kwargs', [{}])
     @pytest.mark.parametrize(
         'dirname,args,expected,outfiles',
-        [(TEST0049, ['task_time'], [1], ['collect_task.png']),
-         (TEST0049, ['task_time', 'memory'], [1], ['collect_task.png']),
-         ('0049_ubuntu', ['task_time', 'memory'], [2], ['collect.png']),
-         ('0049_ubuntu', ['task_time', 'finished'], [2], ['collect.png']),
+        [(TEST0049, ['task_time'], [1], ['collect_task.svg']),
+         (TEST0049, ['task_time', 'memory'], [1], ['collect_task.svg']),
+         ('0049_ubuntu', ['task_time', 'memory'], [2], ['collect.svg']),
+         ('0049_ubuntu', ['task_time', 'finished'], [2], ['collect.svg']),
          ('0049_ubuntu', ['task_time', 'memory', 'finished'], [1, 1, 1],
-          ['collect_task.png', 'collect_memory.png', 'collect_finished.png']),
-         ('0049_ubuntu', ['memory'], [1], ['collect_memory.png'])])
+          ['collect_task.svg', 'collect_memory.svg', 'collect_finished.svg']),
+         ('0049_ubuntu', ['memory'], [1], ['collect_memory.svg'])])
     def testPlot(self, collect, expected, outfiles):
         collect.set()
         collect.plot()
@@ -225,7 +225,7 @@ class TestMerge:
 
     @pytest.mark.parametrize(
         'dirname,args,kwargs,col,expected',
-        [('p0001', [], {}, 'Task Time (min)', 'merge.png')])
+        [('p0001', [], {}, 'Task Time (min)', 'merge.svg')])
     def testSave(self, merge, col, expected, fig, tmp_dir):
         merge.set()
         ax = fig.add_subplot(1, 1, 1)
