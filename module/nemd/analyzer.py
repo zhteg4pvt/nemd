@@ -113,7 +113,7 @@ class Base(logutils.Base):
         with plotutils.pyplot(inav=self.options.INTERAC,
                               name=self.name) as plt:
             self.fig = plt.figure(figsize=(6, 4.5))
-            ax = self.fig.add_axes([0.13, 0.1, 0.8, 0.8])
+            ax = self.fig.add_axes([0.18, 0.1, 0.8, 0.8])
             if marker is None and len(self.data) < 10:
                 marker = '*'
             ax.plot(self.data.index,
@@ -146,7 +146,6 @@ class Base(logutils.Base):
                 ax.set_xlabel(f"%s (%s)" %
                               self.parse(self.data.index.name)[:2])
             ax.set_ylabel(self.data.columns.values.tolist()[0])
-
             outfile = self.outfile[:-len(self.DATA_EXT)] + self.FIG_EXT
             self.fig.savefig(outfile)
             self.log(f'{self.name.capitalize()} figure saved as {outfile}')

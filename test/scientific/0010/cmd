@@ -1,3 +1,4 @@
 # Water liquid: amorphous builder on SPCE water via -pack; lammps simulation; MSD
 nemd_run ab_lmp_traj_workflow.py O -mol_num 500 -force_field OPLSUA SPCE -method pack -relax_time 1.5 -task msd density -temp 298.15 -density 0.8 -last_pct 0.3 -state_num 4
-# 2.7350 * 10^9 m^2 / s https://pubs.acs.org/doi/pdf/10.1021/jp003020w
+# 2.7350 * 10^-9 m^2 / s https://pubs.acs.org/doi/pdf/10.1021/jp003020w
+# https://pubs.acs.org/doi/abs/10.1021/acs.jcim.1c00794
