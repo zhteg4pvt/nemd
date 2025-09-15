@@ -32,7 +32,7 @@ class Plotter:
         self.data = None
         self.unit = None
         self.points = None
-        self.outfile = f"{self.options.JOBNAME}.png"
+        self.outfile = f"{self.options.JOBNAME}.svg"
 
     def run(self):
         """
@@ -70,8 +70,8 @@ class Plotter:
         if self.unit == 'cm^-1':
             self.data *= constants.CM_INV_THZ
         with plotutils.pyplot(inav=self.options.INTERAC) as plt:
-            fig = plt.figure(figsize=(10, 6))
-            ax = fig.add_subplot(1, 1, 1)
+            fig = plt.figure(figsize=(6, 4.5))
+            ax = fig.add_axes([0.18, 0.18, 0.8, 0.8])
             for col in self.data.columns:
                 ax.plot(self.data.index, self.data[col], '-b')
             ymin = min([0, self.data.min(axis=None)])
