@@ -107,8 +107,9 @@ class TestFigure:
 
     @pytest.mark.parametrize('rdr', [(None), (RDR)])
     def testScene(self, fig):
-        assert ['xaxis', 'yaxis', 'zaxis',
-                'aspectmode'] == list(fig.scene.keys())
+        assert [
+            'xaxis', 'yaxis', 'zaxis', 'aspectmode', 'camera_projection_type'
+        ] == list(fig.scene.keys())
 
     @pytest.mark.parametrize('rdr,expected', [(None, 3)])
     def testSlider(self, fig, expected):

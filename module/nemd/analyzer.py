@@ -102,19 +102,20 @@ class Base(logutils.Base):
         self.log(f"The minimum {label} of {row.iloc[0]:.4g} {unit} is found at"
                  f" {row.name} {self.parse(self.data.index.name)[1]}.")
 
-    def plot(self, marker=None, selected=None):
+    def plot(self, marker=None, selected=None, rotation=0):
         """
         Plot and save the data: index (time|param|default), data (original|ave),
         standard deviation (optional).
 
         :param marker str: the marker symbol
         :param selected pd.DataFrame: the selected data
+        :param rotation float: The rotation angle of the xtick labels in degrees
         """
         with plotutils.pyplot(inav=self.options.INTERAC,
                               name=self.name) as plt:
             self.fig = plt.figure(figsize=(6, 4.5))
-            ax = self.fig.add_axes([0.18, 0.1, 0.8, 0.8])
-            if marker is None and len(self.data) < 10:
+            ax = self.fig.add_axes([0.18, 0.18, 0.8, 0.8])
+            if marker is None and len(self.data) < 20:
                 marker = '*'
             ax.plot(self.data.index,
                     self.data.iloc[:, 0],
@@ -141,11 +142,11 @@ class Base(logutils.Base):
                         '--r',
                         label='fit')
             ax.legend()
-
             if self.data.index.name is not None:
-                ax.set_xlabel(f"%s (%s)" %
-                              self.parse(self.data.index.name)[:2])
+                name, unit, _ = self.parse(self.data.index.name)
+                ax.set_xlabel(f"{name} ({unit})" if unit else name)
             ax.set_ylabel(self.data.columns.values.tolist()[0])
+            self.fig.autofmt_xdate(rotation=rotation)
             outfile = self.outfile[:-len(self.DATA_EXT)] + self.FIG_EXT
             self.fig.savefig(outfile)
             self.log(f'{self.name.capitalize()} figure saved as {outfile}')
@@ -154,11 +155,12 @@ class Base(logutils.Base):
     @property
     def with_err(self):
         """
-        Whether the data come with an error column.
+        Whether the data come with a non-null error column.
 
         :return bool: True if the data come with an error column.
         """
-        return self.data.shape[1] == 2
+        return self.data.shape[1] == 2 and not self.data.iloc[:, 1].isnull(
+        ).all()
 
     @classmethod
     def parse(cls, name, rex=re.compile(r'(.*) +\((.*)\)')):
@@ -307,7 +309,8 @@ class Job(Base):
         sel = self.data.iloc[self.sidx:self.eidx]
         name, ave = sel.columns[0], sel.iloc[:, 0].mean()
         self.fitted = np.array((sel.index, np.full(sel.index.shape, ave))).T
-        err = sel.iloc[:, 1].mean() if self.with_err else sel.iloc[:, 0].std()
+        err = sel.iloc[:, 1].mean() if self.data.shape[1] == 2 \
+            else sel.iloc[:, 0].std()
         self._result = pd.Series({name: ave, f"{self.ST_DEV} of {name}": err})
         label, unit, _ = self.parse(self.data.columns[0])
         stime, etime = sel.index[0], sel.index[-1]

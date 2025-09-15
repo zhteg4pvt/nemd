@@ -234,17 +234,25 @@ class Figure(plotly.graph_objects.Figure):
                                uirevision=True)
 
     @property
-    def scene(self):
+    def scene(self,
+              camera_projection_type="perspective",
+              showgrid=True,
+              autorange=False):
         """
         Return the scene with axis range and styles.
 
+        :param camera_projection_type str: perspective or orthographic
+        :param showgrid bool: grid lines are drawn if True
+        :param autorange bool: range computed from input data for every frame if True
         :return dict: the scene.
         """
         scene = {
-            f"{x}axis": dict(range=y, autorange=False)
+            f"{x}axis": dict(showgrid=showgrid, range=y, autorange=autorange)
             for x, y in zip('xyz', self._frm.lims)
         }
-        return dict(**scene, aspectmode='cube')
+        return dict(**scene,
+                    aspectmode='cube',
+                    camera_projection_type=camera_projection_type)
 
     @property
     def slider(self):
