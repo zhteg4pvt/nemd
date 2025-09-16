@@ -71,7 +71,7 @@ class Plotter:
             self.data *= constants.CM_INV_THZ
         with plotutils.pyplot(inav=self.options.INTERAC) as plt:
             fig = plt.figure(figsize=(6, 4.5))
-            ax = fig.add_axes([0.18, 0.18, 0.8, 0.8])
+            ax = fig.add_subplot(1, 1, 1)
             for col in self.data.columns:
                 ax.plot(self.data.index, self.data[col], '-b')
             ymin = min([0, self.data.min(axis=None)])

@@ -36,7 +36,7 @@ class Darwin:
     ALM_EXES = [ALM, ANPHON]
 
     INSTALL = ('brew', 'install', '-q')
-    PKGS = PKGS + ('llvm', 'fftw')
+    PKGS = PKGS + ('fftw', )
     LMP_PKGS = LMP_PKGS + ('pkgconfig', )
     ALM_PKGS = ('boost', 'eigen', 'spglib')
 

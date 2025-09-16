@@ -371,38 +371,35 @@ class TimeAgg(taskbase.Agg):
     def run(self, hour=timeutils.str2delta('01:00:00')):
         """
         Report the total task timing and timing details grouped by name.
+
+        :param hour 'datetime.timedelta': one hour.
         """
         jobs = [x for x in self.getJobs() if x.logfile]
         rdrs = [logutils.Reader(x.logfile) for x in jobs]
         info = [[x.options.NAME[:9], x.task_time] for x in rdrs]
         info = pd.DataFrame(info, columns=[symbols.NAME, self.TIME])
-        pardirs = [os.path.basename(os.path.dirname(x.file)) for x in jobs]
-        info[symbols.ID] = [x[:3] for x in pardirs]
+        names = [os.path.basename(os.path.dirname(x.file)) for x in jobs]
+        info[symbols.ID] = [x[:3] for x in names]
         total_time = timeutils.delta2str(info.time.sum())
         self.log(logutils.Reader.TOTAL_TIME + total_time)
         grouped = info.groupby(symbols.NAME)
         time_id = {x: y for x, y in grouped[[self.TIME, symbols.ID]]}
         fmts = {
-            x: '%M:%S' if (y.time < hour).all() else timeutils.HMS_FMT
+            x: '%M:%S' if (y.time.dropna() < hour).all() else timeutils.HMS_FMT
             for x, y in time_id.items()
         }
-        data = {
-            x:
-            y.apply(
-                lambda z: f'{timeutils.delta2str(z.time, fmt=fmts[x])} {z.id}',
-                axis=1)
+        dat = {
+            x: y.apply(lambda z: f'{timeutils.delta2str(z.time, fmt=fmts[x])} {z.id}', axis=1)
             for x, y in time_id.items()
-        }
-        data = {x: sorted(y, reverse=True) for x, y in data.items()}
-        sorted_keys = sorted(data, key=lambda x: len(data[x]), reverse=True)
+        } # yapf: disable
+        dat = {x: sorted(y, reverse=True) for x, y in dat.items()}
         ave = grouped.time.mean()
-        data = {
-            x:
-            [f"{timeutils.delta2str(ave.loc[x], fmt=fmts[x])} ave", *data[x]]
-            for x in sorted_keys
-        }
-        data = pd.DataFrame.from_dict(data, orient='index').transpose()
-        self.log(data.fillna('').to_markdown(index=False))
+        dat = {
+            x: [f"{timeutils.delta2str(ave.loc[x], fmt=fmts[x])} ave", *dat[x]]
+            for x in sorted(dat, key=lambda x: len(dat[x]), reverse=True)
+        } # yapf: disable
+        dat = pd.DataFrame.from_dict(dat, orient='index').transpose()
+        self.log(dat.fillna('').to_markdown(index=False))
 
 
 class TestAgg(TimeAgg):

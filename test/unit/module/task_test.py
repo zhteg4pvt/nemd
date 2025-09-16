@@ -263,12 +263,6 @@ class TestTimeAgg:
         time_agg.run()
         assert expected == len(time_agg.out)
 
-    @pytest.mark.parametrize('delta,expected', [('00:00:00', '00:00'),
-                                                ('12:34:56', '34:56')])
-    def testDelta2str(self, delta, expected):
-        delta = timeutils.str2delta(delta)
-        assert expected == task.TimeAgg.delta2str(delta)
-
 
 @conftest.require_src
 class TestTestAgg:

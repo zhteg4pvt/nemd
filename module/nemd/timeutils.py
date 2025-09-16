@@ -5,6 +5,8 @@ datetime utilities.
 """
 import datetime
 
+import pandas as pd
+
 HMS_FMT = '%H:%M:%S'
 HMS_MDY = f'{HMS_FMT} %m/%d/%Y'
 HMS_ZERO = datetime.datetime.strptime('00:00:00', HMS_FMT)
@@ -43,7 +45,7 @@ def delta2str(delta, fmt=HMS_FMT):
     try:
         return (HMS_ZERO + delta).strftime(fmt)
     except (TypeError, ValueError):
-        return str(delta)
+        return 'nan'
 
 
 def str2delta(value, fmt=HMS_FMT):

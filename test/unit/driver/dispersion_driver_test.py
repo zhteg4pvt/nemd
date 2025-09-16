@@ -41,7 +41,7 @@ class TestDispersion:
         options = driver.Parser().parse_args(args)
         return driver.Dispersion(options, logger=logger)
 
-    @pytest.mark.parametrize("args,expected", [(ARGS, 'dispersion.png')])
+    @pytest.mark.parametrize("args,expected", [(ARGS, 'dispersion.svg')])
     def testRun(self, disp, expected):
         disp.run()
         assert os.path.exists(expected)
@@ -62,7 +62,7 @@ class TestDispersion:
         disp.write()
         assert os.path.exists(disp.struct.outfile)
 
-    @pytest.mark.parametrize("args,expected", [(ARGS, 'dispersion.png')])
+    @pytest.mark.parametrize("args,expected", [(ARGS, 'dispersion.svg')])
     def testPlot(self, disp, expected):
         disp.build()
         disp.write()

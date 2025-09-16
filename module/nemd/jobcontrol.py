@@ -112,7 +112,7 @@ class Runner(logutils.Base):
         with plotutils.pyplot(inav=self.options.INTERAC,
                               name='workflow') as plt:
             fig = plt.figure()
-            ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+            ax = fig.add_subplot(1, 1, 1)
             opr_graph = self.proj.detect_operation_graph()
             graph = nx.DiGraph(np.asarray(opr_graph))
             pos = nx.spring_layout(graph)

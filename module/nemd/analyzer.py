@@ -114,7 +114,7 @@ class Base(logutils.Base):
         with plotutils.pyplot(inav=self.options.INTERAC,
                               name=self.name) as plt:
             self.fig = plt.figure(figsize=(6, 4.5))
-            ax = self.fig.add_axes([0.18, 0.18, 0.8, 0.8])
+            ax = self.fig.add_subplot(1, 1, 1)
             if marker is None and len(self.data) < 20:
                 marker = '*'
             ax.plot(self.data.index,
