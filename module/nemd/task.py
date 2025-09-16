@@ -368,7 +368,7 @@ class TimeAgg(taskbase.Agg):
     """
     TIME = symbols.TIME.lower()
 
-    def run(self):
+    def run(self, hour=timeutils.str2delta('01:00:00')):
         """
         Report the total task timing and timing details grouped by name.
         """
@@ -381,27 +381,28 @@ class TimeAgg(taskbase.Agg):
         total_time = timeutils.delta2str(info.time.sum())
         self.log(logutils.Reader.TOTAL_TIME + total_time)
         grouped = info.groupby(symbols.NAME)
+        time_id = {x: y for x, y in grouped[[self.TIME, symbols.ID]]}
+        fmts = {
+            x: '%M:%S' if (y.time < hour).all() else timeutils.HMS_FMT
+            for x, y in time_id.items()
+        }
         data = {
-            x: y.apply(lambda x: f'{self.delta2str(x.time)} {x.id}', axis=1)
-            for x, y in grouped[[self.TIME, symbols.ID]]
+            x:
+            y.apply(
+                lambda z: f'{timeutils.delta2str(z.time, fmt=fmts[x])} {z.id}',
+                axis=1)
+            for x, y in time_id.items()
         }
         data = {x: sorted(y, reverse=True) for x, y in data.items()}
         sorted_keys = sorted(data, key=lambda x: len(data[x]), reverse=True)
-        ave = grouped.time.mean().apply(lambda x: f"{self.delta2str(x)} ave")
-        data = {x: [ave.loc[x], *data[x]] for x in sorted_keys}
+        ave = grouped.time.mean()
+        data = {
+            x:
+            [f"{timeutils.delta2str(ave.loc[x], fmt=fmts[x])} ave", *data[x]]
+            for x in sorted_keys
+        }
         data = pd.DataFrame.from_dict(data, orient='index').transpose()
         self.log(data.fillna('').to_markdown(index=False))
-
-    @classmethod
-    def delta2str(cls, delta, fmt='%M:%S'):
-        """
-        Delta time to string with upper limit.
-
-        :param delta 'datetime.timedelta': the time delta object
-        :param fmt str: the format to print the time
-        :return str: the string representation of the delta time (< 1 hour)
-        """
-        return timeutils.delta2str(delta, fmt=fmt)
 
 
 class TestAgg(TimeAgg):
