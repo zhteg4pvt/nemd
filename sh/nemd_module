@@ -6,9 +6,8 @@ Run the submodule binaries.
 Usage:
   nemd_module [lmp|alm|anphon] [args]
 '
-[ $# -lt 1 ] && echo 'Please specify a module binary.' && exit 1
-
 . nemd_func
+[ $# -lt 1 ] && error 'Please specify a module binary.'
 
 dir=build
 case $1 in
@@ -21,10 +20,11 @@ case $1 in
     dir=$dir/$1
     ;;
   *)
-    echo "Unknown module binary: $1" && exit 1
+    error "Unknown module binary: $1"
   esac
-echo $LAMMPS_POTENTIALS
+
 binary=$(python -c "import $name; print($name.__path__[0])")/$dir/$1
+
 shift
 set -- $binary "$@"
 debug "$@"; "$@"

@@ -6,8 +6,8 @@ Run the sh & python check.
 Usage:
   nemd_check [exist] [args]
 '
-[ $# -lt 1 ] && echo 'Please specify a check command.' && exit 1
-
 . nemd_func
+[ $# -lt 1 ] && error 'Please specify a check command.'
+
 set -- python -m nemd.check "$@"
 debug "$@"; "$@"

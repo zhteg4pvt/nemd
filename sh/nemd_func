@@ -79,3 +79,9 @@ format_py()
   echo "Done!"
   return 0
 }
+
+# echo error message to std err and exit 1
+error() {
+  echo "Error: $1" >&2
+  exit 1
+  }

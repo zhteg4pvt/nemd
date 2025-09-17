@@ -38,7 +38,7 @@ class Darwin:
     INSTALL = ('brew', 'install', '-q')
     PKGS = PKGS + ('fftw', )
     LMP_PKGS = LMP_PKGS + ('pkgconfig', )
-    ALM_PKGS = ('boost', 'eigen', 'spglib')
+    ALM_PKGS = ('llvm', 'boost', 'eigen', 'spglib')
 
     def __init__(self):
         self.dir = pathlib.Path(__file__).parent

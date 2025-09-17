@@ -30,22 +30,20 @@ class Base(builtinsutils.Object):
         self.dirname = dirname or os.curdir
         self.jobname = jobname or envutils.get_jobname() or self.name
         self.env = env
-        self.logfile = f'{self.jobname}{symbols.LOG_EXT}'
+        self.stdout = f"{self.jobname}.std"
+        self.proc = None
 
-    def run(self, ext=symbols.LOG_EXT):
+    def run(self):
         """
         Make & change directory, set up, build command, and run command.
-
-        :param ext str: the stdout extension.
-        :return `subprocess.CompletedProcess`: a CompletedProcess instance.
         """
-        with osutils.chdir(self.dirname), open(f'{self.jobname}{ext}',
-                                               'w') as out:
-            return subprocess.run(self.getCmd(),
-                                  stdout=out,
-                                  stderr=subprocess.STDOUT,
-                                  env=self.env,
-                                  shell=True)
+        with osutils.chdir(self.dirname), open(self.stdout, 'w') as stdout:
+            self.proc = subprocess.run(self.getCmd(),
+                                       stdout=stdout,
+                                       stderr=subprocess.PIPE,
+                                       env=self.env,
+                                       text=True,
+                                       shell=True)
 
     def getCmd(self, write_cmd=True):
         """
@@ -135,11 +133,11 @@ class Submodule(Base):
         :return list: the outfiles found.
         :raise FileNotFoundError: no outfiles found.
         """
-        pattern = os.path.join(self.start, self.dirname,
-                               f"{self.jobname}{self.ext}")
-        outfiles = glob.glob(os.path.relpath(pattern, start=os.curdir))
+        patt = os.path.join(self.start, self.dirname,
+                            f"{self.jobname}{self.ext}")
+        outfiles = glob.glob(os.path.relpath(patt, start=os.curdir))
         if not outfiles:
-            raise FileNotFoundError(f"{pattern} not found.")
+            raise FileNotFoundError(f"{patt} not found.\n{self.proc.stderr}")
         return outfiles
 
     @property
@@ -179,12 +177,7 @@ class Lmp(Submodule):
         """
         super().__init__(*args, **kwargs)
         self.infile = infile
-
-    def run(self, ext='.std'):
-        """
-        See parent.
-        """
-        return super().run(ext=ext)
+        self.logfile = f"{self.jobname}{symbols.LOG_EXT}"
 
     @property
     def args(self):

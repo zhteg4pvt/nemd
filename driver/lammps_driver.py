@@ -107,13 +107,17 @@ class Lammps(logutils.Base, process.Lmp):
         :param `re.Pattern` rex: the regular expression to search error.
         """
         self.log('Running lammps simulations...')
-        proc = super().run()
-        if proc.returncode:
-            # FIXME: the message by error->one (src/input.cpp:666) not in either stdout or stderr
-            with open(self.logfile, 'r') as fh:
-                cont = rex.finditer(fh.read())
-                self.error('\n'.join(x.group(1) for x in cont))
-        return proc
+        super().run()
+        if not self.proc.returncode:
+            return
+        # FIXME: the message by error->one (src/input.cpp:666) not in either stdout or stderr
+        if self.proc.stderr:
+            self.error(self.proc.stderr)
+        if not os.path.exists(self.logfile):
+            return
+        with open(self.logfile, 'r') as fh:
+            cont = rex.finditer(fh.read())
+            self.error('\n'.join(x.group(1) for x in cont))
 
     @functools.cached_property
     def args(self):
