@@ -172,11 +172,8 @@ class Check(Base):
         replacement = repl.format(dirname=self.dirname)
         tokens = [sub_re.sub(replacement, x) for x in self.args]
         proc = process.Check(tokens, jobname=self.name)
-        completed = proc.run()
-        if not completed.returncode:
-            return
-        with open(proc.logfile) as fh:
-            return fh.read() or 'non-zero return code'
+        proc.run()
+        return proc.err
 
     @functools.cached_property
     def raw(self, default='nemd_check collect finished dropna=False'):

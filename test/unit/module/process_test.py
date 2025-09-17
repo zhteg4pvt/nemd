@@ -21,9 +21,10 @@ class TestBase:
                              [(None, None, [os.curdir, 'base']),
                               ('mydir', 'myname', ['mydir', 'myname'])])
     def testRun(self, base, expected):
-        assert 0 == base.run().returncode
+        base.run()
+        assert 0 == base.proc.returncode
         assert os.path.exists(f'{os.path.join(*expected)}_cmd')
-        assert os.path.exists(f'{os.path.join(*expected)}.log')
+        assert os.path.exists(f'{os.path.join(*expected)}.std')
 
     @pytest.mark.parametrize('dirname,jobname', [(os.curdir, 'myname')])
     def testGetCmd(self, base, jobname):
@@ -34,12 +35,27 @@ class TestBase:
     def testArgs(self, base):
         assert ['echo', 'hi'] == base.args
 
+    @pytest.mark.parametrize('dirname,jobname,expected',
+                             [(None, None, 'hi\n'), ('mydir', 'myname', '')])
+    def testMsg(self, base, expected, tmp_dir):
+        base.run()
+        assert expected == base.msg
+
 
 class TestProcess:
 
     @pytest.mark.parametrize('tokens', [['echo', 'hello']])
     def testArgs(self, tokens):
         assert tokens == process.Process(tokens).args
+
+    @pytest.mark.parametrize('tokens,expected',
+                             [(['echo', 'hello'], ''),
+                              (['echo', 'hello', '>&2'], 'hello\n'),
+                              (['exit', '1'], 'non-zero return code')])
+    def testErr(self, tokens, expected, tmp_dir):
+        prc = process.Process(tokens)
+        prc.run()
+        assert expected == prc.err
 
 
 class TestCheck:
@@ -62,15 +78,15 @@ class TestSubmodule:
     def testGetCmd(self, submodule, expected):
         assert expected == submodule.getCmd(write_cmd=False)
 
-    @pytest.mark.parametrize('mode,files,expected',
-                             [('suggest', None, FileNotFoundError)])
-    def testOutfiles(self, submodule, expected, raises):
+    @pytest.mark.parametrize('files', [None])
+    @pytest.mark.parametrize('mode,file,expected',
+                             [('suggest', 'wa', FileNotFoundError),
+                              ('suggest', 'submodule.std', 1)])
+    def testOutfiles(self, mode, file, submodule, expected, raises):
+        with osutils.chdir(mode), open(file, 'w'):
+            pass
         with raises:
-            submodule.outfiles
-        with osutils.chdir('suggest'):
-            with open('submodule.log', 'w'):
-                pass
-        assert submodule.outfiles
+            assert expected == len(submodule.outfiles)
 
     @pytest.mark.parametrize('mode,files,expected',
                              [('suggest', ['dispersion.data'], 'suggest')])
@@ -85,15 +101,28 @@ class TestSubmodule:
 
 class TestLmp:
 
-    def testArg(self):
-        assert 6 == len(process.Lmp().args)
+    @pytest.fixture
+    def lmp(self, infile):
+        return process.Lmp(infile=infile)
+
+    @pytest.mark.parametrize('infile', [None])
+    def testArg(self, lmp):
+        assert 4 == len(lmp.args)
+
+    @pytest.mark.parametrize(
+        'infile,expected',
+        [(envutils.test_data('ar', 'error.in'), 'Cannot open file ar100.data'),
+         ('not_exist', 'Errorcode')])
+    def testErr(self, lmp, expected, tmp_dir):
+        lmp.run()
+        assert expected in lmp.err
 
 
 class TestSubmodules:
 
     @pytest.mark.parametrize('mode,expected', [('mode', '.xyz')])
     def testExt(self, mode, expected):
-        assert '.log' == process.Submodules(mode).ext
+        assert '.std' == process.Submodules(mode).ext
         Sub = type('', (process.Submodules, ), dict(EXTS={mode: expected}))
         assert expected == Sub(mode).ext
 

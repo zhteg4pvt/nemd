@@ -105,15 +105,14 @@ class TestCheck:
 
     @pytest.mark.parametrize(
         'dirname,expected',
-        [('empty', 'Empty data collected (finished).\n'),
-         ('empty_check', None),
-         ('0001', 'polymer_builder.data is different from amorp_bldr.data.\n'),
-         ('0046_test', None), ('returncode', 'non-zero return code')])
+        [('empty', 'Empty data collected (finished).'), ('empty_check', ''),
+         ('0001', 'polymer_builder.data is different from amorp_bldr.data.'),
+         ('0046_test', ''), ('returncode', 'non-zero return code')])
     def testRun(self, check, expected):
         with open('amorp_bldr.data', 'w'):
             pass
         msg = check.run()
-        assert (msg.endswith(expected) if expected else msg is None)
+        assert (msg.endswith(expected) if expected else not msg)
 
     @pytest.mark.parametrize(
         'dirname,expected',

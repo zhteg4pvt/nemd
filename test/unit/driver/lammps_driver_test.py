@@ -93,12 +93,12 @@ class TestLammps:
          ([WRONG_IN], 'Unknown command: error (src/input.cpp:314)')])
     def testRun(self, raw, expected, called):
         raw.error = called
-        proc = raw.run()
-        assert bool(expected) == bool(proc.returncode)
+        raw.run()
+        assert bool(expected) == bool(raw.proc.returncode)
 
     @pytest.mark.parametrize('args', [[SI_IN]])
-    @pytest.mark.parametrize('returncode,expected', [(0, 11), (1, 6)])
+    @pytest.mark.parametrize('returncode,expected', [(0, 9), (1, 4)])
     def testArgs(self, raw, returncode, expected):
-        return_value = mock.Mock(returncode=returncode)
-        with mock.patch('nemd.process.Process.run', return_value=return_value):
+        with mock.patch('subprocess.run',
+                        return_value=mock.Mock(returncode=returncode)):
             assert expected == len(raw.args)

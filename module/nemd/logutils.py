@@ -516,7 +516,8 @@ class Base(builtinsutils.Object):
 
         :param msg str: the msg to be printed
         """
-        self.log(msg)
         if self.logger:
-            self.log('Aborting...', timestamp=True)
+            self.log(f'{msg}\nAborting...', timestamp=True)
+        else:
+            sys.stderr.write(msg)
         sys.exit(1)

@@ -242,16 +242,16 @@ class TestMain:
         assert expected == check.Main(args).Class
 
     @conftest.require_src
+    @mock.patch('nemd.logutils.Base.error', side_effect=SystemExit)
     @pytest.mark.parametrize('dirname,args,expected,msg', [
         ('0000', ('exist', 'wa'), SystemExit, 'wa not found.'),
         ('0000', ('exist2', 'cmd'), SystemExit,
          'exist2 found. Please select from exist, glob, has, cmp, collect, merge.'
          ), ('0000', ('exist', 'cmd'), None, None)
     ])
-    def testRun(self, args, expected, copied, msg, raises):
-        with mock.patch('nemd.logutils.Base.log') as mocked:
-            main = check.Main(args)
-            with raises:
-                main.run()
-            if msg is not None:
-                mocked.assert_called_once_with(msg)
+    def testRun(self, mocked, args, expected, copied, msg, raises, error):
+        main = check.Main(args)
+        with raises:
+            main.run()
+        if msg:
+            mocked.assert_called_once_with(msg)

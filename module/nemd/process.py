@@ -5,6 +5,7 @@ This class processes the executables.
 """
 import glob
 import os
+import re
 import subprocess
 
 from nemd import builtinsutils
@@ -20,6 +21,7 @@ class Base(builtinsutils.Object):
     """
     RUN = None
     SEP = ' '
+    STD_EXT = '.std'
 
     def __init__(self, dirname=None, jobname=None, env=None):
         """
@@ -30,7 +32,7 @@ class Base(builtinsutils.Object):
         self.dirname = dirname or os.curdir
         self.jobname = jobname or envutils.get_jobname() or self.name
         self.env = env
-        self.stdout = f"{self.jobname}.std"
+        self.stdout = f"{self.jobname}{self.STD_EXT}"
         self.proc = None
 
     def run(self):
@@ -67,6 +69,30 @@ class Base(builtinsutils.Object):
         :return list: the arguments to build the command
         """
         return ['echo', 'hi']
+
+    @property
+    def msg(self):
+        """
+        The stdout message.
+
+        :return str: the stdout message.
+        """
+        if os.path.exists(self.stdout):
+            with open(self.stdout) as fh:
+                return fh.read()
+        return ''
+
+    @property
+    def err(self):
+        """
+        Get the error message.
+
+        :return str: the error message.
+        """
+        if self.proc is None:
+            return
+        return self.proc.stderr or \
+            (self.proc.returncode and 'non-zero return code') or ''
 
 
 class Process(Base):
@@ -137,7 +163,7 @@ class Submodule(Base):
                             f"{self.jobname}{self.ext}")
         outfiles = glob.glob(os.path.relpath(patt, start=os.curdir))
         if not outfiles:
-            raise FileNotFoundError(f"{patt} not found.\n{self.proc.stderr}")
+            raise FileNotFoundError(f"{patt} not found.\n{self.err}")
         return outfiles
 
     @property
@@ -147,7 +173,7 @@ class Submodule(Base):
 
         :return str: the file extension.
         """
-        return symbols.LOG_EXT
+        return self.STD_EXT
 
     @property
     def files(self):
@@ -184,10 +210,19 @@ class Lmp(Submodule):
         """
         See parent.
         """
-        return [
-            jobutils.FLAG_IN, self.infile, jobutils.FLAG_SCREEN,
-            f"{self.jobname}.screen", jobutils.FLAG_LOG, self.logfile
-        ]
+        return [jobutils.FLAG_IN, self.infile, jobutils.FLAG_LOG, self.logfile]
+
+    @property
+    def err(self, rex=re.compile(f'ERROR: (.*)')):
+        """
+        The error message.
+
+        :param `re.Pattern` rex: the regular expression to search error.
+        :return str: the error message.
+        """
+        # FIXME: the message by error->one (src/input.cpp:666) not in either stdout or stderr
+        err = '\n'.join(x.group(1) for x in rex.finditer(self.msg))
+        return err or super().err
 
 
 class Submodules(Submodule):

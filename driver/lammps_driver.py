@@ -100,36 +100,27 @@ class Lammps(logutils.Base, process.Lmp):
         with open(self.infile, 'w') as fh:
             fh.write(self.cont)
 
-    def run(self, rex=re.compile(f'ERROR: (.*)')):
+    def run(self):
         """
         See parent.
-
-        :param `re.Pattern` rex: the regular expression to search error.
         """
         self.log('Running lammps simulations...')
         super().run()
-        if not self.proc.returncode:
-            return
-        # FIXME: the message by error->one (src/input.cpp:666) not in either stdout or stderr
-        if self.proc.stderr:
-            self.error(self.proc.stderr)
-        if not os.path.exists(self.logfile):
-            return
-        with open(self.logfile, 'r') as fh:
-            cont = rex.finditer(fh.read())
-            self.error('\n'.join(x.group(1) for x in cont))
+        if self.proc.returncode:
+            self.error(self.err)
 
     @functools.cached_property
     def args(self):
         """
         See parent.
         """
-        args = super().args
         proc = process.Process(self.RUN + ['-h', '|', 'grep', 'GPU'],
                                jobname=f'{self.options.JOBNAME}_gpu')
-        if not proc.run().returncode:
-            args += ['-sf', 'gpu', '-pk', 'gpu', '1']
-        return args
+        proc.run()
+        args = [] if proc.proc.returncode else [
+            '-sf', 'gpu', '-pk', 'gpu', '1'
+        ]
+        return super().args + args
 
 
 if __name__ == "__main__":

@@ -283,8 +283,8 @@ class TestReader:
 class TestBase:
 
     @pytest.fixture
-    def base(self):
-        return logutils.Base(logger=mock.Mock())
+    def base(self, logger):
+        return logutils.Base(logger=logger)
 
     @mock.patch('nemd.logutils.print')
     @pytest.mark.parametrize('has_logger', [False, True])
@@ -308,11 +308,11 @@ class TestBase:
     @pytest.mark.parametrize(
         'has_logger,expected',
         [(False, ['msg', {}]),
-         (True, ["Aborting...", dict(timestamp=True)])])
+         (True, ["msg\nAborting...", dict(timestamp=True)])])
     def testError(self, mocked, base, has_logger, expected):
         if not has_logger:
             base.logger = None
-        base.log = mock.Mock()
         base.error('msg')
         mocked.exit.assert_called_with(1)
-        base.log.assert_called_with(expected[0], **expected[1])
+        to_assert = base.logger.log if has_logger else mocked.stderr.write
+        to_assert.assert_called_with(expected[0], **expected[1])

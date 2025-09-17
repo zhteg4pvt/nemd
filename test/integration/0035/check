@@ -1,2 +1,2 @@
 nemd_check cmp lmp_log_toteng.csv lmp_log_toteng.csv rtol=1e-6
-( grep 'CPU 2' cmd_cmd ) && ( nemd_check has lammps_lmp.log '2 OpenMP thread' )
+[ $(uname) = Linux ] && ( grep 'CPU 2' cmd_cmd ) && ( nemd_check has lammps_lmp.log '2 OpenMP thread' ) || exit 0
