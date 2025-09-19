@@ -629,6 +629,7 @@ class Driver(argparse.ArgumentParser, builtinsutils.Object):
                               help='0: native; 1: compiled; 2: cached.')
         if FLAG_CPU in self.JFLAGS:
             self.add_argument(FLAG_CPU,
+                              metavar='INT',
                               type=type_positive_int,
                               nargs='+',
                               help='Total number of CPUs [CPUs per task].')
@@ -936,6 +937,7 @@ class XtalBldr(Bldr):
             help='Name to retrieve the crystal structure from the database.')
         parser.add_argument(
             cls.FLAG_DIMENSION,
+            metavar='INT',
             default=cls.ONES,
             nargs='+',
             type=int,
@@ -987,7 +989,7 @@ class LmpLog(Lammps):
     FLAG_SLICE = '-slice'
     LAST_FRM = [x.name for x in analyzer.THERMO]
     TASKS = LAST_FRM + [symbols.ALL]
-    TASK_HELP = 'Searches, combines and averages thermodynamic info.'
+    HELP = 'Searches, combines and averages thermodynamic info.'
 
     @classmethod
     def add(cls,
@@ -1014,7 +1016,7 @@ class LmpLog(Lammps):
                             choices=cls.TASKS,
                             action=action,
                             default=[task],
-                            help=cls.TASK_HELP)
+                            help=cls.HELP)
         parser.add_argument(cls.FLAG_DATA_FILE,
                             type=type_file,
                             help='Structure and force field.')
@@ -1039,7 +1041,7 @@ class LmpTraj(LmpLog):
     """
     FLAG = 'trj'
     TASKS = [x.name for x in analyzer.TRAJ]
-    TASK_HELP = ', '.join(x.__doc__.strip().lower() for x in analyzer.TRAJ)
+    HELP = ', '.join(x.__doc__.strip(' .\n').lower() for x in analyzer.TRAJ)
     LAST_FRM = [x.name for x in [analyzer.MSD, analyzer.RDF]]
 
     @classmethod

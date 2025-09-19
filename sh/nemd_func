@@ -7,7 +7,6 @@ Usage:
   . nemd_func
   format_py yapf
   format_py isort
-
 '
 # Python
 python() { python3.10 "$@"; }
