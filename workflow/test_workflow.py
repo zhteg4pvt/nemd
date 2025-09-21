@@ -5,12 +5,12 @@
 """
 Run integration, scientific, or performance tests.
 
-Each one-integer sub-folder contain one cmd file.
+Each test contains one cmd file with dirname being the test id.
 Each integration test contains a check file to verify the expected outputs.
 Each performance test may contain a param file to parameterize the command.
 
-Supported check commands: exist, glob, has, cmp, and collect
-Supported tag commands: slow, label
+Supported check commands: exist, glob, has, cmp, and collect.
+Supported tag commands: slow, label.
 """
 import functools
 import os

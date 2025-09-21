@@ -208,10 +208,12 @@ class Cmd(taskbase.Cmd):
         """
         if self.options.name != self.PERFORMANCE:
             return
-        for idx, cmd in enumerate(self.args):
-            if jobutils.NEMD_RUN not in cmd:
+        for index, cmd in enumerate(self.args):
+            try:
+                idx = cmd.index(jobutils.NEMD_RUN)
+            except ValueError:
                 continue
-            self.args[idx] = f"{envutils.MEM_INTVL}=1 {cmd}"
+            self.args[index] = f"{cmd[:idx]}{envutils.MEM_INTVL}=1 {cmd[idx:]}"
 
     def setScreen(self):
         """
