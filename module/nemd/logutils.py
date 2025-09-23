@@ -519,5 +519,5 @@ class Base(builtinsutils.Object):
         if self.logger:
             self.log(f'{msg}\nAborting...', timestamp=True)
         else:
-            sys.stderr.write(msg)
+            sys.stderr.write(f"{msg}\n")
         sys.exit(1)

@@ -246,7 +246,7 @@ class TestMain:
     @pytest.mark.parametrize('dirname,args,expected,msg', [
         ('0000', ('exist', 'wa'), SystemExit, 'wa not found.'),
         ('0000', ('exist2', 'cmd'), SystemExit,
-         'exist2 found. Please select from exist, glob, has, cmp, collect, merge.'
+         'exist2 found. Please select from exist, glob, has, cmp, collect, merge.\n'
          ), ('0000', ('exist', 'cmd'), None, None)
     ])
     def testRun(self, mocked, args, expected, copied, msg, raises, error):

@@ -173,7 +173,7 @@ class Check(Base):
         tokens = [sub_re.sub(replacement, x) for x in self.args]
         proc = process.Check(tokens, jobname=self.name)
         proc.run()
-        return proc.err
+        return proc.err.strip('\n')
 
     @functools.cached_property
     def raw(self, default='nemd_check collect finished dropna=False'):

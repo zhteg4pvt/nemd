@@ -387,7 +387,7 @@ class Main(logutils.Base):
         """
         if not self.Class:
             self.error(f"{self.args[0]} found. Please select from "
-                       f"{', '.join([x.name for x in self.CLASSES])}.")
+                       f"{', '.join([x.name for x in self.CLASSES])}.\n")
         matches = [rex.match(x) for x in self.args[1:]]
         args = [x.strip() for x, y in zip(self.args[1:], matches) if y is None]
         kwargs = dict([[y.strip() for y in x.groups()] for x in matches if x])

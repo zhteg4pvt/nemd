@@ -307,7 +307,7 @@ class TestBase:
     @mock.patch('nemd.logutils.sys')
     @pytest.mark.parametrize(
         'has_logger,expected',
-        [(False, ['msg', {}]),
+        [(False, ['msg\n', {}]),
          (True, ["msg\nAborting...", dict(timestamp=True)])])
     def testError(self, mocked, base, has_logger, expected):
         if not has_logger:
