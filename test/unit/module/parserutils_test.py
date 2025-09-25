@@ -1,5 +1,6 @@
 import argparse
 import os
+import pathlib
 from unittest import mock
 
 import conftest
@@ -21,109 +22,128 @@ TRAJ_FILE = envutils.test_data(AR, 'ar100.custom.gz')
 RAISED = argparse.ArgumentTypeError
 
 
+@conftest.require_src
 @pytestutils.Raises
-class TestType:
+class TestPath:
 
-    @conftest.require_src
+    @pytest.mark.parametrize('arg,expected', [('not_existing', RAISED),
+                                              (TRAJ_FILE, TRAJ_FILE),
+                                              (AR_DIR, AR_DIR)])
+    def testType(self, arg, expected):
+        assert expected == str(parserutils.Path.type(arg))
+
     @pytest.mark.parametrize('arg,expected', [('not_existing', RAISED),
                                               (TRAJ_FILE, TRAJ_FILE)])
-    def testFile(self, arg, expected):
-        assert expected == parserutils.type_file(arg)
+    def testTypeFile(self, arg, expected):
+        assert expected == str(parserutils.Path.typeFile(arg))
 
-    @conftest.require_src
-    @pytest.mark.parametrize('arg,expected', [(AR_DIR, None),
+    @pytest.mark.parametrize('arg,expected', [(AR_DIR, AR_DIR),
                                               ('not_existing', RAISED),
                                               (TRAJ_FILE, RAISED)])
-    def testDir(self, arg, expected):
-        parserutils.type_dir(arg)
+    def testTypeDir(self, arg, expected):
+        assert expected == str(parserutils.Path.typeDir(arg))
+
+
+@pytestutils.Raises
+class TestBool:
 
     @pytest.mark.parametrize('arg,expected', [('y', True), ('n', False),
                                               ('wa', RAISED)])
     def testBool(self, arg, expected):
-        assert expected == parserutils.type_bool(arg)
+        assert expected == parserutils.Bool.type(arg)
 
-    @pytest.mark.parametrize('arg,expected', [('123', 123), ('5.6', 5.6),
-                                              ('wa', RAISED),
-                                              ('None', RAISED)])
-    def testFloat(self, arg, expected):
-        assert expected == parserutils.type_float(arg)
 
-    @pytest.mark.parametrize('arg,expected', [('1', 1), ('None', None),
-                                              ('none', None)])
-    def testInt(self, arg, expected):
-        assert expected == parserutils.type_int(arg)
-
-    @pytest.mark.parametrize('arg,expected', [('0', 0), ('1.12', RAISED),
-                                              ('-1', -1)])
-    def testInt(self, arg, expected):
-        assert expected == parserutils.type_int(arg)
+@pytestutils.Raises
+class TestRange:
 
     @pytest.mark.parametrize('bottom,top', [(100, 200)])
-    @pytest.mark.parametrize('value,included_bottom,include_top,expected',
+    @pytest.mark.parametrize('value,incl_bot,incl_top,expected',
                              [(123, True, True, 123), (100, True, True, 100),
                               (100, False, True, RAISED),
                               (200, False, True, 200),
                               (200, False, False, RAISED)])
-    def testRanged(self, value, bottom, top, included_bottom, include_top,
-                   expected):
-        assert expected == parserutils.type_ranged(
-            value,
-            bottom=bottom,
-            top=top,
-            included_bottom=included_bottom,
-            include_top=include_top)
+    def testRun(self, value, bottom, top, incl_bot, incl_top, expected):
+        ranged = parserutils.Range(value,
+                                   bottom=bottom,
+                                   top=top,
+                                   incl_bot=incl_bot,
+                                   incl_top=incl_top)
+        ranged.typed = value
+        ranged.run()
 
-    @pytest.mark.parametrize('bottom,top', [(1.12, 3.45)])
-    @pytest.mark.parametrize('arg,included_bottom,include_top,expected',
-                             [('2', True, True, 2), ('1.12', True, True, 1.12),
-                              ('1.12', False, True, RAISED),
-                              ('3.45', False, True, 3.45),
-                              ('3.45', False, False, RAISED)])
-    def testRangedFloat(self, arg, bottom, top, included_bottom, include_top,
-                        expected):
-        assert expected == parserutils.type_ranged_float(
-            arg,
-            bottom=bottom,
-            top=top,
-            included_bottom=included_bottom,
-            include_top=include_top)
 
-    @pytest.mark.parametrize('arg,expected', [('0', 0), ('1.12', 1.12),
-                                              ('-1.12', RAISED)])
-    def testNonnegativeFloat(self, arg, expected):
-        assert expected == parserutils.type_nonnegative_float(arg)
+@pytestutils.Raises
+class TestInt:
 
-    @pytest.mark.parametrize('arg,expected', [('0', RAISED), ('1.12', 1.12),
-                                              ('-1.12', RAISED)])
-    def testPositiveFloat(self, arg, expected):
-        parserutils.type_positive_float(arg)
+    @pytest.mark.parametrize('arg,expected', [('0', 0), ('1.12', RAISED),
+                                              ('-1', -1)])
+    def testType(self, arg, expected):
+        assert expected == parserutils.Int.type(arg)
+
+    @pytest.mark.parametrize('arg,expected', [('1', 1), ('None', None),
+                                              ('none', None)])
+    def testTypeSlice(self, arg, expected):
+        assert expected == parserutils.Int.typeSlice(arg)
 
     @pytest.mark.parametrize('arg,expected', [('1', 1), ('0', RAISED),
                                               ('-1', RAISED)])
-    def testPositiveInt(self, arg, expected):
-        assert expected == parserutils.type_positive_int(arg)
+    def testTypePositive(self, arg, expected):
+        assert expected == parserutils.Int.typePositive(arg)
 
     @pytest.mark.parametrize('arg,expected', [('1', 1), ('0', 0),
                                               ('-1', RAISED)])
-    def testNonnegativeInt(self, arg, expected):
-        assert expected == parserutils.type_nonnegative_int(arg)
+    def testTypeNonnegative(self, arg, expected):
+        assert expected == parserutils.Int.typeNonnegative(arg)
 
     @pytest.mark.parametrize('arg,expected', [('0', 0), ('1234', 1234),
                                               ('-1', RAISED), (2**31, RAISED)])
-    def testRandomSeed(self, arg, expected):
-        assert expected == parserutils.type_random_seed(arg)
+    def testSeed(self, arg, expected):
+        assert expected == parserutils.Int.typeSeed(arg)
 
-    @pytest.mark.parametrize('arg,expected', [('C', 1), ('not_valid', RAISED)])
+
+@pytestutils.Raises
+class TestFloat:
+
+    @pytest.mark.parametrize('bottom,top', [(1.12, 3.45)])
+    @pytest.mark.parametrize('arg,incl_bot,incl_top,expected',
+                             [('2', True, True, 2), ('1.12', True, True, 1.12),
+                              ('wa', True, True, RAISED),
+                              ('None', True, True, RAISED),
+                              ('1.12', False, True, RAISED),
+                              ('3.45', False, True, 3.45),
+                              ('3.45', False, False, RAISED)])
+    def testType(self, arg, bottom, top, incl_bot, incl_top, expected):
+        assert expected == parserutils.Float.type(arg,
+                                                  bottom=bottom,
+                                                  top=top,
+                                                  incl_bot=incl_bot,
+                                                  incl_top=incl_top)
+
+    @pytest.mark.parametrize('arg,expected', [('0', RAISED), ('1.12', 1.12),
+                                              ('-1.12', RAISED)])
+    def testPositive(self, arg, expected):
+        parserutils.Float.typePositive(arg)
+
+    @pytest.mark.parametrize('arg,expected', [('0', 0), ('1.12', 1.12),
+                                              ('-1.12', RAISED)])
+    def testNonnegative(self, arg, expected):
+        assert expected == parserutils.Float.typeNonnegative(arg)
+
+
+@pytestutils.Raises
+class TestSmile:
+
+    @pytest.mark.parametrize('arg,expected', [('C', 'C'),
+                                              ('not_valid', RAISED)])
     def testTypeSmiles(self, arg, expected):
-        assert expected == parserutils.type_smiles(arg).GetNumAtoms()
+        assert expected == parserutils.Smiles.type(arg)
 
     @pytest.mark.parametrize('arg,allow_reg,expected',
                              [('C', True, 'C'), ('C', False, RAISED),
                               ('*C*', False, '*C[*:1]'),
                               ('*C*.C', False, RAISED), ('C*', True, '*C')])
     def testCruSmiles(self, arg, allow_reg, expected):
-        assert expected == parserutils.type_cru_smiles(arg,
-                                                       allow_reg=allow_reg)
+        assert expected == parserutils.Smiles.type(arg, allow_reg=allow_reg)
 
 
 class TestLastPct:
@@ -205,7 +225,7 @@ class TestAction:
         assert expected == parser.parse_args(args).dest
 
     @pytest.mark.parametrize(
-        'action,dtype', [(parserutils.SliceAction, parserutils.type_slice)])
+        'action,dtype', [(parserutils.SliceAction, parserutils.Int.typeSlice)])
     @pytest.mark.parametrize('args,expected',
                              [(['9'], (9, )), (['9', '1'], (9, 1)),
                               (['1', '9', '3'], (1, 9, 3)),
@@ -215,10 +235,11 @@ class TestAction:
         assert expected == parser.parse_args(args).dest
 
     @pytest.mark.parametrize('action,dtype', [(parserutils.StructAction, str)])
-    @pytest.mark.parametrize('args,expected', [(['CCC', '36'], ('CCC', 36)),
-                                               (['CC'], ('CC', )),
-                                               (['CCC', 'non_float'], RAISED),
-                                               (['non_smiles'], RAISED)])
+    @pytest.mark.parametrize('args,expected',
+                             [(['CCC', '36.6'], ('CCC', 36.6)),
+                              (['CC'], ('CC', )),
+                              (['CCC', 'non_float'], RAISED),
+                              (['non_smiles'], RAISED)])
     def testStruct(self, parser, args, expected):
         assert expected == parser.parse_args(args).dest
 
@@ -500,17 +521,18 @@ class TestAdd:
     @conftest.require_src
     @pytest.mark.parametrize(
         'args,expected',
-        [([EMPTY_IN], [EMPTY_IN, None]),
+        [([EMPTY_IN], [EMPTY_IN, 'None']),
          ([MISS_DATA_IN, '-data_file', DATA_FILE], [MISS_DATA_IN, DATA_FILE])])
     def testLammps(self, args, expected, parser):
         parserutils.Lammps.add(parser)
         options = parser.parse_args(args)
-        assert expected == [options.inscript, options.data_file]
+        assert expected == list(map(str,
+                                    [options.inscript, options.data_file]))
 
     @conftest.require_src
     @pytest.mark.parametrize(
         'args,positional,expected',
-        [([], False, [['toteng'], None,
+        [([], False, [['toteng'], 'None',
                       parserutils.LastPct(0.2), None]),
          ([
              LOG_FILE, '-task', 'temp', 'e_mol', '-data_file', DATA_FILE,
@@ -521,13 +543,14 @@ class TestAdd:
         options = parser.parse_args(args)
         assert positional == hasattr(options, 'log')
         assert expected == [
-            options.task, options.data_file, options.last_pct, options.slice
+            options.task,
+            str(options.data_file), options.last_pct, options.slice
         ]
 
     @conftest.require_src
     @pytest.mark.parametrize(
         'args,positional,expected',
-        [([], False, [['density'], None,
+        [([], False, [['density'], 'None',
                       parserutils.LastPct(0.2), None]),
          ([
              TRAJ_FILE, '-task', 'rdf', 'msd', '-data_file', DATA_FILE,
@@ -538,7 +561,8 @@ class TestAdd:
         options = parser.parse_args(args)
         assert positional == hasattr(options, 'trj')
         assert expected == [
-            options.task, options.data_file, options.last_pct, options.slice
+            options.task,
+            str(options.data_file), options.last_pct, options.slice
         ]
 
 

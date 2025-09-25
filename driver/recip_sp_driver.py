@@ -340,7 +340,7 @@ class Parser(parserutils.Driver):
         """
         self.add_argument('-miller',
                           metavar='FLOAT',
-                          type=parserutils.type_float,
+                          type=parserutils.Float.type,
                           nargs=2,
                           action=MillerAction,
                           default=(0.5, 2.),

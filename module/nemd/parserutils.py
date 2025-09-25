@@ -26,219 +26,277 @@ FLAG_NAME = '-name'
 FLAG_CPU = jobutils.FLAG_CPU
 
 
-def type_file(arg):
+class Base:
     """
-    Check file existence.
-
-    :param arg str: the input argument.
-    :return str: the existing namepath of the file.
-    :raise ArgumentTypeError: if the file is not found.
+    Typer Base.
     """
-    if os.path.isfile(arg):
-        return arg
-    raise argparse.ArgumentTypeError(f'{arg} not found')
+
+    def __init__(self, arg):
+        """
+        :param arg str: original input arg.
+        """
+        self.arg = arg
+        self.typed = None
+
+    @classmethod
+    def type(cls, *args, **kwargs):
+        """
+        Check existence.
+
+        :return any: the typed.
+        """
+        obj = cls(*args, **kwargs)
+        obj.run()
+        return obj.typed
+
+    def run(self):
+        """
+        Main method to type and check.
+        """
+        self.typed = self.arg
+
+    @staticmethod
+    def error(msg):
+        """
+        Raise ArgumentTypeError.
+
+        :param msg str: the message to raise.
+        :raise ArgumentTypeError: raise the error.
+        """
+        raise argparse.ArgumentTypeError(msg)
 
 
-def type_dir(arg):
+class Path(Base):
     """
-    Check directory existence.
-
-    :param arg str: the input argument.
-    :return 'PosixPath': the existing directory path.
-    :raise ArgumentTypeError: if the directory doesn't exist.
+    Type namepath and check existence.
     """
-    namepath = pathlib.Path(arg)
-    if namepath.is_dir():
-        return namepath
-    raise argparse.ArgumentTypeError(f'{arg} is not an existing directory')
+    FILE = 'file'
+    DIRECTORY = 'directory'
+
+    def __init__(self, *args, atype='path'):
+        """
+        :param atype str: the type of the namepath.
+        """
+        super().__init__(*args)
+        self.atype = atype
+
+    def run(self):
+        """
+        Check existence.
+
+        :raise ArgumentTypeError: if the requested type of namepath not found.
+        """
+        self.typed = pathlib.Path(self.arg)
+        match self.atype:
+            case self.FILE:
+                existed = self.typed.is_file()
+            case self.DIRECTORY:
+                existed = self.typed.is_dir()
+            case _:
+                existed = self.typed.exists()
+        if not existed:
+            self.error(f'{self.typed} is not an existing {self.atype}')
+
+    @classmethod
+    def typeFile(cls, *args, atype=FILE):
+        """
+        Check file existence.
+
+        :return 'PosixPath': the existing file path.
+        """
+        return cls.type(*args, atype=atype)
+
+    @classmethod
+    def typeDir(cls, *args, atype=DIRECTORY):
+        """
+        Check directory existence.
+
+        :return 'PosixPath': the existing directory path.
+        """
+        return cls.type(*args, atype=atype)
 
 
-def type_bool(arg):
+class Bool(Base):
     """
-    Check and convert to a boolean.
-
-    :param arg str: the input argument.
-    :return str: the coverted boolean value.
-    :raise ArgumentTypeError: if the arg is not a valid boolean value.
+    Bool typer.
     """
-    match arg.lower():
-        case 'y' | 'yes' | 't' | 'true' | 'on' | '1':
-            return True
-        case '' | 'n' | 'no' | 'f' | 'false' | 'off' | '0':
-            return False
-        case _:
-            raise argparse.ArgumentTypeError(f'{arg} is not a valid boolean')
+
+    def run(self):
+        """
+        Check and convert to a boolean.
+        """
+        match self.arg.lower():
+            case 'y' | 'yes' | 't' | 'true' | 'on' | '1':
+                self.typed = True
+            case '' | 'n' | 'no' | 'f' | 'false' | 'off' | '0':
+                self.typed = False
+            case _:
+                self.error(f'{self.arg} is not a valid boolean')
 
 
-def type_float(arg):
+class Range(Base):
     """
-    Check and convert to a float.
-
-    :param arg str: the input argument.
-    :return `float`: the converted float value.
-    :raise ArgumentTypeError: argument cannot be converted to a float.
+    Numeric Range base.
     """
-    try:
-        return float(arg)
-    except ValueError:
-        raise argparse.ArgumentTypeError(f'Cannot convert {arg} to a float')
+
+    def __init__(self,
+                 *args,
+                 bottom=None,
+                 top=None,
+                 incl_bot=True,
+                 incl_top=True):
+        """
+        :param bottom `float``: the lower bound of the range.
+        :param top `float`: the upper bound of the range.
+        :param incl_bot bool: whether the lower bound is allowed
+        :param incl_top bool: whether the upper bound is allowed
+        """
+        super().__init__(*args)
+        self.bottom = bottom
+        self.top = top
+        self.incl_bot = incl_bot
+        self.incl_top = incl_top
+
+    def run(self):
+        """
+        Check whether the float is within the range.
+        """
+        if self.bottom is not None:
+            if self.typed < self.bottom:
+                self.error(f'{self.typed} < {self.bottom}')
+            if not self.incl_bot and self.typed == self.bottom:
+                self.error(f'{self.typed} == {self.bottom}')
+        if self.top is not None:
+            if self.typed > self.top:
+                self.error(f'{self.typed} > {self.top}')
+            if not self.incl_top and self.typed == self.top:
+                self.error(f'{self.typed} == {self.top}')
 
 
-def type_slice(arg):
+class Int(Range):
+    """"
+    Integer typer.
     """
-    Check and convert to an integer or None.
 
-    :param arg str: the input argument.
-    :return `int`: the converted integer or None.
-    :raise ArgumentTypeError: argument cannot be converted to an integer.
+    def run(self):
+        """
+        Type int and check range.
+        """
+        try:
+            self.typed = int(self.arg)
+        except ValueError:
+            self.error(f'Cannot convert {self.arg} to an integer')
+        super().run()
+
+    @classmethod
+    def typeSlice(cls, arg):
+        """
+        Check and convert to an integer or None.
+
+        :param arg str: the input argument.
+        :return `int`: the converted integer or None.
+        """
+        return None if arg.lower() == 'none' else cls.type(arg)
+
+    @classmethod
+    def typeNonnegative(cls, *args, bottom=0, **kwargs):
+        """
+        Check and convert to a nonnegative integer. (see init)
+
+        :return `int: the converted positive integer.
+        """
+        return cls.type(*args, bottom=bottom, **kwargs)
+
+    @classmethod
+    def typePositive(cls, *args, incl_bot=False, **kwargs):
+        """
+        Check and convert to a positive integer. (see init)
+
+        :return `int: the converted positive integer.
+        """
+        return cls.typeNonnegative(*args, incl_bot=incl_bot, **kwargs)
+
+    @classmethod
+    def typeSeed(cls, *args, bottom=0, top=symbols.MAX_INT32, **kwargs):
+        """
+        Check, convert, and set a random seed. (see init)
+
+        :return `int`: the converted random seed.
+        """
+        seed = cls.type(*args, bottom=bottom, top=top, **kwargs)
+        np.random.seed(seed)
+        random.seed(seed)
+        return seed
+
+
+class Float(Range):
+    """"
+    Integer typer.
     """
-    return None if arg.lower() == 'none' else type_int(arg)
+
+    def run(self):
+        """
+        Type float and check range.
+        """
+        try:
+            self.typed = float(self.arg)
+        except ValueError:
+            self.error(f'Cannot convert {self.arg} to a float')
+        super().run()
+
+    @classmethod
+    def typeNonnegative(cls, *args, bottom=0, **kwargs):
+        """
+        Check and convert to a non-negative float. (see init)
+
+        :return `float`: the converted non-negative value.
+        """
+        return cls.type(*args, bottom=bottom, **kwargs)
+
+    @classmethod
+    def typePositive(cls, *args, incl_bot=False, **kwargs):
+        """
+        Check and convert to a positive float. (see init)
+
+        :return `float`: the converted positive value.
+        """
+        return cls.typeNonnegative(*args, incl_bot=incl_bot, **kwargs)
 
 
-def type_int(arg):
+class Smiles(Base):
     """
-    Check and convert to an integer.
-
-    :param arg str: the input argument.
-    :return `int`: the converted integer.
-    :raise ArgumentTypeError: argument cannot be converted to an integer.
+    Type smiles and check.
     """
-    try:
-        return int(arg)
-    except ValueError:
-        raise argparse.ArgumentTypeError(f'Cannot convert {arg} to an integer')
 
+    def __init__(self, *args, allow_reg=True, canonize=True):
+        """
+        :param allow_reg bool: whether to allow regular molecule (without wildcard).
+        :param canonize bool: whether to canonize the SMILES.
+        """
+        super().__init__(*args)
+        self.allow_reg = allow_reg
+        self.canonize = canonize
 
-def type_ranged(value,
-                bottom=-symbols.MAX_INT32,
-                top=symbols.MAX_INT32,
-                included_bottom=True,
-                include_top=True):
-    """
-    Check whether the float is within the range.
+    def run(self, *args):
+        """
+        Check whether the smiles can be converted to constitutional repeating units.
 
-    :param value `float`: the value to be checked.
-    :param bottom `float``: the lower bound of the range.
-    :param top `float`: the upper bound of the range.
-    :param included_bottom bool: whether the lower bound is allowed
-    :param include_top bool: whether the upper bound is allowed
-    :return `float`: the checked value.
-    :raise ArgumentTypeError: argument is not within the range.
-    """
-    if included_bottom and value < bottom:
-        raise argparse.ArgumentTypeError(f'{value} < {bottom}')
-    if not included_bottom and value <= bottom:
-        raise argparse.ArgumentTypeError(f'{value} <= {bottom}')
-    if include_top and value > top:
-        raise argparse.ArgumentTypeError(f'{value} > {top}')
-    if not include_top and value >= top:
-        raise argparse.ArgumentTypeError(f'{value} >= {top}')
-    return value
-
-
-def type_ranged_float(arg, **kwargs):
-    """
-    Check and convert to a float within the range.
-
-    :param arg str: the input argument.
-    :return `float`: the converted value within the range.
-    """
-    value = type_float(arg)
-    return type_ranged(value, **kwargs)
-
-
-def type_nonnegative_float(arg):
-    """
-    Check and convert to a non-negative float.
-
-    :param arg str: the input argument.
-    :return `float`: the converted non-negative value.
-    """
-    return type_ranged_float(arg, bottom=0)
-
-
-def type_positive_float(arg, **kwargs):
-    """
-    Check and convert to a positive float.
-
-    :param arg str: the input argument.
-    :return `float`: the converted positive value.
-    """
-    return type_ranged_float(arg, bottom=0, included_bottom=False, **kwargs)
-
-
-def type_positive_int(arg):
-    """
-    Check and convert to a positive integer.
-
-    :param arg str: the input argument.
-    :return `int: the converted positive integer.
-    """
-    value = type_int(arg)
-    type_ranged(value, bottom=1)
-    return value
-
-
-def type_nonnegative_int(arg):
-    """
-    Check and convert to a nonnegative integer.
-
-    :param arg str: the input argument.
-    :return `int: the converted positive integer.
-    """
-    value = type_int(arg)
-    type_ranged(value, bottom=0)
-    return value
-
-
-def type_random_seed(arg):
-    """
-    Check, convert, and set a random seed.
-
-    :param arg str: the input argument.
-    :return `int`: the converted random seed.
-    """
-    value = type_int(arg)
-    type_ranged(value, bottom=0, top=symbols.MAX_INT32)
-    np.random.seed(value)
-    random.seed(value)
-    return value
-
-
-def type_smiles(arg):
-    """
-    Check and convert a smiles to a molecule.
-
-    :param arg str: the input argument.
-    :return `rdkit.Chem.rdchem.Mol: the converted molecule.
-    :raise ArgumentTypeError: argument cannot be converted to a valid molecule.
-    """
-    try:
-        value = rdkitutils.MolFromSmiles(arg)
-    except (ValueError, TypeError) as err:
-        raise argparse.ArgumentTypeError(f"Invalid SMILES: {arg}\n{err}")
-    return value
-
-
-def type_cru_smiles(arg, allow_reg=True, canonize=True):
-    """
-    Check whether the smiles can be converted to constitutional repeating units.
-
-    :param arg str: the input argument
-    :param allow_reg bool: whether to allow regular molecule (without wildcard).
-    :param canonize bool: whether to canonize the SMILES.
-    :return `rdkit.Chem.rdchem.Mol: the converted molecule.
-    :raise ArgumentTypeError: when unable to build a molecule from the smiles
-    """
-    mol = cru.Mol.MolFromSmiles(arg, allow_reg=allow_reg, united=False)
-    try:
-        mol.run()
-    except cru.MoietyError as err:
-        # 1) regular molecule(s) found but allow_reg=False
-        # 2) constitutional repeating units and regular molecules are mixed
-        # 3) constitutional repeating units are insufficient to build a polymer
-        raise argparse.ArgumentTypeError(str(err))
-    return mol.getSmiles(canonize=canonize)
+        :return `rdkit.Chem.rdchem.Mol: the converted molecule.
+        """
+        try:
+            mol = cru.Mol.MolFromSmiles(self.arg,
+                                        allow_reg=self.allow_reg,
+                                        united=False)
+        except (ValueError, TypeError) as err:
+            self.error(f"Invalid SMILES: {self.arg}\n{err}")
+        try:
+            mol.run()
+        except cru.MoietyError as err:
+            # 1) regular molecule(s) found but allow_reg=False
+            # 2) constitutional repeating units and regular molecules are mixed
+            # 3) constitutional repeating units are insufficient to build a polymer
+            self.error(str(err))
+        self.typed = mol.getSmiles(canonize=self.canonize)
 
 
 class LastPct(float):
@@ -254,7 +312,7 @@ class LastPct(float):
         :param arg str: the input argument.
         :return `cls`: the customized last percentage
         """
-        value = type_positive_float(arg, top=1)
+        value = Float.typePositive(arg, top=1)
         return cls(value)
 
     def getSidx(self, data, buffer=0):
@@ -399,8 +457,8 @@ class StructAction(Action):
         :param value str: the target value for the substructure to be set.
         :return tuple: the smiles str, (and the target value).
         """
-        type_smiles(smiles)
-        return (smiles, type_float(value)) if value is not None else (smiles, )
+        Smiles.type(smiles)
+        return (smiles, Float.type(value)) if value is not None else (smiles, )
 
 
 class ThreeAction(Action):
@@ -630,7 +688,7 @@ class Driver(argparse.ArgumentParser, builtinsutils.Object):
         if FLAG_CPU in self.JFLAGS:
             self.add_argument(FLAG_CPU,
                               metavar='INT',
-                              type=type_positive_int,
+                              type=Int.typePositive,
                               nargs='+',
                               help='Total number of CPUs [CPUs per task].')
             self.valids.add(CpuValid)
@@ -654,7 +712,7 @@ class Driver(argparse.ArgumentParser, builtinsutils.Object):
                           default=default,
                           nargs='?',
                           const=True,
-                          type=type_bool,
+                          type=Bool.type,
                           choices=[True, False],
                           help=help)
 
@@ -666,9 +724,9 @@ class Driver(argparse.ArgumentParser, builtinsutils.Object):
         :param parser `argparse.ArgumentParser`: the parser instance to set up
         """
         default = np.random.randint(0, symbols.MAX_INT32)
-        type_random_seed(default)
+        Int.typeSeed(default)
         parser.add_argument(jobutils.FLAG_SEED,
-                            type=type_random_seed,
+                            type=Int.typeSeed,
                             default=default,
                             help='Set random state.')
 
@@ -753,21 +811,21 @@ class MolBase(Bldr):
         """
         parser.add_argument(cls.FLAG_CRU,
                             metavar=cls.FLAG_CRU.upper(),
-                            type=type_cru_smiles,
+                            type=Smiles.type,
                             nargs='+',
                             help='SMILES of the constitutional repeat units.')
         parser.add_argument(
             cls.FLAG_CRU_NUM,
-            type=type_positive_int,
+            type=Int.typePositive,
             nargs='+',
             help='Number of constitutional repeat unit per polymer')
         parser.add_argument(cls.FLAG_MOL_NUM,
-                            type=type_positive_int,
+                            type=Int.typePositive,
                             nargs='+',
                             help='Number of molecules in the amorphous cell')
         # The buffer distance between molecules in the grid cell
         parser.add_argument(cls.FLAG_BUFFER,
-                            type=type_positive_float,
+                            type=Float.typePositive,
                             help=argparse.SUPPRESS)
         parser.valids.add(MolValid)
         cls.addBldr(parser, **kwargs)
@@ -800,24 +858,24 @@ class Md(Driver):
         """
         parser.add_argument(cls.FLAG_TIMESTEP,
                             metavar='fs',
-                            type=type_positive_float,
+                            type=Float.typePositive,
                             default=1,
                             help=f'Timestep for the MD simulation.')
         # 'Initialize the atoms with this temperature.'
         parser.add_argument(cls.FLAG_STEMP,
                             metavar='K',
-                            type=type_positive_float,
+                            type=Float.typePositive,
                             default=10,
                             help=argparse.SUPPRESS)
         parser.add_argument(cls.FLAG_TEMP,
                             metavar='K',
-                            type=type_nonnegative_float,
+                            type=Float.typeNonnegative,
                             default=300,
                             help=f'The equilibrium temperature target. A zero '
                             f'for single point energy.')
         # Temperature damping parameter in time unit
         parser.add_argument(cls.FLAG_TDAMP,
-                            type=type_positive_float,
+                            type=Float.typePositive,
                             help=argparse.SUPPRESS)
         parser.add_argument(cls.FLAG_PRESS,
                             metavar='atm',
@@ -826,16 +884,16 @@ class Md(Driver):
                             help="The equilibrium pressure target.")
         # Pressure damping parameter in time unit
         parser.add_argument(cls.FLAG_PDAMP,
-                            type=type_positive_float,
+                            type=Float.typePositive,
                             help=argparse.SUPPRESS)
         parser.add_argument(cls.FLAG_RELAX_TIME,
                             metavar='ns',
-                            type=type_nonnegative_float,
+                            type=Float.typeNonnegative,
                             default=1,
                             help='Relaxation simulation time.')
         parser.add_argument(cls.FLAG_PROD_TIME,
                             metavar='ns',
-                            type=type_positive_float,
+                            type=Float.typePositive,
                             default=1,
                             help='Production simulation time.')
         parser.add_argument(cls.FLAG_PROD_ENS,
@@ -898,9 +956,9 @@ class AmorpBldr(MolBase):
         parser.add_argument(
             cls.FLAG_DENSITY,
             metavar='g/cm^3',
-            type=functools.partial(type_ranged_float,
+            type=functools.partial(Float.type,
                                    bottom=0,
-                                   included_bottom=False,
+                                   incl_bot=False,
                                    top=30),
             default=0.5,
             help=f'The density used for {cls.PACK} and {cls.GROW} cells.')
@@ -948,7 +1006,7 @@ class XtalBldr(Bldr):
             cls.FLAG_SCALED_FACTOR,
             default=cls.ONES,
             nargs='+',
-            type=type_positive_float,
+            type=Float.typePositive,
             action=ThreeAction,
             help='Each lattice vector is scaled by the corresponding factor.')
         super().add(parser, **kwargs)
@@ -972,10 +1030,10 @@ class Lammps(Driver):
         """
         parser.add_argument(cls.FLAG_INSCRIPT,
                             metavar=cls.FLAG_INSCRIPT.upper(),
-                            type=type_file,
+                            type=Path.typeFile,
                             help='Simulation protocol.')
         parser.add_argument(cls.FLAG_DATA_FILE,
-                            type=type_file,
+                            type=Path.typeFile,
                             help='Structure and force field.')
         parser.valids.add(LmpValid)
 
@@ -1008,7 +1066,7 @@ class LmpLog(Lammps):
         if positional:
             parser.add_argument(cls.FLAG,
                                 metavar=cls.FLAG.upper(),
-                                type=type_file,
+                                type=Path.typeFile,
                                 help=f'The {cls.FLAG} file to analyze.')
         parser.add_argument(jobutils.FLAG_TASK,
                             type=str.lower,
@@ -1018,7 +1076,7 @@ class LmpLog(Lammps):
                             default=[task],
                             help=cls.HELP)
         parser.add_argument(cls.FLAG_DATA_FILE,
-                            type=type_file,
+                            type=Path.typeFile,
                             help='Structure and force field.')
         parser.add_argument(
             cls.FLAG_LAST_PCT,
@@ -1029,7 +1087,7 @@ class LmpLog(Lammps):
         parser.add_argument(
             cls.FLAG_SLICE,
             metavar='START END STEP',
-            type=type_slice,
+            type=Int.typeSlice,
             action=SliceAction,
             nargs='+',
             help="Slice the input data by END, START END, or START END STEP.")
@@ -1059,7 +1117,7 @@ class LmpTraj(LmpLog):
             parser.valids.add(TrajValid)
             parser.add_argument(Md.FLAG_TIMESTEP,
                                 metavar='fs',
-                                type=type_positive_float,
+                                type=Float.typePositive,
                                 default=1,
                                 help='Trajectory timetep.')
 
@@ -1096,7 +1154,7 @@ class Workflow(Driver):
             self.add_argument(
                 self.FLAG_STATE_NUM,
                 default=1,
-                type=type_positive_int,
+                type=Int.typePositive,
                 help='Total number of the states (e.g., dynamical system).')
         if self.FLAG_JTYPE in self.WFLAGS:
             # Task jobs have to register outfiles to be considered as completed
@@ -1109,7 +1167,7 @@ class Workflow(Driver):
                 help=f'{symbols.TASK}: run tasks and register files; '
                 f'{symbols.AGGREGATOR}: collect results.')
             self.add_argument('-prj_path',
-                              type=type_dir,
+                              type=Path.typeDir,
                               help='Collect jobs from this directory.')
         if self.FLAG_CLEAN in self.WFLAGS:
             self.add_argument(self.FLAG_CLEAN,

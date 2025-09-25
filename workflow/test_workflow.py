@@ -167,7 +167,7 @@ class Parser(parserutils.Workflow):
         """
         self.add_argument('id',
                           metavar='INT',
-                          type=parserutils.type_positive_int,
+                          type=parserutils.Int.typePositive,
                           nargs='*',
                           help='Select the tests by ids.')
         self.add_argument(parserutils.FLAG_NAME,
@@ -177,11 +177,11 @@ class Parser(parserutils.Workflow):
                           f'{self.SCIENTIFIC}: physical meaningful; '
                           f'{self.PERFORMANCE}: resource efficient.')
         self.add_argument(FLAG_DIRNAME,
-                          type=parserutils.type_dir,
+                          type=parserutils.Path.typeDir,
                           help='Search test(s) under this directory.')
         self.add_argument(
             '-slow',
-            type=parserutils.type_positive_float,
+            type=parserutils.Float.typePositive,
             metavar='SECOND',
             help='Skip (sub)tests marked with time longer than this criteria.')
         self.add_argument('-label',

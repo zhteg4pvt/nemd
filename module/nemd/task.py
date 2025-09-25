@@ -20,7 +20,6 @@ from nemd import jobutils
 from nemd import lmpin
 from nemd import logutils
 from nemd import parserutils
-from nemd import rdkitutils
 from nemd import structure
 from nemd import symbols
 from nemd import taskbase

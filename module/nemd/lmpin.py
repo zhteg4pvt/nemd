@@ -555,7 +555,7 @@ class Ave(RampUp):
         # Calculate the aves span, ratio to remap, and change the box.
         aves = [f'ave_{i}' for i in self.XYZ]
         for name, dim in zip(aves, self.XYZ):
-            self.python(name, f'get{dim.upper()}L', 'sf', self.XYZ)
+            self.python(name, f'Length.get{dim.upper()}', 'sf', self.XYZ)
         self.print(*aves, label='Averaged')
         scales = [
             f"{x} scale $(v_{y} / v_{z})"
@@ -582,19 +582,23 @@ class Ave(RampUp):
             return
         self.fix_all('ave/time', *args)
 
-    def python(self, name, func, fmt, *inputs, imp='from nemd.lmpfunc import'):
+    def python(self, name, exe, fmt, *inputs):
         """
         Construct a python command.
 
         :param name str: the variable name.
-        :param func str: the function name.
+        :param exe str: the function name or class.method.
         :param fmt str: the type of the input and output variables.
         :param inputs tuple: the input variables of the function.
-        :param imp str: the python command to import function.
         """
+        split = exe.split('.')
+        imp = f"from nemd.lmpfunc import {split[0]}"
+        func = split[-1]
+        if func != exe:
+            imp += f"; {func} = {exe}"
         self.variable(name, 'python', func)
         self.join('python', func, 'input', len(inputs), *inputs, 'return',
-                  f'v_{name}', 'format', fmt, 'here', f'"{imp} {func}"')
+                  f'v_{name}', 'format', fmt, 'here', f'"{imp}"')
 
     def print(self, *args, label=None):
         """
@@ -722,7 +726,7 @@ class Script(Ave):
         with self.block() as blk:
             blk.ave_time(self.CPRESS, file=file, nstep=nstep, num=rec)
             blk.nvt(nstep=nstep, temp=self.options.temp)
-        self.python(fac, 'getBdryFac', 'fsf', self.options.press, file)
+        self.python(fac, 'Factor.getBdry', 'fsf', self.options.press, file)
         self.print(fac)
         half = round(nstep / 2)
         with self.block() as blk:
@@ -779,7 +783,7 @@ class Script(Ave):
                          num=rec * num)
             blk.nvt(nstep=nstep, temp=self.options.temp)
         # Immediately variable imodulus is evaluated every time on access
-        self.python(imodulus, 'getModulus', 'sif', file, rec)
+        self.python(imodulus, 'Modulus.get', 'sif', file, rec)
         self.equal(self.MODULUS, imodulus, bracked=True)
         self.delete('vol', imodulus, newline=True)
 

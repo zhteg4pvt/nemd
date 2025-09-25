@@ -35,8 +35,8 @@ class TestBond:
         return polymutils.Bond(mol.GetBonds()[0])
 
     @pytest.mark.parametrize('smiles,idx,expected',
-                             [('Cl*.*C[*:1]', 0, (0, 2, 1, 0)),
-                              ('CC*.*CC[*:1]', 2, (0, 0, 1, 3))])
+                             [('Cl*.*C[*:1]', 0, (0, 1, 1, 2)),
+                              ('CC*.*CC[*:1]', 2, (0, 2, 1, 3))])
     def testHash(self, smiles, idx, expected):
         bond = polymutils.Moieties(smiles).polym.GetBonds()[idx]
         assert expected == polymutils.Bond(bond).hash
@@ -188,7 +188,7 @@ class TestEditableMol:
         assert expected == Chem.MolToSmiles(editable.GetMol())
 
     @pytest.mark.parametrize('smiles,pairs,expected',
-                             [('CCC*.*O*.Cl*', [(0, 6), (8, 4)], 'CCCOCl')])
+                             [('CCC*.*O*.Cl*', [(3, 4), (6, 8)], 'CCCOCl')])
     def testAddBonds(self, moiety, pairs, expected):
         for idx, aids in enumerate(pairs):
             pairs[idx] = [moiety.GetAtomWithIdx(x) for x in aids]

@@ -68,7 +68,7 @@ def get_parser():
                         help='')
     parser.add_argument(FLAG_CROSS_SECTIONAL_AREA,
                         metavar='ANGSTROM^2',
-                        type=parserutils.type_positive_float,
+                        type=parserutils.Float.typePositive,
                         help='')
     jobutils.add_job_arguments(parser)
     return parser

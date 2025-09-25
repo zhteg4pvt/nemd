@@ -9,7 +9,6 @@ from nemd import lmpfunc
 from nemd import plotutils
 
 PRESS_DATA = envutils.test_data('water', 'defm_00', 'press_vol.data')
-XYZL_DATA = envutils.test_data('water', 'xyzl.data')
 
 
 @conftest.require_src
@@ -37,11 +36,12 @@ class TestBase:
 
 
 @conftest.require_src
+@pytest.mark.parametrize('xyzl', [envutils.test_data('water', 'xyzl.data')])
 class TestLength:
 
     @pytest.fixture
-    def length(self, last_pct, ending):
-        return lmpfunc.Length(XYZL_DATA, last_pct=last_pct, ending=ending)
+    def length(self, xyzl, last_pct, ending):
+        return lmpfunc.Length(xyzl, last_pct=last_pct, ending=ending)
 
     @pytest.mark.parametrize('last_pct,ending', [(0.2, 'xl'), (0.1, 'yl'),
                                                  (0.4, 'zl')])
@@ -52,7 +52,7 @@ class TestLength:
     @pytest.mark.parametrize('last_pct,ending,expected',
                              [(0.2, 'xl', 4.81020585), (0.1, 'yl', 4.8101973),
                               (0.4, 'zl', 4.8101627)])
-    def testSetAve(self, expected, length):
+    def testSetAve(self, length, expected):
         length.read()
         length.setAve()
         np.testing.assert_almost_equal(length.ave, expected)
@@ -61,32 +61,76 @@ class TestLength:
                              [(0.2, 'xl', 'xyzl_xl.png'),
                               (0.1, 'yl', 'xyzl_yl.png'),
                               (0.4, 'zl', 'xyzl_zl.png')])
-    def testPlot(self, expected, length, tmp_dir):
+    def testPlot(self, length, expected, tmp_dir):
         length.read()
         length.setAve()
         length.plot()
         os.path.isfile(expected)
 
+    def testGet(self, xyzl, tmp_dir):
+        np.testing.assert_almost_equal(lmpfunc.Length.get(xyzl), 4.81020585)
+
+    def testGetX(self, xyzl, tmp_dir):
+        np.testing.assert_almost_equal(lmpfunc.Length.getX(xyzl), 4.81020585)
+
+    def testGetY(self, xyzl, tmp_dir):
+        np.testing.assert_almost_equal(lmpfunc.Length.getY(xyzl), 4.81020585)
+
+    def testGetZ(self, xyzl, tmp_dir):
+        np.testing.assert_almost_equal(lmpfunc.Length.getZ(xyzl), 4.81020585)
+
 
 @conftest.require_src
+@pytest.mark.parametrize('data', [PRESS_DATA])
 class TestPress:
 
     @pytest.fixture
-    def press(self):
-        return lmpfunc.Press(PRESS_DATA)
+    def press(self, data):
+        return lmpfunc.Press(data)
 
     def testSetAve(self, press):
         press.read()
         press.setAve()
-        np.testing.assert_almost_equal(press.ave, -2937.6461839464882)
+        np.testing.assert_almost_equal(press.ave, -2937.646184)
+
+    def testGet(self, data):
+        np.testing.assert_almost_equal(lmpfunc.Press.get(data), -2937.646184)
 
 
 @conftest.require_src
+@pytest.mark.parametrize('data', [PRESS_DATA])
+class TestFactor:
+
+    @pytest.fixture
+    def fac(self, press, data):
+        return lmpfunc.Factor(press, data)
+
+    @pytest.mark.parametrize('press,expected', [(-2937, 1), (100, 0.995),
+                                                (-5000, 1.005)])
+    def testRun(self, fac, expected):
+        np.testing.assert_almost_equal(fac.run(), expected)
+
+    @pytest.mark.parametrize('press,expected', [(-2937, 1), (100, 0.995),
+                                                (-5000, 1.005)])
+    def testGetVol(self, press, data, expected, tmp_dir):
+        factor = lmpfunc.Factor.getVol(press, data)
+        np.testing.assert_almost_equal(factor, expected)
+
+    @pytest.mark.parametrize('press,expected', [(-2937, 1),
+                                                (100, 0.9983305478136913),
+                                                (-5000, 1.001663896579312)])
+    def testgetBdry(self, press, expected, data, tmp_dir):
+        factor = lmpfunc.Factor.getBdry(press, data)
+        np.testing.assert_almost_equal(factor, expected)
+
+
+@conftest.require_src
+@pytest.mark.parametrize('data', [PRESS_DATA])
 class TestModulus:
 
     @pytest.fixture
-    def modulus(self):
-        return lmpfunc.Modulus(PRESS_DATA, 100)
+    def modulus(self, data):
+        return lmpfunc.Modulus(data, 100)
 
     def testRead(self, modulus):
         modulus.read()
@@ -123,52 +167,6 @@ class TestModulus:
             assert 2 == len(ax.lines)
             assert 1 == len(ax.collections)
 
-
-@conftest.require_src
-class TestFactor:
-
-    @pytest.fixture
-    def fac(self, press):
-        return lmpfunc.Factor(press, PRESS_DATA)
-
-    @pytest.mark.parametrize('press,expected', [(-2937, 1), (100, 0.995),
-                                                (-5000, 1.005)])
-    def testRun(self, fac, expected):
-        np.testing.assert_almost_equal(fac.run(), expected)
-
-
-@conftest.require_src
-class TestFunc:
-
-    def testGetL(self, tmp_dir):
-        np.testing.assert_almost_equal(lmpfunc.getL(XYZL_DATA), 4.81020585)
-
-    def testGetXL(self, tmp_dir):
-        np.testing.assert_almost_equal(lmpfunc.getXL(XYZL_DATA), 4.81020585)
-
-    def testGetYL(self, tmp_dir):
-        np.testing.assert_almost_equal(lmpfunc.getYL(XYZL_DATA), 4.81020585)
-
-    def testGetZL(self, tmp_dir):
-        np.testing.assert_almost_equal(lmpfunc.getZL(XYZL_DATA), 4.81020585)
-
-    def testGetPress(self):
-        press = lmpfunc.getPress(PRESS_DATA)
-        np.testing.assert_almost_equal(press, -2937.6461839464882)
-
-    def testGetModulus(self, tmp_dir):
-        modulus = lmpfunc.getModulus(PRESS_DATA, 100)
-        np.testing.assert_almost_equal(modulus, 67468.3215132747)
-
-    @pytest.mark.parametrize('press,expected', [(-2937, 1), (100, 0.995),
-                                                (-5000, 1.005)])
-    def testGetVolFac(self, press, expected, tmp_dir):
-        factor = lmpfunc.getVolFac(press, PRESS_DATA)
-        np.testing.assert_almost_equal(factor, expected)
-
-    @pytest.mark.parametrize('press,expected', [(-2937, 1),
-                                                (100, 0.9983305478136913),
-                                                (-5000, 1.001663896579312)])
-    def testgetBdryFac(self, press, expected, tmp_dir):
-        factor = lmpfunc.getBdryFac(press, PRESS_DATA)
-        np.testing.assert_almost_equal(factor, expected)
+    def testGetModulus(self, data, tmp_dir):
+        np.testing.assert_almost_equal(lmpfunc.Modulus.get(data, 100),
+                                       67468.3215133)

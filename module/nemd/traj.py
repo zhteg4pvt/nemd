@@ -123,7 +123,7 @@ class Traj(list):
         :param start int: frames with step number < this value are fully read.
         """
         super().__init__()
-        self.file = file
+        self.file = str(file)
         self.options = options
         self.start = start
         self.time = None

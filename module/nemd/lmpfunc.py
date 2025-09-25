@@ -126,6 +126,50 @@ class Length(Base):
             name = symbols.PERIOD.join(basename.split(symbols.PERIOD)[:-1])
             fig.savefig(f"{name}_{self.ending}{self.PNG_EXT}")
 
+    @classmethod
+    def get(cls, filename, last_pct=0.2, ending=XL):
+        """
+        Get the box length in the one dimension.
+
+        :param filename str: the filename with path to load data from
+        :param last_pct float: the last this percentage of the data are used
+        :param ending str: select the label ends with this string
+        :return float: box length
+        """
+        box_length = cls(filename, last_pct=last_pct, ending=ending)
+        box_length.run()
+        return box_length.ave
+
+    @classmethod
+    def getX(cls, filename):
+        """
+        Get the box length in the x dimension.
+
+        :param filename str: the filename with path to load data from
+        :return float: box length
+        """
+        return cls.get(filename, ending=cls.XL)
+
+    @classmethod
+    def getY(cls, filename):
+        """
+        Get the box length in the y dimension.
+
+        :param filename str: the filename with path to load data from
+        :return float: box length
+        """
+        return cls.get(filename, ending=cls.YL)
+
+    @classmethod
+    def getZ(cls, filename):
+        """
+        Get the box length in the z dimension.
+
+        :param filename str: the filename with path to load data from
+        :return float: box length
+        """
+        return cls.get(filename, ending=cls.ZL)
+
 
 class Press(Base):
     """
@@ -138,6 +182,18 @@ class Press(Base):
         Set the averaged data.
         """
         self.ave = self.getColumn(self.PRESS).mean()
+
+    @classmethod
+    def get(cls, filename):
+        """
+        Get the averaged pressure.
+
+        :param filename str: the filename with path to load data from
+        :return float: averaged pressure.
+        """
+        press = cls(filename)
+        press.run()
+        return press.ave
 
 
 class Factor(Press):
@@ -164,6 +220,30 @@ class Factor(Press):
             return 1.005
         else:
             return 1
+
+    @classmethod
+    def getVol(cls, press, filename):
+        """
+        Get the volume scale factor so that the pressure is expected to approach the
+        target by scaling the volume.
+
+        :param press float: the target pressure.
+        :param filename str: the filename with path to load data from.
+        :return float: the scale factor of the volume.
+        """
+        return cls(press, filename).run()
+
+    @classmethod
+    def getBdry(cls, press, filename):
+        """
+        Get the boundary scale factor so that the pressure is expected to approach
+        the target by scaling the boundary length.
+
+        :param press float: the target pressure.
+        :param filename str: the filename with path to load data from.
+        :return float: the scale factor of the volume.
+        """
+        return cls.getVol(press, filename)**(1 / 3)
 
 
 class Modulus(Press):
@@ -265,95 +345,15 @@ class Modulus(Press):
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles, labels)
 
+    @classmethod
+    def get(cls, filename, rec_num):
+        """
+        Get the bulk modulus.
 
-def getL(filename, last_pct=0.2, ending=Length.XL):
-    """
-    Get the box length in the one dimension.
-
-    :param filename str: the filename with path to load data from
-    :param last_pct float: the last this percentage of the data are used
-    :param ending str: select the label ends with this string
-    :return float: box length
-    """
-    box_length = Length(filename, last_pct=last_pct, ending=ending)
-    box_length.run()
-    return box_length.ave
-
-
-def getXL(filename):
-    """
-    Get the box length in the x dimension.
-
-    :param filename str: the filename with path to load data from
-    :return float: box length
-    """
-    return getL(filename, ending=Length.XL)
-
-
-def getYL(filename):
-    """
-    Get the box length in the y dimension.
-
-    :param filename str: the filename with path to load data from
-    :return float: box length
-    """
-    return getL(filename, ending=Length.YL)
-
-
-def getZL(filename):
-    """
-    Get the box length in the z dimension.
-
-    :param filename str: the filename with path to load data from
-    :return float: box length
-    """
-    return getL(filename, ending=Length.ZL)
-
-
-def getPress(filename):
-    """
-    Get the averaged pressure.
-
-    :param filename str: the filename with path to load data from
-    :return float: averaged pressure.
-    """
-    press = Press(filename)
-    press.run()
-    return press.ave
-
-
-def getModulus(filename, rec_num):
-    """
-    Get the bulk modulus.
-
-    :param filename str: the filename with path to load data from
-    :param rec_num int: the recording number of each cycle.
-    :return float: the bulk modulus.
-    """
-    modulus = Modulus(filename, rec_num)
-    modulus.run()
-    return modulus.modulus
-
-
-def getVolFac(press, filename):
-    """
-    Get the volume scale factor so that the pressure is expected to approach the
-    target by scaling the volume.
-
-    :param press float: the target pressure.
-    :param filename str: the filename with path to load data from.
-    :return float: the scale factor of the volume.
-    """
-    return Factor(press, filename).run()
-
-
-def getBdryFac(press, filename):
-    """
-    Get the boundary scale factor so that the pressure is expected to approach
-    the target by scaling the boundary length.
-
-    :param press float: the target pressure.
-    :param filename str: the filename with path to load data from.
-    :return float: the scale factor of the volume.
-    """
-    return getVolFac(press, filename)**(1 / 3)
+        :param filename str: the filename with path to load data from
+        :param rec_num int: the recording number of each cycle.
+        :return float: the bulk modulus.
+        """
+        modulus = cls(filename, rec_num)
+        modulus.run()
+        return modulus.modulus

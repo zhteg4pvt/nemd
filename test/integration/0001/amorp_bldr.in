@@ -41,8 +41,8 @@ run 1000
 unfix 3a
 unfix 3b
 
-variable fac python getBdryFac
-python getBdryFac input 2 1 ${loop_id} return v_fac format fsf here "from nemd.lmpfunc import getBdryFac"
+variable fac python getBdry
+python getBdry input 2 1 ${loop_id} return v_fac format fsf here "from nemd.lmpfunc import Factor; getBdry = Factor.getBdry"
 print "fac=${fac}"
 fix 4a all deform 10 x scale ${fac} y scale ${fac} z scale ${fac}
 fix 4b all nvt temp 300 300 100.0
@@ -78,12 +78,12 @@ unfix 7a
 unfix 7b
 
 print "Final: xl=${xl} yl=${yl} zl=${zl}"
-variable ave_x python getXL
-python getXL input 1 xyz return v_ave_x format sf here "from nemd.lmpfunc import getXL"
-variable ave_y python getYL
-python getYL input 1 xyz return v_ave_y format sf here "from nemd.lmpfunc import getYL"
-variable ave_z python getZL
-python getZL input 1 xyz return v_ave_z format sf here "from nemd.lmpfunc import getZL"
+variable ave_x python getX
+python getX input 1 xyz return v_ave_x format sf here "from nemd.lmpfunc import Length; getX = Length.getX"
+variable ave_y python getY
+python getY input 1 xyz return v_ave_y format sf here "from nemd.lmpfunc import Length; getY = Length.getY"
+variable ave_z python getZ
+python getZ input 1 xyz return v_ave_z format sf here "from nemd.lmpfunc import Length; getZ = Length.getZ"
 print "Averaged: ave_x=${ave_x} ave_y=${ave_y} ave_z=${ave_z}"
 change_box all x scale $(v_ave_x / v_xl) y scale $(v_ave_y / v_yl) z scale $(v_ave_z / v_zl) remap
 variable xl delete

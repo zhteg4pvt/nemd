@@ -237,7 +237,7 @@ class TestParser:
     @pytest.mark.parametrize('smiles,expected',
                              [('[Ar]', [211]),
                               ('CC(C)O', [84, 108, 84, 104, 105]),
-                              ('[Br-].[Mg+2].[Br-]', [208, 208, 202])])
+                              ('[Br-].[Mg+2].[Br-]', [208, 202, 208])])
     def testType(self, parser, mol, expected):
         parser.type(mol)
         assert expected == [x.GetIntProp('type_id') for x in mol.GetAtoms()]

@@ -134,7 +134,7 @@ class Action(parserutils.StructAction):
             return typed
         if len(args) != 3:
             self.error('expected 4 arguments')
-        return (*typed, *[parserutils.type_float(x) for x in args[1:]])
+        return (*typed, *[parserutils.Float.type(x) for x in args[1:]])
 
 
 class Parser(parserutils.Workflow):

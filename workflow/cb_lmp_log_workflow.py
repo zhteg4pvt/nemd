@@ -77,7 +77,7 @@ class Parser(parserutils.Workflow):
             '-scale_range',
             metavar='START STOP NUM',
             default=(0.95, 1.05, 11),
-            type=parserutils.type_positive_float,
+            type=parserutils.Float.typePositive,
             action=LinspaceAction,
             nargs='+',
             help='The scale range on the crystal lattice parameters.')

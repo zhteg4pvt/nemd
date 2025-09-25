@@ -13,6 +13,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 
 from nemd import logutils
+from nemd import rdkitutils
 from nemd import symbols
 
 
@@ -241,23 +242,20 @@ class Mol(Chem.rdchem.Mol):
         :param united bool: hide keep Hydrogen atoms in CH, CH3, CH3, and CH4.
         :return `Mol`: the molecule instance.
         """
-        mol = Chem.MolFromSmiles(Chem.CanonSmiles(smiles))
-        if not united:
-            return cls(Chem.AddHs(mol), **kwargs)
-
-        # Hide Hs in CH, CH3, CH3, and CH4
-        for atom in mol.GetAtoms():
-            if atom.GetSymbol() != symbols.CARBON or atom.GetIsAromatic():
-                continue
-            atom.SetIntProp(symbols.IMPLICIT, atom.GetNumImplicitHs())
-            atom.SetNoImplicit(True)
-        # FIXME: support different chiralities for monomers
-        # The includeUnassigned atoms fixed by rdkit from '2024.9.4' to '2025.03.3'
-        # for chiral in Chem.FindMolChiralCenters(mol, includeUnassigned=True):
-        #     # CIP stereochemistry assignment for the molecule’s atoms (R/S)
-        #     # and double bonds (Z/E)
-        #     mol.GetAtomWithIdx(chiral[0]).SetProp('_CIPCode', 'R')
-
+        mol = rdkitutils.MolFromSmiles(smiles)
+        if united:
+            # Hide Hs in CH, CH3, CH3, and CH4
+            for atom in mol.GetAtoms():
+                if atom.GetSymbol() != symbols.CARBON or atom.GetIsAromatic():
+                    continue
+                atom.SetIntProp(symbols.IMPLICIT, atom.GetNumImplicitHs())
+                atom.SetNoImplicit(True)
+            # FIXME: support different chiralities for monomers
+            # The includeUnassigned atoms fixed by rdkit from '2024.9.4' to '2025.03.3'
+            # for chiral in Chem.FindMolChiralCenters(mol, includeUnassigned=True):
+            #     # CIP stereochemistry assignment for the molecule’s atoms (R/S)
+            #     # and double bonds (Z/E)
+            #     mol.GetAtomWithIdx(chiral[0]).SetProp('_CIPCode', 'R')
         return cls(Chem.AddHs(mol), **kwargs)
 
     @property
