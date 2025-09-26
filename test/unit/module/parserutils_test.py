@@ -1,6 +1,5 @@
 import argparse
 import os
-import pathlib
 from unittest import mock
 
 import conftest
@@ -20,6 +19,22 @@ MY_DATA_FILE = envutils.test_data(AR, 'mydata.in')
 LOG_FILE = envutils.test_data(AR, 'lammps.log')
 TRAJ_FILE = envutils.test_data(AR, 'ar100.custom.gz')
 RAISED = argparse.ArgumentTypeError
+
+
+class TestBase:
+
+    def testType(self):
+        assert 'my_str' == parserutils.Base.type('my_str')
+
+    def testRun(self):
+        base = parserutils.Base('my_str')
+        base.run()
+        assert 'my_str' == base.typed
+
+    def testError(self):
+        base = parserutils.Base('my_str')
+        with pytest.raises(argparse.ArgumentTypeError):
+            base.error('my error')
 
 
 @conftest.require_src

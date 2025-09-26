@@ -14,3 +14,4 @@ CM_INV_THZ = constants.physical_constants['inverse meter-hertz relationship'][
     0] / constants.tera / constants.centi
 ANG_TO_BOHR = constants.angstrom / constants.physical_constants['Bohr radius'][
     0]
+MB_TO_GB = constants.mebi / constants.gibi

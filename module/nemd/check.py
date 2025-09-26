@@ -17,6 +17,7 @@ from nemd import jobutils
 from nemd import lmpfull
 from nemd import logutils
 from nemd import plotutils
+from nemd import constants
 
 
 class Exist(logutils.Base):
@@ -176,6 +177,7 @@ class CollBase(Exist):
     """
     The collection base class.
     """
+    MEMORY_GB = 'Memory (GB)'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -202,7 +204,7 @@ class CollBase(Exist):
             self.error(f"{files} not found or empty.")
         self.data = pd.concat(datas, axis=1, keys=self.args)
         self.data.columns = self.data.columns.swaplevel(0, 1)
-        self.data.drop(columns=[('Memory (MB)', 'mac')], inplace=True)
+        self.data.drop(columns=[(self.MEMORY_GB, 'mac')], inplace=True)
         self.data.to_csv(self.outfile)
         jobutils.Job.reg(self.outfile)
 
@@ -291,7 +293,6 @@ class Collect(CollBase):
     KEYS = {DROPNA}
     TASK_TIME = 'task_time'
     TIME_MIN = 'Task Time (min)'
-    MEMORY_MB = 'Memory (MB)'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -310,7 +311,9 @@ class Collect(CollBase):
             self.error(f"Empty data collected ({' '.join(self.args)}).")
         if not self.kwargs[self.DROPNA] and self.data.isna().any().any():
             self.error(self.data[self.data.isna().any(axis=1)].to_markdown())
-        self.data.rename(columns={'memory': 'Memory (MB)'}, inplace=True)
+        self.data.rename(columns={'memory': self.MEMORY_GB}, inplace=True)
+        if self.MEMORY_GB in self.data.columns:
+            self.data[self.MEMORY_GB] *= constants.MB_TO_GB
         if self.TASK_TIME in self.data.columns:
             self.data[self.TASK_TIME] = self.data[self.TASK_TIME].map(func)
             columns = {self.TASK_TIME: self.TIME_MIN}

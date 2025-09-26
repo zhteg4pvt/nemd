@@ -41,7 +41,7 @@ class Base:
     @classmethod
     def type(cls, *args, **kwargs):
         """
-        Check existence.
+        Type and check.
 
         :return any: the typed.
         """
