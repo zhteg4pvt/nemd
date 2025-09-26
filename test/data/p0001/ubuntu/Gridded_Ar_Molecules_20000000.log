@@ -23,8 +23,8 @@ NAME: Gridded_Ar_Molecules
 JOBNAME: Gridded_Ar_Molecules_20000000
 INTERAC: False
 PYTHON: 2
-CPU: [1]
+CPU: [9]
 DEBUG: None
-JobStart: 16:59:46 08/17/2025
+JobStart: 20:29:40 09/25/2025
 ...........................
-[16:59:47] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
+[20:29:40] UFFTYPER: Unrecognized atom type: Ar3+4 (0)

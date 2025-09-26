@@ -191,7 +191,7 @@ class TestCollect:
         for outfile in outfiles:
             assert os.path.exists(outfile)
 
-
+@conftest.require_src
 class TestMerge:
 
     @pytest.fixture
@@ -202,7 +202,7 @@ class TestMerge:
 
     @pytest.mark.parametrize('dirname,args,kwargs,expected',
                              [('empty', [], {}, SystemExit),
-                              ('p0001', [], {}, (11, 3))])
+                              ('p0001', [], {}, (7, 3))])
     def testSet(self, merge, expected, raises):
         with raises:
             merge.set()
@@ -210,14 +210,14 @@ class TestMerge:
 
     @pytest.mark.parametrize(
         'dirname,args,kwargs,expected',
-        [('p0001', [], {}, ['Task Time (min)', 'Memory (MB)'])])
+        [('p0001', [], {}, ['Task Time (min)', 'Memory (GB)'])])
     def testCols(self, merge, expected):
         merge.set()
         assert expected == merge.cols
 
     @pytest.mark.parametrize('dirname,args,kwargs', [('p0001', [], {})])
     @pytest.mark.parametrize('col,expected', [('Task Time (min)', 2),
-                                              ('Memory (MB)', 1)])
+                                              ('Memory (GB)', 1)])
     def testAxPlot(self, merge, col, expected, ax):
         merge.set()
         merge.axPlot(ax, col)

@@ -23,13 +23,13 @@ NAME: Gridded_Ar_Molecules
 JOBNAME: Gridded_Ar_Molecules_1000000
 INTERAC: False
 PYTHON: 2
-CPU: [1]
+CPU: [9]
 DEBUG: None
-JobStart: 16:54:39 08/17/2025
+JobStart: 20:24:37 09/25/2025
 ...........................
-[16:54:40] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
+[20:24:38] UFFTYPER: Unrecognized atom type: Ar3+4 (0)
 Data file written into Gridded_Ar_Molecules_1000000.data
 In script written into Gridded_Ar_Molecules_1000000.in
-Peak memory usage: 1687.3021 MB
+Peak memory usage: 1695.8300 MB
 Finished.
-16:54:52 08/17/2025
+20:24:50 09/25/2025

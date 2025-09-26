@@ -109,6 +109,7 @@ class TestLmp:
     def testArg(self, lmp):
         assert 4 == len(lmp.args)
 
+    @conftest.require_src
     @pytest.mark.parametrize(
         'infile,expected',
         [(envutils.test_data('ar', 'error.in'), 'Cannot open file ar100.data'),

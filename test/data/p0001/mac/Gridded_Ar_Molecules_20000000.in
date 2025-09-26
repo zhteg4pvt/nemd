@@ -1,0 +1,102 @@
+units real
+atom_style full
+bond_style harmonic
+angle_style harmonic
+dihedral_style opls
+improper_style cvff
+special_bonds lj/coul 0 0 0.5
+pair_style lj/cut 11.0
+pair_modify mix geometric
+read_data Gridded_Ar_Molecules_20000000.data
+dump 1 all xtc 1000 Gridded_Ar_Molecules_20000000.xtc
+dump_modify 1 unwrap yes
+thermo 1000
+thermo_modify flush yes
+timestep 1.0
+min_style fire
+minimize 1.0e-6 1.0e-6 1000 10000
+velocity all create 10 858122652
+fix 0a all nvt temp 10 10 100.0
+run 1000
+unfix 0a
+
+fix 1a all nvt temp 10 300 100.0
+run 50000
+unfix 1a
+
+fix 2a all nvt temp 300 300 100.0
+run 50000
+unfix 2a
+
+shell mkdir loop
+shell cd loop
+
+variable loop_id loop 0 999 pad
+label start_lb
+print "loop_id=${loop_id}"
+fix 3a all ave/time 1 20 20 c_thermo_press file ${loop_id}
+fix 3b all nvt temp 300 300 100.0
+run 1000
+unfix 3a
+unfix 3b
+
+variable fac python getBdry
+python getBdry input 2 1 ${loop_id} return v_fac format fsf here "from nemd.lmpfunc import Factor; getBdry = Factor.getBdry"
+print "fac=${fac}"
+fix 4a all deform 10 x scale ${fac} y scale ${fac} z scale ${fac}
+fix 4b all nvt temp 300 300 100.0
+run 500
+unfix 4a
+unfix 4b
+
+fix 5a all nvt temp 300 300 100.0
+run 500
+unfix 5a
+
+if "${fac} == 1" then "jump SELF break_lb"
+next loop_id
+jump SELF start_lb
+
+label break_lb
+variable loop_id delete
+variable fac delete
+
+shell cd ..
+
+fix 6a all nvt temp 300 300 100.0
+run 100000
+unfix 6a
+
+variable xl equal "xhi - xlo"
+variable yl equal "yhi - ylo"
+variable zl equal "zhi - zlo"
+fix 7a all ave/time 1 100000 100000 v_xl v_yl v_zl file xyz
+fix 7b all npt temp 300 300 100.0 iso 1 1 1000.0
+run 1000000
+unfix 7a
+unfix 7b
+
+print "Final: xl=${xl} yl=${yl} zl=${zl}"
+variable ave_x python getX
+python getX input 1 xyz return v_ave_x format sf here "from nemd.lmpfunc import Length; getX = Length.getX"
+variable ave_y python getY
+python getY input 1 xyz return v_ave_y format sf here "from nemd.lmpfunc import Length; getY = Length.getY"
+variable ave_z python getZ
+python getZ input 1 xyz return v_ave_z format sf here "from nemd.lmpfunc import Length; getZ = Length.getZ"
+print "Averaged: ave_x=${ave_x} ave_y=${ave_y} ave_z=${ave_z}"
+change_box all x scale $(v_ave_x / v_xl) y scale $(v_ave_y / v_yl) z scale $(v_ave_z / v_zl) remap
+variable xl delete
+variable yl delete
+variable zl delete
+variable ave_x delete
+variable ave_y delete
+variable ave_z delete
+fix 8a all nvt temp 300 300 100.0
+run 10000
+unfix 8a
+
+fix 9a all nve
+run 1000000
+unfix 9a
+
+write_restart Gridded_Ar_Molecules_20000000.rst
