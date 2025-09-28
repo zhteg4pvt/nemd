@@ -33,7 +33,7 @@ class Base:
 
     def __init__(self, arg):
         """
-        :param arg str: original input arg.
+        :param arg str: original input argument.
         """
         self.arg = arg
         self.typed = None
@@ -51,7 +51,7 @@ class Base:
 
     def run(self):
         """
-        Main method to type and check.
+        Type and check.
         """
         self.typed = self.arg
 
@@ -131,12 +131,12 @@ class Bool(Base):
             case '' | 'n' | 'no' | 'f' | 'false' | 'off' | '0':
                 self.typed = False
             case _:
-                self.error(f'{self.arg} is not a valid boolean')
+                self.error(f'Cannot convert {self.arg} to a boolean')
 
 
 class Range(Base):
     """
-    Numeric Range base.
+    Numeric Range.
     """
 
     def __init__(self,
@@ -148,8 +148,8 @@ class Range(Base):
         """
         :param bottom `float``: the lower bound of the range.
         :param top `float`: the upper bound of the range.
-        :param incl_bot bool: whether the lower bound is allowed
-        :param incl_top bool: whether the upper bound is allowed
+        :param incl_bot bool: whether to allow the lower bound.
+        :param incl_top bool: whether to allow the upper bound.
         """
         super().__init__(*args)
         self.bottom = bottom
@@ -277,11 +277,10 @@ class Smiles(Base):
         self.allow_reg = allow_reg
         self.canonize = canonize
 
-    def run(self, *args):
+    def run(self):
         """
-        Check whether the smiles can be converted to constitutional repeating units.
-
-        :return `rdkit.Chem.rdchem.Mol: the converted molecule.
+        Check whether the smiles can be converted to molecule (and/or)
+        constitutional repeating units.
         """
         try:
             mol = cru.Mol.MolFromSmiles(self.arg,
@@ -312,8 +311,7 @@ class LastPct(float):
         :param arg str: the input argument.
         :return `cls`: the customized last percentage
         """
-        value = Float.typePositive(arg, top=1)
-        return cls(value)
+        return cls(Float.typePositive(arg, top=1))
 
     def getSidx(self, data, buffer=0):
         """
@@ -329,6 +327,9 @@ class LastPct(float):
 
 
 class Cpu(list):
+    """
+    Cpu numbers for total and per-job.
+    """
 
     def __init__(self, *args, forced=None):
         """
@@ -457,7 +458,7 @@ class StructAction(Action):
         :param value str: the target value for the substructure to be set.
         :return tuple: the smiles str, (and the target value).
         """
-        Smiles.type(smiles)
+        smiles = Smiles.type(smiles)
         return (smiles, Float.type(value)) if value is not None else (smiles, )
 
 
