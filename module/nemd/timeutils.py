@@ -4,12 +4,11 @@
 datetime utilities.
 """
 import datetime
-
-import pandas as pd
+import re
 
 HMS_FMT = '%H:%M:%S'
 HMS_MDY = f'{HMS_FMT} %m/%d/%Y'
-HMS_ZERO = datetime.datetime.strptime('00:00:00', HMS_FMT)
+ZERO = datetime.datetime.strptime('00:00:00', HMS_FMT)
 
 
 def ctime(fmt=HMS_MDY):
@@ -43,17 +42,27 @@ def delta2str(delta, fmt=HMS_FMT):
     :return str: the string representation of the timedelta
     """
     try:
-        return (HMS_ZERO + delta).strftime(fmt)
+        formattd = (ZERO + delta).strftime(fmt)
     except (TypeError, ValueError):
         return 'nan'
+    if delta.days:
+        formattd = f"{delta.days} days, {formattd}"
+    return formattd
 
 
-def str2delta(value, fmt=HMS_FMT):
+def str2delta(value, fmt=HMS_FMT, rex=re.compile(r'^(\d+) days, ([:\d]*)$')):
     """
     Convert a string representation of time to a timedelta object.
 
     :param value str: the string representation of time
-    :param fmt str: the format to parse the input string
+    :param fmt str: the format to parse the input string excluding days
+    :param rex re.Pattern: deltatime regular expression
     :return 'datetime.timedelta': the timedelta object based on input string
     """
-    return dtime(value, fmt=fmt) - HMS_ZERO
+    matched = rex.match(value)
+    if matched:
+        value = matched.group(2)
+    delta = dtime(value, fmt=fmt) - ZERO
+    if matched:
+        delta += datetime.timedelta(days=int(matched.group(1)))
+    return delta

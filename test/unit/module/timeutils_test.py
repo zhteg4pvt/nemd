@@ -14,12 +14,15 @@ class TestFunc:
         dtime = timeutils.dtime('13:56:07 02/14/2025')
         assert 7 == dtime.second
 
-    @pytest.mark.parametrize('delta,expected',
-                             [(datetime.timedelta(1, 2, 3), '00:00:02'),
-                              (None, 'nan')])
+    @pytest.mark.parametrize(
+        'delta,expected', [(datetime.timedelta(1, 2, 3), '1 days, 00:00:02'),
+                           (datetime.timedelta(0, 1, 2), '00:00:01'),
+                           (None, 'nan')])
     def testDelta2Str(self, delta, expected):
         assert expected == timeutils.delta2str(delta)
 
-    def testStr2Delta(self):
-        delta = timeutils.str2delta('12:34:56')
-        assert 45296 == delta.seconds
+    @pytest.mark.parametrize('delta,expected', [('12:34:56', 45296.0),
+                                                ('1 days, 00:00:02', 86402.0)])
+    def testStr2Delta(self, delta, expected):
+        delta = timeutils.str2delta(delta)
+        assert expected == delta.total_seconds()

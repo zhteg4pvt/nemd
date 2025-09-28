@@ -378,8 +378,7 @@ class Reader:
             return
         if dtype == self.END:
             return dtime
-        delta = dtime - stime
-        return delta
+        return dtime - stime
 
     @property
     def memory(self):
