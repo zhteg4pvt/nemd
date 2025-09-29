@@ -1,0 +1,1 @@
+{"prereq": {"check": ["cmd"]}, "args": ["-name", "scientific", "-slow", "18000", "-CPU", "13"]}

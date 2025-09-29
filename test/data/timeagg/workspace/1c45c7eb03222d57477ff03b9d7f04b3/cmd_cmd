@@ -1,0 +1,3 @@
+echo "0014: Silicon: Total Energy vs Scale Factor"
+nemd_run cb_lmp_log_workflow.py -dimension 3 3 3 -task TotEng -temp 0 -CPU 1 > /dev/null
+exit 0

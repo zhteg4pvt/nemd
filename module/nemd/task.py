@@ -370,16 +370,16 @@ class Info(pd.DataFrame):
     TIME = symbols.TIME.lower()
 
     @classmethod
-    def fromJobs(cls, jobs, fn=lambda x: os.path.basename(os.path.dirname(x))):
+    def fromJobs(cls, jobs):
         """
         Get Info from jobs.
 
         :param list of 'jobs': the json jobs.
-        :param fn func: get the base dirname.
         """
         rdrs = [logutils.Reader(x.logfile) for x in jobs if x.logfile]
-        info = [[fn(x.namepath), x.options.NAME, x.task_time] for x in rdrs]
-        return Info(info, columns=[symbols.ID, symbols.NAME, cls.TIME])
+        data = [[x.options.NAME, x.task_time] for x in rdrs]
+        index = [os.path.basename(os.path.dirname(x.namepath)) for x in rdrs]
+        return Info(data, columns=[symbols.NAME, cls.TIME], index=index)
 
     @property
     def total_time(self):
@@ -388,36 +388,49 @@ class Info(pd.DataFrame):
 
         :return str: the total task time.
         """
-        time = self.time.dropna()
-        return "nan" if time.empty else timeutils.Delta(time.sum()).toStr()
+        return self.toStr(self.time.sum(min_count=1))
+
+    @staticmethod
+    def toStr(dat, fmt=timeutils.HMS):
+        """
+        Convert a timedelta object to a string representation.
+
+        :param dat datetime.timedelta: the delta.
+        :return str: the string representation of the timedelta.
+        """
+        return timeutils.Delta.NAN if pd.isnull(dat) else timeutils.Delta(
+            dat).toStr(fmt=fmt)
 
     @property
     def group(self):
         """
         Groups the job info by names.
 
-        :return 'Info': the job info by name.
+        :return pd.Dataframe: the job info by name.
         """
-        group = self.groupby(symbols.NAME, sort=False)[[self.TIME, symbols.ID]]
-        data = {x[:9]: Info(y).toStr() for x, y in group}
-        data = sorted(data.items(), key=lambda x: x[1].size, reverse=True)
-        return Info(dict(data))
+        if self.empty:
+            return pd.DataFrame()
+        group = self.groupby(symbols.NAME, sort=False)
+        data = [Info(y).getSeries() for _, y in group]
+        data = sorted(data, key=lambda x: x.size, reverse=True)
+        return pd.concat(data, axis=1)
 
-    def toStr(self, hour=timeutils.Delta.fromStr('01:00:00')):
+    def getSeries(self, hour=timeutils.Delta.fromStr('01:00:00')):
         """
-        Get the str.
+        Get the str series.
 
         :param hour Delta: delta time of 1 hour.
-        :return pd.Series: the str.
+        :return pd.Series: the str series.
         """
-        dat = self.sort_values(by=self.TIME, ignore_index=True)
-        dat.loc[len(dat)] = [self.time.mean(), 'average']
-        dat = dat[::-1]
-        dat.index = dat.index[::-1]
-        fmt = '%M:%S' if (self.time.dropna() < hour).all() else timeutils.HMS
-        time = dat.time.map(lambda x: "nan" if pd.isnull(x) else \
-            timeutils.Delta(x).toStr(fmt=fmt))
-        return time.str.cat(dat.id.map(lambda x: x[:3]), sep=' ')
+        data = self.sort_values(by=self.TIME)
+        name = data.pop(symbols.NAME).iloc[0]
+        data.loc['average'] = [self.time.mean()]
+        fmt = timeutils.HMS if (self.time.dropna() >= hour).any() else '%M:%S'
+        time = data.time.map(lambda x: self.toStr(x, fmt=fmt))
+        series = time.str.cat(data.index.map(lambda x: x[:3]), sep=' ')
+        series.name = name[:series.str.len().max()]
+        series = series[::-1]
+        return series.reset_index(drop=True)
 
 
 class TimeAgg(taskbase.Agg):

@@ -1,0 +1,32 @@
+..........Options..........
+id: 
+name: scientific
+dirname: /Users/tengzhang/git/nemd/test/scientific
+slow: 18000.0
+label: None
+task: cmd check
+copy: False
+NAME: test
+JOBNAME: test
+INTERAC: False
+PYTHON: 2
+CPU: [1]
+DEBUG: None
+jtype: aggregator
+prj_path: None
+clean: True
+screen: off
+JobStart: 10:06:27 09/29/2025
+...........................
+Task Total Timing: 17:00:49
+| ab_lmp_traj   | mb_lmp_lo   | cb_lmp_log   | lmp_traj   |
+|:--------------|:------------|:-------------|:-----------|
+| 05:01:00 69a  | 08:24 f43   | 02:07:20 fd3 | 06:59 0a9  |
+| 04:00:34 b11  | 05:54 e55   | 00:03:23 1c4 |            |
+| 03:53:22 8e0  | 04:44 fed   |              |            |
+| 00:30:38 c09  |             |              |            |
+| 00:26:24 c2c  |             |              |            |
+| 00:17:08 02b  |             |              |            |
+| 00:14:59 d52  |             |              |            |
+Finished.
+10:06:27 09/29/2025

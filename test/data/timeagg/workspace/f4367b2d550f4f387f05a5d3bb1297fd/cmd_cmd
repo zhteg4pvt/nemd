@@ -1,0 +1,3 @@
+echo "0016: Relaxed rotational scan of n-butane"
+nemd_run mb_lmp_log_workflow.py CCCC -struct_rg CCCC 0 360 10 -task E_pair E_mol TotEng -CPU 1 > /dev/null
+exit 0

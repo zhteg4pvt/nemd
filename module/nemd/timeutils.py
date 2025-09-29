@@ -45,6 +45,7 @@ class Delta(datetime.timedelta):
     """
     ZERO = Date.strptime('00:00:00', fmt=HMS)
     SEP = ' days, '
+    NAN = 'nan'
 
     def __new__(cls, *args, **kwargs):
         if len(args) == 1 and isinstance(args[0], datetime.timedelta):
@@ -73,6 +74,8 @@ class Delta(datetime.timedelta):
         :param rex re.Pattern: deltatime regular expression
         :return 'TimeDelta': the timedelta object based on input string
         """
+        if value == cls.NAN:
+            return
         matched = rex.match(value)
         if matched:
             value = matched.group(2)

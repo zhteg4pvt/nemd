@@ -1,0 +1,1 @@
+nemd_check cmp /Users/tengzhang/git/nemd/test/scientific/0016/mb_lmp_log_toteng.csv mb_lmp_log_toteng.csv equal_nan=True atol=0.005

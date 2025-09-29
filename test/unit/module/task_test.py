@@ -5,6 +5,7 @@ from unittest import mock
 
 import ab_lmp_traj_workflow
 import conftest
+import numpy as np
 import pandas as pd
 import pytest
 import test_workflow
@@ -249,6 +250,52 @@ class TestLmpAgg:
                               ('0046_test', 'lmp_traj_agg', ["CCCC"], 2)])
     def testGroups(self, lmp_agg, expected):
         assert expected == len(lmp_agg.groups)
+
+
+@conftest.require_src
+class TestInfo:
+
+    @pytest.fixture
+    def info(self, jobs, args, logger):
+        options = test_workflow.Parser().parse_args(args)
+        test_agg = task.TestAgg(*jobs, logger=logger, options=options)
+        test_agg.filter()
+        return task.Info.fromJobs(test_agg.getJobs())
+
+    @pytest.mark.parametrize('dirname', ['timeagg'])
+    @pytest.mark.parametrize('args,expected',
+                             [([], (6, 2)),
+                              (['-label', 'mb_lmp_log'], (3, 2))])
+    def testFromJobs(self, info, expected):
+        assert expected == info.shape
+
+    @pytest.mark.parametrize('dirname', ['timeagg'])
+    @pytest.mark.parametrize('args,expected',
+                             [(['-label', 'lmp_traj'], 'nan'),
+                              (['-label', 'cb_lmp_log'], '00:03:23'),
+                              (['-label', 'mb_lmp_log'], '2 days, 00:14:17')])
+    def testTotalTime(self, info, expected):
+        assert expected == info.total_time
+
+    @pytest.mark.parametrize(
+        'dat,expected', [(timeutils.Delta.fromStr('00:14:17'), '00:14:17'),
+                         (np.nan, 'nan')])
+    def testToStr(self, dat, expected):
+        assert expected == task.Info.toStr(dat)
+
+    @pytest.mark.parametrize('dirname', ['timeagg'])
+    @pytest.mark.parametrize('args,expected', [([], (4, 3))])
+    def testGroup(self, info, expected):
+        assert expected == info.group.shape
+
+    @pytest.mark.parametrize('dirname', ['timeagg'])
+    @pytest.mark.parametrize('args,expected', [(['-label', 'lmp_traj'], 7),
+                                               (['-label', 'cb_lmp_log'], 9),
+                                               (['-label', 'mb_lmp_log'], 20)])
+    def testGetSeries(self, info, args, expected):
+        group = info.groupby('name', sort=False)
+        series = task.Info(list(group)[0][1]).getSeries()
+        assert expected == series.str.len().max()
 
 
 @conftest.require_src
