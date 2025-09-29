@@ -14,11 +14,11 @@ from nemd import parserutils
 @conftest.require_src
 class TestLammps:
 
-    SI_DIR = envutils.test_data('si')
-    SI_IN = envutils.test_data('si', 'crystal_builder.in')
-    AR_IN = envutils.test_data('ar', 'ar100.in')
-    EMPTY_IN = envutils.test_data('ar', 'empty.in')
-    WRONG_IN = envutils.test_data('ar', 'error.in')
+    SI_DIR = envutils.Src().test('si')
+    SI_IN = envutils.Src().test('si', 'crystal_builder.in')
+    AR_IN = envutils.Src().test('ar', 'ar100.in')
+    EMPTY_IN = envutils.Src().test('ar', 'empty.in')
+    WRONG_IN = envutils.Src().test('ar', 'error.in')
 
     @pytest.fixture
     def raw(self, args, logger, tmp_dir):
@@ -28,7 +28,7 @@ class TestLammps:
     @pytest.fixture
     def lmp(self, infile, tmp, logger, dirname, tmp_dir):
         if not os.path.isabs(infile):
-            test_data = envutils.test_data(dirname)
+            test_data = envutils.Src().test(dirname)
             shutil.copytree(test_data, tmp, dirs_exist_ok=True)
         if tmp:
             infile = os.path.join(tmp, infile)

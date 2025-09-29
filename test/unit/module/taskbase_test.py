@@ -43,8 +43,8 @@ class TestStatus:
 @conftest.require_src
 class TestJob:
 
-    TEST_0001 = envutils.test_data('0001_test')
-    FAIL_0001 = envutils.test_data('0001_fail')
+    TEST_0001 = envutils.Src().test('0001_test')
+    FAIL_0001 = envutils.Src().test('0001_fail')
 
     @pytest.fixture
     def job(self, jobs, jobname, logger):

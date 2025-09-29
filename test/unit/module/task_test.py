@@ -62,7 +62,7 @@ class TestCmd:
         return cmd
 
     @pytest.mark.parametrize('dirname,expected', [('0001_test', [
-        "MEM_INTVL=1 nemd_run amorp_bldr_driver.py 'CC(C)O' -mol_num 1 "
+        "INTVL=1 nemd_run amorp_bldr_driver.py 'CC(C)O' -mol_num 1 "
         "-force_field OPLSUA TIP3P -method grid -seed 4321 -CPU 4 -DEBUG True",
         'exit 0'
     ])])
@@ -126,7 +126,7 @@ class TestCmd:
     def testSetMem(self, manual, options, expected):
         manual.options = types.SimpleNamespace(**options)
         manual.setMem()
-        assert expected == manual.args[0].startswith('MEM_INTVL')
+        assert expected == manual.args[0].startswith('INTVL')
 
     @pytest.mark.parametrize(
         'args,options,expected',
@@ -163,7 +163,7 @@ class TestCmd:
         except FileNotFoundError:
             pytest.fail('Job cleaning failed.')
 
-    @pytest.mark.parametrize('dirname,expected', [('0049_test', 332),
+    @pytest.mark.parametrize('dirname,expected', [('0049_test', 324),
                                                   ('0001_cmd', 154)])
     def testGetCmd(self, cmd, expected):
         cmd.setArgs()

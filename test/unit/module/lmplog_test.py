@@ -5,8 +5,8 @@ from nemd import envutils
 from nemd import lmplog
 from nemd import parserutils
 
-HEX = envutils.test_data('hexane_liquid', 'lammps_runner_lammps.log')
-SI = envutils.test_data('0044', 'lammps1', 'lmp.log')
+HEX = envutils.Src().test('hexane_liquid', 'lammps_runner_lammps.log')
+SI = envutils.Src().test('0044', 'lammps1', 'lmp.log')
 
 
 @pytest.fixture
@@ -53,7 +53,7 @@ class TestLog:
 @conftest.require_src
 class TestThermo:
 
-    EMPTY = envutils.test_data('ar', 'empty.log')
+    EMPTY = envutils.Src().test('ar', 'empty.log')
 
     @pytest.fixture
     def thermo(self, log):

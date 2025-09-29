@@ -1,12 +1,11 @@
 import os
 
+import conftest
 import mb_lmp_log_workflow as workflow
 import pytest
 
 from nemd import analyzer
 from nemd import envutils
-
-SRC = envutils.get_src()
 
 
 class TestRunner:
@@ -53,7 +52,7 @@ class TestParser:
             assert expected == options.struct_rg
 
 
-@pytest.mark.skipif(SRC is None, reason="test dir not found")
+@conftest.require_src
 class TestRead:
 
     @pytest.fixture
@@ -62,12 +61,12 @@ class TestRead:
 
     @pytest.mark.parametrize(
         'file,smiles,expected',
-        [(envutils.test_data('0003_test', 'mol_bldr.log'), 'CCC', '112.40')])
+        [(envutils.Src().test('0003_test', 'mol_bldr.log'), 'CCC', '112.40')])
     def testGetSubstruct(self, rdr, smiles, expected, tmp_dir):
         assert expected == rdr.getSubstruct(smiles)
 
 
-@pytest.mark.skipif(SRC is None, reason="test dir not found")
+@conftest.require_src
 class TestMerger:
     TEST0047 = os.path.join('0047_test', 'workspace',
                             'ecd6407852986c68a9fcc4390d67f50c')

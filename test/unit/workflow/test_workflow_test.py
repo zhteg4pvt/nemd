@@ -7,10 +7,10 @@ import test_workflow as workflow
 from nemd import envutils
 from nemd import logutils
 
-SRC = envutils.get_src()
+SRC = envutils.Src()
 
 
-@pytest.mark.skipif(SRC is None, reason="test dir not found")
+@pytest.mark.skipif(not SRC, reason="test dir not found")
 class TestRunner:
 
     @pytest.fixture
@@ -49,7 +49,7 @@ class TestRunner:
         (['1', '-name', 'integration', '-jtype', 'task'
           ], '2 / 2 succeed sub-jobs.'),
         (['1', '-dirname',
-          envutils.test_data(), '-jtype', 'task'], '0 / 1 succeed sub-jobs.')
+          envutils.Src().test(), '-jtype', 'task'], '0 / 1 succeed sub-jobs.')
     ])
     def testLogStatus(self, runner, expected, tmp_dir, flow_opr):
         with logutils.redirect():
@@ -88,9 +88,8 @@ class TestRunner:
         assert expected == len(runner.jobs)
 
 
-@pytest.mark.skipif(SRC is None, reason="test dir not found")
+@pytest.mark.skipif(not SRC, reason="test dir not found")
 class TestParser:
-    integration_SRC = envutils.get_src('test', 'integration')
 
     @pytest.fixture
     def parser(self, error):
@@ -101,7 +100,8 @@ class TestParser:
     @pytest.mark.parametrize('ekey', ['NEMD_SRC'])
     @pytest.mark.parametrize(
         'args,evalue,expected',
-        [(['-name', 'integration'], SRC, integration_SRC),
+        [(['-name', 'integration'], SRC, envutils.Src().test(
+            os.pardir, 'integration')),
          (['-dirname', os.curdir], None, os.curdir), ([], None, SystemExit),
          (['9999', '-name', 'integration'], SRC, SystemExit)])
     def testParseArgs(self, parser, args, expected, env, raises):

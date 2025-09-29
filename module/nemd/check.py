@@ -214,7 +214,7 @@ class CollBase(Exist):
         """
         twinx = self.cols[1] if len(self.cols) == 2 else None
         for col in self.cols[:1] if twinx else self.cols:
-            with plotutils.pyplot(inav=envutils.is_interac()) as plt:
+            with plotutils.pyplot(inav=envutils.Env().interac) as plt:
                 fig = plt.figure(figsize=(6, 4.5))
                 ax1 = fig.add_subplot(1, 1, 1)
                 ax1.set_xlabel(self.data.index.name)

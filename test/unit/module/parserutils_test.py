@@ -10,14 +10,14 @@ from nemd import parserutils
 from nemd import pytestutils
 
 AR = 'ar'
-AR_DIR = envutils.test_data(AR)
-IN_FILE = envutils.test_data(AR, 'ar100.in')
-EMPTY_IN = envutils.test_data(AR, 'empty.in')
-MISS_DATA_IN = envutils.test_data(AR, 'single.in')
-DATA_FILE = envutils.test_data(AR, 'ar100.data')
-MY_DATA_FILE = envutils.test_data(AR, 'mydata.in')
-LOG_FILE = envutils.test_data(AR, 'lammps.log')
-TRAJ_FILE = envutils.test_data(AR, 'ar100.custom.gz')
+AR_DIR = envutils.Src().test(AR)
+IN_FILE = envutils.Src().test(AR, 'ar100.in')
+EMPTY_IN = envutils.Src().test(AR, 'empty.in')
+MISS_DATA_IN = envutils.Src().test(AR, 'single.in')
+DATA_FILE = envutils.Src().test(AR, 'ar100.data')
+MY_DATA_FILE = envutils.Src().test(AR, 'mydata.in')
+LOG_FILE = envutils.Src().test(AR, 'lammps.log')
+TRAJ_FILE = envutils.Src().test(AR, 'ar100.custom.gz')
 RAISED = argparse.ArgumentTypeError
 
 

@@ -8,7 +8,7 @@ import pytest
 from nemd import envutils
 
 ARGS = ['-name', 'Si', '-JOBNAME', 'dispersion']
-BANDS = envutils.test_data('0044', 'phonons', 'dispersion.bands')
+BANDS = envutils.Src().test('0044', 'phonons', 'dispersion.bands')
 
 
 @conftest.require_src

@@ -7,8 +7,6 @@ import pytest
 from nemd import envutils
 from nemd import jobutils
 
-NEMD_SRC = envutils.get_src()
-
 
 class TestArgs:
 
@@ -52,7 +50,7 @@ class TestJob:
     @pytest.fixture
     def job(self, jobname, dirname):
         if dirname:
-            dirname = envutils.test_data(dirname)
+            dirname = envutils.Src().test(dirname)
         return jobutils.Job(jobname=jobname, dirname=dirname)
 
     @pytest.mark.parametrize("ekey", ['JOBNAME'])
@@ -74,7 +72,7 @@ class TestJob:
     @pytest.mark.parametrize('jobname', ['jobname'])
     @pytest.mark.parametrize(
         'dirname,filename,expected',
-        [(NEMD_SRC, 'myfile', 'myfile'), (None, 'filename', 'filename'),
+        [(envutils.Src(), 'myfile', 'myfile'), (None, 'filename', 'filename'),
          (None, os.path.join(os.getcwd(), 'name'), 'name')])
     def testFn(self, job, filename, expected):
         dirname, filename = os.path.split(job.fn(filename))

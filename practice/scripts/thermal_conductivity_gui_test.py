@@ -10,7 +10,7 @@ from nemd import envutils
 from nemd.envutils import CRYSTAL_NEMD
 from nemd.envutils import SINGLE_NEMD
 
-DRIVER_LOG = envutils.test_data(
+DRIVER_LOG = envutils.Src().test(
     os.path.join(CRYSTAL_NEMD, 'results', 'thermal_conductivity-driver.log'))
 
 APP = QtWidgets.QApplication(sys.argv)

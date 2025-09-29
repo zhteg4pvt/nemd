@@ -30,7 +30,7 @@ class Base(builtinsutils.Object):
         :param env dict: the environmental variables.
         """
         self.dirname = dirname or os.curdir
-        self.jobname = jobname or envutils.get_jobname() or self.name
+        self.jobname = jobname or envutils.Env().jobname or self.name
         self.env = env
         self.stdout = f"{self.jobname}{self.STD_EXT}"
         self.proc = None
@@ -261,7 +261,7 @@ class Tools(Submodules):
         """
         See parent.
         """
-        scr = envutils.get_data('tools', f'{self.mode}.py', module='alamode')
+        scr = envutils.Src().get('tools', f'{self.mode}.py', module='alamode')
         match self.mode:
             case self.EXTRACT:
                 return [scr, '--LAMMPS'] + self.files

@@ -11,7 +11,7 @@ from nemd import parserutils
 
 OPTIONS = parserutils.XtalBldr().parse_args(
     ['-JOBNAME', 'dispersion', '-temp', '0'])
-DISPLACE_DAT = envutils.test_data('0044', 'displace', 'dispersion1.lammps')
+DISPLACE_DAT = envutils.Src().test('0044', 'displace', 'dispersion1.lammps')
 
 
 @pytest.fixture
@@ -59,8 +59,9 @@ class TestLmp:
 @conftest.require_src
 class TestFunc:
 
-    DAT = envutils.test_data('0044', 'dispersion.data')
-    PATT = envutils.test_data('0044', 'suggest', 'dispersion.pattern_HARMONIC')
+    DAT = envutils.Src().test('0044', 'dispersion.data')
+    PATT = envutils.Src().test('0044', 'suggest',
+                               'dispersion.pattern_HARMONIC')
     STRUCT = alamode.Struct.fromMols(
         [alamode.Crystal.fromDatabase(OPTIONS).mol],
         options=OPTIONS,

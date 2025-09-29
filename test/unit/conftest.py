@@ -25,8 +25,7 @@ from nemd import rdkitutils
 from nemd import structure
 from nemd import task
 
-require_src = pytest.mark.skipif(envutils.get_src() is None,
-                                 reason="Test dir not found")
+require_src = pytest.mark.skipif(not envutils.Src(), reason="Dir not found")
 
 
 @contextlib.contextmanager
@@ -135,7 +134,7 @@ def copied(dirname, tmp_dir):
     """
     if dirname is None:
         return
-    test_dir = envutils.test_data(dirname)
+    test_dir = envutils.Src().test(dirname)
     shutil.copytree(test_dir, os.curdir, dirs_exist_ok=True)
     return test_dir
 
@@ -309,7 +308,7 @@ def fig():
 
     :return fig matplotlib.figure.Figure: the figure.
     """
-    with plotutils.pyplot(inav=envutils.is_interac()) as plt:
+    with plotutils.pyplot(inav=envutils.Env().interac) as plt:
         return plt.figure(figsize=(10, 6))
 
 

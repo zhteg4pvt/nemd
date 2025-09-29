@@ -26,7 +26,7 @@ logger = logutils.Logger.get(__file__)
 IDX = 'idx'
 TYPE_ID = symbols.TYPE_ID
 OPLSUA = symbols.OPLSUA.lower()
-DIRNAME = envutils.get_data('ff', OPLSUA)
+DIRNAME = envutils.Src().get('ff', OPLSUA)
 
 
 class Base(pd.DataFrame, builtinsutils.Object):

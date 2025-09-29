@@ -128,7 +128,7 @@ class Job(builtinsutils.Dict, builtinsutils.Object):
         :param dirname str: the job dirname
         """
         super().__init__(_logfile=None, _outfile=None, _outfiles=[])
-        self.setattr('jobname', jobname or envutils.get_jobname() or self.name)
+        self.setattr('jobname', jobname or envutils.Env().jobname or self.name)
         self.setattr('dirname', pathlib.Path(dirname or os.getcwd()))
         self.setattr('_file', self.JOB_DOC.format(jobname=self.jobname))
         try:

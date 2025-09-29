@@ -12,9 +12,9 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 from nemd import envutils
 
-DATA_FILE = envutils.test_data(os.path.join('trajs', 'c6.data'))
-DUMP_FILE = envutils.test_data(os.path.join('trajs', 'c6.custom'))
-XYZ_FILE = envutils.test_data(os.path.join('trajs', 'c6.xyz'))
+DATA_FILE = envutils.Src().test(os.path.join('trajs', 'c6.data'))
+DUMP_FILE = envutils.Src().test(os.path.join('trajs', 'c6.custom'))
+XYZ_FILE = envutils.Src().test(os.path.join('trajs', 'c6.xyz'))
 
 # @pytest.fixture
 # def dash_duo(request, dash_thread_server, tmpdir,

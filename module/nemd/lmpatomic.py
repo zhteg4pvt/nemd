@@ -518,4 +518,4 @@ class Reader:
 
         :return reader: the reader objet.
         """
-        return cls(envutils.test_data(*args))
+        return cls(envutils.Src().test(*args))

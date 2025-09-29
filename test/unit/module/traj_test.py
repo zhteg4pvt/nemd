@@ -10,7 +10,7 @@ from nemd import parserutils
 from nemd import traj
 
 ARGS = ['-last_pct', '0.8', '-task', 'xyz']
-XTC = envutils.test_data('hexane_xtc', 'amorp_bldr.xtc')
+XTC = envutils.Src().test('hexane_xtc', 'amorp_bldr.xtc')
 
 
 class TestBox:
@@ -61,10 +61,10 @@ class TestTime:
 @conftest.require_src
 class TestTraj:
 
-    FRM = envutils.test_data('hexane_liquid', 'dump.custom')
-    GZ = envutils.test_data('hexane_liquid', 'dump.custom.gz')
-    EMPTY = envutils.test_data('ar', 'empty.custom')
-    ONE = envutils.test_data('ar', 'one_frame.custom')
+    FRM = envutils.Src().test('hexane_liquid', 'dump.custom')
+    GZ = envutils.Src().test('hexane_liquid', 'dump.custom.gz')
+    EMPTY = envutils.Src().test('ar', 'empty.custom')
+    ONE = envutils.Src().test('ar', 'one_frame.custom')
 
     @pytest.fixture
     def trj(self, file, args, start, delay):

@@ -11,6 +11,7 @@ import time
 import psutil
 import scipy
 
+from nemd import envutils
 from nemd import symbols
 
 
@@ -74,11 +75,11 @@ class Memory:
     This class periodically profiles memory usage and reports the peak ussage.
     """
 
-    def __init__(self, intvl=2):
+    def __init__(self, intvl=None):
         """
         :param intvl float: The periodical checking interval in seconds.
         """
-        self.intvl = intvl
+        self.intvl = intvl or envutils.Env().intvl or 2
         self.peak = queue.Queue()
         self.stop = threading.Event()
         args = (self.peak, self.stop, self.intvl)

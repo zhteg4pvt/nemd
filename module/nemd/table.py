@@ -7,5 +7,5 @@ import pandas as pd
 
 from nemd import envutils
 
-pathname = envutils.get_data('table', 'table.parquet')
+pathname = envutils.Src().get('table', 'table.parquet')
 TABLE = pd.read_parquet(pathname, engine="fastparquet")

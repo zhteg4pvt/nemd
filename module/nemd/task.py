@@ -212,7 +212,7 @@ class Cmd(taskbase.Cmd):
                 idx = cmd.index(jobutils.NEMD_RUN)
             except ValueError:
                 continue
-            self.args[index] = f"{cmd[:idx]}{envutils.MEM_INTVL}=1 {cmd[idx:]}"
+            self.args[index] = f"{cmd[:idx]}{envutils.Env.INTVL}=1 {cmd[idx:]}"
 
     def setScreen(self):
         """

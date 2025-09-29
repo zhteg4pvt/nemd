@@ -6,26 +6,75 @@
 This module handles system-wide environmental variables.
 """
 import collections
-import functools
 import importlib
 import os
 
-NEMD = 'nemd'
-NEMD_SRC = 'NEMD_SRC'
-DEBUG = 'DEBUG'
-PYTHON = 'PYTHON'
-JOBNAME = 'JOBNAME'
-INTERAC = 'INTERAC'
-MEM_INTVL = 'MEM_INTVL'
 
+class Env(collections.UserDict):
+    """
+    Class for environmental variables.
+    """
+    INTVL = 'INTVL'
 
-class Base(collections.UserDict):
-
-    def __init__(self, environ=None):
+    def __init__(self, env=None):
         """
-        :param environ dict: the environmental dict.
+        :param env dict: the environmental dict.
         """
-        super().__init__(environ if os.environ is None else os.environ)
+        super().__init__(os.environ if env is None else env)
+
+    @property
+    def interac(self):
+        """
+        Whether the interactive modo is on.
+
+        :return bool: whether the interactive modo is on.
+        """
+        return bool(self.get('INTERAC'))
+
+    @property
+    def jobname(self):
+        """
+        The jobname of the current execution.
+
+        :return str: the jobname.
+        """
+        return self.get('JOBNAME')
+
+    @property
+    def mode(self):
+        """
+        The jobname of the current execution.
+
+        :return str: the jobname.
+        """
+        return int(self.get('PYTHON', Mode.CACHE))
+
+    @property
+    def intvl(self):
+        """
+        Return the memory profiling interval if the execution is in the memory
+        profiling mode.
+
+        :return float: The memory recording interval if the memory profiling
+            environment flag is on.
+        """
+        try:
+            intvl = float(self.get(self.INTVL))
+        except (TypeError, ValueError):
+            # INTVL is not set or set to a non-numeric value
+            pass
+        else:
+            # Only return the valid time interval
+            return intvl if intvl > 0 else None
+
+    @property
+    def src(self):
+        """
+        Get the source code dir.
+
+        :return str: the source code dir
+        """
+        return self.get('NEMD_SRC', '')
 
 
 class Mode(int):
@@ -36,9 +85,9 @@ class Mode(int):
     CACHE = 2  # cached compilation
 
     def __new__(cls, mode=CACHE):
-        return super().__new__(cls, os.environ.get(PYTHON, mode))
+        return super().__new__(cls, Env().mode)
 
-    @functools.cached_property
+    @property
     def orig(self):
         """
         Whether the python mode is the original flavor.
@@ -47,7 +96,7 @@ class Mode(int):
         """
         return self == 0
 
-    @functools.cached_property
+    @property
     def kwargs(self):
         """
         Get the jit decorator kwargs.
@@ -56,7 +105,7 @@ class Mode(int):
         """
         return {'nopython': self.no, 'cache': self == self.CACHE}
 
-    @functools.cached_property
+    @property
     def no(self, modes=(1, CACHE)):
         """
         Whether the nopython mode is on.
@@ -67,85 +116,37 @@ class Mode(int):
         return self in modes
 
 
-def is_interac():
+class Src(str):
     """
-    Whether the interactive modo is on.
-
-    :return bool: whether the debug modo is on.
+    Source code dir.
     """
-    return bool(os.environ.get(INTERAC))
+    NEMD = 'nemd'
 
+    def __new__(cls, src=None):
+        """
+        :param src str: the source code root dir.
+        """
+        return super().__new__(cls, src or Env().src)
 
-def get_jobname():
-    """
-    The jobname of the current execution.
+    def test(self, *args, base='data'):
+        """
+        Get the pathname of the test data.
 
-    :return str: the jobname.
-    """
-    return os.environ.get(JOBNAME)
+        :param base str: the test base dir name with respect to test root.
+        :return str: the pathname
+        """
+        return os.path.join(self, 'test', base, *args)
 
+    def get(self, *args, module=NEMD, base=None):
+        """
+        Get the data path of in a module.
 
-def get_mem_intvl():
-    """
-    Return the memory profiling interval if the execution is in the memory
-    profiling mode.
-
-    :return float: The memory recording interval if the memory profiling
-        environment flag is on.
-    """
-    try:
-        intvl = float(os.environ.get(MEM_INTVL))
-    except (TypeError, ValueError):
-        # MEM_INTVL is not set or set to a non-numeric value
-        pass
-    else:
-        # Only return the valid time interval
-        return intvl if intvl > 0 else None
-
-
-def get_src(*arg):
-    """
-    Get the source code dir.
-
-    :return str: the source code dir
-    """
-    nemd_src = os.environ.get(NEMD_SRC)
-    return os.path.join(nemd_src, *arg) if nemd_src else None
-
-
-def test_data(*args):
-    """
-    Get the pathname of the test data.
-
-    :param args str list: the directory and file name of the test file.
-    :return str: the pathname
-    """
-    return get_src('test', 'data', *args)
-
-
-def get_module_dir(name=NEMD):
-    """
-    Get the module path.
-
-    :param name str: the module name.
-    :return str: the module path
-    """
-    pathname = get_src('module', name)
-    if pathname:
-        return pathname
-    return os.path.dirname(importlib.util.find_spec(name).origin)
-
-
-def get_data(*args, module=NEMD, base=None):
-    """
-    Get the data path of in a module.
-
-    :param args tuple: the str to be joined as the further path from the base.
-    :param module str: the module name.
-    :param base str: the base dir name with respect to the module path.
-    :return str: the data path.
-    """
-    if base is None:
-        base = 'data' if module == NEMD else module
-    pathname = [get_module_dir(name=module), base] + list(args)
-    return os.path.join(*[x for x in pathname if x])
+        :param module str: the module name.
+        :param base str: the base dir name with respect to the module path.
+        :return str: the data path.
+        """
+        if base is None:
+            base = 'data' if module == self.NEMD else module
+        paths = [self, 'module', module
+                 ] if self else importlib.import_module(module).__path__
+        return os.path.join(*paths, base, *args)

@@ -30,12 +30,12 @@ class TestBase:
 class TestFrame:
 
     AR_RDR = lmpfull.Reader.fromTest('ar', 'ar100.data')
-    TWO_FRMS = envutils.test_data('ar', 'two_frames.custom')
-    BROKEN_HEADER = envutils.test_data('ar', 'broken_header.custom')
-    BROKEN_ATOMS = envutils.test_data('ar', 'broken_atoms.custom')
+    TWO_FRMS = envutils.Src().test('ar', 'two_frames.custom')
+    BROKEN_HEADER = envutils.Src().test('ar', 'broken_header.custom')
+    BROKEN_ATOMS = envutils.Src().test('ar', 'broken_atoms.custom')
     HEX_RDR = lmpfull.Reader.fromTest('hexane_liquid', 'polymer_builder.data')
-    HEX_FRM = envutils.test_data('hexane_liquid', 'dump.custom')
-    SUB_FRM = envutils.test_data('si', 'sub', 'amorp_bldr.custom')
+    HEX_FRM = envutils.Src().test('hexane_liquid', 'dump.custom')
+    SUB_FRM = envutils.Src().test('si', 'sub', 'amorp_bldr.custom')
 
     @pytest.mark.parametrize('data,step,expected',
                              [(None, None, [(), None]),

@@ -538,5 +538,5 @@ class TestReader:
                           (['0000', 'check'], ValueError)])
     def testRead(self, args, expected, raises):
         with raises:
-            rdr = lmpfull.Reader.read(envutils.test_data(*args))
+            rdr = lmpfull.Reader.read(envutils.Src().test(*args))
             assert isinstance(rdr, expected)

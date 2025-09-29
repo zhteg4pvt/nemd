@@ -235,9 +235,8 @@ class Script:
         logfile = os.path.basename(self.logger.handlers[0].baseFilename)
         jobutils.Job.reg(logfile, **self.kwargs)
         self.logger.infoJob(self.options)
-        intvl = envutils.get_mem_intvl()
-        if intvl is not None:
-            self.memory = psutils.Memory(intvl)
+        if envutils.Env().intvl is not None:
+            self.memory = psutils.Memory()
             self.memory.thread.start()
         return self.logger
 

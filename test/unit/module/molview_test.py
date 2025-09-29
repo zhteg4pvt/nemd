@@ -9,7 +9,7 @@ from nemd import lmpfull
 from nemd import molview
 from nemd import traj
 
-FRM = envutils.test_data('water', 'three.custom')
+FRM = envutils.Src().test('water', 'three.custom')
 RDR = lmpfull.Reader.fromTest('water', 'polymer_builder.data')
 
 

@@ -13,12 +13,12 @@ from nemd import parserutils
 @conftest.require_src
 class TestLmpLog:
 
-    LOG = envutils.test_data('ar', 'lammps.log')
-    EMPTY = envutils.test_data('ar', 'empty.log')
-    DATA = envutils.test_data('ar', 'ar100.data')
-    NO_VOL = envutils.test_data('0046_test', 'workspace',
-                                '67f59ab2eb89dab89c2f1b16e4fc1776',
-                                'lammps_lmp.log')
+    LOG = envutils.Src().test('ar', 'lammps.log')
+    EMPTY = envutils.Src().test('ar', 'empty.log')
+    DATA = envutils.Src().test('ar', 'ar100.data')
+    NO_VOL = envutils.Src().test('0046_test', 'workspace',
+                                 '67f59ab2eb89dab89c2f1b16e4fc1776',
+                                 'lammps_lmp.log')
 
     @pytest.fixture
     def lmplog(self, args, logger):

@@ -4,6 +4,39 @@ import conftest
 import pytest
 
 from nemd import envutils
+from nemd import process
+
+
+class TestEnv:
+
+    @pytest.mark.parametrize("ekey", ['INTERAC'])
+    @pytest.mark.parametrize("evalue,expected", [(None, False), ('', False),
+                                                 ('1', True)])
+    def testInterac(self, expected, env):
+        assert expected == envutils.Env().interac
+
+    @pytest.mark.parametrize("ekey", ['JOBNAME'])
+    @pytest.mark.parametrize("evalue,expected", [('myname', 'myname'),
+                                                 (None, None)])
+    def testJobname(self, expected, env):
+        assert expected == envutils.Env().jobname
+
+    @pytest.mark.parametrize("ekey", ['PYTHON'])
+    @pytest.mark.parametrize("evalue,expected", [('-1', -1), (None, 2)])
+    def testMode(self, expected, env):
+        assert expected == envutils.Env().mode
+
+    @pytest.mark.parametrize("ekey", ['INTVL'])
+    @pytest.mark.parametrize("evalue,expected", [(None, None), ('-1.1', None),
+                                                 ('4.2', 4.2)])
+    def testIntvl(self, expected, env):
+        assert expected == envutils.Env().intvl
+
+    @pytest.mark.parametrize("ekey", ['NEMD_SRC'])
+    @pytest.mark.parametrize("evalue,expected", [(None, ''), ('', ''),
+                                                 ('my_path', 'my_path')])
+    def testSrc(self, expected, env):
+        assert expected == envutils.Src()
 
 
 class TestMode:
@@ -37,63 +70,31 @@ class TestMode:
         assert expected == envutils.Mode().no
 
 
-class TestFunc:
-    NEMD_SRC = envutils.get_src()
-
-    @pytest.mark.parametrize("ekey", ['INTERAC'])
-    @pytest.mark.parametrize("evalue,expected", [(None, False), ('', False),
-                                                 ('1', True)])
-    def testIsInterac(self, expected, env):
-        assert expected == envutils.is_interac()
-
-    @pytest.mark.parametrize("ekey", ['JOBNAME'])
-    @pytest.mark.parametrize("evalue,expected", [('myname', 'myname'),
-                                                 (None, None)])
-    def testGetJobname(self, expected, env):
-        assert expected == envutils.get_jobname()
-
-    @pytest.mark.parametrize("ekey", ['MEM_INTVL'])
-    @pytest.mark.parametrize("evalue,expected", [(None, None), ('-1.1', None),
-                                                 ('4.2', 4.2)])
-    def testGetMemIntvl(self, expected, env):
-        assert expected == envutils.get_mem_intvl()
-
-    @conftest.require_src
-    @pytest.mark.parametrize("ekey", ['NEMD_SRC'])
-    @pytest.mark.parametrize("evalue,args,expected",
-                             [(NEMD_SRC, (), NEMD_SRC),
-                              (None, ('data', 'test'), None),
-                              (NEMD_SRC, ('test', ), 'test')])
-    def testGetSrc(self, args, evalue, expected, env):
-        if all([evalue, expected]):
-            expected = os.path.join(evalue, expected)
-        assert expected == envutils.get_src(*args)
+class TestSrc:
+    SRC = envutils.Src()
 
     @conftest.require_src
     @pytest.mark.parametrize('ekey', ['NEMD_SRC'])
     @pytest.mark.parametrize("evalue,args,expected",
-                             [(NEMD_SRC, ('water', 'xyzl.data'), 'data'),
-                              (NEMD_SRC, ('water', 'defm_39'), 'data'),
-                              (None, ('water', 'defm_39'), None)])
-    def testTestData(self, args, expected, env):
-        data = envutils.test_data(*args)
-        assert data.endswith(os.path.join(
-            expected, *args)) if expected else (data is None)
+                             [(SRC, ('water', 'xyzl.data'), 'data'),
+                              (SRC, ('water', 'defm_39'), 'data'),
+                              ('', ('water', 'defm_39'), ''),
+                              (None, ('water', 'defm_39'), '')])
+    def testTest(self, args, expected, env):
+        data = envutils.Src().test(*args)
+        assert data.endswith(os.path.join(expected, *args))
 
-    @pytest.mark.parametrize("ekey", ['NEMD_SRC'])
-    @pytest.mark.parametrize("evalue,name,expected",
-                             [(None, 'nemd', 'nemd'),
-                              (NEMD_SRC, 'nemd', 'nemd'),
-                              (None, 'alamode', 'alamode'),
-                              (NEMD_SRC, 'alamode', 'alamode')])
-    def testGetModuleDir(self, name, expected, env):
-        assert envutils.get_module_dir(name).endswith(expected)
-
-    @pytest.mark.parametrize(
-        "args,module,base,expected",
-        [(('ff', ), 'nemd', None, ['data', 'ff']),
-         (('tools', ), 'alamode', None, ['alamode', 'tools']),
-         (('tools', ), 'alamode', '', ['tools'])])
-    def testGetData(self, module, base, args, expected):
-        data = envutils.get_data(*args, module=module, base=base)
-        assert data.endswith(os.path.join(module, *expected))
+    @pytest.mark.parametrize("args,module,base,expected",
+                             [(('ff', ), 'nemd', None, True),
+                              (('envutils.py', ), 'nemd', '', True),
+                              (('tools', ), 'alamode', None, True),
+                              (('tools', ), 'alamode', 'alamode', True)])
+    def testGet(self, module, base, args, expected, tmp_dir, quot="'{}'"):
+        args = list(map(quot.format, args))
+        args.append(f"module={quot.format(module)}")
+        args.append(f"base={base if base is None else quot.format(base)}")
+        path = f"envutils.Src().get({', '.join(args)})"
+        cmd = f'"from nemd import envutils; print({path})"'
+        proc = process.Process(['nemd_run', '-c', cmd])
+        proc.run()
+        assert expected == os.path.exists(proc.msg.strip())

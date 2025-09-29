@@ -9,7 +9,7 @@ class TempEnePlotter(object):
         self.lammp_temp = lammp_temp
         self.lammps_energy = lammps_energy
         self.jobname = jobname
-        self.interactive = envutils.is_interac()
+        self.interactive = envutils.Env().interac
         self.fig_file = self.jobname + '.png'
         self.fig_nrows = 2
         self.fig_ncols = 1

@@ -679,7 +679,7 @@ class Driver(argparse.ArgumentParser, builtinsutils.Object):
         Add job control related flags.
         """
         if self.FLAG_JOBNAME in self.JFLAGS:
-            default = envutils.get_jobname() or self.name
+            default = envutils.Env().jobname or self.name
             self.add_argument(jobutils.FLAG_NAME,
                               default=default,
                               help=argparse.SUPPRESS)
@@ -688,7 +688,7 @@ class Driver(argparse.ArgumentParser, builtinsutils.Object):
                               help='Name output files.')
         if self.FLAG_INTERAC in self.JFLAGS:
             self.addBool(self.FLAG_INTERAC,
-                         default=envutils.is_interac(),
+                         default=envutils.Env().interac,
                          help='Pause for user input.')
         if self.FLAG_PYTHON in self.JFLAGS:
             self.add_argument(self.FLAG_PYTHON,

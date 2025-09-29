@@ -144,7 +144,7 @@ class Figure(plotly.graph_objects.Figure):
         self.add_traces(self.traces)
         self.updateFrame()
         self.updateLayout()
-        if envutils.is_interac():
+        if envutils.Env().interac:
             self.show()
 
     @property

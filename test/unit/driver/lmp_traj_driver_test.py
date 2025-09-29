@@ -12,14 +12,14 @@ from nemd import parserutils
 @conftest.require_src
 class TestTraj:
 
-    AR_IN = envutils.test_data('ar', 'ar100.in')
-    AR_DATA = envutils.test_data('ar', 'ar100.data')
-    AR_TRJ = envutils.test_data('ar', 'ar100.custom')
+    AR_IN = envutils.Src().test('ar', 'ar100.in')
+    AR_DATA = envutils.Src().test('ar', 'ar100.data')
+    AR_TRJ = envutils.Src().test('ar', 'ar100.custom')
     NO_DAT = [AR_TRJ, '-JOBNAME', 'name']
     ARGS = NO_DAT + ['-data_file', AR_DATA]
     XYZ = [AR_TRJ, '-JOBNAME', 'name'] + ['-task', 'xyz']
-    XTC = [envutils.test_data('ar', 'amorp_bldr.xtc')] + NO_DAT[1:]
-    EMPTY = [envutils.test_data('ar', 'empty.custom')] + NO_DAT[1:]
+    XTC = [envutils.Src().test('ar', 'amorp_bldr.xtc')] + NO_DAT[1:]
+    EMPTY = [envutils.Src().test('ar', 'empty.custom')] + NO_DAT[1:]
 
     @pytest.fixture
     def trj(self, args, logger):

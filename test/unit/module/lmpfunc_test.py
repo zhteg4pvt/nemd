@@ -8,7 +8,7 @@ from nemd import envutils
 from nemd import lmpfunc
 from nemd import plotutils
 
-PRESS_DATA = envutils.test_data('water', 'defm_00', 'press_vol.data')
+PRESS_DATA = envutils.Src().test('water', 'defm_00', 'press_vol.data')
 
 
 @conftest.require_src
@@ -36,7 +36,7 @@ class TestBase:
 
 
 @conftest.require_src
-@pytest.mark.parametrize('xyzl', [envutils.test_data('water', 'xyzl.data')])
+@pytest.mark.parametrize('xyzl', [envutils.Src().test('water', 'xyzl.data')])
 class TestLength:
 
     @pytest.fixture

@@ -131,7 +131,7 @@ class TestLogger:
                          [types.SimpleNamespace(hi='la', JOBNAME='hi')])
 class TestScript:
 
-    @pytest.mark.parametrize('ekey', ['MEM_INTVL'])
+    @pytest.mark.parametrize('ekey', ['INTVL'])
     @pytest.mark.parametrize('evalue', ['', '0.001'])
     @pytest.mark.parametrize('log,file', [(False, True), (True, False)])
     def testEnter(self, evalue, options, log, file, env, tmp_dir):
@@ -147,7 +147,7 @@ class TestScript:
         rdr.read()
         assert 5 == len(rdr.lines)
 
-    @pytest.mark.parametrize('ekey', ['MEM_INTVL'])
+    @pytest.mark.parametrize('ekey', ['INTVL'])
     @pytest.mark.parametrize('evalue', ['', '0.001'])
     @pytest.mark.parametrize('expected,msg',
                              [(None, 'Finished.'),
@@ -180,12 +180,12 @@ class TestScript:
 
 @conftest.require_src
 class TestReader:
-    AMORP_LOG = envutils.test_data('0001_test', 'workspace',
-                                   '0aee44e791ffa72655abcc90e25355d8',
-                                   'amorp_bldr.log')
-    MB_LMP_LOG = envutils.test_data('0046_test', 'mb_lmp_log.log')
-    TEST001_LOG = envutils.test_data('0001_fail', 'test.log')
-    EMPTY_LOG = envutils.test_data('ar', 'empty.log')
+    AMORP_LOG = envutils.Src().test('0001_test', 'workspace',
+                                    '0aee44e791ffa72655abcc90e25355d8',
+                                    'amorp_bldr.log')
+    MB_LMP_LOG = envutils.Src().test('0046_test', 'mb_lmp_log.log')
+    TEST001_LOG = envutils.Src().test('0001_fail', 'test.log')
+    EMPTY_LOG = envutils.Src().test('ar', 'empty.log')
     TEST0049 = os.path.join('0049_test', 'workspace',
                             '3ec5394f589c9363bd15af35d45a7c44')
     TEST0035 = os.path.join('0035_test', 'workspace',
@@ -234,7 +234,7 @@ class TestReader:
         [(AMORP_LOG, 'start', '2025-07-06 09:26:19'),
          (AMORP_LOG, 'end', '2025-07-06 09:26:20'),
          (AMORP_LOG, 'delta', '0:00:01'),
-         (envutils.test_data('ar', 'empty.log'), 'end', 'None')])
+         (envutils.Src().test('ar', 'empty.log'), 'end', 'None')])
     def testTime(self, dtype, expected, reader):
         assert expected == str(reader.time(dtype=dtype))
 

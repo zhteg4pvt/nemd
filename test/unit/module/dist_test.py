@@ -9,7 +9,7 @@ from nemd import dist
 from nemd import envutils
 from nemd import lmpfull
 
-HEX_FRM = envutils.test_data('hexane_liquid', 'dump.custom')
+HEX_FRM = envutils.Src().test('hexane_liquid', 'dump.custom')
 
 
 @conftest.require_src

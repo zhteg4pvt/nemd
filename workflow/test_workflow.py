@@ -128,10 +128,9 @@ class TestValid(parserutils.Valid):
 
         :raises FileNotFoundError: if the input directory cannot be located.
         """
-        if self.options.dirname is None:
-            dirname = envutils.get_src('test', self.options.name)
-            if dirname:
-                self.options.dirname = pathlib.Path(dirname)
+        if self.options.dirname is None and envutils.Src():
+            dirname = envutils.Src().test(self.options.name, base='')
+            self.options.dirname = pathlib.Path(dirname)
         if self.options.dirname and self.options.dirname.is_dir():
             return
         raise FileNotFoundError(f'Cannot locate the tests ({FLAG_DIRNAME}).')

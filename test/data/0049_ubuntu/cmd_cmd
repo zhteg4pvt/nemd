@@ -1,3 +1,3 @@
 echo "0049: Performance: [Ar] Amorphous Builder"
-MEM_INTVL=1 nemd_run amorp_bldr_driver.py "[Ar]" -method grid -mol_num 100 -seed 1 -NAME number_of_molecules -JOBNAME number_of_molecules_100 -CPU 1 -DEBUG False
-MEM_INTVL=1 nemd_run amorp_bldr_driver.py "[Ar]" -method grid -mol_num 50000 -seed 1 -NAME number_of_molecules -JOBNAME number_of_molecules_50000 -CPU 1 -DEBUG False
+INTVL=1 nemd_run amorp_bldr_driver.py "[Ar]" -method grid -mol_num 100 -seed 1 -NAME number_of_molecules -JOBNAME number_of_molecules_100 -CPU 1 -DEBUG False
+INTVL=1 nemd_run amorp_bldr_driver.py "[Ar]" -method grid -mol_num 50000 -seed 1 -NAME number_of_molecules -JOBNAME number_of_molecules_50000 -CPU 1 -DEBUG False

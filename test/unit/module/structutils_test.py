@@ -283,7 +283,7 @@ class TestPackFrame:
 
     @pytest.mark.parametrize(
         'file,expected',
-        [(envutils.test_data('hexane_liquid', 'dump.custom'), 1100)])
+        [(envutils.Src().test('hexane_liquid', 'dump.custom'), 1100)])
     def testGetPoints(self, frm, smiles, mols, expected):
         options = parserutils.AmorpBldr().parse_args(smiles)
         struct = structutils.PackedStruct.fromMols(mols, options=options)

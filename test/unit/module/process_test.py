@@ -110,10 +110,9 @@ class TestLmp:
         assert 4 == len(lmp.args)
 
     @conftest.require_src
-    @pytest.mark.parametrize(
-        'infile,expected',
-        [(envutils.test_data('ar', 'error.in'), 'cannot open file ar100.data'),
-         ('not_exist', 'errorcode')])
+    @pytest.mark.parametrize('infile,expected', [(envutils.Src().test(
+        'ar', 'error.in'), 'cannot open file ar100.data'),
+                                                 ('not_exist', 'errorcode')])
     def testErr(self, lmp, expected, tmp_dir):
         lmp.run()
         assert expected in lmp.err.lower()
@@ -130,10 +129,10 @@ class TestSubmodules:
 
 @conftest.require_src
 class TestTools:
-    DATA = envutils.test_data('0044', 'dispersion.data')
-    PATTERN = envutils.test_data('0044', 'suggest',
-                                 'dispersion.pattern_HARMONIC')
-    CUSTOM = envutils.test_data('0044', 'lammps1', 'dispersion.custom')
+    DATA = envutils.Src().test('0044', 'dispersion.data')
+    PATTERN = envutils.Src().test('0044', 'suggest',
+                                  'dispersion.pattern_HARMONIC')
+    CUSTOM = envutils.Src().test('0044', 'lammps1', 'dispersion.custom')
 
     @pytest.mark.parametrize('files,mode,expected',
                              [([DATA, PATTERN], 'displace', 9),
@@ -156,7 +155,7 @@ class TestAlamode:
     @pytest.mark.parametrize(
         'file,mode,expected',
         [(None, 'suggest', ['dispersion.in']),
-         (envutils.test_data('0044', 'extract', 'dispersion.log'), 'optimize',
+         (envutils.Src().test('0044', 'extract', 'dispersion.log'), 'optimize',
           ['dispersion.in', 'dispersion.dfset'])])
     def testSetUp(self, ala, expected, tmp_dir):
         ala.setUp()

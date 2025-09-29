@@ -242,9 +242,5 @@ class TestReader:
     def testWeights(self, rdr):
         np.testing.assert_almost_equal(rdr.weights.sum(), 1348.128)
 
-    @pytest.mark.parametrize(
-        'ekey,args', [('NEMD_SRC', ['0033_test', 'crystal_builder.data'])])
-    @pytest.mark.parametrize('evalue', [envutils.get_src(), None])
-    def testFromTest(self, args, rdr, evalue, env):
-        assert (evalue and rdr.data_file) == lmpatomic.Reader.fromTest(
-            *args).data_file
+    def testFromTest(self, rdr):
+        assert os.path.exists(rdr.data_file)

@@ -16,10 +16,10 @@ from nemd import parserutils
 from nemd import task
 from nemd import traj
 
-TEST0045 = envutils.test_data('0045_test')
+TEST0045 = envutils.Src().test('0045_test')
 AR_ARGS = ('0045_test', 'workspace', '6fd1b87409fbb60c6612569e187f59fc')
-AR_TRJ = envutils.test_data(*AR_ARGS, 'amorp_bldr.xtc')
-HEX_TRJ = envutils.test_data('hexane_liquid', 'dump.custom')
+AR_TRJ = envutils.Src().test(*AR_ARGS, 'amorp_bldr.xtc')
+HEX_TRJ = envutils.Src().test('hexane_liquid', 'dump.custom')
 HEX_RDR = lmpfull.Reader.fromTest('hexane_liquid', 'polymer_builder.data')
 
 
@@ -112,8 +112,8 @@ class TestBase:
 
 class TestJob:
 
-    TEST0027 = envutils.test_data('0027_test')
-    TEST0037 = envutils.test_data('0037_test')
+    TEST0027 = envutils.Src().test('0027_test')
+    TEST0037 = envutils.Src().test('0037_test')
     EMPTY = pd.Series()
     PARM = pd.Series(['CCCC 5.0'], index=pd.Index(['substruct'], name=1))
 
@@ -224,7 +224,7 @@ class TestJob:
 
 @conftest.require_src
 class TestDensity:
-    AR_DAT = envutils.test_data(*AR_ARGS, 'amorp_bldr.data')
+    AR_DAT = envutils.Src().test(*AR_ARGS, 'amorp_bldr.data')
 
     @pytest.mark.parametrize('trj,gids,expected', [(None, None, (0, None)),
                                                    (AR_TRJ, None, (5, 10)),
@@ -276,8 +276,8 @@ class TestXYZ:
 @conftest.require_src
 class TestView:
 
-    TRJ = envutils.test_data('water', 'three.custom')
-    DAT = envutils.test_data('water', 'polymer_builder.data')
+    TRJ = envutils.Src().test('water', 'three.custom')
+    DAT = envutils.Src().test('water', 'polymer_builder.data')
 
     @pytest.mark.parametrize('trj', [TRJ])
     @pytest.mark.parametrize('dat', [(None), (DAT)])
@@ -396,7 +396,7 @@ class TestRDF:
 
 class TestMSD:
 
-    FOUR = envutils.test_data('hexane_liquid', 'four_frames.custom')
+    FOUR = envutils.Src().test('hexane_liquid', 'four_frames.custom')
 
     @pytest.fixture
     def msd(self, trj, gids, rdr, logger):
@@ -460,7 +460,7 @@ class TestMSD:
 @conftest.require_src
 class TestTotEng:
 
-    AR_LOG = envutils.test_data(*AR_ARGS, 'lammps_lmp.log')
+    AR_LOG = envutils.Src().test(*AR_ARGS, 'lammps_lmp.log')
 
     @pytest.fixture
     def tot_eng(self, logfile):
@@ -484,7 +484,7 @@ class TestTotEng:
 
 
 class TestMerger:
-    TEST0046 = envutils.test_data('0046_test')
+    TEST0046 = envutils.Src().test('0046_test')
 
     @pytest.fixture
     def merger(self, jobs, tsk, args, logger):
