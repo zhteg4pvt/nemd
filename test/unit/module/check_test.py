@@ -191,6 +191,7 @@ class TestCollect:
         for outfile in outfiles:
             assert os.path.exists(outfile)
 
+
 @conftest.require_src
 class TestMerge:
 

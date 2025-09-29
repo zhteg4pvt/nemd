@@ -24,7 +24,6 @@ class Base(logutils.Base):
     """
     The base class to parse a test file.
     """
-
     POUND = symbols.POUND
 
     def __init__(self, dirname, **kwargs):
@@ -99,7 +98,6 @@ class Param(Base):
     """
     The class to parse the parameter file.
     """
-
     PARAM = f'$param'
 
     def __init__(self, cmd, **kwargs):
@@ -189,7 +187,6 @@ class Tag(Base):
     """
     The class create, parses, and update the tag file.
     """
-
     SLOW = 'slow'
     LABEL = 'label'
 
@@ -260,10 +257,11 @@ class Tag(Base):
         return self.labeled and (self.fast is None or bool(self.fast))
 
     @functools.cached_property
-    def fast(self):
+    def fast(self, func=lambda x: timeutils.Delta.fromStr(x).total_seconds()):
         """
         Get the fast parameters.
 
+        :param func func: convert str to total seconds
         :return set: parameters filtered by slow
         """
         if self.options.slow is None:
@@ -273,9 +271,7 @@ class Tag(Base):
         if not params:
             return
         params = np.reshape(params, (-1, 2))
-        params = pd.Series(params[:, 1], index=params[:, 0])
-        params = params.map(
-            lambda x: timeutils.Delta.fromStr(x).total_seconds())
+        params = pd.Series(params[:, 1], index=params[:, 0]).map(func)
         return set(params[params <= self.options.slow].index)
 
     @property

@@ -363,11 +363,67 @@ class LmpAgg(taskbase.Agg):
         return [Group(parm=series[x], jobs=jobs[x]) for x in keys]
 
 
+class Info(pd.DataFrame):
+    """
+    Job information.
+    """
+    TIME = symbols.TIME.lower()
+
+    @classmethod
+    def fromJobs(cls, jobs, fn=lambda x: os.path.basename(os.path.dirname(x))):
+        """
+        Get Info from jobs.
+
+        :param list of 'jobs': the json jobs.
+        :param fn func: get the base dirname.
+        """
+        rdrs = [logutils.Reader(x.logfile) for x in jobs if x.logfile]
+        info = [[fn(x.namepath), x.options.NAME, x.task_time] for x in rdrs]
+        return Info(info, columns=[symbols.ID, symbols.NAME, cls.TIME])
+
+    @property
+    def total_time(self):
+        """
+        Get the total task time.
+
+        :return str: the total task time.
+        """
+        time = self.time.dropna()
+        return "nan" if time.empty else timeutils.Delta(time.sum()).toStr()
+
+    @property
+    def group(self):
+        """
+        Groups the job info by names.
+
+        :return 'Info': the job info by name.
+        """
+        group = self.groupby(symbols.NAME, sort=False)[[self.TIME, symbols.ID]]
+        data = {x[:9]: Info(y).toStr() for x, y in group}
+        data = sorted(data.items(), key=lambda x: x[1].size, reverse=True)
+        return Info(dict(data))
+
+    def toStr(self, hour=timeutils.Delta.fromStr('01:00:00')):
+        """
+        Get the str.
+
+        :param hour Delta: delta time of 1 hour.
+        :return pd.Series: the str.
+        """
+        dat = self.sort_values(by=self.TIME, ignore_index=True)
+        dat.loc[len(dat)] = [self.time.mean(), 'average']
+        dat = dat[::-1]
+        dat.index = dat.index[::-1]
+        fmt = '%M:%S' if (self.time.dropna() < hour).all() else timeutils.HMS
+        time = dat.time.map(lambda x: "nan" if pd.isnull(x) else \
+            timeutils.Delta(x).toStr(fmt=fmt))
+        return time.str.cat(dat.id.map(lambda x: x[:3]), sep=' ')
+
+
 class TimeAgg(taskbase.Agg):
     """
     Report the time.
     """
-    TIME = symbols.TIME.lower()
 
     def run(self, hour=timeutils.Delta.fromStr('01:00:00')):
         """
@@ -375,33 +431,9 @@ class TimeAgg(taskbase.Agg):
 
         :param hour 'datetime.timedelta': one hour.
         """
-        jobs = [x for x in self.getJobs() if x.logfile]
-        rdrs = [logutils.Reader(x.logfile) for x in jobs]
-        info = [[x.options.NAME[:9], x.task_time] for x in rdrs]
-        info = pd.DataFrame(info, columns=[symbols.NAME, self.TIME])
-        names = [os.path.basename(os.path.dirname(x.file)) for x in jobs]
-        info[symbols.ID] = [x[:3] for x in names]
-        total_time = 'nan' if info.time.empty else timeutils.Delta(
-            info.time.sum()).toStr()
-        self.log(logutils.Reader.TOTAL_TIME + total_time)
-        grouped = info.groupby(symbols.NAME)
-        time_id = {x: y for x, y in grouped[[self.TIME, symbols.ID]]}
-        fmts = {
-            x: '%M:%S' if (y.time.dropna() < hour).all() else timeutils.HMS
-            for x, y in time_id.items()
-        }
-        dat = {
-            x: y.apply(lambda z: f'{timeutils.Delta(z.time).toStr(fmt=fmts[x])} {z.id}', axis=1)
-            for x, y in time_id.items()
-        } # yapf: disable
-        dat = {x: sorted(y, reverse=True) for x, y in dat.items()}
-        ave = grouped.time.mean()
-        dat = {
-            x: [f"{timeutils.Delta(ave.loc[x]).toStr(fmt=fmts[x])} ave", *dat[x]]
-            for x in sorted(dat, key=lambda x: len(dat[x]), reverse=True)
-        } # yapf: disable
-        dat = pd.DataFrame.from_dict(dat, orient='index').transpose()
-        self.log(dat.fillna('').to_markdown(index=False))
+        info = Info.fromJobs(self.getJobs())
+        self.log(f"{logutils.Reader.TOTAL_TIME}{info.total_time}")
+        self.log(info.group.fillna('').to_markdown(index=False))
 
 
 class TestAgg(TimeAgg):

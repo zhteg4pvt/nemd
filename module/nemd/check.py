@@ -12,12 +12,12 @@ import sys
 import numpy as np
 import pandas as pd
 
+from nemd import constants
 from nemd import envutils
 from nemd import jobutils
 from nemd import lmpfull
 from nemd import logutils
 from nemd import plotutils
-from nemd import constants
 
 
 class Exist(logutils.Base):
