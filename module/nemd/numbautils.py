@@ -8,9 +8,6 @@ import numpy as np
 
 from nemd import envutils
 
-NOPYTHON = envutils.nopython()
-JIT_KWARGS = envutils.jit_kwargs()
-
 
 def jit(*args, **kwargs):
     """
@@ -26,14 +23,15 @@ def jit(*args, **kwargs):
     # def foo():
     direct = bool(args and callable(args[0]))
 
-    def _decorator(func):
+    def _decorator(func, mode=envutils.Mode()):
         """
         Decorate a function using numba.jit.
 
         :param func 'function': the function to be decorated.
+        :param python 'envutils.Mode': the python mode.
         :return 'function': the (decorated) function.
         """
-        return numba.jit(func, **JIT_KWARGS, **kwargs) if NOPYTHON else func
+        return numba.jit(func, **mode.kwargs, **kwargs) if mode.no else func
 
     return _decorator(args[0]) if direct else _decorator
 

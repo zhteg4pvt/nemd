@@ -39,6 +39,15 @@ class Base:
         self.typed = None
 
     @classmethod
+    def partial(cls, *args, **kwargs):
+        """
+        Return a partial object.
+
+        return 'functools.partial': the partial object.
+        """
+        return functools.partial(cls.type, *args, **kwargs)
+
+    @classmethod
     def type(cls, *args, **kwargs):
         """
         Type and check.
@@ -683,8 +692,8 @@ class Driver(argparse.ArgumentParser, builtinsutils.Object):
                          help='Pause for user input.')
         if self.FLAG_PYTHON in self.JFLAGS:
             self.add_argument(self.FLAG_PYTHON,
-                              default=envutils.get_python_mode(),
-                              choices=envutils.PYTHON_MODES,
+                              default=envutils.Mode(),
+                              type=Int.partial(bottom=-1, top=2),
                               help='0: native; 1: compiled; 2: cached.')
         if FLAG_CPU in self.JFLAGS:
             self.add_argument(FLAG_CPU,
@@ -957,10 +966,7 @@ class AmorpBldr(MolBase):
         parser.add_argument(
             cls.FLAG_DENSITY,
             metavar='g/cm^3',
-            type=functools.partial(Float.type,
-                                   bottom=0,
-                                   incl_bot=False,
-                                   top=30),
+            type=Float.partial(bottom=0, incl_bot=False, top=30),
             default=0.5,
             help=f'The density used for {cls.PACK} and {cls.GROW} cells.')
         parser.add_argument(

@@ -406,8 +406,8 @@ class TestDriver:
 
     @pytest.mark.parametrize('ekey', ['PYTHON'])
     @pytest.mark.parametrize('evalue,args,expected',
-                             [(None, [], '2'), ('1', [], '1'),
-                              ('1', ['-PYTHON', '0'], '0')])
+                             [(None, [], 2), ('1', [], 1),
+                              ('1', ['-PYTHON', '0'], 0)])
     def testAddPython(self, args, expected, env):
         parser = parserutils.Driver(valids={parserutils.Valid})
         options = parser.parse_args(args)

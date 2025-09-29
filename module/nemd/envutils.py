@@ -5,6 +5,8 @@
 """
 This module handles system-wide environmental variables.
 """
+import collections
+import functools
 import importlib
 import os
 
@@ -15,13 +17,54 @@ PYTHON = 'PYTHON'
 JOBNAME = 'JOBNAME'
 INTERAC = 'INTERAC'
 MEM_INTVL = 'MEM_INTVL'
-PYTHON_MODE = '-1'  # without compilation
-ORIGINAL_MODE = '0'  # native python
-NOPYTHON_MODE = '1'  # compiled python
-CACHE_MODE = '2'  # cached compilation
-NOPYTHON = 'nopython'
-PYTHON_MODES = [PYTHON_MODE, ORIGINAL_MODE, NOPYTHON_MODE, CACHE_MODE]
-NOPYTHON_MODES = [NOPYTHON_MODE, CACHE_MODE]
+
+
+class Base(collections.UserDict):
+
+    def __init__(self, environ=None):
+        """
+        :param environ dict: the environmental dict.
+        """
+        super().__init__(environ if os.environ is None else os.environ)
+
+
+class Mode(int):
+    """
+    Python mode.
+    """
+    # -1: without compilation; 0: native python; 1: compiled python
+    CACHE = 2  # cached compilation
+
+    def __new__(cls, mode=CACHE):
+        return super().__new__(cls, os.environ.get(PYTHON, mode))
+
+    @functools.cached_property
+    def orig(self):
+        """
+        Whether the python mode is the original flavor.
+
+        :return str: whether the python mode is the original flavor.
+        """
+        return self == 0
+
+    @functools.cached_property
+    def kwargs(self):
+        """
+        Get the jit decorator kwargs.
+
+        :return dict: jit decorator kwargs.
+        """
+        return {'nopython': self.no, 'cache': self == self.CACHE}
+
+    @functools.cached_property
+    def no(self, modes=(1, CACHE)):
+        """
+        Whether the nopython mode is on.
+
+        :param modes tuple: nopython modes.
+        :return str: whether the nopython mode is on.
+        """
+        return self in modes
 
 
 def is_interac():
@@ -31,43 +74,6 @@ def is_interac():
     :return bool: whether the debug modo is on.
     """
     return bool(os.environ.get(INTERAC))
-
-
-def get_python_mode():
-    """
-    Get the mode of python compilation.
-
-    :return str: The mode of python compilation.
-    """
-    return os.environ.get(PYTHON, CACHE_MODE)
-
-
-def is_original():
-    """
-    Whether the python mode is the original flavor.
-
-    :return str: whether the python mode is the original flavor.
-    """
-    return get_python_mode() == ORIGINAL_MODE
-
-
-def nopython():
-    """
-    Whether the nopython mode is on.
-
-    :return str: whether the nopython mode is on.
-    """
-    return get_python_mode() in NOPYTHON_MODES
-
-
-def jit_kwargs():
-    """
-    Get the jit decorator kwargs.
-
-    :return dict: jit decorator kwargs.
-    """
-    mode = get_python_mode()
-    return {NOPYTHON: mode in NOPYTHON_MODES, 'cache': mode == CACHE_MODE}
 
 
 def get_jobname():

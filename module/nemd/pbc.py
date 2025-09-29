@@ -396,4 +396,4 @@ class BoxOrig(BoxNumba):
         ]
 
 
-Box = BoxOrig if envutils.is_original() else BoxNumba
+Box = BoxOrig if envutils.Mode().orig else BoxNumba

@@ -30,20 +30,18 @@ class TestFunc:
      ('2', numba.core.registry.CPUDispatcher, numba.core.caching.FunctionCache)
     ]) # yapf: disable
     def testJit(self, dtype, ctype, env):
-        with (mock.patch('nemd.numbautils.NOPYTHON', envutils.nopython()),
-              mock.patch('nemd.numbautils.JIT_KWARGS', envutils.jit_kwargs())):
 
-            @numbautils.jit
-            def direct():
-                return 1
+        @numbautils.jit
+        def direct():
+            return 1
 
-            @numbautils.jit(parallel=False)
-            def bracketed():
-                return 1
+        @numbautils.jit(parallel=False)
+        def bracketed():
+            return 1
 
-            for decorated in (direct, bracketed):
-                assert isinstance(decorated, dtype)
-                assert isinstance(getattr(decorated, '_cache', None), ctype)
+        for decorated in (direct, bracketed):
+            assert isinstance(decorated, dtype)
+            assert isinstance(getattr(decorated, '_cache', None), ctype)
 
     @pytest.mark.parametrize(
         "dists,span,expected",

@@ -263,7 +263,7 @@ class CellNumba(CellOrig):
         return nbrs
 
 
-Cell = CellOrig if envutils.is_original() else CellNumba
+Cell = CellOrig if envutils.Mode().orig else CellNumba
 
 
 class Frame(frame.Base):
