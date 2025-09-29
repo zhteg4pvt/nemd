@@ -1,0 +1,1 @@
+nemd_check cmp 0020/mb_lmp_log_toteng.csv mb_lmp_log_toteng.csv atol=0.02 equal_nan=True

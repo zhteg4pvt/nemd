@@ -1,3 +1,0 @@
-echo "0020: Iso-butane angle energy surface"
-nemd_run mb_lmp_log_workflow.py "CC(C)C" -temp 0 -struct_rg CCC 60 150 5 -clean -slice -1 none -CPU 1 > /dev/null
-exit 0

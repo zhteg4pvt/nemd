@@ -1,3 +1,0 @@
-echo "0005: Trajectory analyses on Si for RDF, Clash, and MSD"
-[ ! -z $NEMD_SRC ] && nemd_run lmp_traj_driver.py $NEMD_SRC/test/data/si/300K_512/xtal_bldr_01.xtc -task rdf clash msd -last_pct 0.6 -CPU 1 > /dev/null
-exit 0

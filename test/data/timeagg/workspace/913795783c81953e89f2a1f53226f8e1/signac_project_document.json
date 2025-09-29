@@ -1,0 +1,1 @@
+{"prereq": {"lammps": ["mol_bldr"], "lmp_log": ["lammps"]}, "args": ["CC(C)C", "-temp", "0", "-struct_rg", "CCC", "60", "150", "5", "-clean", "-slice", "-1", "none", "-CPU", "167"]}

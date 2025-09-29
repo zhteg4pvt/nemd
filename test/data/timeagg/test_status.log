@@ -1,3 +1,9 @@
-|    | Initiated   | Passed   |
-|:---|:------------|:---------|
-| .  |             | test_agg |
+|                                            | Initiated   | Passed    |
+|:-------------------------------------------|:------------|:----------|
+| workspace/5086baca220faa48d940d943eab2097b |             | cmd check |
+| workspace/913795783c81953e89f2a1f53226f8e1 |             | cmd check |
+| workspace/99cd8eb02da145f63071773091878442 |             | cmd check |
+| workspace/760c7386fd5688ae11be854cf8c09399 |             | cmd check |
+| workspace/f1afba3d8f8beb19f8f5a077149594b3 |             | cmd check |
+| workspace/015a683bf35d08d34e630e9a1c86052a |             | cmd check |
+| .                                          |             | test_agg  |

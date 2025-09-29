@@ -1,0 +1,1 @@
+nemd_check cmp 0005/lmp_traj_rdf.csv lmp_traj_rdf.csv && nemd_check cmp 0005/lmp_traj_clash.csv lmp_traj_clash.csv && nemd_check cmp 0005/lmp_traj_msd.csv lmp_traj_msd.csv

@@ -1,1 +1,0 @@
-nemd_check cmp /Users/tengzhang/git/nemd/test/scientific/0015/cb_lmp_log_press.csv cb_lmp_log_press.csv rtol=0.05 atol=500

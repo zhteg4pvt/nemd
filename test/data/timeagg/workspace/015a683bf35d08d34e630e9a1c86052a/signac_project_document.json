@@ -1,0 +1,1 @@
+{"prereq": {"lammps_runner": ["crystal_builder"], "lmp_log": ["lammps_runner"]}, "args": ["-dimension", "3", "3", "3", "-task", "TotEng", "-temp", "0", "-CPU", "167"]}

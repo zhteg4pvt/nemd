@@ -1,0 +1,138 @@
+..........Options..........
+struct_rg: ('CCC', 60.0, 150.0, 5.0)
+cru: CC(C)C
+cru_num: 1
+mol_num: 1
+buffer: 44.0
+substruct: None
+force_field: OPLSUA TIP3P
+timestep: 1
+stemp: 10
+temp: 0.0
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 0
+prod_time: 0
+prod_ens: NVE
+stat: nose_hoover
+seed: 1124226145
+no_minimize: False
+task: toteng
+data_file: None
+last_pct: 0.2
+slice: (-1, None)
+NAME: mb_lmp_log
+JOBNAME: mb_lmp_log
+INTERAC: False
+PYTHON: 2
+CPU: [1]
+DEBUG: None
+jtype: task aggregator
+prj_path: None
+clean: True
+screen: off
+JobStart: 21:18:13 08/13/2025
+...........................
+18 / 18 completed jobs.
+Task Total Timing: 00:01:02
+| lammps    | lmp_log   | mol_bldr   |
+|:----------|:----------|:-----------|
+| 00:01 ave | 00:01 ave | 00:01 ave  |
+| 00:02 fe1 | 00:02 bf1 | 00:02 5cb  |
+| 00:02 c9b | 00:02 7ac | 00:02 23a  |
+| 00:02 a42 | 00:01 fe1 | 00:01 fe1  |
+| 00:02 675 | 00:01 fcc | 00:01 fcc  |
+| 00:02 3e0 | 00:01 e06 | 00:01 e06  |
+| 00:02 1f2 | 00:01 c9b | 00:01 c9b  |
+| 00:01 fcc | 00:01 a42 | 00:01 bf1  |
+| 00:01 e06 | 00:01 900 | 00:01 a42  |
+| 00:01 bf1 | 00:01 8cc | 00:01 9f1  |
+| 00:01 9f1 | 00:01 7c2 | 00:01 900  |
+| 00:01 900 | 00:01 675 | 00:01 8cc  |
+| 00:01 8cc | 00:01 5cb | 00:01 7c2  |
+| 00:01 7c2 | 00:01 3e0 | 00:01 7ac  |
+| 00:01 7ac | 00:01 2b6 | 00:01 675  |
+| 00:01 5cb | 00:01 23a | 00:01 2b6  |
+| 00:01 2b6 | 00:01 1f2 | 00:01 1f2  |
+| 00:01 23a | 00:01 0c2 | 00:01 0c2  |
+| 00:01 0c2 | 00:00 9f1 | 00:00 3e0  |
+18 jobs found for aggregation.
+Aggregation Task: toteng
+Aggregation Parameters (num=1): substruct="CCC 100.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_0.csv
+TotEng: 3.254 ± nan kcal/mol ∈ [0.0950, 0.0950] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_0.png
+Aggregation Parameters (num=1): substruct="CCC 105.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_1.csv
+TotEng: 1 ± nan kcal/mol ∈ [0.0800, 0.0800] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_1.png
+Aggregation Parameters (num=1): substruct="CCC 110.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_2.csv
+TotEng: 0.3178 ± nan kcal/mol ∈ [0.0930, 0.0930] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_2.png
+Aggregation Parameters (num=1): substruct="CCC 115.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_3.csv
+TotEng: 1.202 ± nan kcal/mol ∈ [0.0540, 0.0540] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_3.png
+Aggregation Parameters (num=1): substruct="CCC 120.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_4.csv
+TotEng: 3.638 ± nan kcal/mol ∈ [0.0800, 0.0800] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_4.png
+Aggregation Parameters (num=1): substruct="CCC 125.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_5.csv
+TotEng: 7.602 ± nan kcal/mol ∈ [0.0820, 0.0820] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_5.png
+Aggregation Parameters (num=1): substruct="CCC 130.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_6.csv
+TotEng: 13.05 ± nan kcal/mol ∈ [0.0810, 0.0810] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_6.png
+Aggregation Parameters (num=1): substruct="CCC 135.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_7.csv
+TotEng: 19.93 ± nan kcal/mol ∈ [0.0550, 0.0550] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_7.png
+Aggregation Parameters (num=1): substruct="CCC 140.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_8.csv
+TotEng: 28.13 ± nan kcal/mol ∈ [0.0560, 0.0560] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_8.png
+Aggregation Parameters (num=1): substruct="CCC 145.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_9.csv
+TotEng: 37.56 ± nan kcal/mol ∈ [0.0570, 0.0570] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_9.png
+Aggregation Parameters (num=1): substruct="CCC 60.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_10.csv
+TotEng: 75.58 ± nan kcal/mol ∈ [0.0820, 0.0820] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_10.png
+Aggregation Parameters (num=1): substruct="CCC 65.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_11.csv
+TotEng: 63.09 ± nan kcal/mol ∈ [0.0810, 0.0810] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_11.png
+Aggregation Parameters (num=1): substruct="CCC 70.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_12.csv
+TotEng: 49.64 ± nan kcal/mol ∈ [0.1100, 0.1100] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_12.png
+Aggregation Parameters (num=1): substruct="CCC 75.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_13.csv
+TotEng: 38.02 ± nan kcal/mol ∈ [0.0770, 0.0770] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_13.png
+Aggregation Parameters (num=1): substruct="CCC 80.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_14.csv
+TotEng: 27.95 ± nan kcal/mol ∈ [0.0660, 0.0660] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_14.png
+Aggregation Parameters (num=1): substruct="CCC 85.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_15.csv
+TotEng: 19.43 ± nan kcal/mol ∈ [0.0800, 0.0800] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_15.png
+Aggregation Parameters (num=1): substruct="CCC 90.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_16.csv
+TotEng: 12.47 ± nan kcal/mol ∈ [0.0800, 0.0800] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_16.png
+Aggregation Parameters (num=1): substruct="CCC 95.0" 
+Thermodynamic information data written into workspace/mb_lmp_log_toteng_17.csv
+TotEng: 7.079 ± nan kcal/mol ∈ [0.1210, 0.1210] ps
+Toteng figure saved as workspace/mb_lmp_log_toteng_17.png
+Toteng data written into mb_lmp_log_toteng.csv
+The minimum TotEng of 0.3178 kcal/mol found at 110 Degree.
+Toteng figure saved as mb_lmp_log_toteng.png
+Finished.
+21:19:36 08/13/2025

@@ -1,0 +1,126 @@
+..........Options..........
+scale_range: (0.95, 1.1, 16)
+name: Si
+dimension: (1, 1, 1)
+scale_factor: (1, 1, 1)
+timestep: 1
+stemp: 10
+temp: 0.0
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 1
+prod_time: 1
+prod_ens: NVE
+stat: nose_hoover
+seed: 1935902732
+no_minimize: False
+task: ('toteng',)
+data_file: None
+last_pct: 0.2
+slice: None
+NAME: cb_lmp_log
+JOBNAME: cb_lmp_log
+INTERAC: False
+PYTHON: 2
+CPU: [1]
+DEBUG: None
+jtype: task aggregator
+prj_path: None
+clean: False
+screen: off
+force_field: SW
+JobStart: 17:09:24 08/10/2025
+...........................
+16 / 16 completed jobs.
+Task Total Timing: 00:01:15
+| crystal_b   | lammps_ru   | lmp_log   |
+|:------------|:------------|:----------|
+| 00:01 ave   | 00:02 ave   | 00:01 ave |
+| 00:01 e41   | 00:06 32b   | 00:02 e41 |
+| 00:01 d7a   | 00:02 e41   | 00:02 d7a |
+| 00:01 d52   | 00:02 d52   | 00:02 d52 |
+| 00:01 c61   | 00:02 c55   | 00:02 c61 |
+| 00:01 c55   | 00:02 b40   | 00:02 c55 |
+| 00:01 b40   | 00:02 a7e   | 00:02 a7e |
+| 00:01 a7e   | 00:02 a52   | 00:02 a28 |
+| 00:01 a52   | 00:02 a28   | 00:02 5b0 |
+| 00:01 a28   | 00:02 9d7   | 00:02 3fc |
+| 00:01 9d7   | 00:02 969   | 00:01 b40 |
+| 00:01 969   | 00:02 658   | 00:01 a52 |
+| 00:01 658   | 00:02 5b0   | 00:01 9d7 |
+| 00:01 5b0   | 00:02 3fc   | 00:01 969 |
+| 00:01 3fc   | 00:02 1ec   | 00:01 658 |
+| 00:01 32b   | 00:01 d7a   | 00:01 32b |
+| 00:01 1ec   | 00:01 c61   | 00:01 1ec |
+16 jobs found for aggregation.
+Aggregation Task: toteng
+Aggregation Parameters (num=1): scale_factor=0.95 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_0.csv
+TotEng: -33.43 ± nan eV ∈ [0.0880, 0.0880] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_0.png
+Aggregation Parameters (num=1): scale_factor=0.96 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_1.csv
+TotEng: -33.9 ± nan eV ∈ [0.0410, 0.0410] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_1.png
+Aggregation Parameters (num=1): scale_factor=0.97 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_2.csv
+TotEng: -34.26 ± nan eV ∈ [0.0520, 0.0520] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_2.png
+Aggregation Parameters (num=1): scale_factor=0.98 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_3.csv
+TotEng: -34.5 ± nan eV ∈ [0.0420, 0.0420] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_3.png
+Aggregation Parameters (num=1): scale_factor=0.99 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_4.csv
+TotEng: -34.65 ± nan eV ∈ [0.0010, 0.0010] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_4.png
+Aggregation Parameters (num=1): scale_factor=1.0 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_5.csv
+TotEng: -34.69 ± nan eV ∈ [0.0430, 0.0430] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_5.png
+Aggregation Parameters (num=1): scale_factor=1.01 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_6.csv
+TotEng: -34.65 ± nan eV ∈ [1.0000, 1.0000] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_6.png
+Aggregation Parameters (num=1): scale_factor=1.02 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_7.csv
+TotEng: -34.52 ± nan eV ∈ [0.0220, 0.0220] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_7.png
+Aggregation Parameters (num=1): scale_factor=1.03 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_8.csv
+TotEng: -34.31 ± nan eV ∈ [0.0410, 0.0410] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_8.png
+Aggregation Parameters (num=1): scale_factor=1.04 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_9.csv
+TotEng: -34.02 ± nan eV ∈ [0.0220, 0.0220] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_9.png
+Aggregation Parameters (num=1): scale_factor=1.05 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_10.csv
+TotEng: -33.66 ± nan eV ∈ [0.0570, 0.0570] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_10.png
+Aggregation Parameters (num=1): scale_factor=1.06 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_11.csv
+TotEng: -33.23 ± nan eV ∈ [0.0220, 0.0220] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_11.png
+Aggregation Parameters (num=1): scale_factor=1.07 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_12.csv
+TotEng: -32.73 ± nan eV ∈ [0.0220, 0.0220] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_12.png
+Aggregation Parameters (num=1): scale_factor=1.08 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_13.csv
+TotEng: -32.18 ± nan eV ∈ [0.0010, 0.0010] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_13.png
+Aggregation Parameters (num=1): scale_factor=1.09 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_14.csv
+TotEng: -31.56 ± nan eV ∈ [0.0220, 0.0220] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_14.png
+Aggregation Parameters (num=1): scale_factor=1.1 
+Thermodynamic information data written into workspace/cb_lmp_log_toteng_15.csv
+TotEng: -30.9 ± nan eV ∈ [0.0420, 0.0420] ps
+Toteng figure saved as workspace/cb_lmp_log_toteng_15.png
+Toteng data written into cb_lmp_log_toteng.csv
+The minimum TotEng of -34.69 eV found at Scale Factor 1.0.
+Toteng figure saved as cb_lmp_log_toteng.png
+Finished.
+17:10:59 08/10/2025

@@ -272,8 +272,8 @@ class TestInfo:
     @pytest.mark.parametrize('dirname', ['timeagg'])
     @pytest.mark.parametrize('args,expected',
                              [(['-label', 'lmp_traj'], 'nan'),
-                              (['-label', 'cb_lmp_log'], '00:03:23'),
-                              (['-label', 'mb_lmp_log'], '2 days, 00:14:17')])
+                              (['-label', 'cb_lmp_log'], '00:06:46'),
+                              (['-label', 'mb_lmp_log'], '1 days, 02:09:24')])
     def testTotalTime(self, info, expected):
         assert expected == info.total_time
 

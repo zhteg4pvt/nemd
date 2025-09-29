@@ -1,0 +1,101 @@
+..........Options..........
+scale_range: (0.95, 1.05, 11)
+name: Si
+dimension: (3, 3, 3)
+scale_factor: (1, 1, 1)
+timestep: 1
+stemp: 10
+temp: 300
+tdamp: 100
+press: 1
+pdamp: 1000
+relax_time: 0.0
+prod_time: 1
+prod_ens: NVT
+stat: nose_hoover
+seed: 72216659
+no_minimize: False
+task: ('press',)
+data_file: None
+last_pct: 0.1
+slice: None
+NAME: cb_lmp_log
+JOBNAME: cb_lmp_log
+INTERAC: False
+PYTHON: 2
+CPU: [167]
+DEBUG: None
+jtype: task aggregator
+prj_path: None
+clean: False
+screen: off
+force_field: SW
+JobStart: 12:43:42 09/29/2025
+...........................
+11 / 11 completed jobs.
+Task Total Timing: nan
+| crystal_b   | lammps_ru   | lmp_log   |
+|:------------|:------------|:----------|
+| 00:40 ave   | 19:39 ave   | 00:05 ave |
+| 00:42 d52   | 37:01 a52   | 00:05 d52 |
+| 00:42 969   | 34:52 1ec   | 00:05 b40 |
+| 00:41 c61   | 30:42 d52   | 00:05 c61 |
+| 00:41 658   | 24:09 d7a   | 00:05 32b |
+| 00:41 e41   | 18:51 b40   | 00:05 969 |
+| 00:40 32b   | 14:50 658   | 00:05 658 |
+| 00:40 a52   | 12:32 32b   | 00:05 1ec |
+| 00:40 d7a   | 11:21 969   | 00:05 e41 |
+| 00:39 b40   | 10:54 c61   | 00:05 a52 |
+| 00:39 5b0   | 10:39 5b0   | 00:05 5b0 |
+| 00:36 1ec   | 10:27 e41   | 00:05 d7a |
+11 jobs found for aggregation.
+Task: press
+Parameters (num=1): scale_factor=0.95 
+Thermodynamic information data written into workspace/cb_lmp_log_press_0.csv
+Press: 1.94e+05 ± 657.1 bar ∈ [902.0000, 1000.0220] ps
+Press figure saved as workspace/cb_lmp_log_press_0.svg
+Parameters (num=1): scale_factor=0.96 
+Thermodynamic information data written into workspace/cb_lmp_log_press_1.csv
+Press: 1.507e+05 ± 356.5 bar ∈ [902.0000, 1000.0540] ps
+Press figure saved as workspace/cb_lmp_log_press_1.svg
+Parameters (num=1): scale_factor=0.97 
+Thermodynamic information data written into workspace/cb_lmp_log_press_2.csv
+Press: 1.091e+05 ± 239.4 bar ∈ [902.0000, 1000.0380] ps
+Press figure saved as workspace/cb_lmp_log_press_2.svg
+Parameters (num=1): scale_factor=0.98 
+Thermodynamic information data written into workspace/cb_lmp_log_press_3.csv
+Press: 7.091e+04 ± 190.3 bar ∈ [902.0000, 1000.0220] ps
+Press figure saved as workspace/cb_lmp_log_press_3.svg
+Parameters (num=1): scale_factor=0.99 
+Thermodynamic information data written into workspace/cb_lmp_log_press_4.csv
+Press: 3.553e+04 ± 198.2 bar ∈ [902.0000, 1000.0010] ps
+Press figure saved as workspace/cb_lmp_log_press_4.svg
+Parameters (num=1): scale_factor=1.0 
+Thermodynamic information data written into workspace/cb_lmp_log_press_5.csv
+Press: 3644 ± 181.7 bar ∈ [902.0000, 1000.0220] ps
+Press figure saved as workspace/cb_lmp_log_press_5.svg
+Parameters (num=1): scale_factor=1.01 
+Thermodynamic information data written into workspace/cb_lmp_log_press_6.csv
+Press: -2.544e+04 ± 163.7 bar ∈ [902.0000, 1000.0330] ps
+Press figure saved as workspace/cb_lmp_log_press_6.svg
+Parameters (num=1): scale_factor=1.02 
+Thermodynamic information data written into workspace/cb_lmp_log_press_7.csv
+Press: -5.162e+04 ± 180.3 bar ∈ [902.0000, 1000.0220] ps
+Press figure saved as workspace/cb_lmp_log_press_7.svg
+Parameters (num=1): scale_factor=1.03 
+Thermodynamic information data written into workspace/cb_lmp_log_press_8.csv
+Press: -7.557e+04 ± 162.9 bar ∈ [902.0000, 1000.0220] ps
+Press figure saved as workspace/cb_lmp_log_press_8.svg
+Parameters (num=1): scale_factor=1.04 
+Thermodynamic information data written into workspace/cb_lmp_log_press_9.csv
+Press: -9.707e+04 ± 175.2 bar ∈ [902.0000, 1000.0220] ps
+Press figure saved as workspace/cb_lmp_log_press_9.svg
+Parameters (num=1): scale_factor=1.05 
+Thermodynamic information data written into workspace/cb_lmp_log_press_10.csv
+Press: -1.164e+05 ± 170.1 bar ∈ [902.0000, 1000.0220] ps
+Press figure saved as workspace/cb_lmp_log_press_10.svg
+Press data written into cb_lmp_log_press.csv
+The minimum Press of -1.164e+05 bar is found at 1.05 None.
+Press figure saved as cb_lmp_log_press.svg
+Finished.
+13:22:05 09/29/2025
