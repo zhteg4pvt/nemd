@@ -112,11 +112,11 @@ class TestLmp:
     @conftest.require_src
     @pytest.mark.parametrize(
         'infile,expected',
-        [(envutils.test_data('ar', 'error.in'), 'Cannot open file ar100.data'),
-         ('not_exist', 'Errorcode')])
+        [(envutils.test_data('ar', 'error.in'), 'cannot open file ar100.data'),
+         ('not_exist', 'errorcode')])
     def testErr(self, lmp, expected, tmp_dir):
         lmp.run()
-        assert expected in lmp.err
+        assert expected in lmp.err.lower()
 
 
 class TestSubmodules:
