@@ -207,7 +207,8 @@ class Tag(Base):
         """
         if self.collected.empty:
             return
-        task_time = self.collected.task_time.map(timeutils.delta2str)
+        task_time = self.collected.task_time.map(
+            lambda x: timeutils.Delta(x).toStr())
         self.tags[self.SLOW] = task_time.reset_index().values.flatten()
 
     @functools.cached_property
@@ -273,7 +274,8 @@ class Tag(Base):
             return
         params = np.reshape(params, (-1, 2))
         params = pd.Series(params[:, 1], index=params[:, 0])
-        params = params.map(lambda x: timeutils.str2delta(x).total_seconds())
+        params = params.map(
+            lambda x: timeutils.Delta.fromStr(x).total_seconds())
         return set(params[params <= self.options.slow].index)
 
     @property

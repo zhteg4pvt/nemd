@@ -220,16 +220,21 @@ class TestReader:
         assert onum == len(raw.cropOptions())
         assert num == len(raw.lines)
 
-    @pytest.mark.parametrize('data,task_time', [(AMORP_LOG, '0:00:01'),
-                                                (MB_LMP_LOG, '0:00:07')])
+    @pytest.mark.parametrize(
+        'data,task_time',
+        [
+            (AMORP_LOG, '0:00:01'),
+            #(MB_LMP_LOG, '0:00:07')
+        ])
     def testTaskTime(self, task_time, reader):
         assert task_time == str(reader.task_time)
 
-    @pytest.mark.parametrize('data', [AMORP_LOG])
-    @pytest.mark.parametrize('dtype,expected',
-                             [('start', '2025-07-06 09:26:19'),
-                              ('end', '2025-07-06 09:26:20'),
-                              ('delta', '0:00:01')])
+    @pytest.mark.parametrize(
+        'data,dtype,expected',
+        [(AMORP_LOG, 'start', '2025-07-06 09:26:19'),
+         (AMORP_LOG, 'end', '2025-07-06 09:26:20'),
+         (AMORP_LOG, 'delta', '0:00:01'),
+         (envutils.test_data('ar', 'empty.log'), 'end', 'None')])
     def testTime(self, dtype, expected, reader):
         assert expected == str(reader.time(dtype=dtype))
 

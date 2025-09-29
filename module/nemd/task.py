@@ -369,7 +369,7 @@ class TimeAgg(taskbase.Agg):
     """
     TIME = symbols.TIME.lower()
 
-    def run(self, hour=timeutils.str2delta('01:00:00')):
+    def run(self, hour=timeutils.Delta.fromStr('01:00:00')):
         """
         Report the total task timing and timing details grouped by name.
 
@@ -381,22 +381,23 @@ class TimeAgg(taskbase.Agg):
         info = pd.DataFrame(info, columns=[symbols.NAME, self.TIME])
         names = [os.path.basename(os.path.dirname(x.file)) for x in jobs]
         info[symbols.ID] = [x[:3] for x in names]
-        total_time = timeutils.delta2str(info.time.sum())
+        total_time = 'nan' if info.time.empty else timeutils.Delta(
+            info.time.sum()).toStr()
         self.log(logutils.Reader.TOTAL_TIME + total_time)
         grouped = info.groupby(symbols.NAME)
         time_id = {x: y for x, y in grouped[[self.TIME, symbols.ID]]}
         fmts = {
-            x: '%M:%S' if (y.time.dropna() < hour).all() else timeutils.HMS_FMT
+            x: '%M:%S' if (y.time.dropna() < hour).all() else timeutils.HMS
             for x, y in time_id.items()
         }
         dat = {
-            x: y.apply(lambda z: f'{timeutils.delta2str(z.time, fmt=fmts[x])} {z.id}', axis=1)
+            x: y.apply(lambda z: f'{timeutils.Delta(z.time).toStr(fmt=fmts[x])} {z.id}', axis=1)
             for x, y in time_id.items()
         } # yapf: disable
         dat = {x: sorted(y, reverse=True) for x, y in dat.items()}
         ave = grouped.time.mean()
         dat = {
-            x: [f"{timeutils.delta2str(ave.loc[x], fmt=fmts[x])} ave", *dat[x]]
+            x: [f"{timeutils.Delta(ave.loc[x]).toStr(fmt=fmts[x])} ave", *dat[x]]
             for x in sorted(dat, key=lambda x: len(dat[x]), reverse=True)
         } # yapf: disable
         dat = pd.DataFrame.from_dict(dat, orient='index').transpose()

@@ -124,7 +124,7 @@ class Logger(logging.Logger):
             if type(val) is list:
                 val = symbols.SPACE.join(map(str, val))
             self.info(f"{key}{COLON_SEP}{val}")
-        self.info(f"JobStart: {timeutils.ctime()}")
+        self.info(f"JobStart: {timeutils.Date.now().strftime()}")
         self.info(self.OPTIONS_END)
 
     def log(self, msg, timestamp=False):
@@ -136,7 +136,7 @@ class Logger(logging.Logger):
         """
         self.info(msg)
         if timestamp:
-            self.info(timeutils.ctime())
+            self.info(timeutils.Date.now().strftime())
 
     def error(self, msg, timestamp=True):
         """
@@ -281,7 +281,6 @@ class Reader:
     """
     TOTAL_TIME = 'Task Total Timing: '
     MEMORY_RE = re.compile(fr'{PEAK_MEMORY_USAGE}: (\d+.\d+) (\w+)')
-    TIME_LEN = len(timeutils.ctime())
     START = 'start'
     END = 'end'
     DELTA = 'delta'
@@ -355,7 +354,7 @@ class Reader:
             if not line.startswith(self.TOTAL_TIME):
                 continue
             task_time = line.split(self.TOTAL_TIME)[-1].strip()
-            return timeutils.str2delta(task_time)
+            return timeutils.Delta.fromStr(task_time)
         # No total task timing found (driver log instead of workflow log)
         return self.time()
 
@@ -365,20 +364,22 @@ class Reader:
 
         :param dtype str: the starting time on START, the finishing time on END,
             and the time span on DELTA.
-        :return: the specific time information
-        :rtype: 'datetime.datetime' on START / END; 'datetime.timedelta' on DELTA
+        :return 'datetime.datetime' or 'datetime.timedelta': the specific time
         """
-        job_start = symbols.SPACE.join(self.options.JobStart)
-        stime = timeutils.dtime(job_start)
-        if dtype == self.START:
-            return stime
+        times = []
+        if dtype in (self.START, self.DELTA):
+            times.append(symbols.SPACE.join(self.options.JobStart))
+        if dtype in (self.DELTA, self.END):
+            try:
+                # e.g. '09:26:20 07/06/2025' timeutils.Date.now().strftime()
+                times.append(self.lines[-1][-19:])
+            except IndexError:
+                return
         try:
-            dtime = timeutils.dtime(self.lines[-1][-self.TIME_LEN:])
-        except (ValueError, IndexError):
+            times = [timeutils.Date.strptime(x) for x in times]
+        except ValueError:
             return
-        if dtype == self.END:
-            return dtime
-        return dtime - stime
+        return times[1] - times[0] if len(times) == 2 else times[0]
 
     @property
     def memory(self):
@@ -407,7 +408,7 @@ class Reader:
         for line in self.lines[idx + 1:]:
             if line.startswith(PEAK_MEMORY_USAGE):
                 continue
-            return timeutils.dtime(line)
+            return timeutils.Date.strptime(line)
 
     @classmethod
     def collect(cls, *columns, dropna=True):
