@@ -190,6 +190,7 @@ class TestReader:
                             '3ec5394f589c9363bd15af35d45a7c44')
     TEST0035 = os.path.join('0035_test', 'workspace',
                             'a080ae2cf5e6ba8233bd80fc4cfde5d3')
+    TEST_LOG = envutils.Src().test('0000', 'test.log')
 
     @pytest.fixture
     def raw(self, data):
@@ -205,13 +206,14 @@ class TestReader:
     def testRead(self, num, raw):
         assert num == len(raw.lines)
 
-    @pytest.mark.parametrize('data,debug', [(AMORP_LOG, 'None'),
-                                            (MB_LMP_LOG, 'False')])
-    def testSetOptions(self, debug, raw):
+    @pytest.mark.parametrize('data,expected',
+                             [(AMORP_LOG, (2, 'None', None)),
+                              (MB_LMP_LOG, (2, 'False', None)),
+                              (TEST_LOG, (2, 'None', ''))])
+    def testSetOptions(self, raw, expected):
         raw.setOptions()
-        assert debug == raw.options.DEBUG
-        assert 2 == len(raw.options.JobStart)
-        assert isinstance(raw.options.NAME, str)
+        assert expected == (len(raw.options.JobStart), raw.options.DEBUG,
+                            raw.get('id'))
 
     @pytest.mark.parametrize('data,onum,num', [(AMORP_LOG, 26, 6),
                                                (MB_LMP_LOG, 35, 22),
@@ -220,12 +222,8 @@ class TestReader:
         assert onum == len(raw.cropOptions())
         assert num == len(raw.lines)
 
-    @pytest.mark.parametrize(
-        'data,task_time',
-        [
-            (AMORP_LOG, '0:00:01'),
-            #(MB_LMP_LOG, '0:00:07')
-        ])
+    @pytest.mark.parametrize('data,task_time', [(AMORP_LOG, '0:00:01'),
+                                                (MB_LMP_LOG, '0:00:07')])
     def testTaskTime(self, task_time, reader):
         assert task_time == str(reader.task_time)
 

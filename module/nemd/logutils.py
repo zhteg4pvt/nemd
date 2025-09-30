@@ -318,7 +318,7 @@ class Reader:
             try:
                 key, val = line.split(COLON_SEP)
             except ValueError:
-                key, val = line.split(COLON_SEP)[0], ''
+                key, val = line.strip(symbols.COLON), ''
             key = key.split()[-1]
             if key not in names and len(val.split()) > 1:
                 val = val.split()
