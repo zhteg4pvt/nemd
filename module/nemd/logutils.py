@@ -315,7 +315,10 @@ class Reader:
         """
         options = {}
         for line in self.cropOptions():
-            key, val = line.split(COLON_SEP)
+            try:
+                key, val = line.split(COLON_SEP)
+            except ValueError:
+                key, val = line.split(COLON_SEP)[0], ''
             key = key.split()[-1]
             if key not in names and len(val.split()) > 1:
                 val = val.split()
