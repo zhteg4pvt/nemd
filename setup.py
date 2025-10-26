@@ -182,7 +182,7 @@ class Distribution(Installer):
         'matplotlib', 'plotly', 'crystals', 'numba', 'wurlitzer',
         'methodtools', 'fastparquet', 'lazy_import', 'tabulate', 'psutil',
         'mdtraj', 'yapf', 'isort', 'snakeviz', 'tuna', 'pytest',
-        'pytest-xdist', 'PyQt5', 'coverage'
+        'pytest-xdist', 'PyQt5', 'coverage', 'scikit-learn'
     ]
     CLASSIFIERS = [
         'Development Status :: 5 - Production/Stable',
