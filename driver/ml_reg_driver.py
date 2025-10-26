@@ -3,12 +3,13 @@
 
 # Machine Learning A-Z: AI, Python & R + ChatGPT Prize 2025 by Kirill Eremenko,
 # Hadelin de Ponteves, SuperDataScience Team, Ligency
-# https://www.udemy.com/course/machinelearning/?couponCode=25BBPMXINACTIVE
+# https://www.udemy.com/course/machinelearning
 """
 Machine learning regression.
 """
 import numpy as np
 import pandas as pd
+from sklearn import metrics
 from sklearn import model_selection
 from sklearn import preprocessing
 from sklearn import svm
@@ -17,6 +18,8 @@ from nemd import jobutils
 from nemd import logutils
 from nemd import parserutils
 from nemd import plotutils
+
+SVR = 'svr'
 
 
 class Reg(logutils.Base):
@@ -36,13 +39,19 @@ class Reg(logutils.Base):
         self.x_sc = None
         self.y_sc = None
         self.reg = None
+        self.xtrain = None
+        self.xtest = None
+        self.ytrain = None
+        self.ytest = None
 
     def run(self):
         """
         Main method to run.
         """
         self.read()
+        self.split()
         self.fit()
+        self.score()
         self.plot()
 
     def read(self):
@@ -54,40 +63,34 @@ class Reg(logutils.Base):
         self.xdata = self.data[columns[:-1]]
         self.ydata = self.data[columns[-1:]]
 
+    def split(self):
+        """
+        Split for train and test.
+        """
+        self.xtrain, self.xtest, self.ytrain, self.ytest = model_selection.train_test_split(
+            self.xdata,
+            self.ydata,
+            test_size=0.2,
+            random_state=self.options.seed)
+
     def fit(self):
         """
         Fit the model.
         """
         self.reg = svm.SVR(kernel='rbf')
         self.x_sc = preprocessing.StandardScaler()
-        xdata = self.x_sc.fit_transform(self.xdata.values)
+        xdata = self.x_sc.fit_transform(self.xtrain.values)
         self.y_sc = preprocessing.StandardScaler()
-        ydata = self.y_sc.fit_transform(self.ydata.values)
+        ydata = self.y_sc.fit_transform(self.ytrain.values)
         self.reg.fit(xdata, ydata.ravel())
 
-    def plot(self):
+    def score(self):
         """
-        Plot the prediction.
+        Calculate the score.
         """
-        if self.xdata.shape[-1] != 1:
-            return
-        with plotutils.pyplot(inav=self.options.INTERAC,
-                              name=self.name) as plt:
-            self.fig, ax = plt.subplots(1, 1, figsize=(6, 4.5))
-            ax.scatter(self.xdata, self.ydata, color='red', label='data')
-            xdata = self.xdata.values
-            xdata = np.arange(xdata.min(), xdata.max(), 0.1).reshape(-1, 1)
-            ax.plot(xdata,
-                    self.predict(xdata),
-                    color='blue',
-                    label=self.options.method)
-            ax.set_xlabel(self.xdata.columns[0])
-            ax.set_ylabel(self.ydata.columns[0])
-            ax.legend()
-            outfile = f"{self.options.JOBNAME}{self.FIG_EXT}"
-            self.fig.savefig(outfile)
-            self.log(f'{self.name.capitalize()} figure saved as {outfile}')
-            jobutils.Job.reg(outfile)
+        score = metrics.r2_score(self.ytest.values,
+                                 self.predict(self.xtest.values))
+        self.log(f'score: {score}')
 
     def predict(self, xdata):
         """
@@ -100,6 +103,30 @@ class Reg(logutils.Base):
         if len(predicted.shape) == 1:
             predicted = predicted.reshape(-1, 1)
         return self.y_sc.inverse_transform(predicted)
+
+    def plot(self):
+        """
+        Plot the prediction.
+        """
+        if self.xdata.shape[-1] != 1:
+            return
+        with plotutils.pyplot(inav=self.options.INTERAC,
+                              name=self.options.method) as plt:
+            self.fig, ax = plt.subplots(1, 1, figsize=(6, 4.5))
+            ax.scatter(self.xtrain, self.ytrain, color='red', label='data')
+            xdata = self.xtrain.values
+            xdata = np.arange(xdata.min(), xdata.max(), 0.1).reshape(-1, 1)
+            ax.plot(xdata,
+                    self.predict(xdata),
+                    color='blue',
+                    label=self.options.method)
+            ax.set_xlabel(self.xdata.columns[0])
+            ax.set_ylabel(self.ydata.columns[0])
+            ax.legend()
+            outfile = f"{self.options.JOBNAME}{self.FIG_EXT}"
+            self.fig.savefig(outfile)
+            self.log(f'{self.options.method} figure saved as {outfile}')
+            jobutils.Job.reg(outfile)
 
 
 class ArgumentParser(parserutils.Driver):
@@ -118,9 +145,9 @@ class ArgumentParser(parserutils.Driver):
                             type=parserutils.Path.typeFile,
                             help='The csv file.')
         parser.add_argument(cls.FLAG_METHOD,
-                            default='svr',
-                            choices='svr',
-                            help='svr: support vector regression')
+                            default=SVR,
+                            choices=SVR,
+                            help=f'{SVR}: support vector regression')
         cls.addSeed(parser)
 
 
