@@ -7,8 +7,11 @@
 """
 Machine learning regression.
 """
+import functools
+
 import numpy as np
 import pandas as pd
+from sklearn import linear_model
 from sklearn import metrics
 from sklearn import model_selection
 from sklearn import preprocessing
@@ -20,6 +23,7 @@ from nemd import parserutils
 from nemd import plotutils
 
 SVR = 'svr'
+LR = 'lr'
 
 
 class Reg(logutils.Base):
@@ -36,13 +40,11 @@ class Reg(logutils.Base):
         self.data = None
         self.xdata = None
         self.ydata = None
-        self.x_sc = None
-        self.y_sc = None
-        self.reg = None
         self.xtrain = None
         self.xtest = None
         self.ytrain = None
         self.ytest = None
+        self.reg = None
 
     def run(self):
         """
@@ -68,8 +70,8 @@ class Reg(logutils.Base):
         Split for train and test.
         """
         self.xtrain, self.xtest, self.ytrain, self.ytest = model_selection.train_test_split(
-            self.xdata,
-            self.ydata,
+            self.xdata.values,
+            self.ydata.values,
             test_size=0.2,
             random_state=self.options.seed)
 
@@ -77,32 +79,69 @@ class Reg(logutils.Base):
         """
         Fit the model.
         """
-        self.reg = svm.SVR(kernel='rbf')
-        self.x_sc = preprocessing.StandardScaler()
-        xdata = self.x_sc.fit_transform(self.xtrain.values)
-        self.y_sc = preprocessing.StandardScaler()
-        ydata = self.y_sc.fit_transform(self.ytrain.values)
-        self.reg.fit(xdata, ydata.ravel())
+        match self.options.method:
+            case 'lr':
+                self.reg = linear_model.LinearRegression()
+            case 'svr':
+                self.reg = svm.SVR(kernel='rbf')
+        self.reg.fit(self.scale(self.xtrain), self.scaleY(self.ytrain))
+
+    def scale(self, data, idx=0, inversed=False):
+        """
+        Scale the data.
+
+        :param data ndarray: the data to scale.
+        :param idx int: the scaler index.
+        :param inversed bool: whether to inverse scale.
+        """
+        if self.scs is None:
+            return data
+        sc = self.scs[idx]
+        return sc.inverse_transform(data) if inversed else sc.transform(data)
+
+    @functools.cached_property
+    def scs(self):
+        """
+        The x & y scalers.
+
+        :return list: the x & y scalers.
+        """
+        if self.options.method != 'svr':
+            return
+        return list(self.getScaler())
+
+    def getScaler(self):
+        """
+        Get the scalers.
+
+        :return preprocessing.StandardScaler: the scaler.
+        """
+        for data in [self.xtrain, self.ytrain]:
+            sc = preprocessing.StandardScaler()
+            sc.fit(data)
+            yield sc
+
+    def scaleY(self, data, idx=1, **kwargs):
+        """
+        Scale the y data. (see scale)
+        """
+        return self.scale(data.reshape(-1, 1), idx=idx, **kwargs).ravel()
 
     def score(self):
         """
         Calculate the score.
         """
-        score = metrics.r2_score(self.ytest.values,
-                                 self.predict(self.xtest.values))
+        score = metrics.r2_score(self.ytest, self.predict(self.xtest))
         self.log(f'score: {score}')
 
-    def predict(self, xdata):
+    def predict(self, data):
         """
         Predict.
 
-        :param xdata ndarray: the input data.
+        :param data ndarray: the input xdata.
         :return ndarray: the prediction.
         """
-        predicted = self.reg.predict(self.x_sc.transform(xdata))
-        if len(predicted.shape) == 1:
-            predicted = predicted.reshape(-1, 1)
-        return self.y_sc.inverse_transform(predicted)
+        return self.scaleY(self.reg.predict(self.scale(data)), inversed=True)
 
     def plot(self):
         """
@@ -114,8 +153,8 @@ class Reg(logutils.Base):
                               name=self.options.method) as plt:
             self.fig, ax = plt.subplots(1, 1, figsize=(6, 4.5))
             ax.scatter(self.xtrain, self.ytrain, color='red', label='data')
-            xdata = self.xtrain.values
-            xdata = np.arange(xdata.min(), xdata.max(), 0.1).reshape(-1, 1)
+            lim = (self.xtrain.min().item(), self.xtrain.max().item())
+            xdata = np.arange(*lim, 0.1).reshape(-1, 1)
             ax.plot(xdata,
                     self.predict(xdata),
                     color='blue',
@@ -144,10 +183,11 @@ class ArgumentParser(parserutils.Driver):
         parser.add_argument(cls.FLAG_DATA,
                             type=parserutils.Path.typeFile,
                             help='The csv file.')
-        parser.add_argument(cls.FLAG_METHOD,
-                            default=SVR,
-                            choices=SVR,
-                            help=f'{SVR}: support vector regression')
+        parser.add_argument(
+            cls.FLAG_METHOD,
+            default=LR,
+            choices=[LR, SVR],
+            help=f'Regression method: linear ({LR}), support vector ({SVR})')
         cls.addSeed(parser)
 
 
