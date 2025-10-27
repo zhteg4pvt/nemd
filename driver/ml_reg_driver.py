@@ -8,6 +8,7 @@
 Machine learning regression.
 """
 import functools
+import re
 
 import numpy as np
 import pandas as pd
@@ -22,13 +23,86 @@ from nemd import logutils
 from nemd import parserutils
 from nemd import plotutils
 
-SVR = 'svr'
-LR = 'lr'
+
+class Regressor(logutils.Base):
+    """
+    Regressor class wraps regression model.
+    """
+    LR = 'lr'
+    SVR = 'svr'
+    NAMES = {LR: 'linear', SVR: 'support vector'}
+
+    def __init__(self, method=LR, scs=None, **kwargs):
+        """
+        :param method: the regression method.
+        :param scs list: the scalers.
+        """
+        super().__init__(**kwargs)
+        self.method = method
+        self.scs = scs
+        self.reg = None
+        self.setUp()
+
+    def setUp(self):
+        """
+        Set up.
+        """
+        match self.method:
+            case self.LR:
+                self.reg = linear_model.LinearRegression()
+            case self.SVR:
+                self.reg = svm.SVR(kernel='rbf')
+        if self.method != self.SVR:
+            self.scs = None
+
+    def fit(self, xdata, ydata):
+        """
+        Fit the model.
+        """
+        self.reg.fit(self.scale(xdata), self.scaleY(ydata))
+
+    def scale(self, data, idx=0, inversed=False):
+        """
+        Scale the data.
+
+        :param data ndarray: the data to scale.
+        :param idx int: the scaler index.
+        :param inversed bool: whether to inverse scale.
+        """
+        if self.scs is None:
+            return data
+        sc = self.scs[idx]
+        return sc.inverse_transform(data) if inversed else sc.transform(data)
+
+    def scaleY(self, data, idx=1, **kwargs):
+        """
+        Scale the y data. (see scale)
+        """
+        return self.scale(data.reshape(-1, 1), idx=idx, **kwargs).ravel()
+
+    def score(self, xdata, ydata):
+        """
+        Calculate the score.
+
+        :param xdata ndarray: the xdata.
+        :param ydata ndarray: the ydata.
+        """
+        score = metrics.r2_score(ydata, self.predict(xdata))
+        self.log(f'{self.method} score: {score}')
+
+    def predict(self, data):
+        """
+        Predict.
+
+        :param data ndarray: the input xdata.
+        :return ndarray: the prediction.
+        """
+        return self.scaleY(self.reg.predict(self.scale(data)), inversed=True)
 
 
 class Reg(logutils.Base):
     """
-    Machine learning regression.
+    Main class to run the driver.
     """
     FIG_EXT = '.svg'
     CSV_EXT = '.csv'
@@ -42,7 +116,7 @@ class Reg(logutils.Base):
         self.xtest = None
         self.ytrain = None
         self.ytest = None
-        self.reg = None
+        self.regs = None
         self.gridded = None
 
     def run(self):
@@ -51,7 +125,7 @@ class Reg(logutils.Base):
         """
         self.read()
         self.split()
-        self.fit()
+        self.setRegs()
         self.score()
         self.grid()
         self.plot()
@@ -75,29 +149,16 @@ class Reg(logutils.Base):
             test_size=0.2,
             random_state=self.options.seed)
 
-    def fit(self):
+    def setRegs(self):
         """
-        Fit the model.
+        Set the regression models.
         """
-        match self.options.method:
-            case 'lr':
-                self.reg = linear_model.LinearRegression()
-            case 'svr':
-                self.reg = svm.SVR(kernel='rbf')
-        self.reg.fit(self.scale(self.xtrain), self.scaleY(self.ytrain))
-
-    def scale(self, data, idx=0, inversed=False):
-        """
-        Scale the data.
-
-        :param data ndarray: the data to scale.
-        :param idx int: the scaler index.
-        :param inversed bool: whether to inverse scale.
-        """
-        if self.scs is None:
-            return data
-        sc = self.scs[idx]
-        return sc.inverse_transform(data) if inversed else sc.transform(data)
+        self.regs = [
+            Regressor(method=x, scs=self.scs, logger=self.logger)
+            for x in self.options.method
+        ]
+        for reg in self.regs:
+            reg.fit(self.xtrain, self.ytrain)
 
     @functools.cached_property
     def scs(self):
@@ -106,9 +167,8 @@ class Reg(logutils.Base):
 
         :return list: the x & y scalers.
         """
-        if self.options.method != 'svr':
-            return
-        return list(self.getScaler())
+        if Regressor.SVR in self.options.method:
+            return list(self.getScaler())
 
     def getScaler(self):
         """
@@ -121,66 +181,54 @@ class Reg(logutils.Base):
             sc.fit(data)
             yield sc
 
-    def scaleY(self, data, idx=1, **kwargs):
-        """
-        Scale the y data. (see scale)
-        """
-        return self.scale(data.reshape(-1, 1), idx=idx, **kwargs).ravel()
-
     def score(self):
         """
-        Calculate the score.
+        Calculate the scores.
         """
-        score = metrics.r2_score(self.ytest, self.predict(self.xtest))
-        self.log(f'score: {score}')
-
-    def predict(self, data):
-        """
-        Predict.
-
-        :param data ndarray: the input xdata.
-        :return ndarray: the prediction.
-        """
-        return self.scaleY(self.reg.predict(self.scale(data)), inversed=True)
+        for reg in self.regs:
+            reg.score(self.xtest, self.ytest)
 
     def grid(self):
         """
-        Plot the prediction.
+        Grid the range and make predictions.
         """
         if self.xdata.shape[-1] != 1:
             return
         lim = (self.xtrain.min().item(), self.xtrain.max().item())
-        gridded = np.arange(*lim, 0.1)
-        pred = self.predict(gridded.reshape(-1, 1)).reshape(-1, 1)
-        index = pd.Index(gridded, name=self.xdata.columns[0])
-        self.gridded = pd.DataFrame(pred,
-                                    columns=self.ydata.columns,
-                                    index=index)
+        gridded = np.arange(*lim, 0.1).reshape(-1, 1)
+        pred = {
+            f"{self.ydata.columns[0]} ({x.method})": x.predict(gridded)
+            for x in self.regs
+        }
+        index = pd.Index(gridded.ravel(), name=self.xdata.columns[0])
+        self.gridded = pd.DataFrame(pred, index=index)
         outfile = f"{self.options.JOBNAME}{self.CSV_EXT}"
         self.gridded.to_csv(outfile)
-        self.log(
-            f'{self.options.method} gridded prediction saved as {outfile}')
+        self.log(f'Gridded prediction saved as {outfile}')
+        jobutils.Job.reg(outfile)
 
-    def plot(self):
+    def plot(self, rex=re.compile(r'(.*) +\((.*)\)')):
         """
-        Plot the gridded data.
+        Plot the gridded predictions.
+
+        :param rex: the regular expression to match words followed by brackets.
         """
         if self.gridded is None:
             return
         with plotutils.pyplot(inav=self.options.INTERAC,
                               name=self.options.method) as plt:
             self.fig, ax = plt.subplots(1, 1, figsize=(6, 4.5))
-            ax.scatter(self.xtrain, self.ytrain, color='red', label='data')
-            ax.plot(self.gridded.index,
-                    self.gridded,
-                    color='blue',
-                    label=self.options.method)
+            ax.scatter(self.xtrain, self.ytrain, color='k', label='Original')
+            for col in self.gridded:
+                ax.plot(self.gridded.index,
+                        self.gridded[col],
+                        label=rex.match(col).group(2))
             ax.set_xlabel(self.xdata.columns[0])
             ax.set_ylabel(self.ydata.columns[0])
             ax.legend()
             outfile = f"{self.options.JOBNAME}{self.FIG_EXT}"
             self.fig.savefig(outfile)
-            self.log(f'{self.options.method} figure saved as {outfile}')
+            self.log(f'Figure saved as {outfile}')
             jobutils.Job.reg(outfile)
 
 
@@ -199,11 +247,12 @@ class ArgumentParser(parserutils.Driver):
         parser.add_argument(cls.FLAG_DATA,
                             type=parserutils.Path.typeFile,
                             help='The csv file.')
-        parser.add_argument(
-            cls.FLAG_METHOD,
-            default=LR,
-            choices=[LR, SVR],
-            help=f'Regression method: linear ({LR}), support vector ({SVR})')
+        names = ", ".join([f"{y} ({x})" for x, y in Regressor.NAMES.items()])
+        parser.add_argument(cls.FLAG_METHOD,
+                            default=[Regressor.LR],
+                            choices=Regressor.NAMES,
+                            nargs='+',
+                            help=f'Regression method: {names}')
         cls.addSeed(parser)
 
 
