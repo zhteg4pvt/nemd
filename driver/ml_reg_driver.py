@@ -24,13 +24,14 @@ from nemd import parserutils
 from nemd import plotutils
 
 
-class Regressor(logutils.Base):
+class Reg(logutils.Base):
     """
-    Regressor class wraps regression model.
+    Regression model wrapper.
     """
     LR = 'lr'
     SVR = 'svr'
-    NAMES = {LR: 'linear', SVR: 'support vector'}
+    POLY = 'poly'
+    NAMES = {LR: 'linear', SVR: 'support vector', POLY: 'polynomial'}
 
     def __init__(self, method=LR, scs=None, **kwargs):
         """
@@ -48,7 +49,7 @@ class Regressor(logutils.Base):
         Set up.
         """
         match self.method:
-            case self.LR:
+            case self.LR | self.POLY:
                 self.reg = linear_model.LinearRegression()
             case self.SVR:
                 self.reg = svm.SVR(kernel='rbf')
@@ -58,8 +59,29 @@ class Regressor(logutils.Base):
     def fit(self, xdata, ydata):
         """
         Fit the model.
+
+        :param xdata ndarray: the xdata.
+        :param ydata ndarray: the ydata.
         """
-        self.reg.fit(self.scale(xdata), self.scaleY(ydata))
+        self.reg.fit(self.opr(xdata), self.scaleY(ydata))
+
+    def opr(self, data):
+        """
+        Perform operation on the data (e.g. polynomial, scale).
+
+        :param ndarray: the xdata.
+        """
+        return self.poly.fit_transform(data) if self.poly else self.scale(data)
+
+    @functools.cached_property
+    def poly(self):
+        """
+        Return the polynomial features.
+
+        :return PolynomialFeatures: the polynomial features.
+        """
+        if self.method == self.POLY:
+            return preprocessing.PolynomialFeatures(degree=self.options.degree)
 
     def scale(self, data, idx=0, inversed=False):
         """
@@ -97,10 +119,10 @@ class Regressor(logutils.Base):
         :param data ndarray: the input xdata.
         :return ndarray: the prediction.
         """
-        return self.scaleY(self.reg.predict(self.scale(data)), inversed=True)
+        return self.scaleY(self.reg.predict(self.opr(data)), inversed=True)
 
 
-class Reg(logutils.Base):
+class Regression(logutils.Base):
     """
     Main class to run the driver.
     """
@@ -153,10 +175,8 @@ class Reg(logutils.Base):
         """
         Set the regression models.
         """
-        self.regs = [
-            Regressor(method=x, scs=self.scs, logger=self.logger)
-            for x in self.options.method
-        ]
+        kwargs = dict(scs=self.scs, logger=self.logger, options=self.options)
+        self.regs = [Reg(method=x, **kwargs) for x in self.options.method]
         for reg in self.regs:
             reg.fit(self.xtrain, self.ytrain)
 
@@ -167,14 +187,14 @@ class Reg(logutils.Base):
 
         :return list: the x & y scalers.
         """
-        if Regressor.SVR in self.options.method:
+        if Reg.SVR in self.options.method:
             return list(self.getScaler())
 
     def getScaler(self):
         """
         Get the scalers.
 
-        :return preprocessing.StandardScaler generator: the scaler.
+        :return Scaler generator: the scaler.
         """
         for data in [self.xtrain, self.ytrain]:
             sc = preprocessing.StandardScaler()
@@ -195,12 +215,10 @@ class Reg(logutils.Base):
         if self.xdata.shape[-1] != 1:
             return
         lim = (self.xtrain.min().item(), self.xtrain.max().item())
-        gridded = np.arange(*lim, 0.1).reshape(-1, 1)
-        pred = {
-            f"{self.ydata.columns[0]} ({x.method})": x.predict(gridded)
-            for x in self.regs
-        }
-        index = pd.Index(gridded.ravel(), name=self.xdata.columns[0])
+        index = pd.Index(np.arange(*lim, 0.1), name=self.xdata.columns[0])
+        xdata = index.values.reshape(-1, 1)
+        pred = {x.method: x.predict(xdata) for x in self.regs}
+        pred = {f"{self.ydata.columns[0]} ({x})": y for x, y in pred.items()}
         self.gridded = pd.DataFrame(pred, index=index)
         outfile = f"{self.options.JOBNAME}{self.CSV_EXT}"
         self.gridded.to_csv(outfile)
@@ -220,9 +238,8 @@ class Reg(logutils.Base):
             self.fig, ax = plt.subplots(1, 1, figsize=(6, 4.5))
             ax.scatter(self.xtrain, self.ytrain, color='k', label='original')
             for col in self.gridded:
-                ax.plot(self.gridded.index,
-                        self.gridded[col],
-                        label=Regressor.NAMES[rex.match(col).group(2)])
+                label = Reg.NAMES[rex.match(col).group(2)]
+                ax.plot(self.gridded.index, self.gridded[col], label=label)
             ax.set_xlabel(self.xdata.columns[0])
             ax.set_ylabel(self.ydata.columns[0])
             ax.legend()
@@ -238,6 +255,7 @@ class ArgumentParser(parserutils.Driver):
     """
     FLAG_DATA = 'data'
     FLAG_METHOD = '-method'
+    FLAG_DEGREE = '-degree'
 
     @classmethod
     def add(cls, parser, *args, **kwargs):
@@ -247,14 +265,18 @@ class ArgumentParser(parserutils.Driver):
         parser.add_argument(cls.FLAG_DATA,
                             type=parserutils.Path.typeFile,
                             help='The csv file.')
-        names = ", ".join([f"{y} ({x})" for x, y in Regressor.NAMES.items()])
+        names = ", ".join([f"{y} ({x})" for x, y in Reg.NAMES.items()])
         parser.add_argument(cls.FLAG_METHOD,
-                            default=[Regressor.LR],
-                            choices=Regressor.NAMES,
+                            default=[Reg.LR],
+                            choices=Reg.NAMES,
                             nargs='+',
                             help=f'Regression method: {names}')
+        parser.add_argument(cls.FLAG_DEGREE,
+                            default=2,
+                            type=parserutils.Int.typePositive,
+                            help=f'The max polynomial degree.')
         cls.addSeed(parser)
 
 
 if __name__ == "__main__":
-    logutils.Script.run(Reg, ArgumentParser(descr=__doc__), file=True)
+    logutils.Script.run(Regression, ArgumentParser(descr=__doc__), file=True)
