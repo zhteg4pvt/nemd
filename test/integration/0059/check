@@ -1,1 +1,2 @@
 nemd_check cmp ml_reg.csv ml_reg.csv
+nemd_check exist ml_reg.svg

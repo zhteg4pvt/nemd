@@ -218,11 +218,11 @@ class Reg(logutils.Base):
         with plotutils.pyplot(inav=self.options.INTERAC,
                               name=self.options.method) as plt:
             self.fig, ax = plt.subplots(1, 1, figsize=(6, 4.5))
-            ax.scatter(self.xtrain, self.ytrain, color='k', label='Original')
+            ax.scatter(self.xtrain, self.ytrain, color='k', label='original')
             for col in self.gridded:
                 ax.plot(self.gridded.index,
                         self.gridded[col],
-                        label=rex.match(col).group(2))
+                        label=Regressor.NAMES[rex.match(col).group(2)])
             ax.set_xlabel(self.xdata.columns[0])
             ax.set_ylabel(self.ydata.columns[0])
             ax.legend()
