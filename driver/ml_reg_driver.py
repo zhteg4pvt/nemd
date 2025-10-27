@@ -12,6 +12,7 @@ import re
 
 import numpy as np
 import pandas as pd
+from sklearn import ensemble
 from sklearn import linear_model
 from sklearn import metrics
 from sklearn import model_selection
@@ -33,11 +34,13 @@ class Reg(logutils.Base):
     SVR = 'svr'
     POLY = 'poly'
     DT = 'dt'
+    RFR = 'rfr'
     NAMES = {
         LR: 'linear',
         SVR: 'support vector',
         POLY: 'polynomial',
-        DT: 'decision tree'
+        DT: 'decision tree',
+        RFR: 'random forest'
     }
 
     def __init__(self, method=LR, scs=None, **kwargs):
@@ -62,6 +65,10 @@ class Reg(logutils.Base):
                 self.reg = svm.SVR(kernel='rbf')
             case self.DT:
                 self.reg = tree.DecisionTreeRegressor(
+                    random_state=self.options.seed)
+            case self.RFR:
+                self.reg = ensemble.RandomForestRegressor(
+                    n_estimators=self.options.tree_num,
                     random_state=self.options.seed)
         if self.method != self.SVR:
             self.scs = None
@@ -267,6 +274,7 @@ class ArgumentParser(parserutils.Driver):
     FLAG_DATA = 'data'
     FLAG_METHOD = '-method'
     FLAG_DEGREE = '-degree'
+    FLAG_TREE_NUM = '-tree_num'
 
     @classmethod
     def add(cls, parser, *args, **kwargs):
@@ -286,6 +294,10 @@ class ArgumentParser(parserutils.Driver):
                             default=2,
                             type=parserutils.Int.typePositive,
                             help=f'The max polynomial degree.')
+        parser.add_argument(cls.FLAG_TREE_NUM,
+                            default=2,
+                            type=parserutils.Int.typePositive,
+                            help=f'The number of trees in the forest.')
         cls.addSeed(parser)
 
 
