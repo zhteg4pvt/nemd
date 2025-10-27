@@ -17,6 +17,7 @@ from sklearn import metrics
 from sklearn import model_selection
 from sklearn import preprocessing
 from sklearn import svm
+from sklearn import tree
 
 from nemd import jobutils
 from nemd import logutils
@@ -31,7 +32,13 @@ class Reg(logutils.Base):
     LR = 'lr'
     SVR = 'svr'
     POLY = 'poly'
-    NAMES = {LR: 'linear', SVR: 'support vector', POLY: 'polynomial'}
+    DT = 'dt'
+    NAMES = {
+        LR: 'linear',
+        SVR: 'support vector',
+        POLY: 'polynomial',
+        DT: 'decision tree'
+    }
 
     def __init__(self, method=LR, scs=None, **kwargs):
         """
@@ -53,6 +60,9 @@ class Reg(logutils.Base):
                 self.reg = linear_model.LinearRegression()
             case self.SVR:
                 self.reg = svm.SVR(kernel='rbf')
+            case self.DT:
+                self.reg = tree.DecisionTreeRegressor(
+                    random_state=self.options.seed)
         if self.method != self.SVR:
             self.scs = None
 
@@ -70,6 +80,7 @@ class Reg(logutils.Base):
         Perform operation on the data (e.g. polynomial, scale).
 
         :param ndarray: the xdata.
+        :return ndarray: the processed data.
         """
         return self.poly.fit_transform(data) if self.poly else self.scale(data)
 

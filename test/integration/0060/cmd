@@ -1,2 +1,2 @@
 # ML Regression: r2 score
-[ ! -z $NEMD_SRC ] && nemd_run ml_reg_driver.py $NEMD_SRC/test/data/ml/model_selection.csv -method lr svr poly -degree 4 -seed 0
+[ ! -z $NEMD_SRC ] && nemd_run ml_reg_driver.py $NEMD_SRC/test/data/ml/model_selection.csv -method lr svr poly dt -degree 4 -seed 0
