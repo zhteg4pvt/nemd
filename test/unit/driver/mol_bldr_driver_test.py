@@ -11,7 +11,7 @@ class TestSingle:
     @pytest.fixture
     def single(self, argv, logger):
         options = parserutils.MolBldr().parse_args(argv)
-        return driver.Single(options, logger=logger)
+        return driver.Single(options=options, logger=logger)
 
     @pytest.mark.parametrize("argv", [(['*C*', '-cru_num', '4'])])
     def testRun(self, single, argv, tmp_dir):

@@ -172,7 +172,7 @@ class TestScript:
     def testRun(self, parser, options, tmp_dir):
         mocked = mock.Mock()
         Main = type('Main', (object, ),
-                    dict(__init__=lambda self, x, **y: None, run=mocked))
+                    dict(__init__=lambda self, **x: None, run=mocked))
         with mock.patch('sys.argv', []):
             logutils.Script.run(Main, parser)
         assert mocked.called

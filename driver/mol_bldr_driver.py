@@ -15,11 +15,8 @@ class Single(logutils.Base):
     Build a structure with single molecule.
     """
 
-    def __init__(self, options, **kwargs):
-        """
-        :param options 'argparse.Driver':  Parsed command-line options
-        """
-        super().__init__(options=options, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.mol = None
         self.struct = None
 

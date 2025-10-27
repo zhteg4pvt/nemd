@@ -270,7 +270,7 @@ class Script:
         """
         options = parser.parse_args(sys.argv[1:])
         with cls(options, **kwargs) as logger:
-            main = Main(options, logger=logger)
+            main = Main(options=options, logger=logger)
             main.run()
 
 

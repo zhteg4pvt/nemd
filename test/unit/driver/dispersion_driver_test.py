@@ -39,7 +39,7 @@ class TestDispersion:
     @pytest.fixture
     def disp(self, args, logger, tmp_dir):
         options = driver.Parser().parse_args(args)
-        return driver.Dispersion(options, logger=logger)
+        return driver.Dispersion(options=options, logger=logger)
 
     @pytest.mark.parametrize("args,expected", [(ARGS, 'dispersion.svg')])
     def testRun(self, disp, expected):

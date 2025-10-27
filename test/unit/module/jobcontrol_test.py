@@ -130,7 +130,7 @@ class TestRunner:
     def testState(self, args, expected):
         parser = parserutils.Workflow() if args else parserutils.Driver()
         options = parser.parse_args(args)
-        runner = jobcontrol.Runner(options, [])
+        runner = jobcontrol.Runner(options=options, args=[])
         np.testing.assert_equal(runner.state.get('-seed'), expected)
 
     @pytest.mark.parametrize('args,file,status,pre',

@@ -15,11 +15,8 @@ class LmpLog(logutils.Base):
     Main class to analyze a lammps log.
     """
 
-    def __init__(self, options, **kwargs):
-        """
-        :param options 'argparse.Driver': Parsed command-line options
-        """
-        super().__init__(options=options, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.thermo = None
         self.rdr = None
         self.task = None

@@ -39,12 +39,12 @@ class Runner(logutils.Base):
     PREREQ = taskbase.Agg.PREREQ
     FLAG_SEED = jobutils.FLAG_SEED
 
-    def __init__(self, options, args=None, **kwargs):
+    def __init__(self, args=None, **kwargs):
         """
         :param options 'argparse.Namespace': parsed commandline options
         :param args list: list of commandline arguments
         """
-        super().__init__(options=options, **kwargs)
+        super().__init__(**kwargs)
         self.args = jobutils.Args(sys.argv[1:] if args is None else args)
         self.proj = None
         self.prereq = {}

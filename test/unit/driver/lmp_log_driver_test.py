@@ -24,7 +24,7 @@ class TestLmpLog:
     def lmplog(self, args, logger):
         args = jobutils.Args(args).set('-JOBNAME', 'name')
         options = parserutils.LmpLog().parse_args(args)
-        return driver.LmpLog(options, logger=logger)
+        return driver.LmpLog(options=options, logger=logger)
 
     @pytest.mark.parametrize("args,expected",
                              [([LOG], 'name_toteng'),

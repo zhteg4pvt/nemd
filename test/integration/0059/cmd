@@ -1,2 +1,2 @@
-# ML Regression: SVR
-[ ! -z $NEMD_SRC ] && nemd_run ml_reg_driver.py $NEMD_SRC/test/data/ml/position_salaries.csv
+# ML Regression: linear regression
+[ ! -z $NEMD_SRC ] && nemd_run ml_reg_driver.py $NEMD_SRC/test/data/ml/position_salaries.csv -method lr -seed 0

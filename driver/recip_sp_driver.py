@@ -249,11 +249,8 @@ class RecipSp(logutils.Base):
     https://en.wikipedia.org/wiki/Recip_lattice
     """
 
-    def __init__(self, options, **kwargs):
-        """
-        :param options 'argparse.Driver':  Parsed command-line options
-        """
-        super().__init__(options=options, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.real = None
         self.recip = None
         self.outfile = f'{self.options.JOBNAME}.png'

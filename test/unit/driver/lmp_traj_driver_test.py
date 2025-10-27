@@ -24,7 +24,7 @@ class TestTraj:
     @pytest.fixture
     def trj(self, args, logger):
         options = parserutils.LmpTraj().parse_args(args)
-        return driver.Traj(options, logger=logger)
+        return driver.Traj(options=options, logger=logger)
 
     @pytest.mark.parametrize("args,expected", [(ARGS, 'name_density.csv')])
     def testRun(self, trj, expected, tmp_dir):

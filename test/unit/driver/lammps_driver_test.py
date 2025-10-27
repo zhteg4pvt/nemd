@@ -23,7 +23,7 @@ class TestLammps:
     @pytest.fixture
     def raw(self, args, logger, tmp_dir):
         options = parserutils.Lammps().parse_args(args)
-        return driver.Lammps(options, logger=logger)
+        return driver.Lammps(options=options, logger=logger)
 
     @pytest.fixture
     def lmp(self, infile, tmp, logger, dirname, tmp_dir):
@@ -33,7 +33,7 @@ class TestLammps:
         if tmp:
             infile = os.path.join(tmp, infile)
         options = parserutils.Lammps().parse_args([infile])
-        return driver.Lammps(options, logger=logger)
+        return driver.Lammps(options=options, logger=logger)
 
     @pytest.mark.parametrize('dirname', [SI_DIR])
     @pytest.mark.parametrize('infile,tmp,expected',
@@ -76,7 +76,7 @@ class TestLammps:
                                                (['mol_bldr.in'], False)])
     def testAddPath(self, args, expected, logger, copied):
         options = parserutils.Lammps().parse_args(args)
-        lmp = driver.Lammps(options, logger=logger)
+        lmp = driver.Lammps(options=options, logger=logger)
         lmp.addPath(re.compile(r"read_data\s+(\S+)"))
         match = re.search(r"read_data\s+(\S+)", lmp.cont)
         assert expected == (match and os.path.isabs(match.group(1)))

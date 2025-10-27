@@ -20,11 +20,8 @@ class Lammps(logutils.Base, process.Lmp):
     Main class to run the lammps executable.
     """
 
-    def __init__(self, options, **kwargs):
-        """
-        :param options 'argparse.Driver': Parsed command-line options
-        """
-        super().__init__(options=options, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         process.Lmp.__init__(self,
                              infile=os.path.basename(self.options.inscript),
                              jobname=f"{self.options.JOBNAME}_lmp")

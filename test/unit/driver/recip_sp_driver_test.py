@@ -16,7 +16,7 @@ class TestRecipSp:
     @pytest.fixture
     def recip_sp(self, args, logger, tmp_dir):
         options = driver.Parser().parse_args(args)
-        return driver.RecipSp(options, logger=logger)
+        return driver.RecipSp(options=options, logger=logger)
 
     def testRun(self, recip_sp):
         recip_sp.run()

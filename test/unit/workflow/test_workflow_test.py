@@ -39,7 +39,7 @@ class TestRunner:
         copied = sorted([os.path.basename(x) for x in copied])
         assert expected == (len(jobdirs), *copied)
 
-    @pytest.mark.parametrize('args,expected', [(['-name', 'integration'], 58),
+    @pytest.mark.parametrize('args,expected', [(['-name', 'integration'], 60),
                                                (['-name', 'scientific'], 20),
                                                (['-name', 'performance'], 11)])
     def testNames(self, runner, expected):

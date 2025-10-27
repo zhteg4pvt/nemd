@@ -12,7 +12,7 @@ class TestCrystal:
     @pytest.fixture
     def crystal(self, argv, logger):
         options = parserutils.XtalBldr().parse_args(argv)
-        return driver.Crystal(options, logger=logger)
+        return driver.Crystal(options=options, logger=logger)
 
     @pytest.mark.parametrize("argv,expected",
                              [(['-scale_factor', '2'], (8, 10.8614)),

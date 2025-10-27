@@ -31,12 +31,10 @@ class Reg(logutils.Base):
     Machine learning regression.
     """
     FIG_EXT = '.svg'
+    CSV_EXT = '.csv'
 
-    def __init__(self, options, **kwargs):
-        """
-        :param options 'argparse.Driver': Parsed command-line options.
-        """
-        super().__init__(options=options, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.data = None
         self.xdata = None
         self.ydata = None
@@ -45,6 +43,7 @@ class Reg(logutils.Base):
         self.ytrain = None
         self.ytest = None
         self.reg = None
+        self.gridded = None
 
     def run(self):
         """
@@ -54,11 +53,12 @@ class Reg(logutils.Base):
         self.split()
         self.fit()
         self.score()
+        self.grid()
         self.plot()
 
     def read(self):
         """
-        Read data file.
+        Read data.
         """
         self.data = pd.read_csv(self.options.data)
         columns = self.data.select_dtypes(include=['number']).columns
@@ -67,7 +67,7 @@ class Reg(logutils.Base):
 
     def split(self):
         """
-        Split for train and test.
+        Split into train and test.
         """
         self.xtrain, self.xtest, self.ytrain, self.ytest = model_selection.train_test_split(
             self.xdata.values,
@@ -114,7 +114,7 @@ class Reg(logutils.Base):
         """
         Get the scalers.
 
-        :return preprocessing.StandardScaler: the scaler.
+        :return preprocessing.StandardScaler generator: the scaler.
         """
         for data in [self.xtrain, self.ytrain]:
             sc = preprocessing.StandardScaler()
@@ -143,20 +143,36 @@ class Reg(logutils.Base):
         """
         return self.scaleY(self.reg.predict(self.scale(data)), inversed=True)
 
-    def plot(self):
+    def grid(self):
         """
         Plot the prediction.
         """
         if self.xdata.shape[-1] != 1:
             return
+        lim = (self.xtrain.min().item(), self.xtrain.max().item())
+        gridded = np.arange(*lim, 0.1)
+        pred = self.predict(gridded.reshape(-1, 1)).reshape(-1, 1)
+        index = pd.Index(gridded, name=self.xdata.columns[0])
+        self.gridded = pd.DataFrame(pred,
+                                    columns=self.ydata.columns,
+                                    index=index)
+        outfile = f"{self.options.JOBNAME}{self.CSV_EXT}"
+        self.gridded.to_csv(outfile)
+        self.log(
+            f'{self.options.method} gridded prediction saved as {outfile}')
+
+    def plot(self):
+        """
+        Plot the gridded data.
+        """
+        if self.gridded is None:
+            return
         with plotutils.pyplot(inav=self.options.INTERAC,
                               name=self.options.method) as plt:
             self.fig, ax = plt.subplots(1, 1, figsize=(6, 4.5))
             ax.scatter(self.xtrain, self.ytrain, color='red', label='data')
-            lim = (self.xtrain.min().item(), self.xtrain.max().item())
-            xdata = np.arange(*lim, 0.1).reshape(-1, 1)
-            ax.plot(xdata,
-                    self.predict(xdata),
+            ax.plot(self.gridded.index,
+                    self.gridded,
                     color='blue',
                     label=self.options.method)
             ax.set_xlabel(self.xdata.columns[0])

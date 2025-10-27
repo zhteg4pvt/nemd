@@ -14,7 +14,7 @@ class TestAmorphous:
     @pytest.fixture
     def amorp(self, argv, logger):
         options = parserutils.AmorpBldr().parse_args(argv + ['-seed', '1'])
-        return driver.Amorphous(options, logger=logger)
+        return driver.Amorphous(options=options, logger=logger)
 
     @pytest.mark.parametrize(
         "argv,expected",
