@@ -128,7 +128,7 @@ class Reg(logutils.Base):
         :param ydata ndarray: the ydata.
         """
         score = metrics.r2_score(ydata, self.predict(xdata))
-        self.log(f'{self.method} score: {score}')
+        self.log(f'r2 score ({self.method}): {score:.4g}')
 
     def predict(self, data):
         """
@@ -277,7 +277,7 @@ class ArgumentParser(parserutils.Driver):
     FLAG_TREE_NUM = '-tree_num'
 
     @classmethod
-    def add(cls, parser, *args, **kwargs):
+    def add(cls, parser, **kwargs):
         """
         See parent.
         """
