@@ -26,7 +26,7 @@ from nemd import parserutils
 from nemd import plotutils
 
 
-class Reg(logutils.Base):
+class Reg:
     """
     Regression model wrapper.
     """
@@ -43,14 +43,16 @@ class Reg(logutils.Base):
         RFR: 'random forest'
     }
 
-    def __init__(self, method=LR, scs=None, **kwargs):
+    def __init__(self, method=LR, scs=None, options=None, **kwargs):
         """
         :param method: the regression method.
         :param scs list: the scalers.
+        :param options 'argparse.Namespace': commandline arguments.
         """
         super().__init__(**kwargs)
         self.method = method
         self.scs = scs
+        self.options = options
         self.reg = None
         self.setUp()
 
@@ -86,7 +88,7 @@ class Reg(logutils.Base):
         """
         Perform operation on the data (e.g. polynomial, scale).
 
-        :param ndarray: the xdata.
+        :param data ndarray: the data to operate on.
         :return ndarray: the processed data.
         """
         return self.poly.fit_transform(data) if self.poly else self.scale(data)
@@ -126,9 +128,9 @@ class Reg(logutils.Base):
 
         :param xdata ndarray: the xdata.
         :param ydata ndarray: the ydata.
+        :return float: the score.
         """
-        score = metrics.r2_score(ydata, self.predict(xdata))
-        self.log(f'r2 score ({self.method}): {score:.4g}')
+        return metrics.r2_score(ydata, self.predict(xdata))
 
     def predict(self, data):
         """
@@ -193,7 +195,7 @@ class Regression(logutils.Base):
         """
         Set the regression models.
         """
-        kwargs = dict(scs=self.scs, logger=self.logger, options=self.options)
+        kwargs = dict(scs=self.scs, options=self.options)
         self.regs = [Reg(method=x, **kwargs) for x in self.options.method]
         for reg in self.regs:
             reg.fit(self.xtrain, self.ytrain)
@@ -224,7 +226,8 @@ class Regression(logutils.Base):
         Calculate the scores.
         """
         for reg in self.regs:
-            reg.score(self.xtest, self.ytest)
+            score = reg.score(self.xtest, self.ytest)
+            self.log(f'r2 score ({reg.method}): {score:.4g}')
 
     def grid(self):
         """
@@ -295,7 +298,7 @@ class ArgumentParser(parserutils.Driver):
                             type=parserutils.Int.typePositive,
                             help=f'The max polynomial degree.')
         parser.add_argument(cls.FLAG_TREE_NUM,
-                            default=2,
+                            default=100,
                             type=parserutils.Int.typePositive,
                             help=f'The number of trees in the forest.')
         cls.addSeed(parser)
