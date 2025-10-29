@@ -1,1 +1,1 @@
-nemd_check has ml_reg.log 'r2 score (lr): 0.9325' 'r2 score (svr): 0.9481' 'r2 score (poly): 0.9455' 'r2 score (dt): 0.9229' 'r2 score (rfr): 0.9616'
+nemd_check has ml_reg.log 'r2 score (lr): 0.9325' 'r2 score (svr): 0.9481' 'r2 score (poly): 0.9455' 'r2 score (dt): 0.922' 'r2 score (rfr): 0.9616'

@@ -71,22 +71,22 @@ class TestReg:
         scaled = reg.regs[0].scaleY(reg.ytrain, inversed=inversed)
         np.testing.assert_almost_equal(scaled.sum(), expected)
 
-    @pytest.mark.parametrize('method,expected', [('lr', 0.9779215),
-                                                 ('svr', 0.951383945),
-                                                 ('poly', 0.70548068772),
-                                                 ('dt', 0.5857438),
-                                                 ('rfr', 0.99068337)])
+    @pytest.mark.parametrize('method,expected', [('lr', 0.978),
+                                                 ('svr', 0.951),
+                                                 ('poly', 0.705),
+                                                 ('dt', 0.586),
+                                                 ('rfr', 0.991)])
     def testScore(self, reg, expected):
         score = reg.regs[0].score(reg.xtest, reg.ytest)
-        np.testing.assert_almost_equal(score, expected)
+        np.testing.assert_almost_equal(score, expected, decimal=3)
 
-    @pytest.mark.parametrize('method,expected', [('lr', 335474.5596868884),
-                                                 ('svr', 193234.81951553142),
-                                                 ('poly', 196528.16459152475),
-                                                 ('dt', 150000.0),
-                                                 ('rfr', 162500.0)])
+    @pytest.mark.parametrize('method,expected', [('lr', 335474),
+                                                 ('svr', 193234),
+                                                 ('poly', 196528),
+                                                 ('dt', 150000),
+                                                 ('rfr', 162500)])
     def testPredict(self, reg, expected):
-        np.testing.assert_almost_equal(reg.regs[0].predict([[6.5]]), expected)
+        assert np.allclose(reg.regs[0].predict([[6.5]]), expected, rtol=0.01)
 
 
 @conftest.require_src

@@ -64,7 +64,7 @@ class Reg:
             case self.LR | self.POLY:
                 self.reg = linear_model.LinearRegression()
             case self.SVR:
-                self.reg = svm.SVR(kernel='rbf')
+                self.reg = svm.SVR()
             case self.DT:
                 self.reg = tree.DecisionTreeRegressor(
                     random_state=self.options.seed)
