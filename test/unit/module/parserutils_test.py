@@ -18,6 +18,7 @@ DATA_FILE = envutils.Src().test(AR, 'ar100.data')
 MY_DATA_FILE = envutils.Src().test(AR, 'mydata.in')
 LOG_FILE = envutils.Src().test(AR, 'lammps.log')
 TRAJ_FILE = envutils.Src().test(AR, 'ar100.custom.gz')
+POS_CSV = envutils.Src().test('ml', 'position_salaries.csv')
 RAISED = argparse.ArgumentTypeError
 
 
@@ -578,6 +579,18 @@ class TestAdd:
         assert expected == [
             options.task,
             str(options.data_file), options.last_pct, options.slice
+        ]
+
+    @pytest.mark.parametrize('args,expected', [
+        ([POS_CSV], [1, 2, 100]),
+        ([POS_CSV, '-method', 'svr', 'rfr', '-degree', '3', '-tree_num', '10'
+          ], [2, 3, 10])
+    ])
+    def testReg(self, parser, args, expected):
+        parserutils.Reg.add(parser)
+        options = parser.parse_args(args)
+        assert expected == [
+            len(options.method), options.degree, options.tree_num
         ]
 
 

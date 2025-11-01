@@ -18,6 +18,7 @@ from nemd import envutils
 from nemd import is_debug
 from nemd import jobutils
 from nemd import lmpin
+from nemd import ml
 from nemd import rdkitutils
 from nemd import sw
 from nemd import symbols
@@ -1127,6 +1128,40 @@ class LmpTraj(LmpLog):
                                 type=Float.typePositive,
                                 default=1,
                                 help='Trajectory timetep.')
+
+
+class Reg(Driver):
+    """
+    Parser with ml regression arguments.
+    """
+    FLAG_DATA = 'data'
+    FLAG_METHOD = '-method'
+    FLAG_DEGREE = '-degree'
+    FLAG_TREE_NUM = '-tree_num'
+
+    @classmethod
+    def add(cls, parser, **kwargs):
+        """
+        See parent.
+        """
+        parser.add_argument(cls.FLAG_DATA,
+                            type=Path.typeFile,
+                            help='The csv file.')
+        names = ", ".join([f"{y} ({x})" for x, y in ml.Reg.NAMES.items()])
+        parser.add_argument(cls.FLAG_METHOD,
+                            default=[ml.Reg.LR],
+                            choices=ml.Reg.NAMES,
+                            nargs='+',
+                            help=f'Regression method: {names}')
+        parser.add_argument(cls.FLAG_DEGREE,
+                            default=2,
+                            type=Int.typePositive,
+                            help=f'The max polynomial degree.')
+        parser.add_argument(cls.FLAG_TREE_NUM,
+                            default=100,
+                            type=Int.typePositive,
+                            help=f'The number of trees in the forest.')
+        cls.addSeed(parser)
 
 
 class Workflow(Driver):

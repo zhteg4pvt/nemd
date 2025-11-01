@@ -1,7 +1,6 @@
 import os
 
 import conftest
-import ml_reg_driver as driver
 import numpy as np
 import pytest
 from sklearn import ensemble
@@ -11,7 +10,9 @@ from sklearn import tree
 from sklearn.utils import validation
 
 from nemd import envutils
+from nemd import ml
 from nemd import test
+from nemd import parserutils
 
 SRC = envutils.Src()
 POS_CSV = SRC.test('ml', 'position_salaries.csv')
@@ -24,8 +25,8 @@ class TestReg:
     @pytest.fixture
     def reg(self, method, logger):
         args = [POS_CSV, '-method', method, '-seed', '0']
-        options = driver.ArgumentParser().parse_args(args)
-        reg = driver.Regression(options=options, logger=logger)
+        options = parserutils.Reg().parse_args(args)
+        reg = ml.Ml(options=options, logger=logger)
         reg.read()
         reg.split()
         reg.setRegs()
@@ -38,46 +39,44 @@ class TestReg:
                               ('dt', (tree.DecisionTreeRegressor, None)),
                               ('rfr', (ensemble.RandomForestRegressor, None))])
     def testSetUp(self, reg, expected):
-        assert isinstance(reg.regs[0].reg, expected[0])
+        assert isinstance(reg.models[0].reg, expected[0])
         assert expected[1] == (reg.scs and len(reg.scs))
 
     @pytest.mark.parametrize('method', ['lr', 'svr', 'poly', 'dt', 'rfr'])
     def testFit(self, reg):
-        reg.regs[0].fit(reg.xtrain, reg.ytrain)
-        validation.check_is_fitted(reg.regs[0].reg)
+        reg.models[0].fit(reg.xtrain, reg.ytrain)
+        validation.check_is_fitted(reg.models[0].reg)
 
     @pytest.mark.parametrize('method,expected', [('lr', 43), ('svr', 0.0),
                                                  ('poly', 346.0)])
     def testOpr(self, reg, expected):
-        assert expected == reg.regs[0].opr(reg.xtrain).sum()
+        assert expected == reg.models[0].opr(reg.xtrain).sum()
 
     @pytest.mark.parametrize('method,expected', [('lr', False),
                                                  ('poly', True)])
     def testPoly(self, reg, expected):
-        assert expected == bool(reg.regs[0].poly)
+        assert expected == bool(reg.models[0].poly)
 
     @pytest.mark.parametrize('method,idx,inversed,expected',
                              [('lr', 0, False, 43), ('svr', 0, False, 0.0),
                               ('svr', 1, False, -6.5065991),
                               ('svr', 0, True, 164.50353647)])
     def testScale(self, reg, idx, inversed, expected):
-        scaled = reg.regs[0].scale(reg.xtrain, idx=idx, inversed=inversed)
+        scaled = reg.models[0].scale(reg.xtrain, idx=idx, inversed=inversed)
         np.testing.assert_almost_equal(scaled.sum(), expected)
 
     @pytest.mark.parametrize('method,inversed,expected',
                              [('svr', False, 0),
                               ('svr', True, 575439538784.8147)])
     def testScaleY(self, reg, inversed, expected):
-        scaled = reg.regs[0].scaleY(reg.ytrain, inversed=inversed)
+        scaled = reg.models[0].scaleY(reg.ytrain, inversed=inversed)
         np.testing.assert_almost_equal(scaled.sum(), expected)
 
-    @pytest.mark.parametrize('method,expected', [('lr', 0.978),
-                                                 ('svr', 0.951),
-                                                 ('poly', 0.705),
-                                                 ('dt', 0.586),
-                                                 ('rfr', 0.991)])
+    @pytest.mark.parametrize('method,expected',
+                             [('lr', 0.978), ('svr', 0.951), ('poly', 0.705),
+                              ('dt', 0.586), ('rfr', 0.991)])
     def testScore(self, reg, expected):
-        score = reg.regs[0].score(reg.xtest, reg.ytest)
+        score = reg.models[0].score(reg.xtest, reg.ytest)
         np.testing.assert_almost_equal(score, expected, decimal=3)
 
     @pytest.mark.parametrize('method,expected', [('lr', 335474),
@@ -86,7 +85,7 @@ class TestReg:
                                                  ('dt', 150000),
                                                  ('rfr', 162500)])
     def testPredict(self, reg, expected):
-        assert np.allclose(reg.regs[0].predict([[6.5]]), expected, rtol=0.01)
+        assert np.allclose(reg.models[0].predict([[6.5]]), expected, rtol=0.01)
 
 
 @conftest.require_src
@@ -94,8 +93,8 @@ class TestRegression:
 
     @pytest.fixture
     def reg(self, args, logger):
-        options = driver.ArgumentParser().parse_args(args)
-        return driver.Regression(options=options, logger=logger)
+        options = parserutils.Reg().parse_args(args)
+        return ml.Ml(options=options, logger=logger)
 
     @pytest.mark.parametrize(
         'args,expected', [([POS_CSV, '-seed', '0', '-JOBNAME', 'name'
@@ -127,8 +126,8 @@ class TestRegression:
         reg.read()
         reg.split()
         reg.setRegs()
-        assert expected == len(reg.regs)
-        for reg in reg.regs:
+        assert expected == len(reg.models)
+        for reg in reg.models:
             validation.check_is_fitted(reg.reg)
 
     @pytest.mark.parametrize('args,expected',
@@ -175,22 +174,3 @@ class TestRegression:
         reg.grid()
         reg.plot()
         assert expected == os.path.isfile('name.csv')
-
-
-@conftest.require_src
-class TestArgumentParser:
-
-    @pytest.fixture
-    def parser(self):
-        return driver.ArgumentParser()
-
-    @pytest.mark.parametrize('args,expected', [
-        ([POS_CSV], [1, 2, 100]),
-        ([POS_CSV, '-method', 'svr', 'rfr', '-degree', '3', '-tree_num', '10'
-          ], [2, 3, 10])
-    ])
-    def testParseArgs(self, parser, args, expected):
-        options = parser.parse_args(args)
-        assert expected == [
-            len(options.method), options.degree, options.tree_num
-        ]
