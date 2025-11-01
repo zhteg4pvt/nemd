@@ -1,2 +1,3 @@
 nemd_check cmp ml_reg.csv ml_reg.csv rtol=1E-2 atol=1E-8
+grep -vq "accuracy score (logit)" ml_reg.log
 nemd_check exist ml_reg.svg

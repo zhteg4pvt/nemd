@@ -1,0 +1,2 @@
+# ML Regression: r2 score
+[ ! -z $NEMD_SRC ] && nemd_run ml_reg_driver.py $NEMD_SRC/test/data/ml/social_network_ads.csv -method lr logit -seed 0 -test_size 0.25

@@ -27,20 +27,23 @@ from nemd import plotutils
 
 class Reg:
     """
-    Regression model wrapper.
+    Regression & classification model wrapper.
     """
     LR = 'lr'
     SVR = 'svr'
     POLY = 'poly'
     DT = 'dt'
     RFR = 'rfr'
+    LOGIT = 'logit'
     NAMES = {
         LR: 'linear',
         SVR: 'support vector',
         POLY: 'polynomial',
         DT: 'decision tree',
-        RFR: 'random forest'
+        RFR: 'random forest',
+        LOGIT: 'logistic'
     }
+    SCALES = {SVR, LOGIT}
 
     def __init__(self, method=LR, scs=None, options=None, **kwargs):
         """
@@ -71,8 +74,13 @@ class Reg:
                 self.reg = ensemble.RandomForestRegressor(
                     n_estimators=self.options.tree_num,
                     random_state=self.options.seed)
-        if self.method != self.SVR:
+            case self.LOGIT:
+                self.reg = linear_model.LogisticRegression(
+                    random_state=self.options.seed)
+        if self.method not in self.SCALES:
             self.scs = None
+        if self.method == self.LOGIT:
+            self.scs[1] = None
 
     def fit(self, xdata, ydata):
         """
@@ -113,6 +121,8 @@ class Reg:
         if self.scs is None:
             return data
         sc = self.scs[idx]
+        if sc is None:
+            return data
         return sc.inverse_transform(data) if inversed else sc.transform(data)
 
     def scaleY(self, data, idx=1, **kwargs):
@@ -127,9 +137,12 @@ class Reg:
 
         :param xdata ndarray: the xdata.
         :param ydata ndarray: the ydata.
-        :return float: the score.
+        :return str, float: score name, the score.
         """
-        return metrics.r2_score(ydata, self.predict(xdata))
+        predicted = self.predict(xdata)
+        if self.method == self.LOGIT:
+            return 'accuracy', metrics.accuracy_score(ydata, predicted)
+        return 'r2', metrics.r2_score(ydata, predicted)
 
     def predict(self, data):
         """
@@ -165,6 +178,7 @@ class Ml(logutils.Base):
         Main method to run.
         """
         self.read()
+        self.valid()
         self.split()
         self.setRegs()
         self.score()
@@ -180,6 +194,14 @@ class Ml(logutils.Base):
         self.xdata = self.data[columns[:-1]]
         self.ydata = self.data[columns[-1:]]
 
+    def valid(self):
+        """
+        Valid the request models based on data.
+        """
+        if Reg.LOGIT in self.options.method and not self.ydata.isin(
+            [0, 1]).all().all():
+            self.options.method.remove(Reg.LOGIT)
+
     def split(self):
         """
         Split into train and test.
@@ -187,8 +209,10 @@ class Ml(logutils.Base):
         self.xtrain, self.xtest, self.ytrain, self.ytest = model_selection.train_test_split(
             self.xdata.values,
             self.ydata.values,
-            test_size=0.2,
+            test_size=self.options.test_size,
             random_state=self.options.seed)
+        self.log(f"Train size: {self.xtrain.shape[0]}")
+        self.log(f"Test size: {self.xtest.shape[0]}")
 
     def setRegs(self):
         """
@@ -196,8 +220,12 @@ class Ml(logutils.Base):
         """
         kwargs = dict(scs=self.scs, options=self.options)
         self.models = [Reg(method=x, **kwargs) for x in self.options.method]
-        for reg in self.models:
-            reg.fit(self.xtrain, self.ytrain)
+        for reg in reversed(self.models):
+            try:
+                reg.fit(self.xtrain, self.ytrain)
+            except ValueError as err:
+                self.log(f'{reg.method} error: {err}')
+                self.models.remove(reg)
 
     @functools.cached_property
     def scs(self):
@@ -208,6 +236,8 @@ class Ml(logutils.Base):
         """
         if Reg.SVR in self.options.method:
             return list(self.getScaler())
+        if Reg.LOGIT in self.options.method:
+            return [next(self.getScaler()), None]
 
     def getScaler(self):
         """
@@ -225,8 +255,8 @@ class Ml(logutils.Base):
         Calculate the scores.
         """
         for reg in self.models:
-            score = reg.score(self.xtest, self.ytest)
-            self.log(f'r2 score ({reg.method}): {score:.4g}')
+            name, score = reg.score(self.xtest, self.ytest)
+            self.log(f'{name} score ({reg.method}): {score:.4g}')
 
     def grid(self):
         """

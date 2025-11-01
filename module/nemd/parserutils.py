@@ -151,18 +151,18 @@ class Range(Base):
 
     def __init__(self,
                  *args,
-                 bottom=None,
+                 bot=None,
                  top=None,
                  incl_bot=True,
                  incl_top=True):
         """
-        :param bottom `float``: the lower bound of the range.
+        :param bot `float``: the lower bound of the range.
         :param top `float`: the upper bound of the range.
         :param incl_bot bool: whether to allow the lower bound.
         :param incl_top bool: whether to allow the upper bound.
         """
         super().__init__(*args)
-        self.bottom = bottom
+        self.bot = bot
         self.top = top
         self.incl_bot = incl_bot
         self.incl_top = incl_top
@@ -171,11 +171,11 @@ class Range(Base):
         """
         Check whether the float is within the range.
         """
-        if self.bottom is not None:
-            if self.typed < self.bottom:
-                self.error(f'{self.typed} < {self.bottom}')
-            if not self.incl_bot and self.typed == self.bottom:
-                self.error(f'{self.typed} == {self.bottom}')
+        if self.bot is not None:
+            if self.typed < self.bot:
+                self.error(f'{self.typed} < {self.bot}')
+            if not self.incl_bot and self.typed == self.bot:
+                self.error(f'{self.typed} == {self.bot}')
         if self.top is not None:
             if self.typed > self.top:
                 self.error(f'{self.typed} > {self.top}')
@@ -209,13 +209,13 @@ class Int(Range):
         return None if arg.lower() == 'none' else cls.type(arg)
 
     @classmethod
-    def typeNonnegative(cls, *args, bottom=0, **kwargs):
+    def typeNonnegative(cls, *args, bot=0, **kwargs):
         """
         Check and convert to a nonnegative integer. (see init)
 
         :return `int: the converted positive integer.
         """
-        return cls.type(*args, bottom=bottom, **kwargs)
+        return cls.type(*args, bot=bot, **kwargs)
 
     @classmethod
     def typePositive(cls, *args, incl_bot=False, **kwargs):
@@ -227,13 +227,13 @@ class Int(Range):
         return cls.typeNonnegative(*args, incl_bot=incl_bot, **kwargs)
 
     @classmethod
-    def typeSeed(cls, *args, bottom=0, top=symbols.MAX_INT32, **kwargs):
+    def typeSeed(cls, *args, bot=0, top=symbols.MAX_INT32, **kwargs):
         """
         Check, convert, and set a random seed. (see init)
 
         :return `int`: the converted random seed.
         """
-        seed = cls.type(*args, bottom=bottom, top=top, **kwargs)
+        seed = cls.type(*args, bot=bot, top=top, **kwargs)
         np.random.seed(seed)
         random.seed(seed)
         return seed
@@ -255,13 +255,13 @@ class Float(Range):
         super().run()
 
     @classmethod
-    def typeNonnegative(cls, *args, bottom=0, **kwargs):
+    def typeNonnegative(cls, *args, bot=0, **kwargs):
         """
         Check and convert to a non-negative float. (see init)
 
         :return `float`: the converted non-negative value.
         """
-        return cls.type(*args, bottom=bottom, **kwargs)
+        return cls.type(*args, bot=bot, **kwargs)
 
     @classmethod
     def typePositive(cls, *args, incl_bot=False, **kwargs):
@@ -694,7 +694,7 @@ class Driver(argparse.ArgumentParser, builtinsutils.Object):
         if self.FLAG_PYTHON in self.JFLAGS:
             self.add_argument(self.FLAG_PYTHON,
                               default=envutils.Mode(),
-                              type=Int.partial(bottom=-1, top=2),
+                              type=Int.partial(bot=-1, top=2),
                               help='0: native; 1: compiled; 2: cached.')
         if FLAG_CPU in self.JFLAGS:
             self.add_argument(FLAG_CPU,
@@ -967,7 +967,7 @@ class AmorpBldr(MolBase):
         parser.add_argument(
             cls.FLAG_DENSITY,
             metavar='g/cm^3',
-            type=Float.partial(bottom=0, incl_bot=False, top=30),
+            type=Float.partial(bot=0, incl_bot=False, top=30),
             default=0.5,
             help=f'The density used for {cls.PACK} and {cls.GROW} cells.')
         parser.add_argument(
@@ -1138,6 +1138,7 @@ class Reg(Driver):
     FLAG_METHOD = '-method'
     FLAG_DEGREE = '-degree'
     FLAG_TREE_NUM = '-tree_num'
+    FLAG_TEST_SIZE = '-test_size'
 
     @classmethod
     def add(cls, parser, **kwargs):
@@ -1160,6 +1161,13 @@ class Reg(Driver):
         parser.add_argument(cls.FLAG_TREE_NUM,
                             default=100,
                             type=Int.typePositive,
+                            help=f'The number of trees in the forest.')
+        parser.add_argument(cls.FLAG_TEST_SIZE,
+                            default=0.2,
+                            type=Float.partial(top=1,
+                                               bot=0,
+                                               incl_bot=False,
+                                               incl_top=False),
                             help=f'The number of trees in the forest.')
         cls.addSeed(parser)
 
