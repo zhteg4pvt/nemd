@@ -174,6 +174,8 @@ class Ml(logutils.Base):
         self.ytest = None
         self.models = None
         self.gridded = None
+        self.fig = None
+        self.ax = None
 
     def run(self):
         """
@@ -255,40 +257,98 @@ class Ml(logutils.Base):
         """
         Grid the range and make predictions.
         """
-        if self.xdata.shape[-1] != 1:
+        if self.xdata.shape[-1] > 2 or not self.grids[0].size:
             return
-        lim = (self.xtrain.min().item(), self.xtrain.max().item())
-        index = pd.Index(np.arange(*lim, 0.1), name=self.xdata.columns[0])
-        xdata = index.values.reshape(-1, 1)
-        if not xdata.size:
-            return
-        pred = {x.method: x.predict(xdata) for x in self.models}
+        grids = np.array([x.ravel() for x in self.grids]).T
+        pred = {x.method: x.predict(grids) for x in self.models}
         pred = {f"{self.ydata.columns[0]} ({x})": y for x, y in pred.items()}
+        index = pd.MultiIndex.from_arrays(grids.T, names=self.xdata.columns)
         self.gridded = pd.DataFrame(pred, index=index)
         outfile = f"{self.options.JOBNAME}{self.CSV_EXT}"
         self.gridded.to_csv(outfile)
         self.log(f'Gridded prediction saved as {outfile}')
         jobutils.Job.reg(outfile)
 
-    def plot(self, rex=re.compile(r'(.*) +\((.*)\)')):
+    @functools.cached_property
+    def grids(self, num=101):
+        """
+        Return the xdata grids.
+
+        :param num int: the number of point in each dimension.
+        :return tuple: the xdata grids.
+        """
+        lims = np.array([self.xtrain.min(axis=0), self.xtrain.max(axis=0)]).T
+        args = [[*lims[x], num] for x in range(self.xdata.shape[1])]
+        grids = np.array([np.linspace(*x) for x in args]).T
+        return np.meshgrid(*grids.T)
+
+    def plot(self):
         """
         Plot the gridded predictions.
-
-        :param rex: the regular expression to match words followed by brackets.
         """
         if self.gridded is None:
             return
         with plotutils.pyplot(inav=self.options.INTERAC,
                               name=self.options.method) as plt:
-            self.fig, ax = plt.subplots(1, 1, figsize=(6, 4.5))
-            ax.scatter(self.xtrain, self.ytrain, color='k', label='original')
-            for col in self.gridded:
-                label = Reg.NAMES[rex.match(col).group(2)]
-                ax.plot(self.gridded.index, self.gridded[col], label=label)
-            ax.set_xlabel(self.xdata.columns[0])
-            ax.set_ylabel(self.ydata.columns[0])
-            ax.legend()
-            outfile = f"{self.options.JOBNAME}{self.FIG_EXT}"
-            self.fig.savefig(outfile)
-            self.log(f'Figure saved as {outfile}')
-            jobutils.Job.reg(outfile)
+            self.scatter(plt)
+            self.contourf(plt)
+
+    def scatter(self, plt):
+        """
+        Create scatter plot.
+
+        :param plt matplotlib.pyplot: the pyplot to create figure.
+        """
+        if len(self.grids) != 1:
+            return
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(6, 4.5))
+        self.ax.scatter(self.xtrain, self.ytrain, color='k', label='original')
+        for label, pred in self.predicted():
+            self.ax.plot(self.grids[0], pred, label=label)
+        self.ax.legend()
+        self.save()
+
+    def predicted(self, rex=re.compile(r'(.*) +\((.*)\)')):
+        """
+        Iterate over the predicted.
+
+        :param rex: the regular expression to match words followed by brackets.
+        """
+        for col in self.gridded:
+            yield Reg.NAMES[rex.match(col).group(2)], self.gridded[col]
+
+    def contourf(self, plt):
+        """
+        Create contourf plot.
+
+        :param plt matplotlib.pyplot: the pyplot to create figure.
+        """
+        if len(self.grids) == 1:
+            return
+        for label, pred in self.predicted():
+            self.fig, self.ax = plt.subplots(1, 1, figsize=(6.5, 4.5))
+            pred = pred.values.reshape(self.grids[0].shape)
+            contourf = self.ax.contourf(*self.grids, pred)
+            artists, labels = contourf.legend_elements(
+                str_format=lambda x: f'{x:.4g}')
+            self.ax.legend(artists,
+                           labels,
+                           title="Level",
+                           loc='center left',
+                           bbox_to_anchor=(1, 0.5))
+            self.save(label=label)
+
+    def save(self, label=''):
+        """
+        Save the figure.
+
+        :param label str: the figure label extension.
+        """
+        self.ax.set_xlabel(self.xdata.columns[0])
+        self.ax.set_ylabel(self.ydata.columns[0])
+        self.ax.set_box_aspect(1)
+        self.fig.tight_layout()
+        outfile = f"{self.options.JOBNAME}{label and '_'}{label}{self.FIG_EXT}"
+        self.fig.savefig(outfile)
+        self.log(f'Figure saved as {outfile}')
+        jobutils.Job.reg(outfile)
