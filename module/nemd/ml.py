@@ -79,6 +79,7 @@ class Reg:
                     random_state=self.options.seed)
         if self.method not in self.SCALES:
             self.scs = None
+            return
         if self.method == self.LOGIT:
             self.scs[1] = None
 
@@ -142,7 +143,8 @@ class Reg:
         predicted = self.predict(xdata)
         if self.method == self.LOGIT:
             return 'accuracy', metrics.accuracy_score(ydata, predicted)
-        return 'r2', metrics.r2_score(ydata, predicted)
+        return 'r2', np.nan if xdata.shape[0] < 2 else metrics.r2_score(
+            ydata, predicted)
 
     def predict(self, data):
         """
@@ -178,7 +180,6 @@ class Ml(logutils.Base):
         Main method to run.
         """
         self.read()
-        self.valid()
         self.split()
         self.setRegs()
         self.score()
@@ -193,14 +194,6 @@ class Ml(logutils.Base):
         columns = self.data.select_dtypes(include=['number']).columns
         self.xdata = self.data[columns[:-1]]
         self.ydata = self.data[columns[-1:]]
-
-    def valid(self):
-        """
-        Valid the request models based on data.
-        """
-        if Reg.LOGIT in self.options.method and not self.ydata.isin(
-            [0, 1]).all().all():
-            self.options.method.remove(Reg.LOGIT)
 
     def split(self):
         """
@@ -267,6 +260,8 @@ class Ml(logutils.Base):
         lim = (self.xtrain.min().item(), self.xtrain.max().item())
         index = pd.Index(np.arange(*lim, 0.1), name=self.xdata.columns[0])
         xdata = index.values.reshape(-1, 1)
+        if not xdata.size:
+            return
         pred = {x.method: x.predict(xdata) for x in self.models}
         pred = {f"{self.ydata.columns[0]} ({x})": y for x, y in pred.items()}
         self.gridded = pd.DataFrame(pred, index=index)

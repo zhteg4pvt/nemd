@@ -10,15 +10,16 @@ from nemd import parserutils
 from nemd import pytestutils
 
 AR = 'ar'
-AR_DIR = envutils.Src().test(AR)
-IN_FILE = envutils.Src().test(AR, 'ar100.in')
-EMPTY_IN = envutils.Src().test(AR, 'empty.in')
-MISS_DATA_IN = envutils.Src().test(AR, 'single.in')
-DATA_FILE = envutils.Src().test(AR, 'ar100.data')
-MY_DATA_FILE = envutils.Src().test(AR, 'mydata.in')
-LOG_FILE = envutils.Src().test(AR, 'lammps.log')
-TRAJ_FILE = envutils.Src().test(AR, 'ar100.custom.gz')
-POS_FILE = envutils.Src().test('ml', 'position_salaries.csv')
+SRC = envutils.Src()
+AR_DIR = SRC.test(AR)
+IN_FILE = SRC.test(AR, 'ar100.in')
+EMPTY_IN = SRC.test(AR, 'empty.in')
+MISS_DATA_IN = SRC.test(AR, 'single.in')
+DATA_FILE = SRC.test(AR, 'ar100.data')
+MY_DATA_FILE = SRC.test(AR, 'mydata.in')
+LOG_FILE = SRC.test(AR, 'lammps.log')
+TRAJ_FILE = SRC.test(AR, 'ar100.custom.gz')
+POS_CSV = SRC.test('ml', 'position_salaries.csv')
 RAISED = argparse.ArgumentTypeError
 
 
@@ -72,15 +73,15 @@ class TestBool:
 @pytestutils.Raises
 class TestRange:
 
-    @pytest.mark.parametrize('bottom,top', [(100, 200)])
+    @pytest.mark.parametrize('bot,top', [(100, 200)])
     @pytest.mark.parametrize('value,incl_bot,incl_top,expected',
                              [(123, True, True, 123), (100, True, True, 100),
                               (100, False, True, RAISED),
                               (200, False, True, 200),
                               (200, False, False, RAISED)])
-    def testRun(self, value, bottom, top, incl_bot, incl_top, expected):
+    def testRun(self, value, bot, top, incl_bot, incl_top, expected):
         ranged = parserutils.Range(value,
-                                   bottom=bottom,
+                                   bot=bot,
                                    top=top,
                                    incl_bot=incl_bot,
                                    incl_top=incl_top)
@@ -120,7 +121,7 @@ class TestInt:
 @pytestutils.Raises
 class TestFloat:
 
-    @pytest.mark.parametrize('bottom,top', [(1.12, 3.45)])
+    @pytest.mark.parametrize('bot,top', [(1.12, 3.45)])
     @pytest.mark.parametrize('arg,incl_bot,incl_top,expected',
                              [('2', True, True, 2), ('1.12', True, True, 1.12),
                               ('wa', True, True, RAISED),
@@ -128,9 +129,9 @@ class TestFloat:
                               ('1.12', False, True, RAISED),
                               ('3.45', False, True, 3.45),
                               ('3.45', False, False, RAISED)])
-    def testType(self, arg, bottom, top, incl_bot, incl_top, expected):
+    def testType(self, arg, bot, top, incl_bot, incl_top, expected):
         assert expected == parserutils.Float.type(arg,
-                                                  bottom=bottom,
+                                                  bot=bot,
                                                   top=top,
                                                   incl_bot=incl_bot,
                                                   incl_top=incl_top)
@@ -270,6 +271,9 @@ class TestAction:
 
 @pytestutils.Raises
 class TestValid:
+    EMPTY_CSV = SRC.test('ml', 'empty.csv')
+    ONE_COLS_CSV = SRC.test('ml', 'one_col.csv')
+    TWO_COLS_CSV = SRC.test('ml', 'two_cols.csv')
 
     @pytest.fixture
     def parser(self, valid, flags, kwargss):
@@ -360,6 +364,19 @@ class TestValid:
     def testTraj(self, parser, args, expected):
         options = parser.parse_args(args)
         assert expected == [*options.task, options.data_file]
+
+    @pytest.mark.parametrize('valid', [parserutils.RegValid])
+    @pytest.mark.parametrize('flags', [(['-data', '-method'])])
+    @pytest.mark.parametrize('kwargss', [(None, {'nargs': '+'})])
+    @pytest.mark.parametrize('values,expected',
+                             [((POS_CSV, ['lr']), ['lr']),
+                              ((POS_CSV, ['lr', 'logit']), ['lr']),
+                              ((EMPTY_CSV, ['lr']), RAISED),
+                              ((ONE_COLS_CSV, ['lr']), RAISED),
+                              ((TWO_COLS_CSV, ['lr']), RAISED)])
+    def testRegValid(self, parser, args, expected):
+        options = parser.parse_args(args)
+        assert expected == options.method
 
 
 class TestDriver:
@@ -581,12 +598,11 @@ class TestAdd:
             str(options.data_file), options.last_pct, options.slice
         ]
 
-    @pytest.mark.parametrize('args,expected',
-                             [([POS_FILE], [1, 2, 100]),
-                              ([
-                                  POS_FILE, '-method', 'svr', 'rfr', '-degree',
-                                  '3', '-tree_num', '10'
-                              ], [2, 3, 10])])
+    @pytest.mark.parametrize('args,expected', [
+        ([POS_CSV], [1, 2, 100]),
+        ([POS_CSV, '-method', 'svr', 'rfr', '-degree', '3', '-tree_num', '10'
+          ], [2, 3, 10])
+    ])
     def testReg(self, parser, args, expected):
         parserutils.Reg.add(parser)
         options = parser.parse_args(args)

@@ -7,3 +7,4 @@ exclude_lines =
     @numbautils.jit
     @numba.experimental.jitclass
     if __name__ == .__main__.:
+    from nemd import

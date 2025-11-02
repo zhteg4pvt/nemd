@@ -10,6 +10,7 @@ import pathlib
 import random
 
 import numpy as np
+import pandas as pd
 
 from nemd import analyzer
 from nemd import builtinsutils
@@ -632,6 +633,56 @@ class TrajValid(Valid):
                              f" run {', '.join(rqd_data)} tasks.")
 
 
+class RegValid(Valid):
+    """
+    Class to validate Regression arguments.
+    """
+    LOGIT = ml.Reg.LOGIT
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.data = None
+
+    def run(self):
+        """
+        Validate the command options.
+        """
+        self.read()
+        self.columns()
+        self.method()
+
+    def read(self):
+        """
+        Read the input data.
+
+        :raise ValueError: read_csv errors
+        """
+        try:
+            self.data = pd.read_csv(self.options.data)
+        except pd.errors.EmptyDataError as err:
+            raise ValueError(f"{err} ({self.options.data})")
+
+    def columns(self):
+        """
+        Validate columns.
+
+        :raise ValueError: not enough columns
+        """
+        if self.data.shape[1] < 2:
+            raise ValueError(f"X, y columns not found")
+        if self.data.select_dtypes(include=['number']).shape[1] < 2:
+            raise ValueError(f"Less than two columns after excluding "
+                             f"non-numeric values")
+
+    def method(self):
+        """
+        Validate method.
+        """
+        if self.LOGIT in self.options.method and \
+                not self.data.iloc[:, -1].isin([0, 1]).all().all():
+            self.options.method.remove(self.LOGIT)
+
+
 class Driver(argparse.ArgumentParser, builtinsutils.Object):
     """
     Parser with job arguments.
@@ -1168,7 +1219,8 @@ class Reg(Driver):
                                                bot=0,
                                                incl_bot=False,
                                                incl_top=False),
-                            help=f'The number of trees in the forest.')
+                            help=f'The test size on splitting.')
+        parser.valids.add(RegValid)
         cls.addSeed(parser)
 
 
