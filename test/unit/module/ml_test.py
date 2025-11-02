@@ -102,7 +102,7 @@ class TestReg:
 
 
 @conftest.require_src
-class TestRegression:
+class TestMl:
 
     @pytest.fixture
     def reg(self, args, logger):
@@ -134,7 +134,9 @@ class TestRegression:
 
     @pytest.mark.parametrize(
         'args,expected',
-        [([POS_CSV, '-method', 'lr', 'svr', 'poly', 'dt', 'rfr'], 5)])
+        [([POS_CSV, '-method', 'lr', 'svr', 'poly', 'dt', 'rfr'], 5),
+         ([SOC_CSV, '-method', 'lr', 'logit'], 2),
+         ([SOC_CSV, '-method', 'lr', 'logit', '-test_size', '0.997'], 1)])
     def testSetRegs(self, reg, expected):
         reg.read()
         reg.split()
@@ -166,24 +168,62 @@ class TestRegression:
         reg.setRegs()
         reg.score()
 
-    @pytest.mark.parametrize('args,expected',
-                             [([POS_CSV, '-seed', '0'], (90, 1)),
-                              ([SEL_CSV, '-seed', '0'], None)])
-    def testGrid(self, reg, expected, tmp_dir):
-        reg.read()
-        reg.split()
-        reg.setRegs()
-        reg.grid()
-        assert (expected == reg.gridded.shape) if expected else not reg.gridded
-
     @pytest.mark.parametrize(
         'args,expected',
         [([POS_CSV, '-seed', '0', '-JOBNAME', 'name'], True),
          ([SEL_CSV, '-seed', '0', '-JOBNAME', 'name'], False)])
-    def testPlot(self, reg, expected, tmp_dir):
+    def testScatter(self, reg, expected, tmp_dir):
         reg.read()
         reg.split()
         reg.setRegs()
-        reg.grid()
-        reg.plot()
+        reg.scatter()
         assert expected == os.path.isfile('name.csv')
+
+    @pytest.mark.parametrize(
+        'args,expected',
+        [([POS_CSV, '-seed', '0', '-JOBNAME', 'name'], [['lr', 101]]),
+         ([SEL_CSV, '-seed', '0', '-JOBNAME', 'name'], [])])
+    def testCols(self, reg, expected, tmp_dir):
+        reg.read()
+        reg.split()
+        reg.setRegs()
+        assert expected == [[x, y.size] for x, y in reg.cols()]
+
+    @pytest.mark.parametrize('args,expected',
+                             [([POS_CSV, '-seed', '0'], (101, 1)),
+                              ([SEL_CSV, '-seed', '0'], (0, 0))])
+    def testPred(self, reg, expected, tmp_dir):
+        reg.read()
+        reg.split()
+        reg.setRegs()
+        assert expected == reg.pred.shape
+
+    @pytest.mark.parametrize('args,expected', [([POS_CSV, '-seed', '0'], 1),
+                                               ([SOC_CSV, '-seed', '0'], 2)])
+    def testGrids(self, reg, expected):
+        reg.read()
+        reg.split()
+        reg.setRegs()
+        assert expected == len(reg.grids)
+
+    @pytest.mark.parametrize(
+        'args,expected',
+        [([POS_CSV, '-seed', '0', '-JOBNAME', 'ml_test'], 'ml_test.svg')])
+    def testSave(self, reg, expected, tmp_dir):
+        reg.read()
+        reg.split()
+        reg.setRegs()
+        reg.scatter()
+        reg.save()
+        assert os.path.isfile(expected)
+
+    @pytest.mark.parametrize(
+        'args,expected',
+        [([SOC_CSV, '-method', 'logit', '-seed', '0', '-JOBNAME', 'ml_test'
+           ], 'ml_test_logit.svg')])
+    def testContourf(self, reg, expected, tmp_dir):
+        reg.read()
+        reg.split()
+        reg.setRegs()
+        reg.contourf()
+        assert os.path.isfile(expected)

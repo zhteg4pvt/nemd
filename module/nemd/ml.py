@@ -162,6 +162,7 @@ class Ml(logutils.Base):
     """
     FIG_EXT = '.svg'
     CSV_EXT = '.csv'
+    ORIGINAL = 'original'
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -173,7 +174,6 @@ class Ml(logutils.Base):
         self.ytrain = None
         self.ytest = None
         self.models = None
-        self.gridded = None
         self.fig = None
         self.ax = None
 
@@ -185,8 +185,8 @@ class Ml(logutils.Base):
         self.split()
         self.setRegs()
         self.score()
-        self.grid()
-        self.plot()
+        self.scatter()
+        self.contourf()
 
     def read(self):
         """
@@ -253,21 +253,53 @@ class Ml(logutils.Base):
             name, score = reg.score(self.xtest, self.ytest)
             self.log(f'{name} score ({reg.method}): {score:.4g}')
 
-    def grid(self):
+    def scatter(self):
         """
-        Grid the range and make predictions.
+        Create scatter plot.
+        """
+        if len(self.grids) != 1:
+            return
+        with plotutils.pyplot(inav=self.options.INTERAC,
+                              name=self.options.method) as plt:
+            self.fig, self.ax = plt.subplots(1, 1, figsize=(6, 4.5))
+            self.ax.scatter(self.xtrain,
+                            self.ytrain,
+                            color='k',
+                            label=self.ORIGINAL)
+            for method, pred in self.cols():
+                self.ax.plot(self.grids[0], pred, label=Reg.NAMES[method])
+            self.ax.legend()
+            self.save()
+
+    def cols(self, rex=re.compile(r'(.*) +\((.*)\)')):
+        """
+        Iterate over the predicted.
+
+        :param rex: the regular expression to match words followed by brackets.
+        :return tuple: label, data
+        """
+        for col in self.pred:
+            yield rex.match(col).group(2), self.pred[col]
+
+    @functools.cached_property
+    def pred(self):
+        """
+        Return the gridded predictions.
+
+        :return pd.DataFrame: the gridded xdata and predicted y.
         """
         if self.xdata.shape[-1] > 2 or not self.grids[0].size:
-            return
+            return pd.DataFrame()
         grids = np.array([x.ravel() for x in self.grids]).T
         pred = {x.method: x.predict(grids) for x in self.models}
         pred = {f"{self.ydata.columns[0]} ({x})": y for x, y in pred.items()}
         index = pd.MultiIndex.from_arrays(grids.T, names=self.xdata.columns)
-        self.gridded = pd.DataFrame(pred, index=index)
+        pred = pd.DataFrame(pred, index=index)
         outfile = f"{self.options.JOBNAME}{self.CSV_EXT}"
-        self.gridded.to_csv(outfile)
+        pred.to_csv(outfile)
         self.log(f'Gridded prediction saved as {outfile}')
         jobutils.Job.reg(outfile)
+        return pred
 
     @functools.cached_property
     def grids(self, num=101):
@@ -281,62 +313,6 @@ class Ml(logutils.Base):
         args = [[*lims[x], num] for x in range(self.xdata.shape[1])]
         grids = np.array([np.linspace(*x) for x in args]).T
         return np.meshgrid(*grids.T)
-
-    def plot(self):
-        """
-        Plot the gridded predictions.
-        """
-        if self.gridded is None:
-            return
-        with plotutils.pyplot(inav=self.options.INTERAC,
-                              name=self.options.method) as plt:
-            self.scatter(plt)
-            self.contourf(plt)
-
-    def scatter(self, plt):
-        """
-        Create scatter plot.
-
-        :param plt matplotlib.pyplot: the pyplot to create figure.
-        """
-        if len(self.grids) != 1:
-            return
-        self.fig, self.ax = plt.subplots(1, 1, figsize=(6, 4.5))
-        self.ax.scatter(self.xtrain, self.ytrain, color='k', label='original')
-        for label, pred in self.predicted():
-            self.ax.plot(self.grids[0], pred, label=label)
-        self.ax.legend()
-        self.save()
-
-    def predicted(self, rex=re.compile(r'(.*) +\((.*)\)')):
-        """
-        Iterate over the predicted.
-
-        :param rex: the regular expression to match words followed by brackets.
-        """
-        for col in self.gridded:
-            yield Reg.NAMES[rex.match(col).group(2)], self.gridded[col]
-
-    def contourf(self, plt):
-        """
-        Create contourf plot.
-
-        :param plt matplotlib.pyplot: the pyplot to create figure.
-        """
-        if len(self.grids) == 1:
-            return
-        for label, pred in self.predicted():
-            self.fig, self.ax = plt.subplots(1, 1, figsize=(6.5, 4.5))
-            pred = pred.values.reshape(self.grids[0].shape)
-            contourf = self.ax.contourf(*self.grids, pred)
-            artists, labels = contourf.legend_elements(
-                str_format=lambda x: f'{x:.4g}')
-            self.ax.legend(artists,
-                           labels,
-                           title="Level",
-                           loc='center left',
-                           bbox_to_anchor=(1, 0.5))
-            self.save(label=label)
 
     def save(self, label=''):
         """
@@ -352,3 +328,28 @@ class Ml(logutils.Base):
         self.fig.savefig(outfile)
         self.log(f'Figure saved as {outfile}')
         jobutils.Job.reg(outfile)
+
+    def contourf(self, cmap='viridis'):
+        """
+        Create contourf plot.
+
+        :param cmap str: the colormap
+        """
+        if len(self.grids) == 1:
+            return
+        for label, pred in self.cols():
+            with plotutils.pyplot(inav=self.options.INTERAC,
+                                  name=label) as plt:
+                self.fig, self.ax = plt.subplots(1, 1, figsize=(6.5, 4.5))
+                pred = pred.values.reshape(self.grids[0].shape)
+                ctrf = self.ax.contourf(*self.grids, pred, cmap=cmap)
+                eles = ctrf.legend_elements(str_format=lambda x: f'{x:.4g}')
+                self.ax.legend(*eles,
+                               title="Level",
+                               loc='center left',
+                               bbox_to_anchor=(1, 0.5))
+                plt.scatter(*self.xtrain.T,
+                            c=self.ytrain.ravel(),
+                            cmap=cmap,
+                            label=self.ORIGINAL)
+                self.save(label=label)
