@@ -366,14 +366,16 @@ class TestValid:
         assert expected == [*options.task, options.data_file]
 
     @pytest.mark.parametrize('valid', [parserutils.RegValid])
-    @pytest.mark.parametrize('flags', [(['-data', '-method'])])
-    @pytest.mark.parametrize('kwargss', [(None, {'nargs': '+'})])
+    @pytest.mark.parametrize('flags', [(['-data', '-method', '-test_size'])])
+    @pytest.mark.parametrize('kwargss', [(None, {'nargs': '+'}, {'type': float})]) # yapf: disable
     @pytest.mark.parametrize('values,expected',
-                             [((POS_CSV, ['lr']), ['lr']),
-                              ((POS_CSV, ['lr', 'logit']), ['lr']),
-                              ((EMPTY_CSV, ['lr']), RAISED),
-                              ((ONE_COLS_CSV, ['lr']), RAISED),
-                              ((TWO_COLS_CSV, ['lr']), RAISED)])
+                             [((POS_CSV, ['lr'], '0.2'), ['lr']),
+                              ((POS_CSV, ['lr', 'logit'], '0.2'), ['lr']),
+                              ((EMPTY_CSV, ['lr'], '0.2'), RAISED),
+                              ((ONE_COLS_CSV, ['lr'], '0.2'), RAISED),
+                              ((TWO_COLS_CSV, ['lr'], '0.2'), RAISED),
+                              ((POS_CSV, ['lr', 'logit'], '0.05'), RAISED),
+                              ((POS_CSV, ['lr', 'logit'], '0.95'), RAISED)])
     def testRegValid(self, parser, args, expected):
         options = parser.parse_args(args)
         assert expected == options.method

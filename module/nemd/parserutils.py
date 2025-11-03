@@ -650,6 +650,7 @@ class RegValid(Valid):
         self.read()
         self.columns()
         self.method()
+        self.size()
 
     def read(self):
         """
@@ -681,6 +682,16 @@ class RegValid(Valid):
         if self.LOGIT in self.options.method and \
                 not self.data.iloc[:, -1].isin([0, 1]).all().all():
             self.options.method.remove(self.LOGIT)
+
+    def size(self):
+        """
+        Validate the test size.
+        """
+        test_size = self.data.shape[0] * self.options.test_size
+        if test_size < 1:
+            raise ValueError(f"Test size smaller than 1.")
+        if self.data.shape[0] - test_size < 1:
+            raise ValueError(f"Train size smaller than 1.")
 
 
 class Driver(argparse.ArgumentParser, builtinsutils.Object):
