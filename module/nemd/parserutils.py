@@ -679,16 +679,13 @@ class RegValid(Valid):
         """
         Validate classifier methods.
         """
-        clfs = ml.Reg.CLF.intersection(self.options.method)
+        clfs = ml.Reg.CLFS.intersection(self.options.method)
         if not clfs:
             return
-        ydata = self.data.iloc[:, -1]
-        if not pd.api.types.is_integer_dtype(ydata):
-            for clf in clfs:
-                self.options.method.remove(clf)
+        if pd.api.types.is_integer_dtype(self.data.iloc[:, -1]):
             return
-        if self.LOGIT in clfs and not ydata.isin([0, 1]).all().all():
-            self.options.method.remove(self.LOGIT)
+        for clf in clfs:
+            self.options.method.remove(clf)
 
     def size(self):
         """
