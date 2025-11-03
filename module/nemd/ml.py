@@ -16,6 +16,7 @@ from sklearn import ensemble
 from sklearn import linear_model
 from sklearn import metrics
 from sklearn import model_selection
+from sklearn import neighbors
 from sklearn import preprocessing
 from sklearn import svm
 from sklearn import tree
@@ -35,15 +36,19 @@ class Reg:
     DT = 'dt'
     RFR = 'rfr'
     LOGIT = 'logit'
+    KNN = 'knn'
     NAMES = {
         LR: 'linear',
         SVR: 'support vector',
         POLY: 'polynomial',
         DT: 'decision tree',
         RFR: 'random forest',
-        LOGIT: 'logistic'
+        LOGIT: 'logistic',
+        KNN: 'k-nearest neighbors'
     }
-    SCALES = {SVR, LOGIT}
+    XSCALES = {LOGIT, KNN}
+    SCALES = XSCALES.union({SVR})
+    CLF = {LOGIT, KNN}
 
     def __init__(self, method=LR, scs=None, options=None, **kwargs):
         """
@@ -77,10 +82,12 @@ class Reg:
             case self.LOGIT:
                 self.reg = linear_model.LogisticRegression(
                     random_state=self.options.seed)
+            case self.KNN:
+                self.reg = neighbors.KNeighborsClassifier()
         if self.method not in self.SCALES:
-            self.scs = None
+            self.scs = []
             return
-        if self.method == self.LOGIT:
+        if self.method in self.XSCALES:
             self.scs[1] = None
 
     def fit(self, xdata, ydata):
@@ -119,7 +126,7 @@ class Reg:
         :param idx int: the scaler index.
         :param inversed bool: whether to inverse scale.
         """
-        if self.scs is None:
+        if not self.scs:
             return data
         sc = self.scs[idx]
         if sc is None:
@@ -141,7 +148,7 @@ class Reg:
         :return str, float: score name, the score.
         """
         predicted = self.predict(xdata)
-        if self.method == self.LOGIT:
+        if self.method in self.CLF:
             return 'accuracy', metrics.accuracy_score(ydata, predicted)
         return 'r2', np.nan if xdata.shape[0] < 2 else metrics.r2_score(
             ydata, predicted)
@@ -231,8 +238,9 @@ class Ml(logutils.Base):
         """
         if Reg.SVR in self.options.method:
             return list(self.getScaler())
-        if Reg.LOGIT in self.options.method:
+        if Reg.XSCALES.intersection(self.options.method):
             return [next(self.getScaler()), None]
+        return []
 
     def getScaler(self):
         """

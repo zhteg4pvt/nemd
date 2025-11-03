@@ -20,6 +20,7 @@ MY_DATA_FILE = SRC.test(AR, 'mydata.in')
 LOG_FILE = SRC.test(AR, 'lammps.log')
 TRAJ_FILE = SRC.test(AR, 'ar100.custom.gz')
 POS_CSV = SRC.test('ml', 'position_salaries.csv')
+POS2_CSV = SRC.test('ml', 'position_salaries2.csv')
 RAISED = argparse.ArgumentTypeError
 
 
@@ -371,6 +372,7 @@ class TestValid:
     @pytest.mark.parametrize('values,expected',
                              [((POS_CSV, ['lr'], '0.2'), ['lr']),
                               ((POS_CSV, ['lr', 'logit'], '0.2'), ['lr']),
+                              ((POS2_CSV, ['lr', 'logit'], '0.2'), ['lr']),
                               ((EMPTY_CSV, ['lr'], '0.2'), RAISED),
                               ((ONE_COLS_CSV, ['lr'], '0.2'), RAISED),
                               ((TWO_COLS_CSV, ['lr'], '0.2'), RAISED),

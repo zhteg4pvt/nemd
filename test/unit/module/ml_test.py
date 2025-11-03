@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from sklearn import ensemble
 from sklearn import linear_model
+from sklearn import neighbors
 from sklearn import svm
 from sklearn import tree
 from sklearn.utils import validation
@@ -33,16 +34,18 @@ class TestReg:
         reg.setRegs()
         return reg
 
-    @pytest.mark.parametrize('file', [POS_CSV])
+    @pytest.mark.parametrize('file', [SOC_CSV])
     @pytest.mark.parametrize('method,expected',
-                             [('lr', (linear_model.LinearRegression, None)),
+                             [('lr', (linear_model.LinearRegression, 0)),
+                              ('poly', (linear_model.LinearRegression, 0)),
                               ('svr', (svm.SVR, 2)),
-                              ('poly', (linear_model.LinearRegression, None)),
-                              ('dt', (tree.DecisionTreeRegressor, None)),
-                              ('rfr', (ensemble.RandomForestRegressor, None))])
+                              ('dt', (tree.DecisionTreeRegressor, 0)),
+                              ('rfr', (ensemble.RandomForestRegressor, 0)),
+                              ('logit', (linear_model.LogisticRegression, 1)),
+                              ('knn', (neighbors.KNeighborsClassifier, 1))])
     def testSetUp(self, reg, expected):
         assert isinstance(reg.models[0].reg, expected[0])
-        assert expected[1] == (reg.scs and len(reg.scs))
+        assert expected[1] == len([x for x in reg.scs if x])
 
     @pytest.mark.parametrize('file', [POS_CSV])
     @pytest.mark.parametrize('method', ['lr', 'svr', 'poly', 'dt', 'rfr'])
@@ -135,7 +138,7 @@ class TestMl:
     @pytest.mark.parametrize(
         'args,expected',
         [([POS_CSV, '-method', 'lr', 'svr', 'poly', 'dt', 'rfr'], 5),
-         ([SOC_CSV, '-method', 'lr', 'logit'], 2),
+         ([SOC_CSV, '-method', 'knn', 'logit'], 2),
          ([SOC_CSV, '-method', 'lr', 'logit', '-test_size', '0.997'], 1)])
     def testSetRegs(self, reg, expected):
         reg.read()
@@ -146,12 +149,13 @@ class TestMl:
             validation.check_is_fitted(reg.reg)
 
     @pytest.mark.parametrize('args,expected',
-                             [([POS_CSV, '-method', 'lr'], None),
-                              ([POS_CSV, '-method', 'svr', 'poly'], 2)])
+                             [([POS_CSV, '-method', 'lr'], 0),
+                              ([POS_CSV, '-method', 'svr', 'poly'], 2),
+                              ([POS_CSV, '-method', 'knn', 'lr'], 1)])
     def testScs(self, reg, expected):
         reg.read()
         reg.split()
-        assert expected == (reg.scs and len(reg.scs))
+        assert expected == len([x for x in reg.scs if x])
 
     @pytest.mark.parametrize('args,expected',
                              [([POS_CSV, '-method', 'svr'], 2)])

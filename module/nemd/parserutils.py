@@ -649,7 +649,7 @@ class RegValid(Valid):
         """
         self.read()
         self.columns()
-        self.method()
+        self.classifier()
         self.size()
 
     def read(self):
@@ -675,12 +675,19 @@ class RegValid(Valid):
             raise ValueError(f"Less than two columns after excluding "
                              f"non-numeric values")
 
-    def method(self):
+    def classifier(self):
         """
-        Validate method.
+        Validate classifier methods.
         """
-        if self.LOGIT in self.options.method and \
-                not self.data.iloc[:, -1].isin([0, 1]).all().all():
+        clfs = ml.Reg.CLF.intersection(self.options.method)
+        if not clfs:
+            return
+        ydata = self.data.iloc[:, -1]
+        if not pd.api.types.is_integer_dtype(ydata):
+            for clf in clfs:
+                self.options.method.remove(clf)
+            return
+        if self.LOGIT in clfs and not ydata.isin([0, 1]).all().all():
             self.options.method.remove(self.LOGIT)
 
     def size(self):
