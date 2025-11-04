@@ -91,7 +91,7 @@ class Reg:
             self.scs = []
             return
         if self.method in self.CLFS:
-            self.scs[1] = None
+            self.scs = [self.scs[0], None]
 
     def fit(self, xdata, ydata):
         """
