@@ -8,6 +8,7 @@ from sklearn import linear_model
 from sklearn import neighbors
 from sklearn import svm
 from sklearn import tree
+from sklearn import naive_bayes
 from sklearn.utils import validation
 
 from nemd import envutils
@@ -43,7 +44,8 @@ class TestReg:
                               ('rfr', (ensemble.RandomForestRegressor, 0)),
                               ('logit', (linear_model.LogisticRegression, 1)),
                               ('knn', (neighbors.KNeighborsClassifier, 1)),
-                              ('svc', (svm.SVC, 1))])
+                              ('svc', (svm.SVC, 1)),
+                              ('gnb', (naive_bayes.GaussianNB, 1))])
     def testSetUp(self, reg, expected):
         assert isinstance(reg.models[0].reg, expected[0])
         assert expected[1] == len([x for x in reg.scs if x])

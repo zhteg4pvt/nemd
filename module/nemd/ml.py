@@ -20,6 +20,7 @@ from sklearn import neighbors
 from sklearn import preprocessing
 from sklearn import svm
 from sklearn import tree
+from sklearn import naive_bayes
 
 from nemd import jobutils
 from nemd import logutils
@@ -38,6 +39,7 @@ class Reg:
     LOGIT = 'logit'
     KNN = 'knn'
     SVC = 'svc'
+    GNB = 'gnb'
     NAMES = {
         LR: 'linear',
         SVR: 'support vector',
@@ -46,9 +48,10 @@ class Reg:
         RFR: 'random forest',
         LOGIT: 'logistic',
         KNN: 'k-nearest neighbors',
-        SVC: 'support vector classifier'
+        SVC: 'support vector classifier',
+        GNB: 'gaussian naive bayes'
     }
-    CLFS = {LOGIT, KNN, SVC}
+    CLFS = {LOGIT, KNN, SVC, GNB}
     SCALES = CLFS.union({SVR})
 
     def __init__(self, method=LR, scs=None, options=None, **kwargs):
@@ -87,6 +90,8 @@ class Reg:
                 self.reg = neighbors.KNeighborsClassifier()
             case self.SVC:
                 self.reg = svm.SVC(random_state=self.options.seed)
+            case self.GNB:
+                self.reg = naive_bayes.GaussianNB()
         if self.method not in self.SCALES:
             self.scs = []
             return
