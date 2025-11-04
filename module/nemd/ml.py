@@ -41,6 +41,7 @@ class Reg:
     SVC = 'svc'
     GNB = 'gnb'
     DTC = 'dtc'
+    RFC = 'rfc'
     NAMES = {
         LR: 'linear',
         SVR: 'support vector',
@@ -51,9 +52,10 @@ class Reg:
         KNN: 'k-nearest neighbors',
         SVC: 'support vector classifier',
         GNB: 'gaussian naive bayes',
-        DTC: 'decision tree classifier'
+        DTC: 'decision tree classifier',
+        RFC: 'random forest classifier'
     }
-    CLFS = {LOGIT, KNN, SVC, GNB, DTC}
+    CLFS = {LOGIT, KNN, SVC, GNB, DTC, RFC}
     SCALES = CLFS.union({SVR})
 
     def __init__(self, method=LR, scs=None, options=None, **kwargs):
@@ -96,6 +98,10 @@ class Reg:
                 self.reg = naive_bayes.GaussianNB()
             case self.DTC:
                 self.reg = tree.DecisionTreeClassifier(
+                    random_state=self.options.seed)
+            case self.RFC:
+                self.reg = ensemble.RandomForestClassifier(
+                    n_estimators=self.options.tree_num,
                     random_state=self.options.seed)
         if self.method not in self.SCALES:
             self.scs = []

@@ -45,7 +45,9 @@ class TestReg:
                               ('logit', (linear_model.LogisticRegression, 1)),
                               ('knn', (neighbors.KNeighborsClassifier, 1)),
                               ('svc', (svm.SVC, 1)),
-                              ('gnb', (naive_bayes.GaussianNB, 1))])
+                              ('gnb', (naive_bayes.GaussianNB, 1)),
+                              ('dtc', (tree.DecisionTreeClassifier, 1)),
+                              ('rfc', (ensemble.RandomForestClassifier, 1))])
     def testSetUp(self, reg, expected):
         assert isinstance(reg.models[0].reg, expected[0])
         assert expected[1] == len([x for x in reg.scs if x])
