@@ -16,11 +16,11 @@ from sklearn import ensemble
 from sklearn import linear_model
 from sklearn import metrics
 from sklearn import model_selection
+from sklearn import naive_bayes
 from sklearn import neighbors
 from sklearn import preprocessing
 from sklearn import svm
 from sklearn import tree
-from sklearn import naive_bayes
 
 from nemd import jobutils
 from nemd import logutils
@@ -40,6 +40,7 @@ class Reg:
     KNN = 'knn'
     SVC = 'svc'
     GNB = 'gnb'
+    DTC = 'dtc'
     NAMES = {
         LR: 'linear',
         SVR: 'support vector',
@@ -49,9 +50,10 @@ class Reg:
         LOGIT: 'logistic',
         KNN: 'k-nearest neighbors',
         SVC: 'support vector classifier',
-        GNB: 'gaussian naive bayes'
+        GNB: 'gaussian naive bayes',
+        DTC: 'decision tree classifier'
     }
-    CLFS = {LOGIT, KNN, SVC, GNB}
+    CLFS = {LOGIT, KNN, SVC, GNB, DTC}
     SCALES = CLFS.union({SVR})
 
     def __init__(self, method=LR, scs=None, options=None, **kwargs):
@@ -92,6 +94,9 @@ class Reg:
                 self.reg = svm.SVC(random_state=self.options.seed)
             case self.GNB:
                 self.reg = naive_bayes.GaussianNB()
+            case self.DTC:
+                self.reg = tree.DecisionTreeClassifier(
+                    random_state=self.options.seed)
         if self.method not in self.SCALES:
             self.scs = []
             return

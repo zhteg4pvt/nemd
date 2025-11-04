@@ -5,10 +5,10 @@ import numpy as np
 import pytest
 from sklearn import ensemble
 from sklearn import linear_model
+from sklearn import naive_bayes
 from sklearn import neighbors
 from sklearn import svm
 from sklearn import tree
-from sklearn import naive_bayes
 from sklearn.utils import validation
 
 from nemd import envutils

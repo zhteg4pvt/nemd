@@ -1,3 +1,3 @@
-nemd_check has ml_reg.log 'r2 score (lr): 0.000633' 'accuracy score (logit): 0.69' 'accuracy score (knn): 0.7' 'accuracy score (svc): 0.73' 'accuracy score (gnb): 0.67'
-nemd_check exist ml_reg_lr.svg ml_reg_logit.svg ml_reg_knn.svg ml_reg_svc.svg ml_reg_gnb.svg
+nemd_check has ml_reg.log 'r2 score (lr): 0.000633' 'accuracy score (logit): 0.69' 'accuracy score (knn): 0.7' 'accuracy score (svc): 0.73' 'accuracy score (gnb): 0.67' 'accuracy score (dtc): 0.67'
+nemd_check exist ml_reg_lr.svg ml_reg_logit.svg ml_reg_knn.svg ml_reg_svc.svg ml_reg_gnb.svg ml_reg_dtc.svg
 nemd_check cmp ml_reg.csv ml_reg.csv
