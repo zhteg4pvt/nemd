@@ -29,7 +29,7 @@ class TestReg:
     def reg(self, file, method, logger):
         args = [file, '-method', method, '-seed', '0']
         options = parserutils.Reg().parse_args(args)
-        reg = ml.Ml(options=options, logger=logger)
+        reg = ml.Regression(options=options, logger=logger)
         reg.read()
         reg.split()
         reg.setRegs()
@@ -39,27 +39,21 @@ class TestReg:
     @pytest.mark.parametrize('method,expected',
                              [('lr', (linear_model.LinearRegression, 0)),
                               ('poly', (linear_model.LinearRegression, 0)),
-                              ('svr', (svm.SVR, 2)),
+                              ('sv', (svm.SVR, 2)),
                               ('dt', (tree.DecisionTreeRegressor, 0)),
-                              ('rfr', (ensemble.RandomForestRegressor, 0)),
-                              ('logit', (linear_model.LogisticRegression, 1)),
-                              ('knn', (neighbors.KNeighborsClassifier, 1)),
-                              ('svc', (svm.SVC, 1)),
-                              ('gnb', (naive_bayes.GaussianNB, 1)),
-                              ('dtc', (tree.DecisionTreeClassifier, 1)),
-                              ('rfc', (ensemble.RandomForestClassifier, 1))])
+                              ('rf', (ensemble.RandomForestRegressor, 0))])
     def testSetUp(self, reg, expected):
-        assert isinstance(reg.models[0].reg, expected[0])
+        assert isinstance(reg.models[0].mdl, expected[0])
         assert expected[1] == len([x for x in reg.scs if x])
 
     @pytest.mark.parametrize('file', [POS_CSV])
-    @pytest.mark.parametrize('method', ['lr', 'svr', 'poly', 'dt', 'rfr'])
+    @pytest.mark.parametrize('method', ['lr', 'sv', 'poly', 'dt', 'rf'])
     def testFit(self, reg):
         reg.models[0].fit(reg.xtrain, reg.ytrain)
-        validation.check_is_fitted(reg.models[0].reg)
+        validation.check_is_fitted(reg.models[0].mdl)
 
     @pytest.mark.parametrize('file', [POS_CSV])
-    @pytest.mark.parametrize('method,expected', [('lr', 43), ('svr', 0.0),
+    @pytest.mark.parametrize('method,expected', [('lr', 43), ('sv', 0.0),
                                                  ('poly', 346.0)])
     def testOpr(self, reg, expected):
         assert expected == reg.models[0].opr(reg.xtrain).sum()
@@ -72,50 +66,79 @@ class TestReg:
 
     @pytest.mark.parametrize('file', [POS_CSV])
     @pytest.mark.parametrize('method,idx,inversed,expected',
-                             [('lr', 0, False, 43), ('svr', 0, False, 0.0),
-                              ('svr', 1, False, -6.5065991),
-                              ('svr', 0, True, 164.50353647)])
+                             [('lr', 0, False, 43), ('sv', 0, False, 0.0),
+                              ('sv', 1, False, -6.5065991),
+                              ('sv', 0, True, 164.50353647)])
     def testScale(self, reg, idx, inversed, expected):
         scaled = reg.models[0].scale(reg.xtrain, idx=idx, inversed=inversed)
         np.testing.assert_almost_equal(scaled.sum(), expected)
 
     @pytest.mark.parametrize('file', [POS_CSV])
     @pytest.mark.parametrize('method,inversed,expected',
-                             [('svr', False, 0),
-                              ('svr', True, 575439538784.8147)])
+                             [('sv', False, 0),
+                              ('sv', True, 575439538784.8147)])
     def testScaleY(self, reg, inversed, expected):
         scaled = reg.models[0].scaleY(reg.ytrain, inversed=inversed)
         np.testing.assert_almost_equal(scaled.sum(), expected)
 
-    @pytest.mark.parametrize('file,method,expected',
-                             [(POS_CSV, 'lr', ['r2', 0.978]),
-                              (POS_CSV, 'svr', ['r2', 0.951]),
-                              (POS_CSV, 'poly', ['r2', 0.705]),
-                              (POS_CSV, 'dt', ['r2', 0.586]),
-                              (POS_CSV, 'rfr', ['r2', 0.991]),
-                              (SOC_CSV, 'logit', ['accuracy', 0.925])])
+    @pytest.mark.parametrize('file,method,expected', [(POS_CSV, 'lr', 0.978),
+                                                      (POS_CSV, 'sv', 0.951),
+                                                      (POS_CSV, 'poly', 0.705),
+                                                      (POS_CSV, 'dt', 0.586),
+                                                      (POS_CSV, 'rf', 0.991)])
     def testScore(self, reg, expected):
-        name, score = reg.models[0].score(reg.xtest, reg.ytest)
-        assert expected[0] == name
-        np.testing.assert_almost_equal(score, expected[1], decimal=3)
+        pred = reg.models[0].predict(reg.xtest)
+        score = reg.models[0].score(reg.ytest, pred)
+        np.testing.assert_almost_equal(score, expected, decimal=3)
 
     @pytest.mark.parametrize('file', [POS_CSV])
-    @pytest.mark.parametrize('method,expected', [('lr', 335474),
-                                                 ('svr', 193234),
-                                                 ('poly', 196528),
-                                                 ('dt', 150000),
-                                                 ('rfr', 162500)])
+    @pytest.mark.parametrize('method,expected',
+                             [('lr', 335474), ('sv', 193234), ('poly', 196528),
+                              ('dt', 150000), ('rf', 162500)])
     def testPredict(self, reg, expected):
         assert np.allclose(reg.models[0].predict([[6.5]]), expected, rtol=0.01)
 
 
 @conftest.require_src
-class TestMl:
+class TestClf:
+
+    @pytest.fixture
+    def clf(self, file, method, logger):
+        args = [file, '-method', method, '-seed', '0']
+        options = parserutils.Clf().parse_args(args)
+        reg = ml.Classification(options=options, logger=logger)
+        reg.read()
+        reg.split()
+        reg.setRegs()
+        return reg
+
+    @pytest.mark.parametrize('file', [SOC_CSV])
+    @pytest.mark.parametrize('method,expected',
+                             [('logit', (linear_model.LogisticRegression, 1)),
+                              ('knn', (neighbors.KNeighborsClassifier, 1)),
+                              ('sv', (svm.SVC, 1)),
+                              ('gnb', (naive_bayes.GaussianNB, 1)),
+                              ('dt', (tree.DecisionTreeClassifier, 1)),
+                              ('rf', (ensemble.RandomForestClassifier, 1))])
+    def testSetUp(self, clf, expected):
+        assert isinstance(clf.models[0].mdl, expected[0])
+        assert expected[1] == len([x for x in clf.scs if x])
+
+    @pytest.mark.parametrize('file,method,expected',
+                             [(SOC_CSV, 'logit', 0.925)])
+    def testScore(self, clf, expected):
+        pred = clf.models[0].predict(clf.xtest)
+        score = clf.models[0].score(clf.ytest, pred)
+        np.testing.assert_almost_equal(score, expected, decimal=3)
+
+
+@conftest.require_src
+class TestRegression:
 
     @pytest.fixture
     def reg(self, args, logger):
         options = parserutils.Reg().parse_args(args)
-        return ml.Ml(options=options, logger=logger)
+        return ml.Regression(options=options, logger=logger)
 
     @pytest.mark.parametrize(
         'args,expected', [([POS_CSV, '-seed', '0', '-JOBNAME', 'name'
@@ -142,28 +165,25 @@ class TestMl:
 
     @pytest.mark.parametrize(
         'args,expected',
-        [([POS_CSV, '-method', 'lr', 'svr', 'poly', 'dt', 'rfr'], 5),
-         ([SOC_CSV, '-method', 'knn', 'logit'], 2),
-         ([SOC_CSV, '-method', 'lr', 'logit', '-test_size', '0.997'], 1)])
+        [([POS_CSV, '-method', 'lr', 'sv', 'poly', 'dt', 'rf'], 5)])
     def testSetRegs(self, reg, expected):
         reg.read()
         reg.split()
         reg.setRegs()
         assert expected == len(reg.models)
         for reg in reg.models:
-            validation.check_is_fitted(reg.reg)
+            validation.check_is_fitted(reg.mdl)
 
     @pytest.mark.parametrize('args,expected',
                              [([POS_CSV, '-method', 'lr'], 0),
-                              ([POS_CSV, '-method', 'svr', 'poly'], 2),
-                              ([POS_CSV, '-method', 'knn', 'lr'], 1)])
+                              ([POS_CSV, '-method', 'sv', 'poly'], 2)])
     def testScs(self, reg, expected):
         reg.read()
         reg.split()
         assert expected == len([x for x in reg.scs if x])
 
     @pytest.mark.parametrize('args,expected',
-                             [([POS_CSV, '-method', 'svr'], 2)])
+                             [([POS_CSV, '-method', 'sv'], 2)])
     def testGetScaler(self, reg, expected):
         reg.read()
         reg.split()
@@ -226,13 +246,48 @@ class TestMl:
         reg.save()
         assert os.path.isfile(expected)
 
-    @pytest.mark.parametrize(
-        'args,expected',
-        [([SOC_CSV, '-method', 'logit', '-seed', '0', '-JOBNAME', 'ml_test'
-           ], 'ml_test_logit.svg')])
-    def testContourf(self, reg, expected, tmp_dir):
-        reg.read()
-        reg.split()
-        reg.setRegs()
-        reg.contourf()
-        assert os.path.isfile(expected)
+    @conftest.require_src
+    class TestClassification:
+
+        @pytest.fixture
+        def reg(self, args, logger):
+            options = parserutils.Clf().parse_args(args)
+            return ml.Classification(options=options, logger=logger)
+
+        @pytest.mark.parametrize(
+            'args,expected',
+            [([SOC_CSV, '-method', 'knn', 'logit'], 2),
+             ([SOC_CSV, '-method', 'logit', '-test_size', '0.997'], 0)])
+        def testSetRegs(self, reg, expected):
+            reg.read()
+            reg.split()
+            reg.setRegs()
+            assert expected == len(reg.models)
+            for reg in reg.models:
+                validation.check_is_fitted(reg.mdl)
+
+        @pytest.mark.parametrize('args,expected',
+                                 [([POS_CSV, '-method', 'knn'], 1)])
+        def testScs(self, reg, expected):
+            reg.read()
+            reg.split()
+            assert expected == len([x for x in reg.scs if x])
+
+        @pytest.mark.parametrize(
+            'args,expected',
+            [([POS_CSV, '-seed', '0'], 'r2 score (lr): 0.9779')])
+        def testScore(self, reg, expected):
+            reg.read()
+            reg.split()
+            reg.setRegs()
+            reg.score()
+
+        @pytest.mark.parametrize('args,expected', [([
+            SOC_CSV, '-method', 'logit', '-seed', '0', '-JOBNAME', 'ml_test'
+        ], 'ml_test_logit.svg')])
+        def testContourf(self, reg, expected, tmp_dir):
+            reg.read()
+            reg.split()
+            reg.setRegs()
+            reg.contourf()
+            assert os.path.isfile(expected)

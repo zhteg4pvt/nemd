@@ -369,17 +369,24 @@ class TestValid:
     @pytest.mark.parametrize('valid', [parserutils.RegValid])
     @pytest.mark.parametrize('flags', [(['-data', '-method', '-test_size'])])
     @pytest.mark.parametrize('kwargss', [(None, {'nargs': '+'}, {'type': float})]) # yapf: disable
-    @pytest.mark.parametrize(
-        'values,expected',
-        [((POS_CSV, ['lr'], '0.2'), ['lr']),
-         ((POS_CSV, ['lr', 'logit'], '0.2'), ['lr', 'logit']),
-         ((POS2_CSV, ['lr', 'logit'], '0.2'), ['lr']),
-         ((EMPTY_CSV, ['lr'], '0.2'), RAISED),
-         ((ONE_COLS_CSV, ['lr'], '0.2'), RAISED),
-         ((TWO_COLS_CSV, ['lr'], '0.2'), RAISED),
-         ((POS_CSV, ['lr', 'logit'], '0.05'), RAISED),
-         ((POS_CSV, ['lr', 'logit'], '0.95'), RAISED)])
+    @pytest.mark.parametrize('values,expected',
+                             [((POS_CSV, ['lr'], '0.2'), ['lr']),
+                              ((EMPTY_CSV, ['lr'], '0.2'), RAISED),
+                              ((ONE_COLS_CSV, ['lr'], '0.2'), RAISED),
+                              ((TWO_COLS_CSV, ['lr'], '0.2'), RAISED),
+                              ((POS_CSV, ['lr'], '0.05'), RAISED),
+                              ((POS_CSV, ['lr'], '0.95'), RAISED)])
     def testRegValid(self, parser, args, expected):
+        options = parser.parse_args(args)
+        assert expected == options.method
+
+    @pytest.mark.parametrize('valid', [parserutils.ClfValid])
+    @pytest.mark.parametrize('flags', [(['-data', '-method', '-test_size'])])
+    @pytest.mark.parametrize('kwargss', [(None, {'nargs': '+'}, {'type': float})]) # yapf: disable
+    @pytest.mark.parametrize('values,expected',
+                             [((POS_CSV, ['logit'], '0.2'), ['logit']),
+                              ((POS2_CSV, ['logit'], '0.2'), RAISED)])
+    def testClfValid(self, parser, args, expected):
         options = parser.parse_args(args)
         assert expected == options.method
 
@@ -603,17 +610,26 @@ class TestAdd:
             str(options.data_file), options.last_pct, options.slice
         ]
 
-    @pytest.mark.parametrize('args,expected', [
-        ([POS_CSV], [1, 2, 100]),
-        ([POS_CSV, '-method', 'svr', 'rfr', '-degree', '3', '-tree_num', '10'
-          ], [2, 3, 10])
-    ])
+    @pytest.mark.parametrize(
+        'args,expected',
+        [([POS_CSV], [1, 2, 100]),
+         ([POS_CSV, '-method', 'sv', 'rf', '-degree', '3', '-tree_num', '10'
+           ], [2, 3, 10])])
     def testReg(self, parser, args, expected):
         parserutils.Reg.add(parser)
         options = parser.parse_args(args)
         assert expected == [
             len(options.method), options.degree, options.tree_num
         ]
+
+    @pytest.mark.parametrize(
+        'args,expected',
+        [([POS_CSV], [1, 100]),
+         ([POS_CSV, '-method', 'sv', 'rf', '-tree_num', '10'], [2, 10])])
+    def testClf(self, parser, args, expected):
+        parserutils.Clf.add(parser)
+        options = parser.parse_args(args)
+        assert expected == [len(options.method), options.tree_num]
 
 
 class TestWorkflow:

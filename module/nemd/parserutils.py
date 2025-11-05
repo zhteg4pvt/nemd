@@ -1199,18 +1199,13 @@ class LmpTraj(LmpLog):
                                 metavar='fs',
                                 type=Float.typePositive,
                                 default=1,
-                                help='Trajectory timetep.')
+                                help='Trajectory timestep.')
 
 
 class Reg(Driver):
     """
     Parser with ml regression arguments.
     """
-    FLAG_DATA = 'data'
-    FLAG_METHOD = '-method'
-    FLAG_DEGREE = '-degree'
-    FLAG_TREE_NUM = '-tree_num'
-    FLAG_TEST_SIZE = '-test_size'
     NAMES = ml.Reg.NAMES
     Valid = RegValid
 
@@ -1219,32 +1214,39 @@ class Reg(Driver):
         """
         See parent.
         """
-        parser.add_argument(cls.FLAG_DATA,
-                            type=Path.typeFile,
-                            help='The csv file.')
+        parser.add_argument('data', type=Path.typeFile, help='The csv file.')
         names = ", ".join([f"{y} ({x})" for x, y in cls.NAMES.items()])
-        parser.add_argument(cls.FLAG_METHOD,
+        parser.add_argument('-method',
                             default=[next(iter(cls.NAMES.keys()))],
                             choices=cls.NAMES,
                             nargs='+',
                             help=f'Regression method: {names}')
-        parser.add_argument(cls.FLAG_TEST_SIZE,
+        parser.add_argument('-test_size',
                             default=0.2,
                             type=Float.partial(top=1,
                                                bot=0,
                                                incl_bot=False,
                                                incl_top=False),
                             help=f'The test size on splitting.')
-        parser.add_argument(cls.FLAG_TREE_NUM,
+        parser.add_argument('-tree_num',
                             default=100,
                             type=Int.typePositive,
                             help=f'The number of trees in the forest.')
-        parser.add_argument(cls.FLAG_DEGREE,
+        cls.addParm(parser)
+        parser.valids.add(cls.Valid)
+        cls.addSeed(parser)
+
+    @classmethod
+    def addParm(cls, parser, **kwargs):
+        """
+        Add parameter-related flags.
+
+        :param parser argparse.ArgumentParser: the parse to add arguments.
+        """
+        parser.add_argument('-degree',
                             default=2,
                             type=Int.typePositive,
                             help=f'The max polynomial degree.')
-        parser.valids.add(cls.Valid)
-        cls.addSeed(parser)
 
 
 class Clf(Reg):
@@ -1253,6 +1255,13 @@ class Clf(Reg):
     """
     NAMES = ml.Clf.NAMES
     Valid = ClfValid
+
+    @classmethod
+    def addParm(cls, parser, **kwargs):
+        """
+        See parent.
+        """
+        pass
 
 
 class Workflow(Driver):

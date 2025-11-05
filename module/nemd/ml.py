@@ -49,7 +49,7 @@ class Reg:
         self.method = method
         self.scs = scs
         self.options = options
-        self.reg = None
+        self.mdl = None
         self.setUp()
 
     def setUp(self):
@@ -58,14 +58,14 @@ class Reg:
         """
         match self.method:
             case self.LR | self.POLY:
-                self.reg = linear_model.LinearRegression()
+                self.mdl = linear_model.LinearRegression()
             case self.SV:
-                self.reg = svm.SVR()
+                self.mdl = svm.SVR()
             case self.DT:
-                self.reg = tree.DecisionTreeRegressor(
+                self.mdl = tree.DecisionTreeRegressor(
                     random_state=self.options.seed)
             case self.RF:
-                self.reg = ensemble.RandomForestRegressor(
+                self.mdl = ensemble.RandomForestRegressor(
                     n_estimators=self.options.tree_num,
                     random_state=self.options.seed)
         if self.method != self.SV:
@@ -78,7 +78,7 @@ class Reg:
         :param xdata ndarray: the xdata.
         :param ydata ndarray: the ydata.
         """
-        self.reg.fit(self.opr(xdata), self.scaleY(ydata))
+        self.mdl.fit(self.opr(xdata), self.scaleY(ydata))
 
     def opr(self, data):
         """
@@ -137,7 +137,7 @@ class Reg:
         :param data ndarray: the input xdata.
         :return ndarray: the prediction.
         """
-        return self.scaleY(self.reg.predict(self.opr(data)), inversed=True)
+        return self.scaleY(self.mdl.predict(self.opr(data)), inversed=True)
 
 
 class Clf(Reg):
@@ -160,19 +160,19 @@ class Clf(Reg):
         """
         match self.method:
             case self.LOGIT:
-                self.reg = linear_model.LogisticRegression(
+                self.mdl = linear_model.LogisticRegression(
                     random_state=self.options.seed)
             case self.KNN:
-                self.reg = neighbors.KNeighborsClassifier()
+                self.mdl = neighbors.KNeighborsClassifier()
             case self.SV:
-                self.reg = svm.SVC(random_state=self.options.seed)
+                self.mdl = svm.SVC(random_state=self.options.seed)
             case self.GNB:
-                self.reg = naive_bayes.GaussianNB()
+                self.mdl = naive_bayes.GaussianNB()
             case self.DT:
-                self.reg = tree.DecisionTreeClassifier(
+                self.mdl = tree.DecisionTreeClassifier(
                     random_state=self.options.seed)
             case self.RF:
-                self.reg = ensemble.RandomForestClassifier(
+                self.mdl = ensemble.RandomForestClassifier(
                     n_estimators=self.options.tree_num,
                     random_state=self.options.seed)
 
