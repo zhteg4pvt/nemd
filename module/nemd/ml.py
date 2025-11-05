@@ -205,7 +205,6 @@ class Regression(logutils.Base):
         self.xtest = None
         self.ytrain = None
         self.ytest = None
-        self.models = None
         self.fig = None
         self.ax = None
 
@@ -215,7 +214,6 @@ class Regression(logutils.Base):
         """
         self.read()
         self.split()
-        self.setRegs()
         self.score()
         self.scatter()
         self.contourf()
@@ -241,20 +239,22 @@ class Regression(logutils.Base):
         self.log(f"Train size: {self.xtrain.shape[0]}")
         self.log(f"Test size: {self.xtest.shape[0]}")
 
-    def setRegs(self):
+    @functools.cached_property
+    def models(self):
         """
-        Set the regression models.
+        Return the models.
+
+        :return list: the fitted models.
         """
         kwargs = dict(scs=self.scs, options=self.options)
-        self.models = [
-            self.Model(method=x, **kwargs) for x in self.options.method
-        ]
-        for reg in reversed(self.models):
+        models = [self.Model(method=x, **kwargs) for x in self.options.method]
+        for reg in reversed(models):
             try:
                 reg.fit(self.xtrain, self.ytrain)
             except ValueError as err:
                 self.log(f'{reg.method} error: {err}')
-                self.models.remove(reg)
+                models.remove(reg)
+        return models
 
     @functools.cached_property
     def scs(self):
@@ -408,9 +408,18 @@ class Classification(Regression):
         """
         Calculate the scores.
         """
-        for reg in self.models:
-            pred = reg.predict(self.xtest)
+        for model in self.models:
+            pred = model.predict(self.xtest)
             self.log(
-                f'accuracy score ({reg.method}): {reg.score(self.ytest, pred):.4g}'
+                f'accuracy score ({model.method}): {model.score(self.ytest, pred):.4g}'
             )
-            print(metrics.confusion_matrix(self.ytest, pred))
+            with plotutils.pyplot(inav=self.options.INTERAC,
+                                  name=model.method) as plt:
+                fig, ax = plt.subplots(1, 1)
+                metrics.ConfusionMatrixDisplay.from_predictions(self.ytest,
+                                                                pred,
+                                                                ax=ax)
+                outfile = f"{self.options.JOBNAME}_{model.method}_cm{self.FIG_EXT}"
+                fig.savefig(outfile)
+                jobutils.Job.reg(outfile)
+                self.log(f"Confusion matrix saved as {outfile}")

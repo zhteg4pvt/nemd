@@ -1,3 +1,4 @@
 nemd_check has ml_clf.log 'accuracy score (logit): 0.69' 'accuracy score (knn): 0.7' 'accuracy score (sv): 0.73' 'accuracy score (gnb): 0.67' 'accuracy score (dt): 0.67' 'accuracy score (rf): 0.71'
 nemd_check exist ml_clf_logit.svg ml_clf_knn.svg ml_clf_sv.svg ml_clf_gnb.svg ml_clf_dt.svg ml_clf_rf.svg 
+nemd_check exist ml_clf_logit_cm.svg ml_clf_knn_cm.svg ml_clf_sv_cm.svg ml_clf_gnb_cm.svg ml_clf_dt_cm.svg ml_clf_rf_cm.svg
 nemd_check cmp ml_clf.csv
