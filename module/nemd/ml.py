@@ -29,34 +29,15 @@ from nemd import plotutils
 
 class Reg:
     """
-    Regression & classification model wrapper.
+    Regression model wrapper.
     """
     LR = 'lr'
-    SVR = 'svr'
     POLY = 'poly'
+    SV = 'sv'
     DT = 'dt'
-    RFR = 'rfr'
-    LOGIT = 'logit'
-    KNN = 'knn'
-    SVC = 'svc'
-    GNB = 'gnb'
-    DTC = 'dtc'
-    RFC = 'rfc'
-    NAMES = {
-        LR: 'linear',
-        SVR: 'support vector',
-        POLY: 'polynomial',
-        DT: 'decision tree',
-        RFR: 'random forest',
-        LOGIT: 'logistic',
-        KNN: 'k-nearest neighbors',
-        SVC: 'support vector classifier',
-        GNB: 'gaussian naive bayes',
-        DTC: 'decision tree classifier',
-        RFC: 'random forest classifier'
-    }
-    CLFS = {LOGIT, KNN, SVC, GNB, DTC, RFC}
-    SCALES = CLFS.union({SVR})
+    RF = 'rf'
+    SHARED = {SV: 'support vector', DT: 'decision tree', RF: 'random forest'}
+    NAMES = {LR: 'linear', POLY: 'polynomial', **SHARED}
 
     def __init__(self, method=LR, scs=None, options=None, **kwargs):
         """
@@ -78,36 +59,17 @@ class Reg:
         match self.method:
             case self.LR | self.POLY:
                 self.reg = linear_model.LinearRegression()
-            case self.SVR:
+            case self.SV:
                 self.reg = svm.SVR()
             case self.DT:
                 self.reg = tree.DecisionTreeRegressor(
                     random_state=self.options.seed)
-            case self.RFR:
+            case self.RF:
                 self.reg = ensemble.RandomForestRegressor(
                     n_estimators=self.options.tree_num,
                     random_state=self.options.seed)
-            case self.LOGIT:
-                self.reg = linear_model.LogisticRegression(
-                    random_state=self.options.seed)
-            case self.KNN:
-                self.reg = neighbors.KNeighborsClassifier()
-            case self.SVC:
-                self.reg = svm.SVC(random_state=self.options.seed)
-            case self.GNB:
-                self.reg = naive_bayes.GaussianNB()
-            case self.DTC:
-                self.reg = tree.DecisionTreeClassifier(
-                    random_state=self.options.seed)
-            case self.RFC:
-                self.reg = ensemble.RandomForestClassifier(
-                    n_estimators=self.options.tree_num,
-                    random_state=self.options.seed)
-        if self.method not in self.SCALES:
+        if self.method != self.SV:
             self.scs = []
-            return
-        if self.method in self.CLFS:
-            self.scs = [self.scs[0], None]
 
     def fit(self, xdata, ydata):
         """
@@ -158,19 +120,15 @@ class Reg:
         """
         return self.scale(data.reshape(-1, 1), idx=idx, **kwargs).ravel()
 
-    def score(self, xdata, ydata):
+    def score(self, data, pred):
         """
         Calculate the score.
 
-        :param xdata ndarray: the xdata.
-        :param ydata ndarray: the ydata.
-        :return str, float: score name, the score.
+        :param data ndarray: the ydata.
+        :param pred ndarray: the predicted.
+        :return float: the score.
         """
-        predicted = self.predict(xdata)
-        if self.method in self.CLFS:
-            return 'accuracy', metrics.accuracy_score(ydata, predicted)
-        return 'r2', np.nan if xdata.shape[0] < 2 else metrics.r2_score(
-            ydata, predicted)
+        return np.nan if data.shape[0] < 2 else metrics.r2_score(data, pred)
 
     def predict(self, data):
         """
@@ -182,13 +140,61 @@ class Reg:
         return self.scaleY(self.reg.predict(self.opr(data)), inversed=True)
 
 
-class Ml(logutils.Base):
+class Clf(Reg):
     """
-    Main class to load, split, and analyze data.
+    Classification model wrapper.
+    """
+    LOGIT = 'logit'
+    KNN = 'knn'
+    GNB = 'gnb'
+    NAMES = {
+        LOGIT: 'logistic',
+        KNN: 'k-nearest neighbors',
+        GNB: 'gaussian naive bayes',
+        **Reg.SHARED
+    }
+
+    def setUp(self):
+        """
+        Set up.
+        """
+        match self.method:
+            case self.LOGIT:
+                self.reg = linear_model.LogisticRegression(
+                    random_state=self.options.seed)
+            case self.KNN:
+                self.reg = neighbors.KNeighborsClassifier()
+            case self.SV:
+                self.reg = svm.SVC(random_state=self.options.seed)
+            case self.GNB:
+                self.reg = naive_bayes.GaussianNB()
+            case self.DT:
+                self.reg = tree.DecisionTreeClassifier(
+                    random_state=self.options.seed)
+            case self.RF:
+                self.reg = ensemble.RandomForestClassifier(
+                    n_estimators=self.options.tree_num,
+                    random_state=self.options.seed)
+
+    def score(self, data, pred):
+        """
+        Calculate the score.
+
+        :param data ndarray: the ydata.
+        :param pred ndarray: the predicted.
+        :return float: the score.
+        """
+        return metrics.accuracy_score(data, pred)
+
+
+class Regression(logutils.Base):
+    """
+    Main class to load, split, and analyze data via regression.
     """
     FIG_EXT = '.svg'
     CSV_EXT = '.csv'
     ORIGINAL = 'original'
+    Model = Reg
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -240,7 +246,9 @@ class Ml(logutils.Base):
         Set the regression models.
         """
         kwargs = dict(scs=self.scs, options=self.options)
-        self.models = [Reg(method=x, **kwargs) for x in self.options.method]
+        self.models = [
+            self.Model(method=x, **kwargs) for x in self.options.method
+        ]
         for reg in reversed(self.models):
             try:
                 reg.fit(self.xtrain, self.ytrain)
@@ -255,11 +263,7 @@ class Ml(logutils.Base):
 
         :return list: the x & y scalers.
         """
-        if Reg.SVR in self.options.method:
-            return list(self.getScaler())
-        if Reg.CLFS.intersection(self.options.method):
-            return [next(self.getScaler()), None]
-        return []
+        return list(self.getScaler()) if Reg.SV in self.options.method else []
 
     def getScaler(self):
         """
@@ -277,8 +281,9 @@ class Ml(logutils.Base):
         Calculate the scores.
         """
         for reg in self.models:
-            name, score = reg.score(self.xtest, self.ytest)
-            self.log(f'{name} score ({reg.method}): {score:.4g}')
+            pred = reg.predict(self.xtest)
+            self.log(
+                f'r2 score ({reg.method}): {reg.score(self.ytest, pred):.4g}')
 
     def scatter(self):
         """
@@ -336,6 +341,8 @@ class Ml(logutils.Base):
         :param num int: the number of point in each dimension.
         :return tuple: the xdata grids.
         """
+        if self.xtrain.shape[1] > 2:
+            return ()
         lims = np.array([self.xtrain.min(axis=0), self.xtrain.max(axis=0)]).T
         args = [[*lims[x], num] for x in range(self.xdata.shape[1])]
         grids = np.array([np.linspace(*x) for x in args]).T
@@ -362,7 +369,7 @@ class Ml(logutils.Base):
 
         :param cmap str: the colormap
         """
-        if len(self.grids) == 1:
+        if len(self.grids) != 2:
             return
         for label, pred in self.cols():
             with plotutils.pyplot(inav=self.options.INTERAC,
@@ -380,3 +387,30 @@ class Ml(logutils.Base):
                             cmap=cmap,
                             label=self.ORIGINAL)
                 self.save(label=label)
+
+
+class Classification(Regression):
+    """
+    Main class to load, split, and analyze data via classification.
+    """
+    Model = Clf
+
+    @functools.cached_property
+    def scs(self):
+        """
+        The x & y scalers.
+
+        :return list: the x & y scalers.
+        """
+        return [next(self.getScaler()), None]
+
+    def score(self):
+        """
+        Calculate the scores.
+        """
+        for reg in self.models:
+            pred = reg.predict(self.xtest)
+            self.log(
+                f'accuracy score ({reg.method}): {reg.score(self.ytest, pred):.4g}'
+            )
+            print(metrics.confusion_matrix(self.ytest, pred))

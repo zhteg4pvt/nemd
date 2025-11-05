@@ -1,2 +1,2 @@
 # ML Regression: level vs salary
-[ ! -z $NEMD_SRC ] && nemd_run ml_reg_driver.py $NEMD_SRC/test/data/ml/position_salaries.csv -method lr svr poly dt rfr logit -tree_num 10 -degree 4 -seed 0
+[ ! -z $NEMD_SRC ] && nemd_run ml_reg_driver.py $NEMD_SRC/test/data/ml/position_salaries.csv -method lr sv poly dt rf -tree_num 10 -degree 4 -seed 0

@@ -637,7 +637,6 @@ class RegValid(Valid):
     """
     Class to validate Regression arguments.
     """
-    LOGIT = ml.Reg.LOGIT
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -649,7 +648,6 @@ class RegValid(Valid):
         """
         self.read()
         self.columns()
-        self.classifier()
         self.size()
 
     def read(self):
@@ -675,18 +673,6 @@ class RegValid(Valid):
             raise ValueError(f"Less than two columns after excluding "
                              f"non-numeric values")
 
-    def classifier(self):
-        """
-        Validate classifier methods.
-        """
-        clfs = ml.Reg.CLFS.intersection(self.options.method)
-        if not clfs:
-            return
-        if pd.api.types.is_integer_dtype(self.data.iloc[:, -1]):
-            return
-        for clf in clfs:
-            self.options.method.remove(clf)
-
     def size(self):
         """
         Validate the test size.
@@ -696,6 +682,26 @@ class RegValid(Valid):
             raise ValueError(f"Test size smaller than 1.")
         if self.data.shape[0] - test_size < 1:
             raise ValueError(f"Train size smaller than 1.")
+
+
+class ClfValid(RegValid):
+    """
+    Class to validate Classifier arguments.
+    """
+
+    def run(self):
+        """
+        Validate the options.
+        """
+        super().run()
+        self.float()
+
+    def float(self):
+        """
+        Validate float type.
+        """
+        if not pd.api.types.is_integer_dtype(self.data.iloc[:, -1]):
+            raise ValueError('Non-float data type found as ydata.')
 
 
 class Driver(argparse.ArgumentParser, builtinsutils.Object):
@@ -1205,6 +1211,8 @@ class Reg(Driver):
     FLAG_DEGREE = '-degree'
     FLAG_TREE_NUM = '-tree_num'
     FLAG_TEST_SIZE = '-test_size'
+    NAMES = ml.Reg.NAMES
+    Valid = RegValid
 
     @classmethod
     def add(cls, parser, **kwargs):
@@ -1214,20 +1222,12 @@ class Reg(Driver):
         parser.add_argument(cls.FLAG_DATA,
                             type=Path.typeFile,
                             help='The csv file.')
-        names = ", ".join([f"{y} ({x})" for x, y in ml.Reg.NAMES.items()])
+        names = ", ".join([f"{y} ({x})" for x, y in cls.NAMES.items()])
         parser.add_argument(cls.FLAG_METHOD,
-                            default=[ml.Reg.LR],
-                            choices=ml.Reg.NAMES,
+                            default=[next(iter(cls.NAMES.keys()))],
+                            choices=cls.NAMES,
                             nargs='+',
                             help=f'Regression method: {names}')
-        parser.add_argument(cls.FLAG_DEGREE,
-                            default=2,
-                            type=Int.typePositive,
-                            help=f'The max polynomial degree.')
-        parser.add_argument(cls.FLAG_TREE_NUM,
-                            default=100,
-                            type=Int.typePositive,
-                            help=f'The number of trees in the forest.')
         parser.add_argument(cls.FLAG_TEST_SIZE,
                             default=0.2,
                             type=Float.partial(top=1,
@@ -1235,8 +1235,24 @@ class Reg(Driver):
                                                incl_bot=False,
                                                incl_top=False),
                             help=f'The test size on splitting.')
-        parser.valids.add(RegValid)
+        parser.add_argument(cls.FLAG_TREE_NUM,
+                            default=100,
+                            type=Int.typePositive,
+                            help=f'The number of trees in the forest.')
+        parser.add_argument(cls.FLAG_DEGREE,
+                            default=2,
+                            type=Int.typePositive,
+                            help=f'The max polynomial degree.')
+        parser.valids.add(cls.Valid)
         cls.addSeed(parser)
+
+
+class Clf(Reg):
+    """
+    Parser with ml classification arguments.
+    """
+    NAMES = ml.Clf.NAMES
+    Valid = ClfValid
 
 
 class Workflow(Driver):

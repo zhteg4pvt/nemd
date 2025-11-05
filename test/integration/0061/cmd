@@ -1,2 +1,2 @@
-# ML Classifier: logistic, k-nearest neighbors, support vector classifier
-[ ! -z $NEMD_SRC ] && nemd_run ml_reg_driver.py $NEMD_SRC/test/data/ml/social_network_ads.csv -method lr logit knn svc gnb dtc rfc -seed 0 -test_size 0.25 -tree_num 10
+# ML Classifier
+[ ! -z $NEMD_SRC ] && nemd_run ml_clf_driver.py $NEMD_SRC/test/data/ml/social_network_ads.csv -method logit knn sv gnb dt rf -seed 0 -test_size 0.25 -tree_num 10
