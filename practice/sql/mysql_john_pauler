@@ -1,0 +1,4 @@
+# https://www.udemy.com/course/mysql-for-data-analysis/
+brew install --cask mysqlworkbench
+brew install mysql
+brew services start mysql
