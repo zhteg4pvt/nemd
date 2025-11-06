@@ -214,7 +214,7 @@ class Regression(logutils.Base):
         """
         self.read()
         self.split()
-        self.score()
+        self.measure()
         self.scatter()
         self.contourf()
 
@@ -276,14 +276,14 @@ class Regression(logutils.Base):
             sc.fit(data)
             yield sc
 
-    def score(self):
+    def measure(self):
         """
-        Calculate the scores.
+        Measure the model quality.
         """
         for reg in self.models:
             pred = reg.predict(self.xtest)
-            self.log(
-                f'r2 score ({reg.method}): {reg.score(self.ytest, pred):.4g}')
+            self.log(f'r2 score ({reg.method}): '
+                     f'{reg.score(self.ytest, pred):.4g}')
 
     def scatter(self):
         """
@@ -299,7 +299,9 @@ class Regression(logutils.Base):
                             color='k',
                             label=self.ORIGINAL)
             for method, pred in self.cols():
-                self.ax.plot(self.grids[0], pred, label=Reg.NAMES[method])
+                self.ax.plot(self.grids[0],
+                             pred,
+                             label=self.Model.NAMES[method])
             self.ax.legend()
             self.save()
 
@@ -398,27 +400,26 @@ class Classification(Regression):
     @functools.cached_property
     def scs(self):
         """
-        The x & y scalers.
-
-        :return list: the x & y scalers.
+        See parent.
         """
         return [next(self.getScaler()), None]
 
-    def score(self):
+    def measure(self):
         """
-        Calculate the scores.
+        See parent.
         """
         for model in self.models:
             pred = model.predict(self.xtest)
-            self.log(
-                f'accuracy score ({model.method}): {model.score(self.ytest, pred):.4g}'
-            )
+            with self.catchWarnings():
+                score = model.score(self.ytest, pred)
+            self.log(f'accuracy score ({model.method}): {score:.4g}')
             with plotutils.pyplot(inav=self.options.INTERAC,
                                   name=model.method) as plt:
                 fig, ax = plt.subplots(1, 1)
-                metrics.ConfusionMatrixDisplay.from_predictions(self.ytest,
-                                                                pred,
-                                                                ax=ax)
+                with self.catchWarnings():
+                    metrics.ConfusionMatrixDisplay.from_predictions(self.ytest,
+                                                                    pred,
+                                                                    ax=ax)
                 outfile = f"{self.options.JOBNAME}_{model.method}_cm{self.FIG_EXT}"
                 fig.savefig(outfile)
                 jobutils.Job.reg(outfile)

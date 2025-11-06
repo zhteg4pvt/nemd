@@ -1,2 +1,2 @@
 # ML 3-class Classifier
-[ ! -z $NEMD_SRC ] && nemd_run ml_clf_driver.py $NEMD_SRC/test/data/ml/social_network_ads2.csv -method logit knn sv gnb dt rf -seed 0 -test_size 0.25 -tree_num 10
+[ ! -z $NEMD_SRC ] && nemd_run ml_clf_driver.py $NEMD_SRC/test/data/ml/social_three_classes.csv -method logit knn sv gnb dt rf -seed 0 -test_size 0.25 -tree_num 10

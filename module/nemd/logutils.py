@@ -13,6 +13,7 @@ import re
 import sys
 import traceback
 import types
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -523,3 +524,18 @@ class Base(builtinsutils.Object):
         else:
             sys.stderr.write(f"{msg}\n")
         sys.exit(1)
+
+    @contextlib.contextmanager
+    def catchWarnings(self):
+        """
+        Catch the warnings and log messages.
+
+        :return list: warnings.
+        """
+        try:
+            with warnings.catch_warnings(record=True) as wngs:
+                yield wngs
+        finally:
+            msgs = {(x._category_name, str(x.message)) for x in wngs}
+            for name, msg in msgs:
+                self.log(f"{name}: {msg}")

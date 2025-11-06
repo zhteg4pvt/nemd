@@ -186,8 +186,8 @@ class TestRegression:
 
     @pytest.mark.parametrize(
         'args,expected', [([POS_CSV, '-seed', '0'], 'r2 score (lr): 0.9779')])
-    def testScore(self, reg, expected):
-        reg.score()
+    def testMeasure(self, reg, expected):
+        reg.measure()
         reg.logger.log.assert_called_with(expected)
 
     @pytest.mark.parametrize(
@@ -227,6 +227,7 @@ class TestRegression:
 
 @conftest.require_src
 class TestClassification:
+    MALL_CSV = SRC.test('ml', 'mall_customers.csv')
 
     @pytest.fixture
     def clf(self, args, logger):
@@ -250,12 +251,17 @@ class TestClassification:
     def testScs(self, clf, expected):
         assert expected == len([x for x in clf.scs if x])
 
-    @pytest.mark.parametrize(
-        'args,expected',
-        [([POS_CSV, '-seed', '0', '-JOBNAME', 'ml_test'],
-          ('accuracy score (logit): 0', 'ml_test_logit_cm.svg'))])
-    def testScore(self, clf, expected, tmp_dir):
-        clf.score()
+    @pytest.mark.parametrize('args,expected', [
+        ([POS_CSV, '-seed', '0', '-JOBNAME', 'ml_test'],
+         ('accuracy score (logit): 0', 'ml_test_logit_cm.svg')),
+        ([MALL_CSV, '-seed', '0', '-JOBNAME', 'ml_test'],
+         ('accuracy score (logit): 0.025', 'ml_test_logit_cm.svg',
+          'UserWarning: The number of unique classes is greater than 50% of the'
+          ' number of samples. `y` could represent a regression problem, not a '
+          'classification problem.'))
+    ])
+    def testMeasure(self, clf, expected, tmp_dir):
+        clf.measure()
         clf.logger.log.assert_any_call(expected[0])
         assert os.path.isfile(expected[1])
 

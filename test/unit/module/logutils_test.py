@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import types
+import warnings
 from unittest import mock
 
 import conftest
@@ -319,3 +320,12 @@ class TestBase:
         mocked.exit.assert_called_with(1)
         to_assert = base.logger.log if has_logger else mocked.stderr.write
         to_assert.assert_called_with(expected[0], **expected[1])
+
+    @mock.patch('nemd.logutils.Base.log')
+    @pytest.mark.parametrize(
+        'message,category,expected',
+        [("deprecated", DeprecationWarning, 'DeprecationWarning: deprecated')])
+    def testCatchWarnings(self, mocked, base, message, category, expected):
+        with base.catchWarnings() as wngs:
+            warnings.warn(message, category=category)
+        base.log.assert_called_with('DeprecationWarning: deprecated')

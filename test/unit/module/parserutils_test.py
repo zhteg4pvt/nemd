@@ -20,7 +20,7 @@ MY_DATA_FILE = SRC.test(AR, 'mydata.in')
 LOG_FILE = SRC.test(AR, 'lammps.log')
 TRAJ_FILE = SRC.test(AR, 'ar100.custom.gz')
 POS_CSV = SRC.test('ml', 'position_salaries.csv')
-POS2_CSV = SRC.test('ml', 'position_salaries2.csv')
+POS2_CSV = SRC.test('ml', 'position_float.csv')
 RAISED = argparse.ArgumentTypeError
 
 
