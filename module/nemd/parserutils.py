@@ -633,10 +633,7 @@ class TrajValid(Valid):
                              f" run {', '.join(rqd_data)} tasks.")
 
 
-class RegValid(Valid):
-    """
-    Class to validate Regression arguments.
-    """
+class ClusValid(Valid):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -647,8 +644,6 @@ class RegValid(Valid):
         Validate the command options.
         """
         self.read()
-        self.columns()
-        self.size()
 
     def read(self):
         """
@@ -660,6 +655,20 @@ class RegValid(Valid):
             self.data = pd.read_csv(self.options.data)
         except pd.errors.EmptyDataError as err:
             raise ValueError(f"{err} ({self.options.data})")
+
+
+class RegValid(ClusValid):
+    """
+    Class to validate Regression arguments.
+    """
+
+    def run(self):
+        """
+        Validate the command options.
+        """
+        self.read()
+        self.columns()
+        self.size()
 
     def columns(self):
         """
@@ -1202,37 +1211,25 @@ class LmpTraj(LmpLog):
                                 help='Trajectory timestep.')
 
 
-class Reg(Driver):
+class Ml(Driver):
     """
-    Parser with ml regression arguments.
+    Parser with ml arguments.
     """
-    CLASS = 'Reg'
-    Valid = RegValid
+    Valid = None
 
     @classmethod
     def add(cls, parser, **kwargs):
         """
         See parent.
         """
-        names = getattr(ml, cls.CLASS).NAMES
         parser.add_argument('data', type=Path.typeFile, help='The csv file.')
-        names = ", ".join([f"{y} ({x})" for x, y in names.items()])
+        names = getattr(ml, cls.__name__).NAMES
+        help = "Method: " + ", ".join([f"{y} ({x})" for x, y in names.items()])
         parser.add_argument('-method',
                             default=[next(iter(names.keys()))],
                             choices=names,
                             nargs='+',
-                            help=f'Regression method: {names}')
-        parser.add_argument('-test_size',
-                            default=0.2,
-                            type=Float.partial(top=1,
-                                               bot=0,
-                                               incl_bot=False,
-                                               incl_top=False),
-                            help=f'The test size on splitting.')
-        parser.add_argument('-tree_num',
-                            default=100,
-                            type=Int.typePositive,
-                            help=f'The number of trees in the forest.')
+                            help=help)
         cls.addParm(parser)
         parser.valids.add(cls.Valid)
         cls.addSeed(parser)
@@ -1244,17 +1241,29 @@ class Reg(Driver):
 
         :param parser argparse.ArgumentParser: the parse to add arguments.
         """
-        parser.add_argument('-degree',
-                            default=2,
+        pass
+
+
+class Clus(Ml):
+    """
+    Parser with cluster arguments.
+    """
+    Valid = ClusValid
+
+    @classmethod
+    def addParm(cls, parser, **kwargs):
+        """
+        See parent.
+        """
+        parser.add_argument('-cluster_num',
                             type=Int.typePositive,
-                            help=f'The max polynomial degree.')
+                            help='The number of clusters to form.')
 
 
-class Clf(Reg):
+class Clf(Ml):
     """
-    Parser with ml classification arguments.
+    Parser with classification arguments.
     """
-    CLASS = 'Clf'
     Valid = ClfValid
 
     @classmethod
@@ -1262,7 +1271,35 @@ class Clf(Reg):
         """
         See parent.
         """
-        pass
+        parser.add_argument('-test_size',
+                            default=0.2,
+                            type=Float.partial(top=1,
+                                               bot=0,
+                                               incl_bot=False,
+                                               incl_top=False),
+                            help=f'The test size on splitting.')
+        parser.add_argument('-tree_num',
+                            default=100,
+                            type=Int.typePositive,
+                            help=f'The number of trees in the forest.')
+
+
+class Reg(Clf):
+    """
+    Parser with regression arguments.
+    """
+    Valid = RegValid
+
+    @classmethod
+    def addParm(cls, parser, **kwargs):
+        """
+        See parent.
+        """
+        super().addParm(parser)
+        parser.add_argument('-degree',
+                            default=2,
+                            type=Int.typePositive,
+                            help=f'The max polynomial degree.')
 
 
 class Workflow(Driver):

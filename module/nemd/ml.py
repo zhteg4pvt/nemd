@@ -12,6 +12,7 @@ import re
 
 import numpy as np
 import pandas as pd
+from sklearn import cluster
 from sklearn import ensemble
 from sklearn import linear_model
 from sklearn import metrics
@@ -39,16 +40,15 @@ class Reg:
     SHARED = {SV: 'support vector', DT: 'decision tree', RF: 'random forest'}
     NAMES = {LR: 'linear', POLY: 'polynomial', **SHARED}
 
-    def __init__(self, method=LR, scs=None, options=None, **kwargs):
+    def __init__(self, method, options=None, scs=None):
         """
         :param method: the regression method.
-        :param scs list: the scalers.
         :param options 'argparse.Namespace': commandline arguments.
+        :param scs list: the scalers.
         """
-        super().__init__(**kwargs)
         self.method = method
-        self.scs = scs
         self.options = options
+        self.scs = scs
         self.mdl = None
         self.setUp()
 
@@ -118,6 +118,8 @@ class Reg:
         """
         Scale the y data. (see scale)
         """
+        if data is None:
+            return
         return self.scale(data.reshape(-1, 1), idx=idx, **kwargs).ravel()
 
     def score(self, data, pred):
@@ -138,6 +140,28 @@ class Reg:
         :return ndarray: the prediction.
         """
         return self.scaleY(self.mdl.predict(self.opr(data)), inversed=True)
+
+
+class Clus(Reg):
+    """
+    Cluster model wrapper.
+    """
+    K_MEANS = 'k-means'
+    HCA = 'hca'
+    NAMES = {K_MEANS: 'k-means cluster', HCA: 'hierarchical cluster analysis'}
+
+    def setUp(self):
+        """
+        Set up.
+        """
+        match self.method:
+            case self.K_MEANS:
+                self.mdl = cluster.KMeans(n_clusters=self.options.cluster_num
+                                          or 8,
+                                          random_state=self.options.seed)
+            case self.HCA:
+                self.mdl = cluster.AgglomerativeClustering(
+                    n_clusters=self.options.cluster_num or 2)
 
 
 class Clf(Reg):
@@ -187,14 +211,12 @@ class Clf(Reg):
         return metrics.accuracy_score(data, pred)
 
 
-class Regression(logutils.Base):
+class Base(logutils.Base):
     """
-    Main class to load, split, and analyze data via regression.
+    Base class to load data.
     """
     FIG_EXT = '.svg'
     CSV_EXT = '.csv'
-    ORIGINAL = 'original'
-    Model = Reg
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -202,11 +224,77 @@ class Regression(logutils.Base):
         self.xdata = None
         self.ydata = None
         self.xtrain = None
-        self.xtest = None
         self.ytrain = None
-        self.ytest = None
         self.fig = None
         self.ax = None
+
+    def read(self):
+        """
+        Read data.
+        """
+        self.data = pd.read_csv(self.options.data)
+        self.xdata = self.data.select_dtypes(include=['number'])
+
+    @functools.cached_property
+    def models(self):
+        """
+        Return the models.
+
+        :return list: the fitted models.
+        """
+        kwargs = dict(scs=self.scs, options=self.options)
+        models = [self.Model(x, **kwargs) for x in self.options.method]
+        for model in reversed(models):
+            try:
+                model.fit(self.xtrain, self.ytrain)
+            except ValueError as err:
+                self.log(f'{model.method} error: {err}')
+                models.remove(model)
+        return models
+
+    @functools.cached_property
+    def scs(self):
+        """
+        The x & y scalers.
+
+        :return list: the x & y scalers.
+        """
+        return []
+
+
+class Cluster(Base):
+    """
+    Main class to analyze data via clustering.
+    """
+    Model = Clus
+
+    def run(self):
+        """
+        Main method to run.
+        """
+        self.read()
+        for mld in self.models:
+            print(mld.predict(self.xdata))
+
+    def read(self):
+        """
+        Read data.
+        """
+        super().read()
+        self.xtrain = self.xdata
+
+
+class Regression(Base):
+    """
+    Main class to analyze data via regression.
+    """
+    ORIGINAL = 'original'
+    Model = Reg
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.xtest = None
+        self.ytest = None
 
     def run(self):
         """
@@ -220,12 +308,11 @@ class Regression(logutils.Base):
 
     def read(self):
         """
-        Read data.
+        See parent.
         """
-        self.data = pd.read_csv(self.options.data)
-        columns = self.data.select_dtypes(include=['number']).columns
-        self.xdata = self.data[columns[:-1]]
-        self.ydata = self.data[columns[-1:]]
+        super().read()
+        self.ydata = self.xdata[self.xdata.columns[-1:]]
+        self.xdata = self.xdata[self.xdata.columns[:-1]]
 
     def split(self):
         """
@@ -238,23 +325,6 @@ class Regression(logutils.Base):
             random_state=self.options.seed)
         self.log(f"Train size: {self.xtrain.shape[0]}")
         self.log(f"Test size: {self.xtest.shape[0]}")
-
-    @functools.cached_property
-    def models(self):
-        """
-        Return the models.
-
-        :return list: the fitted models.
-        """
-        kwargs = dict(scs=self.scs, options=self.options)
-        models = [self.Model(method=x, **kwargs) for x in self.options.method]
-        for reg in reversed(models):
-            try:
-                reg.fit(self.xtrain, self.ytrain)
-            except ValueError as err:
-                self.log(f'{reg.method} error: {err}')
-                models.remove(reg)
-        return models
 
     @functools.cached_property
     def scs(self):
@@ -393,7 +463,7 @@ class Regression(logutils.Base):
 
 class Classification(Regression):
     """
-    Main class to load, split, and analyze data via classification.
+    Main class to analyze data via classification.
     """
     Model = Clf
 
