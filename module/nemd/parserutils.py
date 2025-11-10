@@ -1206,7 +1206,7 @@ class Reg(Driver):
     """
     Parser with ml regression arguments.
     """
-    NAMES = ml.Reg.NAMES
+    CLASS = 'Reg'
     Valid = RegValid
 
     @classmethod
@@ -1214,11 +1214,12 @@ class Reg(Driver):
         """
         See parent.
         """
+        names = getattr(ml, cls.CLASS).NAMES
         parser.add_argument('data', type=Path.typeFile, help='The csv file.')
-        names = ", ".join([f"{y} ({x})" for x, y in cls.NAMES.items()])
+        names = ", ".join([f"{y} ({x})" for x, y in names.items()])
         parser.add_argument('-method',
-                            default=[next(iter(cls.NAMES.keys()))],
-                            choices=cls.NAMES,
+                            default=[next(iter(names.keys()))],
+                            choices=names,
                             nargs='+',
                             help=f'Regression method: {names}')
         parser.add_argument('-test_size',
@@ -1253,7 +1254,7 @@ class Clf(Reg):
     """
     Parser with ml classification arguments.
     """
-    NAMES = ml.Clf.NAMES
+    CLASS = 'Clf'
     Valid = ClfValid
 
     @classmethod

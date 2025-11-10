@@ -44,7 +44,7 @@ if not is_debug():
         'constants', 'table', 'box', 'frame', 'dist', 'traj', 'structure',
         'lmpatomic', 'lmpfull', 'structutils', 'oplsua', 'stillinger', 'cru',
         'polymutils', 'xtal', 'lmplog', 'psutils', 'alamode', 'molview',
-        'analyzer', 'rdkitutils', 'numbautils'
+        'analyzer', 'rdkitutils', 'numbautils', 'ml'
     ]
     for name in modules + [f"nemd.{x}" for x in names]:
         lazy_import.lazy_module(name)
