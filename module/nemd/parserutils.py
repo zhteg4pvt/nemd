@@ -24,6 +24,7 @@ from nemd import rdkitutils
 from nemd import sw
 from nemd import symbols
 
+AUTO = 'auto'
 FLAG_NAME = '-name'
 FLAG_CPU = jobutils.FLAG_CPU
 
@@ -681,7 +682,7 @@ class MlValid(Valid):
 
 class ClusValid(MlValid):
     """
-    Class to validate Cluster arguments.
+    Class to validate cluster arguments.
     """
 
     def run(self):
@@ -696,10 +697,11 @@ class ClusValid(MlValid):
         Validate the cluster num.
         """
         if self.options.cluster_num is None:
-            self.options.cluster_num = [
-                self.getClusterNum(x) for x in self.options.method
-            ]
+            self.options.cluster_num = list(self.getClusterNum())
             return
+        self.options.cluster_num = [
+            None if x == AUTO else x for x in self.options.cluster_num
+        ]
         length = len(self.options.method)
         self.options.cluster_num = self.options.cluster_num[:length]
         if len(self.options.cluster_num) == 1 and length > 1:
@@ -707,33 +709,33 @@ class ClusValid(MlValid):
         if len(self.options.cluster_num) != length:
             raise ValueError(f'cluster and method are of different lengths.')
 
-    def rows(self):
-        """
-        Validate the rows.
-        """
-        if self.data.shape[0] < min(self.options.cluster_num):
-            raise ValueError(
-                f"{self.data.shape[0]} rows < {min(self.options.cluster_num)} clusters"
-            )
-
-    @classmethod
-    def getClusterNum(cls, method):
+    def getClusterNum(self):
         """
         Get the default cluster num.
 
         :param method str: the method.
         :return int: the default cluster num.
         """
-        match method:
-            case ml.Clus.K_MEANS:
-                return 8
-            case ml.Clus.HCA:
-                return 2
+        for method in self.options.method:
+            match method:
+                case ml.Clus.K_MEANS:
+                    yield 8
+                case ml.Clus.HCA:
+                    yield 2
+
+    def rows(self):
+        """
+        Validate the rows.
+        """
+        nums = [x for x in self.options.cluster_num if x]
+        if not nums or self.data.shape[0] >= min(nums):
+            return
+        raise ValueError(f"{self.data.shape[0]} rows < {min(nums)} clusters")
 
 
 class RegValid(MlValid):
     """
-    Class to validate Regression arguments.
+    Class to validate regression arguments.
     """
     COL_MIN = 2
 
@@ -750,7 +752,7 @@ class RegValid(MlValid):
 
 class ClfValid(RegValid):
     """
-    Class to validate Classifier arguments.
+    Class to validate classifier arguments.
     """
 
     def columns(self):
@@ -904,6 +906,16 @@ class Driver(argparse.ArgumentParser, builtinsutils.Object):
             except (ValueError, FileNotFoundError) as err:
                 self.error(err)
         return options
+
+    @staticmethod
+    def auto(fn):
+        """
+        Wrap type check function to allow the auto key.
+
+        :param fn 'func': the type function
+        :return 'func': the wrapped func
+        """
+        return lambda arg, **kwargs: AUTO if arg == AUTO else fn(arg, **kwargs)
 
 
 class Bldr(Driver):
@@ -1309,7 +1321,7 @@ class Clus(Ml):
         """
         parser.add_argument('-cluster_num',
                             nargs='+',
-                            type=Int.typePositive,
+                            type=cls.auto(Int.typePositive),
                             help='The number of clusters to form.')
 
 

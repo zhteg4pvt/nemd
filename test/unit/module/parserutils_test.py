@@ -516,6 +516,12 @@ class TestDriver:
         assert 'hi' == options.JOBNAME
         assert options.CPU is not None
 
+    @pytest.mark.parametrize('num,expected', [('auto', 'auto'), ('1', 1)])
+    def testAuto(self, parser, num, expected):
+        parser.auto(int)
+        parser.add_argument('num', type=parserutils.Driver.auto(int))
+        assert expected == parser.parse_args([num]).num
+
 
 class TestAdd:
 
@@ -642,8 +648,10 @@ class TestAdd:
     @pytest.mark.parametrize(
         'args,expected',
         [([MALL_CSV], [1, 8]),
-         ([MALL_CSV, '-method', 'k-means', 'hca', '-cluster_num', '7'
-           ], [2, 7, 7])])
+         ([MALL_CSV, '-method', 'k-means', 'hca', '-cluster_num', '6'
+           ], [2, 6, 6]),
+         ([MALL_CSV, '-method', 'k-means', 'hca', '-cluster_num', '7', 'auto'
+           ], [2, 7, None])])
     def testClus(self, parser, args, expected):
         parserutils.Clus.add(parser)
         options = parser.parse_args(args)
