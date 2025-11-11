@@ -21,6 +21,7 @@ LOG_FILE = SRC.test(AR, 'lammps.log')
 TRAJ_FILE = SRC.test(AR, 'ar100.custom.gz')
 POS_CSV = SRC.test('ml', 'position_salaries.csv')
 POS2_CSV = SRC.test('ml', 'position_float.csv')
+MALL_CSV = SRC.test('ml', 'mall_customers.csv')
 RAISED = argparse.ArgumentTypeError
 
 
@@ -366,6 +367,16 @@ class TestValid:
         options = parser.parse_args(args)
         assert expected == [*options.task, options.data_file]
 
+    @pytest.mark.parametrize('valid', [parserutils.ClusValid])
+    @pytest.mark.parametrize('flags', [(['-data'])])
+    @pytest.mark.parametrize('kwargss', [(None, {'nargs': '+'})]) # yapf: disable
+    @pytest.mark.parametrize('values,expected', [((POS_CSV, ), None),
+                                                 ((EMPTY_CSV, ), RAISED),
+                                                 ((ONE_COLS_CSV, ), None),
+                                                 ((TWO_COLS_CSV, ), None)])
+    def testClusValid(self, parser, args, expected):
+        parser.parse_args(args)
+
     @pytest.mark.parametrize('valid', [parserutils.RegValid])
     @pytest.mark.parametrize('flags', [(['-data', '-method', '-test_size'])])
     @pytest.mark.parametrize('kwargss', [(None, {'nargs': '+'}, {'type': float})]) # yapf: disable
@@ -609,6 +620,21 @@ class TestAdd:
             options.task,
             str(options.data_file), options.last_pct, options.slice
         ]
+
+    @pytest.mark.parametrize('args,expected', [([MALL_CSV], [1])])
+    def testMl(self, parser, args, expected):
+        parserutils.Ml.add(parser, name='Clus')
+        options = parser.parse_args(args)
+        assert expected == [len(options.method)]
+
+    @pytest.mark.parametrize('args,expected', [
+        ([MALL_CSV], [1, None]),
+        ([MALL_CSV, '-method', 'k-means', 'hca', '-cluster_num', '7'], [2, 7])
+    ])
+    def testClus(self, parser, args, expected):
+        parserutils.Clus.add(parser)
+        options = parser.parse_args(args)
+        assert expected == [len(options.method), options.cluster_num]
 
     @pytest.mark.parametrize(
         'args,expected',

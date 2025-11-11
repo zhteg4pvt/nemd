@@ -163,6 +163,17 @@ class Clus(Reg):
                 self.mdl = cluster.AgglomerativeClustering(
                     n_clusters=self.options.cluster_num or 2)
 
+    def predict(self, *args):
+        """
+        See parent.
+
+        :raise AttributeError: when the model cannot predict.
+        """
+        if self.method == self.HCA:
+            raise AttributeError(f"{self.method} focuses on grouping existing "
+                                 "data and cannot predict.")
+        return super().predict(*args)
+
 
 class Clf(Reg):
     """
@@ -261,6 +272,26 @@ class Base(logutils.Base):
         """
         return []
 
+    def save(self, label=''):
+        """
+        Save the figure.
+
+        :param label str: the figure label extension.
+        """
+        self.setLayout()
+        outfile = f"{self.options.JOBNAME}{label and '_'}{label}{self.FIG_EXT}"
+        self.fig.savefig(outfile)
+        self.log(f'Figure saved as {outfile}')
+        jobutils.Job.reg(outfile)
+
+    def setLayout(self):
+        """
+        Set the layout.
+        """
+        self.ax.set_xlabel(self.xdata.columns[0])
+        self.ax.set_box_aspect(1)
+        self.fig.tight_layout()
+
 
 class Cluster(Base):
     """
@@ -273,8 +304,7 @@ class Cluster(Base):
         Main method to run.
         """
         self.read()
-        for mld in self.models:
-            print(mld.predict(self.xdata))
+        self.scatter()
 
     def read(self):
         """
@@ -282,6 +312,44 @@ class Cluster(Base):
         """
         super().read()
         self.xtrain = self.xdata
+
+    def scatter(self):
+        """
+        Create scatter plot.
+        """
+        if self.xtrain.shape[1] > 2:
+            return
+        for name, pred in self.pred.items():
+            with plotutils.pyplot(inav=self.options.INTERAC, name=name) as plt:
+                self.fig, self.ax = plt.subplots(1, 1, figsize=(6, 4.5))
+                xtrain = self.xtrain.values
+                for label in np.unique(pred):
+                    self.ax.scatter(*xtrain[pred.values == label, :].T)
+                self.save(label=name)
+
+    @functools.cached_property
+    def pred(self):
+        """
+        Return the categories.
+
+        :return pd.DataFrame: the gridded features and categories.
+        """
+        if self.xdata.shape[-1] > 2:
+            return pd.DataFrame()
+        pred = {x.method: x.mdl.labels_ for x in self.models}
+        pred = pd.DataFrame(pred, index=pd.MultiIndex.from_frame(self.xtrain))
+        outfile = f"{self.options.JOBNAME}{self.CSV_EXT}"
+        pred.to_csv(outfile)
+        self.log(f'Gridded prediction saved as {outfile}')
+        jobutils.Job.reg(outfile)
+        return pred
+
+    def setLayout(self):
+        """
+        See parent.
+        """
+        self.ax.set_ylabel(self.xdata.columns[1])
+        super().setLayout()
 
 
 class Regression(Base):
@@ -368,13 +436,14 @@ class Regression(Base):
                             self.ytrain,
                             color='k',
                             label=self.ORIGINAL)
-            for method, pred in self.cols():
+            for method, pred in self.cols:
                 self.ax.plot(self.grids[0],
                              pred,
                              label=self.Model.NAMES[method])
             self.ax.legend()
             self.save()
 
+    @property
     def cols(self, rex=re.compile(r'(.*) +\((.*)\)')):
         """
         Iterate over the predicted.
@@ -420,20 +489,12 @@ class Regression(Base):
         grids = np.array([np.linspace(*x) for x in args]).T
         return np.meshgrid(*grids.T)
 
-    def save(self, label=''):
+    def setLayout(self):
         """
-        Save the figure.
-
-        :param label str: the figure label extension.
+        See parent.
         """
-        self.ax.set_xlabel(self.xdata.columns[0])
         self.ax.set_ylabel(self.ydata.columns[0])
-        self.ax.set_box_aspect(1)
-        self.fig.tight_layout()
-        outfile = f"{self.options.JOBNAME}{label and '_'}{label}{self.FIG_EXT}"
-        self.fig.savefig(outfile)
-        self.log(f'Figure saved as {outfile}')
-        jobutils.Job.reg(outfile)
+        super().setLayout()
 
     def contourf(self, cmap='viridis'):
         """
@@ -443,7 +504,7 @@ class Regression(Base):
         """
         if len(self.grids) != 2:
             return
-        for label, pred in self.cols():
+        for label, pred in self.cols:
             with plotutils.pyplot(inav=self.options.INTERAC,
                                   name=label) as plt:
                 self.fig, self.ax = plt.subplots(1, 1, figsize=(6.5, 4.5))

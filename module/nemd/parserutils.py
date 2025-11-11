@@ -634,6 +634,10 @@ class TrajValid(Valid):
 
 
 class ClusValid(Valid):
+    """
+    Class to validate Cluster arguments.
+    """
+    COL_MIN = 1
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -644,6 +648,7 @@ class ClusValid(Valid):
         Validate the command options.
         """
         self.read()
+        self.columns()
 
     def read(self):
         """
@@ -656,31 +661,29 @@ class ClusValid(Valid):
         except pd.errors.EmptyDataError as err:
             raise ValueError(f"{err} ({self.options.data})")
 
-
-class RegValid(ClusValid):
-    """
-    Class to validate Regression arguments.
-    """
-
-    def run(self):
-        """
-        Validate the command options.
-        """
-        self.read()
-        self.columns()
-        self.size()
-
     def columns(self):
         """
         Validate columns.
 
         :raise ValueError: not enough columns
         """
-        if self.data.shape[1] < 2:
-            raise ValueError(f"X, y columns not found")
-        if self.data.select_dtypes(include=['number']).shape[1] < 2:
-            raise ValueError(f"Less than two columns after excluding "
-                             f"non-numeric values")
+        if self.data.select_dtypes(include=['number']).shape[1] < self.COL_MIN:
+            raise ValueError(f"Less than {self.COL_MIN} columns after "
+                             f"excluding non-numeric values")
+
+
+class RegValid(ClusValid):
+    """
+    Class to validate Regression arguments.
+    """
+    COL_MIN = 2
+
+    def run(self):
+        """
+        Validate the command options.
+        """
+        super().run()
+        self.size()
 
     def size(self):
         """
@@ -1215,15 +1218,17 @@ class Ml(Driver):
     """
     Parser with ml arguments.
     """
-    Valid = None
+    Valid = ClusValid
 
     @classmethod
-    def add(cls, parser, **kwargs):
+    def add(cls, parser, name=None, **kwargs):
         """
         See parent.
+
+        :param name str: the class name of module wrapper in ml.py
         """
         parser.add_argument('data', type=Path.typeFile, help='The csv file.')
-        names = getattr(ml, cls.__name__).NAMES
+        names = getattr(ml, name or cls.__name__).NAMES
         help = "Method: " + ", ".join([f"{y} ({x})" for x, y in names.items()])
         parser.add_argument('-method',
                             default=[next(iter(names.keys()))],
@@ -1248,7 +1253,6 @@ class Clus(Ml):
     """
     Parser with cluster arguments.
     """
-    Valid = ClusValid
 
     @classmethod
     def addParm(cls, parser, **kwargs):
