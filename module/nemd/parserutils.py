@@ -649,6 +649,7 @@ class ClusValid(Valid):
         """
         self.read()
         self.columns()
+        self.shape()
 
     def read(self):
         """
@@ -671,6 +672,16 @@ class ClusValid(Valid):
             raise ValueError(f"Less than {self.COL_MIN} columns after "
                              f"excluding non-numeric values")
 
+    def shape(self):
+        """
+        Validate the test size.
+        """
+        num = self.options.cluster_num or max(
+            [ml.Clus.getClusterNum(x) for x in self.options.method])
+        if self.data.shape[0] < num:
+            raise ValueError(f"Data size, {self.data.shape[0]} < the cluster "
+                             f"number, {num}")
+
 
 class RegValid(ClusValid):
     """
@@ -678,14 +689,7 @@ class RegValid(ClusValid):
     """
     COL_MIN = 2
 
-    def run(self):
-        """
-        Validate the command options.
-        """
-        super().run()
-        self.size()
-
-    def size(self):
+    def shape(self):
         """
         Validate the test size.
         """
@@ -1218,7 +1222,7 @@ class Ml(Driver):
     """
     Parser with ml arguments.
     """
-    Valid = ClusValid
+    Valid = None
 
     @classmethod
     def add(cls, parser, name=None, **kwargs):
@@ -1236,7 +1240,8 @@ class Ml(Driver):
                             nargs='+',
                             help=help)
         cls.addParm(parser)
-        parser.valids.add(cls.Valid)
+        if cls.Valid:
+            parser.valids.add(cls.Valid)
         cls.addSeed(parser)
 
     @classmethod
@@ -1253,6 +1258,7 @@ class Clus(Ml):
     """
     Parser with cluster arguments.
     """
+    Valid = ClusValid
 
     @classmethod
     def addParm(cls, parser, **kwargs):

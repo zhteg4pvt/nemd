@@ -156,12 +156,34 @@ class Clus(Reg):
         """
         match self.method:
             case self.K_MEANS:
-                self.mdl = cluster.KMeans(n_clusters=self.options.cluster_num
-                                          or 8,
+                self.mdl = cluster.KMeans(n_clusters=self.n_clusters,
                                           random_state=self.options.seed)
             case self.HCA:
                 self.mdl = cluster.AgglomerativeClustering(
-                    n_clusters=self.options.cluster_num or 2)
+                    n_clusters=self.n_clusters)
+
+    @property
+    def n_clusters(self):
+        """
+        Get the cluster num.
+
+        :return int: the default cluster num.
+        """
+        return self.options.cluster_num or self.getClusterNum(self.method)
+
+    @classmethod
+    def getClusterNum(cls, method):
+        """
+        Get the default cluster num.
+
+        :param method str: the method.
+        :return int: the default cluster num.
+        """
+        match method:
+            case cls.K_MEANS:
+                return 8
+            case cls.HCA:
+                return 2
 
     def predict(self, *args):
         """

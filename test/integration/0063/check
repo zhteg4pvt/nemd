@@ -1,0 +1,3 @@
+nemd_check exist ml_clus_k-means.svg ml_clus_hca.svg
+nemd_check cmp ml_clus.csv
+

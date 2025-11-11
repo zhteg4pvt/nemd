@@ -22,6 +22,7 @@ TRAJ_FILE = SRC.test(AR, 'ar100.custom.gz')
 POS_CSV = SRC.test('ml', 'position_salaries.csv')
 POS2_CSV = SRC.test('ml', 'position_float.csv')
 MALL_CSV = SRC.test('ml', 'mall_customers.csv')
+MALL3_CSV = SRC.test('ml', 'mall_customers_3_row.csv')
 RAISED = argparse.ArgumentTypeError
 
 
@@ -368,12 +369,14 @@ class TestValid:
         assert expected == [*options.task, options.data_file]
 
     @pytest.mark.parametrize('valid', [parserutils.ClusValid])
-    @pytest.mark.parametrize('flags', [(['-data'])])
-    @pytest.mark.parametrize('kwargss', [(None, {'nargs': '+'})]) # yapf: disable
-    @pytest.mark.parametrize('values,expected', [((POS_CSV, ), None),
-                                                 ((EMPTY_CSV, ), RAISED),
-                                                 ((ONE_COLS_CSV, ), None),
-                                                 ((TWO_COLS_CSV, ), None)])
+    @pytest.mark.parametrize('flags', [(['-data', '-method', '-cluster_num'])])
+    @pytest.mark.parametrize('kwargss', [(None,  {'nargs': '+'}, None)]) # yapf: disable
+    @pytest.mark.parametrize('values,expected',
+                             [((POS_CSV, ['hca']), None),
+                              ((EMPTY_CSV, ['hca']), RAISED),
+                              ((ONE_COLS_CSV, ['hca']), None),
+                              ((TWO_COLS_CSV, ['hca']), None),
+                              ((MALL3_CSV, ['k-means'], None), RAISED)])
     def testClusValid(self, parser, args, expected):
         parser.parse_args(args)
 
