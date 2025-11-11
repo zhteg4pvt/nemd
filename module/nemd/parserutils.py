@@ -633,9 +633,9 @@ class TrajValid(Valid):
                              f" run {', '.join(rqd_data)} tasks.")
 
 
-class ClusValid(Valid):
+class MlValid(Valid):
     """
-    Class to validate Cluster arguments.
+    Class to validate ml arguments.
     """
     COL_MIN = 1
 
@@ -649,7 +649,7 @@ class ClusValid(Valid):
         """
         self.read()
         self.columns()
-        self.shape()
+        self.rows()
 
     def read(self):
         """
@@ -672,24 +672,72 @@ class ClusValid(Valid):
             raise ValueError(f"Less than {self.COL_MIN} columns after "
                              f"excluding non-numeric values")
 
-    def shape(self):
+    def rows(self):
         """
-        Validate the test size.
+        Validate the rows.
         """
-        num = self.options.cluster_num or max(
-            [ml.Clus.getClusterNum(x) for x in self.options.method])
-        if self.data.shape[0] < num:
-            raise ValueError(f"Data size, {self.data.shape[0]} < the cluster "
-                             f"number, {num}")
+        pass
 
 
-class RegValid(ClusValid):
+class ClusValid(MlValid):
+    """
+    Class to validate Cluster arguments.
+    """
+
+    def run(self):
+        """
+        See parent.
+        """
+        self.cluster()
+        super().run()
+
+    def cluster(self):
+        """
+        Validate the cluster num.
+        """
+        if self.options.cluster_num is None:
+            self.options.cluster_num = [
+                self.getClusterNum(x) for x in self.options.method
+            ]
+            return
+        length = len(self.options.method)
+        self.options.cluster_num = self.options.cluster_num[:length]
+        if len(self.options.cluster_num) == 1 and length > 1:
+            self.options.cluster_num = self.options.cluster_num * length
+        if len(self.options.cluster_num) != length:
+            raise ValueError(f'cluster and method are of different lengths.')
+
+    def rows(self):
+        """
+        Validate the rows.
+        """
+        if self.data.shape[0] < min(self.options.cluster_num):
+            raise ValueError(
+                f"{self.data.shape[0]} rows < {min(self.options.cluster_num)} clusters"
+            )
+
+    @classmethod
+    def getClusterNum(cls, method):
+        """
+        Get the default cluster num.
+
+        :param method str: the method.
+        :return int: the default cluster num.
+        """
+        match method:
+            case ml.Clus.K_MEANS:
+                return 8
+            case ml.Clus.HCA:
+                return 2
+
+
+class RegValid(MlValid):
     """
     Class to validate Regression arguments.
     """
     COL_MIN = 2
 
-    def shape(self):
+    def rows(self):
         """
         Validate the test size.
         """
@@ -705,17 +753,11 @@ class ClfValid(RegValid):
     Class to validate Classifier arguments.
     """
 
-    def run(self):
+    def columns(self):
         """
-        Validate the options.
+        See parent. (validate category column in addition).
         """
-        super().run()
-        self.float()
-
-    def float(self):
-        """
-        Validate float type.
-        """
+        super().columns()
         if not pd.api.types.is_integer_dtype(self.data.iloc[:, -1]):
             raise ValueError('Non-float data type found as ydata.')
 
@@ -1266,6 +1308,7 @@ class Clus(Ml):
         See parent.
         """
         parser.add_argument('-cluster_num',
+                            nargs='+',
                             type=Int.typePositive,
                             help='The number of clusters to form.')
 

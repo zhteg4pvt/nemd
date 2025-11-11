@@ -275,6 +275,7 @@ class TestAction:
 @pytestutils.Raises
 class TestValid:
     EMPTY_CSV = SRC.test('ml', 'empty.csv')
+    NO_ROW_CSV = SRC.test('ml', 'no_row.csv')
     ONE_COLS_CSV = SRC.test('ml', 'one_col.csv')
     TWO_COLS_CSV = SRC.test('ml', 'two_cols.csv')
 
@@ -368,15 +369,26 @@ class TestValid:
         options = parser.parse_args(args)
         assert expected == [*options.task, options.data_file]
 
-    @pytest.mark.parametrize('valid', [parserutils.ClusValid])
-    @pytest.mark.parametrize('flags', [(['-data', '-method', '-cluster_num'])])
-    @pytest.mark.parametrize('kwargss', [(None,  {'nargs': '+'}, None)]) # yapf: disable
+    @pytest.mark.parametrize('valid', [parserutils.MlValid])
+    @pytest.mark.parametrize('flags', [(['-data'])])
+    @pytest.mark.parametrize('kwargss', [(None, )])
     @pytest.mark.parametrize('values,expected',
                              [((POS_CSV, ['hca']), None),
                               ((EMPTY_CSV, ['hca']), RAISED),
+                              ((NO_ROW_CSV, ['hca']), RAISED),
                               ((ONE_COLS_CSV, ['hca']), None),
-                              ((TWO_COLS_CSV, ['hca']), None),
-                              ((MALL3_CSV, ['k-means'], None), RAISED)])
+                              ((TWO_COLS_CSV, ['hca']), None)])
+    def testMlValid(self, parser, args, expected):
+        parser.parse_args(args)
+
+    @pytest.mark.parametrize('valid', [parserutils.ClusValid])
+    @pytest.mark.parametrize('flags', [(['-data', '-method', '-cluster_num'])])
+    @pytest.mark.parametrize('kwargss', [(None,  {'nargs': '+'},  {'nargs': '+', 'type': int})]) # yapf: disable
+    @pytest.mark.parametrize(
+        'values,expected',
+        [((MALL3_CSV, ['k-means'], None), RAISED),
+         ((MALL3_CSV, ['hca'], None), None),
+         ((MALL_CSV, ['k-means', 'hca', 'hca'], ['1', '2']), RAISED)])
     def testClusValid(self, parser, args, expected):
         parser.parse_args(args)
 
@@ -385,9 +397,6 @@ class TestValid:
     @pytest.mark.parametrize('kwargss', [(None, {'nargs': '+'}, {'type': float})]) # yapf: disable
     @pytest.mark.parametrize('values,expected',
                              [((POS_CSV, ['lr'], '0.2'), ['lr']),
-                              ((EMPTY_CSV, ['lr'], '0.2'), RAISED),
-                              ((ONE_COLS_CSV, ['lr'], '0.2'), RAISED),
-                              ((TWO_COLS_CSV, ['lr'], '0.2'), RAISED),
                               ((POS_CSV, ['lr'], '0.05'), RAISED),
                               ((POS_CSV, ['lr'], '0.95'), RAISED)])
     def testRegValid(self, parser, args, expected):
@@ -630,14 +639,15 @@ class TestAdd:
         options = parser.parse_args(args)
         assert expected == [len(options.method)]
 
-    @pytest.mark.parametrize('args,expected', [
-        ([MALL_CSV], [1, None]),
-        ([MALL_CSV, '-method', 'k-means', 'hca', '-cluster_num', '7'], [2, 7])
-    ])
+    @pytest.mark.parametrize(
+        'args,expected',
+        [([MALL_CSV], [1, 8]),
+         ([MALL_CSV, '-method', 'k-means', 'hca', '-cluster_num', '7'
+           ], [2, 7, 7])])
     def testClus(self, parser, args, expected):
         parserutils.Clus.add(parser)
         options = parser.parse_args(args)
-        assert expected == [len(options.method), options.cluster_num]
+        assert expected == [len(options.method), *options.cluster_num]
 
     @pytest.mark.parametrize(
         'args,expected',

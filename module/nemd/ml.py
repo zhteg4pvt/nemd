@@ -169,21 +169,7 @@ class Clus(Reg):
 
         :return int: the default cluster num.
         """
-        return self.options.cluster_num or self.getClusterNum(self.method)
-
-    @classmethod
-    def getClusterNum(cls, method):
-        """
-        Get the default cluster num.
-
-        :param method str: the method.
-        :return int: the default cluster num.
-        """
-        match method:
-            case cls.K_MEANS:
-                return 8
-            case cls.HCA:
-                return 2
+        return self.options.cluster_num[self.options.method.index(self.method)]
 
     def predict(self, *args):
         """
