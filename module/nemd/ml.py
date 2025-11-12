@@ -9,6 +9,7 @@ Machine learning.
 """
 import functools
 import re
+import types
 
 import numpy as np
 import pandas as pd
@@ -154,22 +155,15 @@ class Clus(Reg):
         """
         Set up.
         """
+        n_clusters = self.options.cluster_num[self.options.method.index(
+            self.method)]
         match self.method:
             case self.K_MEANS:
-                self.mdl = cluster.KMeans(n_clusters=self.n_clusters,
+                self.mdl = cluster.KMeans(n_clusters=n_clusters,
                                           random_state=self.options.seed)
             case self.HCA:
                 self.mdl = cluster.AgglomerativeClustering(
-                    n_clusters=self.n_clusters)
-
-    @property
-    def n_clusters(self):
-        """
-        Get the cluster num.
-
-        :return int: the default cluster num.
-        """
-        return self.options.cluster_num[self.options.method.index(self.method)]
+                    n_clusters=n_clusters)
 
     def predict(self, *args):
         """
@@ -312,6 +306,7 @@ class Cluster(Base):
         Main method to run.
         """
         self.read()
+        self.setKMeanNum()
         self.scatter()
 
     def read(self):
@@ -320,6 +315,44 @@ class Cluster(Base):
         """
         super().read()
         self.xtrain = self.xdata
+
+    def setKMeanNum(self, wdw=10):
+        """
+        Set the cluster num for k-means method.
+        """
+        try:
+            index = self.options.method.index(Clus.K_MEANS)
+        except ValueError:
+            return
+        if self.options.cluster_num[index]:
+            return
+        inert = np.fromiter(self.getInertia(index), dtype=np.dtype((int, 2)))
+        gap, idx = inert[:-1, 1] - inert[1:, 1], 1
+        while gap[idx]**2 > gap[:idx][-wdw:].mean() * gap[idx:][:wdw].mean():
+            idx += 1
+        self.options.cluster_num[index] = inert[idx, 0]
+        self.log(f'k-means cluster num: {self.options.cluster_num[index]}')
+        with plotutils.pyplot(inav=self.options.INTERAC) as plt:
+            self.fig, self.ax = plt.subplots(1, 1, figsize=(6, 4.5))
+            self.ax.scatter(inert[:, 0], inert[:, 1])
+            self.ax.hlines(inert[idx - 1:idx + 1, 1].mean(),
+                           inert[0, 0],
+                           inert[-1, 0],
+                           linestyles='dashed')
+
+    def getInertia(self, index):
+        """
+        Get the inertia vs cluster num.
+
+        :param index int: the index of the cluster num in options.
+        """
+        max_num = max(self.options.max_num, self.options.max_num)
+        options = types.SimpleNamespace(**vars(self.options))
+        for num in np.arange(max_num) + 1:
+            options.cluster_num[index] = num
+            mdl = self.Model(Clus.K_MEANS, options=options)
+            mdl.fit(self.xtrain, self.ytrain)
+            yield num, mdl.mdl.inertia_
 
     def scatter(self):
         """

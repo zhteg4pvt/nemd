@@ -689,15 +689,15 @@ class ClusValid(MlValid):
         """
         See parent.
         """
-        self.cluster()
+        self.num()
         super().run()
 
-    def cluster(self):
+    def num(self):
         """
         Validate the cluster num.
         """
         if self.options.cluster_num is None:
-            self.options.cluster_num = list(self.getClusterNum())
+            self.options.cluster_num = list(self.getNum())
             return
         self.options.cluster_num = [
             None if x == AUTO else x for x in self.options.cluster_num
@@ -709,7 +709,7 @@ class ClusValid(MlValid):
         if len(self.options.cluster_num) != length:
             raise ValueError(f'cluster and method are of different lengths.')
 
-    def getClusterNum(self):
+    def getNum(self):
         """
         Get the default cluster num.
 
@@ -1323,6 +1323,10 @@ class Clus(Ml):
                             nargs='+',
                             type=cls.auto(Int.typePositive),
                             help='The number of clusters to form.')
+        parser.add_argument('-max_num',
+                            default=10,
+                            type=Int.typePositive,
+                            help='The max number of clusters in elbow search.')
 
 
 class Clf(Ml):
