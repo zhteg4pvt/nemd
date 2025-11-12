@@ -8,11 +8,11 @@
 Machine learning.
 """
 import functools
-import re
 import types
 
 import numpy as np
 import pandas as pd
+import scipy
 from sklearn import cluster
 from sklearn import ensemble
 from sklearn import linear_model
@@ -274,23 +274,25 @@ class Base(logutils.Base):
         """
         return []
 
-    def save(self, label=''):
+    def save(self, label='', **kwargs):
         """
         Save the figure.
 
         :param label str: the figure label extension.
         """
-        self.setLayout()
+        self.setLayout(**kwargs)
         outfile = f"{self.options.JOBNAME}{label and '_'}{label}{self.FIG_EXT}"
         self.fig.savefig(outfile)
         self.log(f'Figure saved as {outfile}')
         jobutils.Job.reg(outfile)
 
-    def setLayout(self):
+    def setLayout(self, xlabel=None):
         """
         Set the layout.
+
+        :param xlabel str: the xlabel.
         """
-        self.ax.set_xlabel(self.xdata.columns[0])
+        self.ax.set_xlabel(xlabel or self.xdata.columns[0])
         self.ax.set_box_aspect(1)
         self.fig.tight_layout()
 
@@ -307,6 +309,7 @@ class Cluster(Base):
         """
         self.read()
         self.setKMeanNum()
+        self.setHcaNum()
         self.scatter()
 
     def read(self):
@@ -316,9 +319,11 @@ class Cluster(Base):
         super().read()
         self.xtrain = self.xdata
 
-    def setKMeanNum(self):
+    def setKMeanNum(self, label='elbow'):
         """
         Set the cluster num for k-means method.
+
+        :param label str: the label.
         """
         try:
             index = self.options.method.index(Clus.K_MEANS)
@@ -333,17 +338,17 @@ class Cluster(Base):
             self.fig, self.ax = plt.subplots(1, 1, figsize=(6, 4.5))
             self.ax.scatter(self.inertia.index, self.inertia)
             elbow = self.inertia.iloc[idx]
-            self.ax.scatter(elbow.name, elbow.values, label='elbow')
+            self.ax.scatter(elbow.name, elbow.values, label=label)
             self.ax.legend()
-            self.setLayout()
+            self.save(label=label,
+                      xlabel='Cluster Number (n)',
+                      ylabel='Inertia')
 
     @functools.cached_property
-    def inertia(self, wdw=10, idx=1, name='cluster num'):
+    def inertia(self, name='cluster num'):
         """
         Return inertia vs cluster num with elbow point.
 
-        :param wdw int: the averaging window length of the gaps (slopes).
-        :param idx int: the initial next gap id.
         :param name str: the index name.
         :return pd.DataFrame: inertia vs cluster num.
         """
@@ -351,15 +356,24 @@ class Cluster(Base):
         inertia = np.fromiter(self.getInertia(), dtype=dtype)
         inertia = pd.DataFrame(inertia)
         inertia.set_index(name, inplace=True)
-        flatten = inertia.values.flatten()
-        gap = flatten[:-1] - flatten[1:]
-        num = len(gap)
+        arr = inertia.values.flatten()
+        inertia.index.name = f"{name} ({self.getIdx(arr[:-1] - arr[1:])})"
+        return inertia
+
+    def getIdx(self, gaps, wdw=10, idx=1):
+        """
+        Get the index of the largest gap in the small gap group.
+
+        :param gaps np.ndarray: the gaps in descending orders.
+        :param wdw int: the averaging window length of the gaps (slopes).
+        :param idx int: the initial next gap id.
+        """
+        num = len(gaps)
         # a -- gap0 -- b -- gap1 -- c: gap1 ^ 2 > gap0 * gap1
         while idx < num and \
-                gap[idx]**2 > gap[:idx][-wdw:].mean() * gap[idx:][:wdw].mean():
+                gaps[idx]**2 > gaps[:idx][-wdw:].mean() * gaps[idx:][:wdw].mean():
             idx += 1
-        inertia.index.name = f"{name} ({idx})"
-        return inertia
+        return idx
 
     def getInertia(self):
         """
@@ -376,6 +390,30 @@ class Cluster(Base):
             with self.catchWarnings():
                 mdl.fit(self.xtrain, self.ytrain)
             yield num, mdl.mdl.inertia_
+
+    def setHcaNum(self, label='dendrogram'):
+        """
+        Set the cluster num for hca method.
+        """
+        try:
+            index = self.options.method.index(Clus.HCA)
+        except ValueError:
+            return
+        if self.options.cluster_num[index]:
+            return
+        linkage = scipy.cluster.hierarchy.linkage(self.xtrain, method='ward')
+        with plotutils.pyplot(inav=self.options.INTERAC, name=label) as plt:
+            self.fig, self.ax = plt.subplots(1, 1, figsize=(6, 4.5))
+            dendrogram = scipy.cluster.hierarchy.dendrogram(linkage,
+                                                            ax=self.ax,
+                                                            no_labels=True)
+            self.save(label=label, xlabel='Data', ylabel='Euclidean Distances')
+        ys = np.sort([x[1] for x in dendrogram['dcoord']])
+        seps = np.flip(ys[1:] - ys[:-1])
+        gaps = np.flip(np.sort(seps))
+        gap = gaps[self.getIdx(gaps) - 1]
+        self.options.cluster_num[index] = np.where(seps == gap)[0].max() + 2
+        self.log(f'hca cluster num: {self.options.cluster_num[index]}')
 
     def scatter(self):
         """
@@ -408,12 +446,14 @@ class Cluster(Base):
         jobutils.Job.reg(outfile)
         return pred
 
-    def setLayout(self):
+    def setLayout(self, ylabel=None, **kwargs):
         """
         See parent.
+
+        :param ylabel str: the ylabel
         """
-        self.ax.set_ylabel(self.xdata.columns[1])
-        super().setLayout()
+        self.ax.set_ylabel(ylabel or self.xdata.columns[1])
+        super().setLayout(**kwargs)
 
 
 class Regression(Base):
@@ -601,12 +641,9 @@ class Classification(Regression):
             self.log(f'accuracy score ({model.method}): {score:.4g}')
             with plotutils.pyplot(inav=self.options.INTERAC,
                                   name=model.method) as plt:
-                fig, ax = plt.subplots(1, 1)
+                self.fig, self.ax = plt.subplots(1, 1)
                 with self.catchWarnings():
                     metrics.ConfusionMatrixDisplay.from_predictions(self.ytest,
                                                                     pred,
-                                                                    ax=ax)
-                outfile = f"{self.options.JOBNAME}_{model.method}_cm{self.FIG_EXT}"
-                fig.savefig(outfile)
-                jobutils.Job.reg(outfile)
-                self.log(f"Confusion matrix saved as {outfile}")
+                                                                    ax=self.ax)
+                self.save(label=f"{model.method}_cm")
