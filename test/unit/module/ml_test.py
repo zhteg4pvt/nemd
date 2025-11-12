@@ -198,13 +198,6 @@ class TestRegression:
         reg.scatter()
         assert expected == os.path.isfile('name.csv')
 
-    @pytest.mark.parametrize(
-        'args,expected',
-        [([POS_CSV, '-seed', '0', '-JOBNAME', 'name'], [['lr', 101]]),
-         ([SEL_CSV, '-seed', '0', '-JOBNAME', 'name'], [])])
-    def testCols(self, reg, expected, tmp_dir):
-        assert expected == [[x, y.size] for x, y in reg.cols]
-
     @pytest.mark.parametrize('args,expected',
                              [([POS_CSV, '-seed', '0'], (101, 1)),
                               ([SEL_CSV, '-seed', '0'], (0, 0))])

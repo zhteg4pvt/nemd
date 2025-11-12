@@ -539,3 +539,23 @@ class Base(builtinsutils.Object):
             msgs = {(x._category_name, str(x.message)) for x in wngs}
             for name, msg in msgs:
                 self.log(f"{name}: {msg}")
+
+    @classmethod
+    def parse(cls, name, rex=re.compile(r'(.*) +\((.*)\)')):
+        """
+        Parse the column label.
+
+        :param name: the column name
+        :param rex: the regular expression to match words followed by brackets.
+        :return str, str, str: the label, unit, and other information.
+        """
+        matched = rex.match(name)
+        if matched is None:
+            return name, None, None
+        # e.g., 'Density (g/cm^3)
+        (label, unit), other = matched.groups(), None
+        match = rex.match(label)
+        if match:
+            # e.g., 'Density (g/cm^3) (num=4)', 'Time (ps) (0)'
+            (label, unit), other = match.groups(), unit
+        return label, unit, other

@@ -102,13 +102,6 @@ class TestBase:
     def testWithErr(self, base, expected):
         assert expected == base.with_err
 
-    @pytest.mark.parametrize('name,expected',
-                             [('r', ('r', None, None)),
-                              ('r (g/m^3)', ('r', 'g/m^3', None)),
-                              ('r (g/m^3) (num=3)', ('r', 'g/m^3', 'num=3'))])
-    def testParse(self, name, expected):
-        assert expected == analyzer.Base.parse(name)
-
 
 class TestJob:
 

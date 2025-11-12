@@ -316,7 +316,7 @@ class Cluster(Base):
         super().read()
         self.xtrain = self.xdata
 
-    def setKMeanNum(self, wdw=10):
+    def setKMeanNum(self):
         """
         Set the cluster num for k-means method.
         """
@@ -326,32 +326,55 @@ class Cluster(Base):
             return
         if self.options.cluster_num[index]:
             return
-        inert = np.fromiter(self.getInertia(index), dtype=np.dtype((int, 2)))
-        gap, idx = inert[:-1, 1] - inert[1:, 1], 1
-        while gap[idx]**2 > gap[:idx][-wdw:].mean() * gap[idx:][:wdw].mean():
-            idx += 1
-        self.options.cluster_num[index] = inert[idx, 0]
+        idx = int(self.parse(self.inertia.index.name)[1])
+        self.options.cluster_num[index] = self.inertia.index[idx]
         self.log(f'k-means cluster num: {self.options.cluster_num[index]}')
         with plotutils.pyplot(inav=self.options.INTERAC) as plt:
             self.fig, self.ax = plt.subplots(1, 1, figsize=(6, 4.5))
-            self.ax.scatter(inert[:, 0], inert[:, 1])
-            self.ax.hlines(inert[idx - 1:idx + 1, 1].mean(),
-                           inert[0, 0],
-                           inert[-1, 0],
-                           linestyles='dashed')
+            self.ax.scatter(self.inertia.index, self.inertia)
+            elbow = self.inertia.iloc[idx]
+            self.ax.scatter(elbow.name, elbow.values, label='elbow')
+            self.ax.legend()
+            self.setLayout()
 
-    def getInertia(self, index):
+    @functools.cached_property
+    def inertia(self, wdw=10, idx=1, name='cluster num'):
+        """
+        Return inertia vs cluster num with elbow point.
+
+        :param wdw int: the averaging window length of the gaps (slopes).
+        :param idx int: the initial next gap id.
+        :param name str: the index name.
+        :return pd.DataFrame: inertia vs cluster num.
+        """
+        dtype = np.dtype([(name, int), ('inertia', float)])
+        inertia = np.fromiter(self.getInertia(), dtype=dtype)
+        inertia = pd.DataFrame(inertia)
+        inertia.set_index(name, inplace=True)
+        flatten = inertia.values.flatten()
+        gap = flatten[:-1] - flatten[1:]
+        num = len(gap)
+        # a -- gap0 -- b -- gap1 -- c: gap1 ^ 2 > gap0 * gap1
+        while idx < num and \
+                gap[idx]**2 > gap[:idx][-wdw:].mean() * gap[idx:][:wdw].mean():
+            idx += 1
+        inertia.index.name = f"{name} ({idx})"
+        return inertia
+
+    def getInertia(self):
         """
         Get the inertia vs cluster num.
 
-        :param index int: the index of the cluster num in options.
+        :return tuple of (int, float): cluster num, inertia
         """
-        max_num = max(self.options.max_num, self.options.max_num)
+        index = self.options.method.index(Clus.K_MEANS)
+        max_num = min(self.options.max_num + 1, self.xtrain.shape[0])
         options = types.SimpleNamespace(**vars(self.options))
         for num in np.arange(max_num) + 1:
             options.cluster_num[index] = num
             mdl = self.Model(Clus.K_MEANS, options=options)
-            mdl.fit(self.xtrain, self.ytrain)
+            with self.catchWarnings():
+                mdl.fit(self.xtrain, self.ytrain)
             yield num, mdl.mdl.inertia_
 
     def scatter(self):
@@ -477,23 +500,12 @@ class Regression(Base):
                             self.ytrain,
                             color='k',
                             label=self.ORIGINAL)
-            for method, pred in self.cols:
+            for col in self.pred:
                 self.ax.plot(self.grids[0],
-                             pred,
-                             label=self.Model.NAMES[method])
+                             self.pred[col],
+                             label=self.Model.NAMES[self.parse(col)[1]])
             self.ax.legend()
             self.save()
-
-    @property
-    def cols(self, rex=re.compile(r'(.*) +\((.*)\)')):
-        """
-        Iterate over the predicted.
-
-        :param rex: the regular expression to match words followed by brackets.
-        :return tuple: label, data
-        """
-        for col in self.pred:
-            yield rex.match(col).group(2), self.pred[col]
 
     @functools.cached_property
     def pred(self):
@@ -545,10 +557,12 @@ class Regression(Base):
         """
         if len(self.grids) != 2:
             return
-        for label, pred in self.cols:
+        for col in self.pred:
+            method = self.parse(col)[1]
             with plotutils.pyplot(inav=self.options.INTERAC,
-                                  name=label) as plt:
+                                  name=method) as plt:
                 self.fig, self.ax = plt.subplots(1, 1, figsize=(6.5, 4.5))
+                pred = self.pred[col]
                 pred = pred.values.reshape(self.grids[0].shape)
                 ctrf = self.ax.contourf(*self.grids, pred, cmap=cmap)
                 eles = ctrf.legend_elements(str_format=lambda x: f'{x:.4g}')
@@ -560,7 +574,7 @@ class Regression(Base):
                             c=self.ytrain.ravel(),
                             cmap=cmap,
                             label=self.ORIGINAL)
-                self.save(label=label)
+                self.save(label=method)
 
 
 class Classification(Regression):

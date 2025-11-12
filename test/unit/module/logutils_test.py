@@ -329,3 +329,10 @@ class TestBase:
         with base.catchWarnings() as wngs:
             warnings.warn(message, category=category)
         base.log.assert_called_with('DeprecationWarning: deprecated')
+
+    @pytest.mark.parametrize('name,expected',
+                             [('r', ('r', None, None)),
+                              ('r (g/m^3)', ('r', 'g/m^3', None)),
+                              ('r (g/m^3) (num=3)', ('r', 'g/m^3', 'num=3'))])
+    def testParse(self, name, expected):
+        assert expected == logutils.Base.parse(name)

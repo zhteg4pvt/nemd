@@ -1325,7 +1325,7 @@ class Clus(Ml):
                             help='The number of clusters to form.')
         parser.add_argument('-max_num',
                             default=10,
-                            type=Int.typePositive,
+                            type=Int.partial(bot=3),
                             help='The max number of clusters in elbow search.')
 
 
