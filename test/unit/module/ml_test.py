@@ -3,6 +3,7 @@ import os
 import conftest
 import numpy as np
 import pytest
+from sklearn import cluster
 from sklearn import ensemble
 from sklearn import linear_model
 from sklearn import naive_bayes
@@ -19,15 +20,20 @@ from nemd import test
 SRC = envutils.Src()
 POS_CSV = SRC.test('ml', 'position_salaries.csv')
 SOC_CSV = SRC.test('ml', 'social_network_ads.csv')
+MALL_CSV = SRC.test('ml', 'mall_customers.csv')
 
 
 class Base:
     Coll = None
 
     @pytest.fixture
-    def coll(self, raw):
+    def coll(self, clus):
+        clus.split()
+        return clus
+
+    @pytest.fixture
+    def clus(self, raw):
         raw.read()
-        raw.split()
         return raw
 
     @pytest.fixture
@@ -35,12 +41,31 @@ class Base:
         Coll = self.Coll or getattr(
             ml, self.__class__.__name__.removeprefix('Test'))
         Parser = getattr(parserutils, Coll.Model.__name__)
-        options = Parser().parse_args(args + ['-seed', '0'])
+        options = Parser().parse_args(args + ['-seed', '0', '-JOBNAME', 'ml'])
         return Coll(options=options, logger=logger)
 
     @pytest.fixture
     def args(self, file, method):
         return [file, '-method', method]
+
+
+@conftest.require_src
+class TestClus(Base):
+    Coll = ml.Cluster
+
+    @pytest.mark.parametrize('file', [MALL_CSV])
+    @pytest.mark.parametrize('method,expected',
+                             [('k-means', (cluster.KMeans, 0)),
+                              ('hca', (cluster.AgglomerativeClustering, 0))])
+    def testMdl(self, clus, expected):
+        assert isinstance(clus.models[0].mdl, expected[0])
+        assert expected[1] == len([x for x in clus.scs if x])
+
+    @pytest.mark.parametrize('file', [MALL_CSV])
+    @pytest.mark.parametrize('method', ['k-means', 'hca'])
+    def testFit(self, clus):
+        clus.models[0].fit(clus.xtrain)
+        validation.check_is_fitted(clus.models[0].mdl)
 
 
 @conftest.require_src
@@ -54,7 +79,7 @@ class TestReg(Base):
                               ('sv', (svm.SVR, 2)),
                               ('dt', (tree.DecisionTreeRegressor, 0)),
                               ('rf', (ensemble.RandomForestRegressor, 0))])
-    def testSetUp(self, coll, expected):
+    def testMdl(self, coll, expected):
         assert isinstance(coll.models[0].mdl, expected[0])
         assert expected[1] == len([x for x in coll.scs if x])
 
@@ -125,7 +150,7 @@ class TestClf(Base):
                               ('gnb', (naive_bayes.GaussianNB, 1)),
                               ('dt', (tree.DecisionTreeClassifier, 1)),
                               ('rf', (ensemble.RandomForestClassifier, 1))])
-    def testSetUp(self, coll, expected):
+    def testMdl(self, coll, expected):
         assert isinstance(coll.models[0].mdl, expected[0])
         assert expected[1] == len([x for x in coll.scs if x])
 
@@ -138,22 +163,76 @@ class TestClf(Base):
 
 
 @conftest.require_src
+class TestMl(Base):
+
+    @pytest.fixture
+    def coll_fig(self, coll):
+        with coll.subplots():
+            pass
+        return coll
+
+    @pytest.fixture
+    def coll(self, raw):
+        raw.read()
+        raw.xtrain = raw.xdata
+        return raw
+
+    @pytest.mark.parametrize('args,expected', [([POS_CSV], (10, 3, 2))])
+    def testRead(self, raw, expected):
+        raw.read()
+        assert expected == (*raw.data.shape, raw.xdata.shape[1])
+
+    @pytest.mark.parametrize('args,expected',
+                             [([MALL_CSV, '-method', 'k-means', 'hca'], 2)])
+    def testModels(self, coll, expected):
+        assert expected == len(coll.models)
+        for coll in coll.models:
+            validation.check_is_fitted(coll.mdl)
+
+    @pytest.mark.parametrize('args,expected', [([POS_CSV], 0)])
+    def testScs(self, raw, expected):
+        assert expected == len(raw.scs)
+
+    @pytest.mark.parametrize('args,expected', [([POS_CSV], 'ml.svg')])
+    def testSave(self, coll_fig, expected, tmp_dir):
+        coll_fig.save()
+        assert os.path.isfile(expected)
+
+    @pytest.mark.parametrize('args,expected', [([POS_CSV], 'Level')])
+    def testSetLayout(self, coll_fig, expected, tmp_dir):
+        coll_fig.setLayout()
+        assert expected == coll_fig.ax.get_xlabel()
+
+    @pytest.mark.parametrize('args', [[POS_CSV]])
+    def testSubplots(self, coll_fig):
+        assert coll_fig.fig
+        assert coll_fig.ax
+
+
+@conftest.require_src
+class TestCluster(Base):
+
+    @pytest.mark.parametrize('args,expected', [([MALL_CSV], 'ml_k-means.svg')])
+    def testRun(self, clus, expected, tmp_dir):
+        clus.run()
+        assert os.path.exists(expected)
+
+    @pytest.mark.parametrize('args,expected', [([MALL_CSV], (200, 2))])
+    def testRead(self, clus, expected, tmp_dir):
+        clus.read()
+        assert clus.xtrain.shape
+
+
+@conftest.require_src
 class TestRegression(Base):
     SEL_CSV = SRC.test('ml', 'model_selection.csv')
 
     @pytest.mark.parametrize(
-        'args,expected', [([POS_CSV, '-seed', '0', '-JOBNAME', 'name'
-                            ], 'Figure saved as name.svg'),
+        'args,expected', [([POS_CSV, '-seed', '0'], 'Figure saved as ml.svg'),
                           ([SEL_CSV, '-seed', '0'], 'r2 score (lr): 0.9325')])
     def testRun(self, raw, expected, tmp_dir):
         raw.run()
         raw.logger.log.assert_called_with(expected)
-
-    @pytest.mark.parametrize('args,expected', [([POS_CSV], (10, 3)),
-                                               ([SEL_CSV], (9568, 5))])
-    def testRead(self, raw, expected):
-        raw.read()
-        assert expected == raw.data.shape
 
     @pytest.mark.parametrize('args,expected',
                              [([POS_CSV], (8, 2, 1, 1)),
@@ -187,13 +266,12 @@ class TestRegression(Base):
         coll.measure()
         coll.logger.log.assert_called_with(expected)
 
-    @pytest.mark.parametrize(
-        'args,expected',
-        [([POS_CSV, '-seed', '0', '-JOBNAME', 'name'], True),
-         ([SEL_CSV, '-seed', '0', '-JOBNAME', 'name'], False)])
+    @pytest.mark.parametrize('args,expected',
+                             [([POS_CSV, '-seed', '0'], True),
+                              ([SEL_CSV, '-seed', '0'], False)])
     def testScatter(self, coll, expected, tmp_dir):
         coll.scatter()
-        assert expected == os.path.isfile('name.csv')
+        assert expected == os.path.isfile('ml.csv')
 
     @pytest.mark.parametrize('args,expected',
                              [([POS_CSV, '-seed', '0'], (101, 1)),
@@ -206,18 +284,9 @@ class TestRegression(Base):
     def testGrids(self, coll, expected):
         assert expected == len(coll.grids)
 
-    @pytest.mark.parametrize(
-        'args,expected',
-        [([POS_CSV, '-seed', '0', '-JOBNAME', 'ml_test'], 'ml_test.svg')])
-    def testSave(self, coll, expected, tmp_dir):
-        coll.scatter()
-        coll.save()
-        assert os.path.isfile(expected)
-
 
 @conftest.require_src
 class TestClassification(Base):
-    MALL_CSV = SRC.test('ml', 'mall_customers.csv')
 
     @pytest.mark.parametrize(
         'args,expected',
@@ -234,10 +303,10 @@ class TestClassification(Base):
         assert expected == len([x for x in coll.scs if x])
 
     @pytest.mark.parametrize('args,expected', [
-        ([POS_CSV, '-seed', '0', '-JOBNAME', 'ml_test'],
-         ('accuracy score (logit): 0', 'ml_test_logit_cm.svg')),
-        ([MALL_CSV, '-seed', '0', '-JOBNAME', 'ml_test'],
-         ('accuracy score (logit): 0.025', 'ml_test_logit_cm.svg',
+        ([POS_CSV, '-seed', '0'],
+         ('accuracy score (logit): 0', 'ml_logit_cm.svg')),
+        ([MALL_CSV, '-seed', '0'],
+         ('accuracy score (logit): 0.025', 'ml_logit_cm.svg',
           'UserWarning: The number of unique classes is greater than 50% of the'
           ' number of samples. `y` could represent a regression problem, not a '
           'classification problem.'))
@@ -249,8 +318,7 @@ class TestClassification(Base):
 
     @pytest.mark.parametrize(
         'args,expected',
-        [([SOC_CSV, '-method', 'logit', '-seed', '0', '-JOBNAME', 'ml_test'
-           ], 'ml_test_logit.svg')])
+        [([SOC_CSV, '-method', 'logit', '-seed', '0'], 'ml_logit.svg')])
     def testContourf(self, coll, expected, tmp_dir):
         coll.contourf()
         assert os.path.isfile(expected)

@@ -152,8 +152,6 @@ class Reg(Clus):
         """
         Scale the y data. (see scale)
         """
-        if data is None:
-            return
         return self.scale(data.reshape(-1, 1), idx=idx, **kwargs).ravel()
 
     def score(self, data, pred):
@@ -224,12 +222,13 @@ class Clf(Reg):
         return metrics.accuracy_score(data, pred)
 
 
-class Base(logutils.Base):
+class Ml(logutils.Base):
     """
     Base class to load data.
     """
     FIG_EXT = '.svg'
     CSV_EXT = '.csv'
+    Model = Clus
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -308,11 +307,10 @@ class Base(logutils.Base):
             yield
 
 
-class Cluster(Base):
+class Cluster(Ml):
     """
     Main class to analyze data via clustering.
     """
-    Model = Clus
 
     def run(self):
         """
@@ -464,7 +462,7 @@ class Cluster(Base):
         super().setLayout(**kwargs)
 
 
-class Regression(Base):
+class Regression(Ml):
     """
     Main class to analyze data via regression.
     """
