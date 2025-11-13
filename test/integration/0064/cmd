@@ -1,0 +1,2 @@
+# ML Clustering: auto cluster num
+[ ! -z $NEMD_SRC ] && nemd_run ml_clus_driver.py $NEMD_SRC/test/data/ml/mall_customers.csv -method k-means hca -cluster_num auto  -max_num 30 -seed 0
