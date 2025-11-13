@@ -7,6 +7,7 @@
 """
 Machine learning.
 """
+import contextlib
 import functools
 import types
 
@@ -296,6 +297,17 @@ class Base(logutils.Base):
         self.ax.set_box_aspect(1)
         self.fig.tight_layout()
 
+    @contextlib.contextmanager
+    def subplots(self, figsize=(6, 4.5), **kwargs):
+        """
+        Create subplot.
+
+        :param figure tuple: the figure size.
+        """
+        with plotutils.pyplot(inav=self.options.INTERAC, **kwargs) as plt:
+            self.fig, self.ax = plt.subplots(figsize=figsize)
+            yield
+
 
 class Cluster(Base):
     """
@@ -334,8 +346,7 @@ class Cluster(Base):
         idx = int(self.parse(self.inertia.index.name)[1])
         self.options.cluster_num[index] = self.inertia.index[idx]
         self.log(f'k-means cluster num: {self.options.cluster_num[index]}')
-        with plotutils.pyplot(inav=self.options.INTERAC) as plt:
-            self.fig, self.ax = plt.subplots(1, 1, figsize=(6, 4.5))
+        with self.subplots(name=label):
             self.ax.scatter(self.inertia.index, self.inertia)
             elbow = self.inertia.iloc[idx]
             self.ax.scatter(elbow.name, elbow.values, label=label)
@@ -402,8 +413,7 @@ class Cluster(Base):
         if self.options.cluster_num[index]:
             return
         linkage = scipy.cluster.hierarchy.linkage(self.xtrain, method='ward')
-        with plotutils.pyplot(inav=self.options.INTERAC, name=label) as plt:
-            self.fig, self.ax = plt.subplots(1, 1, figsize=(6, 4.5))
+        with self.subplots(name=label):
             dendrogram = scipy.cluster.hierarchy.dendrogram(linkage,
                                                             ax=self.ax,
                                                             no_labels=True)
@@ -422,8 +432,7 @@ class Cluster(Base):
         if self.xtrain.shape[1] > 2:
             return
         for name, pred in self.pred.items():
-            with plotutils.pyplot(inav=self.options.INTERAC, name=name) as plt:
-                self.fig, self.ax = plt.subplots(1, 1, figsize=(6, 4.5))
+            with self.subplots(name=name):
                 xtrain = self.xtrain.values
                 for label in np.unique(pred):
                     self.ax.scatter(*xtrain[pred.values == label, :].T)
@@ -533,9 +542,7 @@ class Regression(Base):
         """
         if len(self.grids) != 1:
             return
-        with plotutils.pyplot(inav=self.options.INTERAC,
-                              name=self.options.method) as plt:
-            self.fig, self.ax = plt.subplots(1, 1, figsize=(6, 4.5))
+        with self.subplots(name=self.options.method):
             self.ax.scatter(self.xtrain,
                             self.ytrain,
                             color='k',
@@ -599,9 +606,7 @@ class Regression(Base):
             return
         for col in self.pred:
             method = self.parse(col)[1]
-            with plotutils.pyplot(inav=self.options.INTERAC,
-                                  name=method) as plt:
-                self.fig, self.ax = plt.subplots(1, 1, figsize=(6.5, 4.5))
+            with self.subplots(name=method, figsize=(7, 4.5)):
                 pred = self.pred[col]
                 pred = pred.values.reshape(self.grids[0].shape)
                 ctrf = self.ax.contourf(*self.grids, pred, cmap=cmap)
@@ -610,10 +615,10 @@ class Regression(Base):
                                title="Level",
                                loc='center left',
                                bbox_to_anchor=(1, 0.5))
-                plt.scatter(*self.xtrain.T,
-                            c=self.ytrain.ravel(),
-                            cmap=cmap,
-                            label=self.ORIGINAL)
+                self.ax.scatter(*self.xtrain.T,
+                                c=self.ytrain.ravel(),
+                                cmap=cmap,
+                                label=self.ORIGINAL)
                 self.save(label=method)
 
 
@@ -639,9 +644,7 @@ class Classification(Regression):
             with self.catchWarnings():
                 score = model.score(self.ytest, pred)
             self.log(f'accuracy score ({model.method}): {score:.4g}')
-            with plotutils.pyplot(inav=self.options.INTERAC,
-                                  name=model.method) as plt:
-                self.fig, self.ax = plt.subplots(1, 1)
+            with self.subplots(name=model.method):
                 with self.catchWarnings():
                     metrics.ConfusionMatrixDisplay.from_predictions(self.ytest,
                                                                     pred,

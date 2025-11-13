@@ -11,7 +11,7 @@ import platform
 
 
 @contextlib.contextmanager
-def pyplot(inav=False, name='the plot'):
+def pyplot(inav=False, name='plot'):
     """
     Get the pyplot with requested backend and restoration after usage.
 
