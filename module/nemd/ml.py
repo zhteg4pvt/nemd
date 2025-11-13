@@ -509,9 +509,7 @@ class Regression(Base):
     @functools.cached_property
     def scs(self):
         """
-        The x & y scalers.
-
-        :return list: the x & y scalers.
+        See parent.
         """
         return list(self.getScaler()) if Reg.SV in self.options.method else []
 
