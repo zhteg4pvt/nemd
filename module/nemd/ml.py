@@ -30,7 +30,50 @@ from nemd import logutils
 from nemd import plotutils
 
 
-class Reg:
+class Clus:
+    """
+    Cluster model wrapper.
+    """
+    K_MEANS = 'k-means'
+    HCA = 'hca'
+    NAMES = {K_MEANS: 'k-means cluster', HCA: 'hierarchical cluster analysis'}
+
+    def __init__(self, method, options=None, scs=None):
+        """
+        :param method: the regression method.
+        :param options 'argparse.Namespace': commandline arguments.
+        :param scs list: the scalers.
+        """
+        self.method = method
+        self.options = options
+        self.scs = scs
+
+    @functools.cached_property
+    def mdl(self):
+        """
+        Return the model.
+
+        :return object: original machine learning model.
+        """
+        index = self.options.method.index(self.method)
+        n_clusters = self.options.cluster_num[index]
+        match self.method:
+            case self.K_MEANS:
+                return cluster.KMeans(n_clusters=n_clusters,
+                                      random_state=self.options.seed)
+            case self.HCA:
+                return cluster.AgglomerativeClustering(n_clusters=n_clusters)
+
+    def fit(self, xdata, *args):
+        """
+        Fit the model.
+
+        :param xdata ndarray: the xdata.
+        """
+        self.mdl.fit(xdata)
+
+
+class Reg(Clus):
     """
     Regression model wrapper.
     """
@@ -42,40 +85,29 @@ class Reg:
     SHARED = {SV: 'support vector', DT: 'decision tree', RF: 'random forest'}
     NAMES = {LR: 'linear', POLY: 'polynomial', **SHARED}
 
-    def __init__(self, method, options=None, scs=None):
+    @functools.cached_property
+    def mdl(self):
         """
-        :param method: the regression method.
-        :param options 'argparse.Namespace': commandline arguments.
-        :param scs list: the scalers.
+        See parent.
         """
-        self.method = method
-        self.options = options
-        self.scs = scs
-        self.mdl = None
-        self.setUp()
-
-    def setUp(self):
-        """
-        Set up.
-        """
-        match self.method:
-            case self.LR | self.POLY:
-                self.mdl = linear_model.LinearRegression()
-            case self.SV:
-                self.mdl = svm.SVR()
-            case self.DT:
-                self.mdl = tree.DecisionTreeRegressor(
-                    random_state=self.options.seed)
-            case self.RF:
-                self.mdl = ensemble.RandomForestRegressor(
-                    n_estimators=self.options.tree_num,
-                    random_state=self.options.seed)
         if self.method != self.SV:
             self.scs = []
+        match self.method:
+            case self.LR | self.POLY:
+                return linear_model.LinearRegression()
+            case self.SV:
+                return svm.SVR()
+            case self.DT:
+                return tree.DecisionTreeRegressor(
+                    random_state=self.options.seed)
+            case self.RF:
+                return ensemble.RandomForestRegressor(
+                    n_estimators=self.options.tree_num,
+                    random_state=self.options.seed)
 
     def fit(self, xdata, ydata):
         """
-        Fit the model.
+        See parent.
 
         :param xdata ndarray: the xdata.
         :param ydata ndarray: the ydata.
@@ -144,40 +176,6 @@ class Reg:
         return self.scaleY(self.mdl.predict(self.opr(data)), inversed=True)
 
 
-class Clus(Reg):
-    """
-    Cluster model wrapper.
-    """
-    K_MEANS = 'k-means'
-    HCA = 'hca'
-    NAMES = {K_MEANS: 'k-means cluster', HCA: 'hierarchical cluster analysis'}
-
-    def setUp(self):
-        """
-        Set up.
-        """
-        n_clusters = self.options.cluster_num[self.options.method.index(
-            self.method)]
-        match self.method:
-            case self.K_MEANS:
-                self.mdl = cluster.KMeans(n_clusters=n_clusters,
-                                          random_state=self.options.seed)
-            case self.HCA:
-                self.mdl = cluster.AgglomerativeClustering(
-                    n_clusters=n_clusters)
-
-    def predict(self, *args):
-        """
-        See parent.
-
-        :raise AttributeError: when the model cannot predict.
-        """
-        if self.method == self.HCA:
-            raise AttributeError(f"{self.method} focuses on grouping existing "
-                                 "data and cannot predict.")
-        return super().predict(*args)
-
-
 class Clf(Reg):
     """
     Classification model wrapper.
@@ -192,25 +190,26 @@ class Clf(Reg):
         **Reg.SHARED
     }
 
-    def setUp(self):
+    @functools.cached_property
+    def mdl(self):
         """
-        Set up.
+        See parent.
         """
         match self.method:
             case self.LOGIT:
-                self.mdl = linear_model.LogisticRegression(
+                return linear_model.LogisticRegression(
                     random_state=self.options.seed)
             case self.KNN:
-                self.mdl = neighbors.KNeighborsClassifier()
+                return neighbors.KNeighborsClassifier()
             case self.SV:
-                self.mdl = svm.SVC(random_state=self.options.seed)
+                return svm.SVC(random_state=self.options.seed)
             case self.GNB:
-                self.mdl = naive_bayes.GaussianNB()
+                return naive_bayes.GaussianNB()
             case self.DT:
-                self.mdl = tree.DecisionTreeClassifier(
+                return tree.DecisionTreeClassifier(
                     random_state=self.options.seed)
             case self.RF:
-                self.mdl = ensemble.RandomForestClassifier(
+                return ensemble.RandomForestClassifier(
                     n_estimators=self.options.tree_num,
                     random_state=self.options.seed)
 
