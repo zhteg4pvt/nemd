@@ -368,21 +368,6 @@ class Cluster(Ml):
         inertia.index.name = f"{name} ({self.getIdx(arr[:-1] - arr[1:])})"
         return inertia
 
-    def getIdx(self, gaps, wdw=10, idx=1):
-        """
-        Get the index of the largest gap in the small gap group.
-
-        :param gaps np.ndarray: the gaps in descending orders.
-        :param wdw int: the averaging window length of the gaps (slopes).
-        :param idx int: the initial next gap id.
-        """
-        num = len(gaps)
-        # a -- gap0 -- b -- gap1 -- c: gap1 ^ 2 > gap0 * gap1
-        while idx < num and \
-                gaps[idx]**2 > gaps[:idx][-wdw:].mean() * gaps[idx:][:wdw].mean():
-            idx += 1
-        return idx
-
     def getInertia(self):
         """
         Get the inertia vs cluster num.
@@ -398,6 +383,21 @@ class Cluster(Ml):
             with self.catchWarnings():
                 mdl.fit(self.xtrain, self.ytrain)
             yield num, mdl.mdl.inertia_
+
+    def getIdx(self, gaps, wdw=10, idx=1):
+        """
+        Get the index of the largest gap in the small gap group.
+
+        :param gaps np.ndarray: the gaps in descending orders.
+        :param wdw int: the averaging window length of the gaps (slopes).
+        :param idx int: the initial next gap id.
+        """
+        num = len(gaps)
+        # a -- gap0 -- b -- gap1 -- c: gap1 ^ 2 > gap0 * gap1
+        while idx < num and \
+                gaps[idx]**2 > gaps[:idx][-wdw:].mean() * gaps[idx:][:wdw].mean():
+            idx += 1
+        return idx
 
     def setHcaNum(self, label='dendrogram'):
         """
@@ -424,10 +424,8 @@ class Cluster(Ml):
 
     def scatter(self):
         """
-        Create scatter plot.
+        Plot clusters in different colors.
         """
-        if self.xtrain.shape[1] > 2:
-            return
         for name, pred in self.pred.items():
             with self.subplots(name=name):
                 xtrain = self.xtrain.values
@@ -438,12 +436,10 @@ class Cluster(Ml):
     @functools.cached_property
     def pred(self):
         """
-        Return the categories.
+        Return the cluster ids of all methods.
 
-        :return pd.DataFrame: the gridded features and categories.
+        :return pd.DataFrame: cluster ids of data.
         """
-        if self.xdata.shape[-1] > 2:
-            return pd.DataFrame()
         pred = {x.method: x.mdl.labels_ for x in self.models}
         pred = pd.DataFrame(pred, index=pd.MultiIndex.from_frame(self.xtrain))
         outfile = f"{self.options.JOBNAME}{self.CSV_EXT}"

@@ -213,14 +213,64 @@ class TestMl(Base):
 class TestCluster(Base):
 
     @pytest.mark.parametrize('args,expected', [([MALL_CSV], 'ml_k-means.svg')])
-    def testRun(self, clus, expected, tmp_dir):
-        clus.run()
+    def testRun(self, raw, expected, tmp_dir):
+        raw.run()
         assert os.path.exists(expected)
 
     @pytest.mark.parametrize('args,expected', [([MALL_CSV], (200, 2))])
-    def testRead(self, clus, expected, tmp_dir):
-        clus.read()
+    def testRead(self, clus, expected):
         assert clus.xtrain.shape
+
+    @pytest.mark.parametrize('args,expected',
+                             [([MALL_CSV], 8),
+                              ([MALL_CSV, '-method', 'hca'], 2),
+                              ([MALL_CSV, '-cluster_num', 'auto'], 5)])
+    def testSetKMeanNum(self, clus, expected, tmp_dir):
+        clus.setKMeanNum()
+        assert expected == clus.options.cluster_num[0]
+
+    @pytest.mark.parametrize('args,expected',
+                             [([MALL_CSV, '-max_num', '7'], 8)])
+    def testInertia(self, clus, expected):
+        assert expected == clus.inertia.shape[0]
+
+    @pytest.mark.parametrize('args,expected',
+                             [([MALL_CSV, '-max_num', '7'], 8)])
+    def testGetInertia(self, clus, expected):
+        assert expected == len(list(clus.getInertia()))
+
+    @pytest.mark.parametrize('args,array,expected',
+                             [([MALL_CSV], [10, 8, 6, 4, 3, 2, 1], 3)])
+    def testGetIdx(self, clus, array, expected):
+        assert expected == clus.getIdx(np.array(array))
+
+    @pytest.mark.parametrize(
+        'args,expected',
+        [([MALL_CSV, '-method', 'k-means'], 8),
+         ([MALL_CSV, '-method', 'hca'], 2),
+         ([MALL_CSV, '-method', 'hca', '-cluster_num', 'auto'], 5)])
+    def testSetHcaNum(self, clus, expected, tmp_dir):
+        clus.setHcaNum()
+        assert expected == clus.options.cluster_num[0]
+
+    @pytest.mark.parametrize('args,expected',
+                             [([MALL_CSV, '-method', 'k-means', 'hca'], 2)])
+    def testScatter(self, clus, expected, tmp_dir):
+        clus.scatter()
+        assert expected == len(clus.ax.collections)
+
+    @pytest.mark.parametrize('args,expected',
+                             [([MALL_CSV, '-method', 'k-means', 'hca'],
+                               (200, 2))])
+    def testPred(self, clus, expected, tmp_dir):
+        assert expected == clus.pred.shape
+
+    @pytest.mark.parametrize('args,expected',
+                             [([MALL_CSV], 'Spending Score (1-100)')])
+    def testSetLayout(self, clus, expected, tmp_dir):
+        with clus.subplots():
+            clus.setLayout()
+        assert expected == clus.ax.get_ylabel()
 
 
 @conftest.require_src
