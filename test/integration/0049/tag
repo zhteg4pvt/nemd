@@ -1,2 +1,2 @@
-slow 100 00:00:03 50000 00:00:05
-label number_of_molecules Number_of_Molecules
+slow 100 00:00:02 50000 00:00:03
+label Number_of_Molecules

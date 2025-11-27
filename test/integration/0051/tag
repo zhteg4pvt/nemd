@@ -1,2 +1,2 @@
-slow lmp_traj 00:00:05
+slow lmp_traj 00:00:03
 label lmp_traj

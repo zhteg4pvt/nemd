@@ -1,2 +1,2 @@
-slow mb_lmp_log 00:00:14
-label mb_lmp_log
+slow amorp lmp log 00:00:08
+label amorp lmp log

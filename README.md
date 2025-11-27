@@ -5,11 +5,11 @@ Install packages, clone the repository, and update drivers
 
 - MacOS
 ```
-bash -c "$(curl -fsSL 'https://raw.githubusercontent.com/zhteg4/nemd/main/setup')"
+bash -c "$(curl 'https://raw.githubusercontent.com/zhteg4pvt/nemd/main/setup')"
 ```
 - Ubuntu
 ```
-bash <(wget -qO- https://raw.githubusercontent.com/zhteg4/nemd/main/setup)
+bash <(wget -qO- https://raw.githubusercontent.com/zhteg4pvt/nemd/main/setup)
 ```
 Install dependencies, compile the binaries, and distribute scripts
 ```

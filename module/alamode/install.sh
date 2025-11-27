@@ -15,7 +15,7 @@ git_update alamode
 # OS - dependent settings
 case $(uname) in
   Darwin*)
-    PREFIX=$(brew --prefix); set -- "$@" -DSPGLIB_ROOT=$PREFIX -DFFTW3_ROOT=$PREFIX
+    PREFIX=$(brew --prefix); set -- "$@" -DSPGLIB_ROOT=$PREFIX -DFFTW3_ROOT=$PREFIX -DEIGEN3_INCLUDE_DIR="$(pkg-config --cflags-only-I eigen3 | sed 's/^-I//')"
     llvm; C_COMPILER=clang; CXX_COMPILER=clang++
     ;;
   Linux*)
