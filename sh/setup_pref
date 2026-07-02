@@ -1,0 +1,58 @@
+#!/bin/sh
+# Under the BSD 3-Clause License by Teng Zhang (zhteg4@gmail.com)
+: '
+Setup MacBook (Sonoma 14.5) and Ubuntu (22.04 LTS) preference.
+
+Usage:
+  setup_pref
+'
+
+# Version, Packages, and Environment
+case $(uname) in
+  Darwin*)
+    (xcode-select -v) || xcode-select --install
+    brew -v || bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    brew -v || { grep brew ~/.zprofile || echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile; source ~/.zprofile; }
+    echo "Please open a new terminal, or source ~/.zprofile"
+    brew install -q gh git vim python@3.10
+    ;;
+  Linux*)
+    lsb_release -sr  # 22.04
+    sudo apt update
+    sudo apt-get install -y gh git vim python3.10 python3-pip python3.10-venv
+    # pip uses --user automatically if not root
+    BIN=$(python3 -m site --user-base)/bin
+    [ ! -d $BIN ] && mkdir -p $BIN
+    echo $PATH | grep -q -v $BIN && export PATH="$BIN${PATH:+":$PATH"}"
+    ;;
+esac
+
+# Terminal, Prompt, and Other
+case $(uname) in
+  Darwin*)
+    (brew -v) || . ~/.zprofile
+    brew install --cask iterm2 pycharm-ce meld
+    # Mark directory as Source Root to avoid 'python cannot find declaration to go to'
+    # Editor > Code Stype > Hard wrap at: 80 for yapf consistency    zsh -c "setopt prompt_subst"
+    grep prompt ~/.zshrc || echo "prompt='%F{240}%n%F{yellow}@%F{green}%m %F{blue}%1~ %F{red}$(git branch --show-current 2>/dev/null)%F{reset}: '" >> ~/.zshrc
+    grep 'alias ls' ~/.zshrc || echo 'alias ls="ls --color"' >> ~/.zshrc
+    source ~/.zshrc
+    # The amixs sets both cursor and background in black
+    osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to true'
+    ;;
+  Linux*)
+    sudo snap install pycharm-community --classic
+    grep PS1 ~/.bashrc || echo 'export PS1="\[\e[02m\]\u\[\e[33m\]@\[\e[32m\]\h$ \[\e[34m\]\W \[\e[31m\]\$(git symbolic-ref --short HEAD 2>/dev/null) \[\e[0m\]"' >> ~/.bashrc
+    ;;
+ esac
+
+# Editor
+git config --global core.editor "vim"
+[ -d ~/.vim_runtime ] || git clone --depth=1 https://github.com/amix/vimrc.git ~/.vim_runtime
+[ -d ~/.vim_runtime ] && sh ~/.vim_runtime/install_awesome_vimrc.sh
+
+# Git
+if [ -z "$(git config user.name)" ]; then
+  git config --global user.email $(whoami)@gmail.com
+  git config --global user.name $(whoami)
+fi
