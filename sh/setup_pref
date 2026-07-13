@@ -12,6 +12,8 @@ case $(uname) in
   Darwin*)
     #  (xcode-select -v) || xcode-select --install
     brew -v || bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    # prompt expand parameters and substitute commands
+    grep PROMPT_SUBST ~/.zshrc || echo "setopt PROMPT_SUBST" >> ~/.zshrc
     brew -v || { grep brew ~/.zprofile || echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile; source ~/.zprofile; }
     echo "Please open a new terminal, or source ~/.zprofile"
     brew install -q gh git vim python@3.10
