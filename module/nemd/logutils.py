@@ -122,7 +122,7 @@ class Logger(logging.Logger):
         """
         self.info(self.OPTIONS_START)
         for key, val in options.__dict__.items():
-            if type(val) is list:
+            if isinstance(val, list):
                 val = symbols.SPACE.join(map(str, val))
             self.info(f"{key}{COLON_SEP}{val}")
         self.info(f"JobStart: {timeutils.Date.now().strftime()}")
